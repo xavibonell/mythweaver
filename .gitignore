@@ -1,0 +1,21 @@
+node_modules/
+dist/
+.next/
+out/
+*.tsbuildinfo
+.env
+.env.local
+.env.*.local
+.DS_Store
+coverage/
+*.log
+.venv*/
+traces*.jsonl
+
+# Copyrighted source material + extracted corpus — personal use only, NEVER commit/ship.
+raw-data/
+content/corpus/
+
+# Raw third-party asset packs (curated subset extracted into apps/web/public/assets/).
+# CC0: kenney-tiny-* + tiny-creatures. Free-for-commercial: pixel-crawler (kept for cherry-picking).
+raw-packs/

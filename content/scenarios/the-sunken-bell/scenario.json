@@ -1,0 +1,36 @@
+{
+  "id": "the-sunken-bell",
+  "title": "The Sunken Bell of Mistmoor",
+  "pitch": "In the fog-bound fen-village of Mistmoor, the great bronze warning bell has fallen silent — and a fisher has vanished. The villagers whisper of the drowned dead, but something with greener hands toppled that bell. One evening's work to set it right.",
+  "startSceneId": "mistmoor-green",
+  "scenes": [
+    {
+      "id": "mistmoor-green",
+      "title": "Mistmoor Green",
+      "summary": "Dusk over a huddle of stilt-houses ringing a muddy green. Across the fen, the old bell-tower stands dark and crooked. Edda Marsh, the elderly bellkeeper, meets the party — grateful but evasive (she quietly paid the raiders to move on, and is ashamed). Truths to uncover: the bell fell three nights ago; the fisher Tomen has been missing since; lights have been seen in the tower; small, clawed footprints lead toward it. Suggested checks (offer multiple paths, never gate the only route): Wisdom (Insight) DC 12 to sense Edda is hiding something; Charisma (Persuasion) DC 13 to coax the truth; Intelligence (Investigation) or Wisdom (Perception) DC 12 to find the goblin tracks. Any one success points the party at the tower.",
+      "exits": ["bell-tower"]
+    },
+    {
+      "id": "bell-tower",
+      "title": "The Drowned Bell-Tower",
+      "summary": "A half-sunken stone tower at the fen's edge. The great bell lies cracked in the mud, its heavy iron clapper torn free and gone. Cookfire smoke and gnawed bones betray a camp below. Three ways in — deliberately redundant so a party missing any one skill is fine: a slick climb to a broken upper window (Strength (Athletics) DC 12); a silent wade through the reeds to the undercroft stair (Dexterity (Stealth) DC 12); or simply walking in the gap in the wall (no check — but the goblins hear them coming and act first). A Wisdom (Perception) or Wisdom (Survival) DC 12 spots a string-and-tin alarm rigged across the stair.",
+      "exits": ["tower-undercroft"]
+    },
+    {
+      "id": "tower-undercroft",
+      "title": "The Undercroft",
+      "summary": "Ankle-deep black water and a guttering fire. Two goblins bicker over the stolen iron clapper (they mean to sell it to a marsh-witch downriver) while their rat gnaws in a corner. The missing fisher, Tomen, is here — bound, gagged, and alive. This is the set-piece combat, unless the party engineered a cleverer resolution (a convincing bluff, a bargain, picking them off by stealth). The goblins use Nimble Escape to dart and hide; once reduced to a single combatant, the survivor tries to flee with the clapper. Freeing Tomen and recovering the clapper resolves the adventure; rehanging the bell is the quiet denouement.",
+      "exits": []
+    }
+  ],
+  "encounters": [
+    {
+      "id": "undercroft-skirmish",
+      "sceneId": "tower-undercroft",
+      "monsters": [
+        { "statBlockId": "goblin", "count": 2 },
+        { "statBlockId": "giant-rat", "count": 1 }
+      ]
+    }
+  ]
+}

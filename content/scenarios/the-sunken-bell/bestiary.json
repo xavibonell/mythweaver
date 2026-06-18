@@ -1,0 +1,45 @@
+[
+  {
+    "id": "goblin",
+    "name": "Goblin",
+    "size": "small",
+    "type": "humanoid (goblinoid)",
+    "armorClass": 15,
+    "hitPoints": { "average": 7, "formula": "2d6" },
+    "speedFt": 30,
+    "abilities": { "str": 8, "dex": 14, "con": 10, "int": 10, "wis": 8, "cha": 8 },
+    "challengeRating": 0.25,
+    "proficiencyBonus": 2,
+    "skillProficiencies": { "stealth": 6 },
+    "senses": "darkvision 60 ft., passive Perception 9",
+    "attacks": [
+      { "name": "Scimitar", "attackBonus": 4, "damage": "1d6+2", "damageType": "slashing", "reachOrRangeFt": 5 },
+      { "name": "Shortbow", "attackBonus": 4, "damage": "1d6+2", "damageType": "piercing", "reachOrRangeFt": 80 }
+    ],
+    "traits": [
+      { "name": "Nimble Escape", "text": "The goblin can take the Disengage or Hide action as a bonus action on each of its turns." }
+    ],
+    "source": "SRD 5.1"
+  },
+  {
+    "id": "giant-rat",
+    "name": "Giant Rat",
+    "size": "small",
+    "type": "beast",
+    "armorClass": 12,
+    "hitPoints": { "average": 7, "formula": "2d6" },
+    "speedFt": 30,
+    "abilities": { "str": 7, "dex": 15, "con": 11, "int": 2, "wis": 10, "cha": 4 },
+    "challengeRating": 0.125,
+    "proficiencyBonus": 2,
+    "senses": "darkvision 60 ft., passive Perception 10",
+    "attacks": [
+      { "name": "Bite", "attackBonus": 4, "damage": "1d4+2", "damageType": "piercing", "reachOrRangeFt": 5 }
+    ],
+    "traits": [
+      { "name": "Keen Smell", "text": "The rat has advantage on Wisdom (Perception) checks that rely on smell." },
+      { "name": "Pack Tactics", "text": "The rat has advantage on an attack roll against a creature if at least one of the rat's allies is within 5 ft. of it and not incapacitated." }
+    ],
+    "source": "SRD 5.1"
+  }
+]

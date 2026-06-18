@@ -1,0 +1,50 @@
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: mythweaver
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-mythweaver}
+      POSTGRES_DB: mythweaver
+    ports:
+      - "5432:5432"
+    volumes:
+      - dbdata:/var/lib/postgresql/data
+      - ./db/init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mythweaver"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  server:
+    build:
+      context: .
+      dockerfile: apps/server/Dockerfile
+    environment:
+      DATABASE_URL: postgres://mythweaver:${POSTGRES_PASSWORD:-mythweaver}@db:5432/mythweaver
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      VOYAGE_API_KEY: ${VOYAGE_API_KEY:-}
+      MYTHWEAVER_SESSION_BUDGET_USD: ${MYTHWEAVER_SESSION_BUDGET_USD:-}
+      # In a container the server must bind 0.0.0.0 — so set a shared token to gate it.
+      HOST: 0.0.0.0
+      MYTHWEAVER_API_TOKEN: ${MYTHWEAVER_API_TOKEN:-}
+      PORT: "8080"
+    ports:
+      - "8080:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    environment:
+      NEXT_PUBLIC_SERVER_URL: http://localhost:8080
+    ports:
+      - "3000:3000"
+    depends_on:
+      - server
+
+volumes:
+  dbdata:

@@ -1,0 +1,445 @@
+/**
+ * DM Lab — a self-contained web front-end for driving the real DM and tuning it LIVE.
+ * Served by the BACKEND (GET /dm/lab) so it never touches apps/web (scene-lab's territory).
+ *
+ * Three tabs:
+ *  - Run      — enter a turn script + temperature, Run, inspect each turn (narration, tool
+ *               calls + results, state diff, cost). Uses the current editor contents as overrides.
+ *  - Playbook — edit prompts/dm-playbook.md live; Run picks it up without saving; Save persists.
+ *  - Scenario — edit the scenario.json (per-scene GM guidance) live; same override + Save.
+ *
+ * Endpoints used: GET /dm/lab/files, POST /dm/lab (run with overrides), POST /dm/lab/save.
+ */
+
+import type { LabTurn } from './dm-lab.js';
+
+/** Render the page. `transcripts` are injected so the UI can offer one-click presets. */
+export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string {
+  const transcriptsJson = JSON.stringify(transcripts);
+  return `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>MythWeaver — DM Lab</title>
+<style>
+  :root { color-scheme: dark; --hdr: 52px; --tabs: 44px; }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body { margin: 0; background: #0e1014; color: #e6e8ee; font: 14px/1.5 ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
+  header { height: var(--hdr); padding: 0 20px; border-bottom: 1px solid #23262e; display: flex; align-items: center; gap: 12px; }
+  header h1 { font-size: 16px; margin: 0; font-weight: 600; }
+  header .sub { color: #8b90a0; font-size: 12px; }
+  nav.tabs { height: var(--tabs); display: flex; align-items: stretch; gap: 2px; padding: 0 14px; border-bottom: 1px solid #23262e; background: #0c0e12; }
+  nav.tabs .tab { background: none; border: 0; border-bottom: 2px solid transparent; color: #9aa0b0; font: inherit; font-weight: 500; padding: 0 16px; cursor: pointer; }
+  nav.tabs .tab:hover { color: #e6e8ee; }
+  nav.tabs .tab.active { color: #fff; border-bottom-color: #4c6ef5; }
+  nav.tabs .gstatus { margin-left: auto; align-self: center; color: #8b90a0; font-size: 12px; font-family: ui-monospace, monospace; }
+  main { height: calc(100vh - var(--hdr) - var(--tabs)); }
+  .view { display: none; height: 100%; }
+  .view.run.active { display: grid; grid-template-columns: 400px 1fr; }
+  .view.editor.active { display: flex; flex-direction: column; }
+  .panel { padding: 16px 20px; overflow: auto; }
+  .panel.left { border-right: 1px solid #23262e; }
+  label { display: block; font-size: 12px; color: #9aa0b0; margin: 12px 0 4px; }
+  label:first-child { margin-top: 0; }
+  input[type=text], textarea { width: 100%; background: #161922; color: #e6e8ee; border: 1px solid #2b2f3a; border-radius: 8px; padding: 9px 11px; font: inherit; }
+  textarea { resize: vertical; font: 13px/1.55 ui-monospace, SFMono-Regular, Menlo, monospace; }
+  #turns { min-height: 200px; white-space: pre; }
+  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  button { background: #3b5bdb; color: #fff; border: 0; border-radius: 8px; padding: 9px 16px; font: inherit; font-weight: 600; cursor: pointer; }
+  button:hover { background: #4c6ef5; }
+  button:disabled { background: #2b2f3a; color: #6b7080; cursor: default; }
+  button.ghost { background: #1b1f29; color: #c7ccda; border: 1px solid #2b2f3a; font-weight: 500; padding: 6px 11px; }
+  button.ghost:hover { background: #232735; }
+  .temp { display: flex; align-items: center; gap: 10px; }
+  .temp input[type=range] { flex: 1; accent-color: #4c6ef5; }
+  .temp .val { font-family: ui-monospace, monospace; min-width: 34px; text-align: right; color: #c7ccda; }
+  .hint { color: #6b7080; font-size: 12px; margin-top: 6px; }
+  kbd { background: #20242e; border: 1px solid #2b2f3a; border-radius: 4px; padding: 0 5px; font: 11px ui-monospace, monospace; }
+  /* editor tabs */
+  .ed-toolbar { display: flex; align-items: center; gap: 10px; padding: 10px 20px; border-bottom: 1px solid #23262e; background: #0c0e12; }
+  .ed-toolbar .name { font-family: ui-monospace, monospace; font-size: 12px; color: #9aa0b0; }
+  .ed-toolbar .status { margin-left: auto; font-size: 12px; font-family: ui-monospace, monospace; color: #8b90a0; }
+  .ed-wrap { flex: 1; padding: 0; display: flex; }
+  .ed-wrap textarea { flex: 1; border: 0; border-radius: 0; resize: none; padding: 16px 20px; background: #0e1014; font-size: 13px; }
+  .ed-wrap textarea:focus { outline: none; }
+  /* distill tab */
+  .view.distill.active { display: flex; flex-direction: column; }
+  .distill-grid { flex: 1; display: grid; grid-template-columns: 1fr 1fr; min-height: 0; }
+  .distill-col { display: flex; flex-direction: column; min-height: 0; }
+  .distill-col:first-child { border-right: 1px solid #23262e; }
+  select.seg { background: #161922; color: #e6e8ee; border: 1px solid #2b2f3a; border-radius: 7px; padding: 5px 8px; font: inherit; font-size: 12px; }
+  .seg-btn { padding: 5px 11px; font-size: 12px; }
+  .seg-btn.active { background: #2b3556; color: #fff; border-color: #3b5bdb; }
+  .diff-view { flex: 1; overflow: auto; padding: 10px 14px; font: 12px/1.55 ui-monospace, SFMono-Regular, Menlo, monospace; background: #0e1014; }
+  .diff-view .ln { white-space: pre-wrap; word-break: break-word; padding: 0 6px; }
+  .diff-view .add { background: #11351e; color: #8fd6a2; }
+  .diff-view .del { background: #38141d; color: #f0a6b0; }
+  .diff-view .ctx { color: #6b7080; }
+  .diff-view .gap { color: #4b5060; font-style: italic; padding: 3px 6px; }
+  .diff-view .none { color: #6b7080; font-style: italic; }
+  /* results */
+  .turn { border: 1px solid #23262e; border-radius: 10px; margin-bottom: 14px; overflow: hidden; }
+  .turn .head { display: flex; justify-content: space-between; gap: 10px; padding: 9px 13px; background: #161922; border-bottom: 1px solid #23262e; align-items: baseline; }
+  .turn .who { font-weight: 600; }
+  .turn .who .tag { color: #e8a13a; font-weight: 500; font-size: 11px; margin-left: 6px; }
+  .turn .meta { color: #7b8090; font-size: 11px; font-family: ui-monospace, monospace; white-space: nowrap; }
+  .turn .body { padding: 11px 13px; }
+  .tool { font-family: ui-monospace, monospace; font-size: 12px; margin: 0 0 7px; padding-left: 14px; border-left: 2px solid #3b5bdb; }
+  .tool .name { color: #6ab0ff; font-weight: 600; }
+  .tool .inp { color: #9aa0b0; }
+  .tool .res { color: #79c08a; display: block; margin-top: 2px; word-break: break-word; }
+  .roll { color: #e8a13a; font-size: 12px; margin: 0 0 7px; }
+  .diff { font-family: ui-monospace, monospace; font-size: 12px; color: #c08ae8; margin: 0 0 8px; }
+  .diff b { color: #c08ae8; font-weight: 600; }
+  .narr { white-space: pre-wrap; }
+  .narr.empty { color: #6b7080; font-style: italic; }
+  .total { color: #9aa0b0; font-size: 12px; font-family: ui-monospace, monospace; padding: 4px 0 16px; }
+  .err { background: #2a1416; border: 1px solid #5a2630; color: #f3a3ad; border-radius: 8px; padding: 11px 13px; white-space: pre-wrap; }
+  .empty-state { color: #6b7080; padding: 40px 0; text-align: center; }
+  .spin { display: inline-block; width: 13px; height: 13px; border: 2px solid #ffffff60; border-top-color: #fff; border-radius: 50%; animation: s .7s linear infinite; vertical-align: -2px; margin-right: 7px; }
+  @keyframes s { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+<header>
+  <h1>MythWeaver — DM Lab</h1>
+  <span class="sub">tune the DM live · edit the playbook &amp; scenario, set a temperature, Run the same prompts &amp; compare</span>
+</header>
+<nav class="tabs">
+  <button class="tab active" data-tab="run">Run</button>
+  <button class="tab" data-tab="playbook">Playbook</button>
+  <button class="tab" data-tab="scenario">Scenario</button>
+  <button class="tab" data-tab="distill">Distill</button>
+  <span class="gstatus" id="gstatus"></span>
+</nav>
+<main>
+  <section class="view run active" id="view-run">
+    <div class="panel left">
+      <label for="scenario">Scenario</label>
+      <input id="scenario" type="text" value="the-sunken-bell" />
+      <label for="temp">Temperature <span style="color:#6b7080">— 0 = deterministic, 1 = creative</span></label>
+      <div class="temp">
+        <input id="temp" type="range" min="0" max="1" step="0.05" value="1" />
+        <span class="val" id="tempVal">1.00</span>
+      </div>
+      <label for="turns">Turns — one per line: <code>Name: text</code>, or <code>roll: 15</code></label>
+      <textarea id="turns" spellcheck="false"></textarea>
+      <div class="hint">A <code>roll:</code> line resolves a check the DM asked for; otherwise the lab auto-rolls a plausible total. The Playbook/Scenario tabs are applied to this run even if unsaved.</div>
+      <div class="row" style="margin-top:12px;">
+        <button id="run">Run</button>
+        <span id="presets"></span>
+      </div>
+      <div class="hint" id="status"><kbd>⌘/Ctrl</kbd> + <kbd>Enter</kbd> runs from any tab.</div>
+    </div>
+    <div class="panel right">
+      <div id="out"><div class="empty-state">Enter turns and hit Run to see the DM play.</div></div>
+    </div>
+  </section>
+
+  <section class="view editor" id="view-playbook">
+    <div class="ed-toolbar">
+      <span class="name">prompts/dm-playbook.md</span>
+      <button class="ghost" data-reload="playbook">Reload from disk</button>
+      <button data-save="playbook">Save</button>
+      <span class="status" id="status-playbook"></span>
+    </div>
+    <div class="ed-wrap"><textarea id="ed-playbook" spellcheck="false" placeholder="loading…"></textarea></div>
+  </section>
+
+  <section class="view editor" id="view-scenario">
+    <div class="ed-toolbar">
+      <span class="name" id="scenario-name">content/scenarios/&hellip;/scenario.json</span>
+      <button class="ghost" data-reload="scenario">Reload from disk</button>
+      <button data-save="scenario">Save</button>
+      <span class="status" id="status-scenario"></span>
+    </div>
+    <div class="ed-wrap"><textarea id="ed-scenario" spellcheck="false" placeholder="loading…"></textarea></div>
+  </section>
+
+  <section class="view distill" id="view-distill">
+    <div class="distill-grid">
+      <div class="distill-col">
+        <div class="ed-toolbar">
+          <span class="name">Source in</span>
+          <select id="distill-mode" class="seg" title="Transcript = distil the DM's voice. Guide = distil best-practice directives.">
+            <option value="transcript">Transcript</option>
+            <option value="guide">Guide / best-practices</option>
+          </select>
+          <input type="file" id="distill-files" accept=".txt,.md,.json,.text,text/plain" multiple style="display:none" />
+          <button class="ghost" id="distill-upload">Upload files…</button>
+          <span class="status" id="distill-incount">0 chars</span>
+          <button id="distill-run" style="margin-left:auto">Distill</button>
+        </div>
+        <div class="ed-wrap"><textarea id="distill-in" spellcheck="false" placeholder="Transcript mode: paste real session transcript(s) — lines prefixed 'DM:' work best — to distil the DM's voice.&#10;Guide mode: paste a DM best-practices / advice document to distil actionable principles.&#10;Or click Upload files (any text). Large pastes are sampled across the whole text."></textarea></div>
+      </div>
+      <div class="distill-col">
+        <div class="ed-toolbar">
+          <span class="name" id="distill-out-name">Distilled output (editable)</span>
+          <button class="ghost seg-btn active" id="view-block">Block</button>
+          <button class="ghost seg-btn" id="view-diff">Diff</button>
+          <button id="distill-apply" style="margin-left:auto">Apply to Playbook →</button>
+          <span class="status" id="distill-status"></span>
+        </div>
+        <div class="ed-wrap" id="wrap-block"><textarea id="distill-out" spellcheck="false" placeholder="The distilled block appears here. Review/edit it, flip to 'Diff' to see exactly what it changes in the playbook, then 'Apply to Playbook' (temporary) and test in Run. Nothing is saved until you hit Save on the Playbook tab."></textarea></div>
+        <div class="diff-view" id="wrap-diff" style="display:none"></div>
+      </div>
+    </div>
+  </section>
+</main>
+<script>
+  var TRANSCRIPTS = ${transcriptsJson};
+  var $ = function (id) { return document.getElementById(id); };
+
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+  function turnsToText(turns) {
+    return turns.map(function (t) { return ('roll' in t) ? 'roll: ' + t.roll : (t.as ? t.as + ': ' + t.say : t.say); }).join('\\n');
+  }
+  function parseTurns(text) {
+    var out = [];
+    text.split('\\n').forEach(function (raw) {
+      var line = raw.trim();
+      if (!line) return;
+      var m = line.match(/^(?:roll|🎲)\\s*:?\\s*(-?\\d+)$/i);
+      if (m) { out.push({ roll: Number(m[1]) }); return; }
+      var s = line.match(/^([^:]{1,40}):\\s*(.+)$/);
+      if (s) out.push({ as: s[1].trim(), say: s[2].trim() });
+      else out.push({ say: line });
+    });
+    return out;
+  }
+  function fmtCost(n) { return '$' + (n || 0).toFixed(4); }
+  function fmtTime(ms) { return ((ms || 0) / 1000).toFixed(1) + 's'; }
+  function gstatus(msg) { $('gstatus').textContent = msg || ''; }
+
+  // --- tabs ---
+  function showTab(name) {
+    ['run', 'playbook', 'scenario', 'distill'].forEach(function (n) {
+      $('view-' + n).classList.toggle('active', n === name);
+    });
+    document.querySelectorAll('nav.tabs .tab').forEach(function (b) {
+      b.classList.toggle('active', b.getAttribute('data-tab') === name);
+    });
+  }
+  document.querySelectorAll('nav.tabs .tab').forEach(function (b) {
+    b.onclick = function () { showTab(b.getAttribute('data-tab')); };
+  });
+
+  // --- results render ---
+  function renderResult(r) {
+    if (!r.turns.length) return '<div class="empty-state">No turns ran.</div>';
+    var html = r.turns.map(function (t) {
+      var tools = (t.tools || []).map(function (c) {
+        var res = c.result ? '<span class="res">→ ' + esc(c.result) + '</span>' : '';
+        return '<div class="tool"><span class="name">' + esc(c.name) + '</span>' +
+          '<span class="inp">(' + esc(JSON.stringify(c.input)) + ')</span>' + res + '</div>';
+      }).join('');
+      var roll = t.rollRequest ? '<div class="roll">⏸ roll requested: ' + esc(t.rollRequest.expr) + ' — ' + esc(t.rollRequest.reason) + '</div>' : '';
+      var diff = (t.diff && t.diff.length) ? '<div class="diff"><b>state Δ</b> ' + t.diff.map(esc).join('  |  ') + '</div>' : '';
+      var tag = t.kind === 'auto-roll' ? '<span class="tag">auto-roll</span>' : '';
+      var narr = t.narration ? '<div class="narr">' + esc(t.narration) + '</div>' : '<div class="narr empty">(no narration — turn paused for a roll)</div>';
+      var meta = esc(t.model || '?') + ' · ' + t.steps + ' step(s) · ' + fmtTime(t.latencyMs) + ' · ' + fmtCost(t.costUsd);
+      return '<div class="turn"><div class="head"><span class="who">' + esc(t.speaker) + tag +
+        ': <span style="font-weight:400;color:#b7bccb">' + esc(t.input) + '</span></span>' +
+        '<span class="meta">' + meta + '</span></div>' +
+        '<div class="body">' + tools + roll + diff + narr + '</div></div>';
+    }).join('');
+    html += '<div class="total">Total: ' + fmtCost(r.totalCostUsd) + ' · ' + fmtTime(r.totalLatencyMs) + ' · ' + r.turns.length + ' turn(s)</div>';
+    return html;
+  }
+
+  // --- run ---
+  function run() {
+    var btn = $('run');
+    var turns = parseTurns($('turns').value);
+    if (!turns.length) { $('status').textContent = 'Add at least one turn.'; showTab('run'); return; }
+    btn.disabled = true;
+    showTab('run');
+    var players = turns.filter(function (t) { return 'say' in t; }).length;
+    $('status').innerHTML = '<span class="spin"></span>running ' + players + ' player turn(s) at temp ' + Number($('temp').value).toFixed(2) + ' — real API calls…';
+    fetch('/dm/lab', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        scenario: $('scenario').value.trim() || 'the-sunken-bell',
+        turns: turns,
+        temperature: Number($('temp').value),
+        playbook: $('ed-playbook').value,
+        scenarioJson: $('ed-scenario').value,
+      }),
+    }).then(function (res) {
+      return res.json().then(function (body) { return { ok: res.ok, body: body }; });
+    }).then(function (x) {
+      if (!x.ok) { $('out').innerHTML = '<div class="err">' + esc(x.body && x.body.error ? x.body.error : 'request failed') + '</div>'; $('status').textContent = ''; return; }
+      $('out').innerHTML = renderResult(x.body);
+      $('status').textContent = 'done · ' + fmtCost(x.body.totalCostUsd) + ' · ' + fmtTime(x.body.totalLatencyMs);
+    }).catch(function (e) {
+      $('out').innerHTML = '<div class="err">' + esc(e.message || String(e)) + '</div>';
+      $('status').textContent = '';
+    }).finally(function () { btn.disabled = false; });
+  }
+
+  // --- load / save editable files ---
+  function loadFiles() {
+    var slug = $('scenario').value.trim() || 'the-sunken-bell';
+    gstatus('loading files…');
+    fetch('/dm/lab/files?scenario=' + encodeURIComponent(slug)).then(function (r) { return r.json(); }).then(function (b) {
+      if (b.error) { gstatus('load error: ' + b.error); return; }
+      $('ed-playbook').value = b.playbook || '';
+      $('ed-scenario').value = b.scenarioJson || '';
+      $('scenario-name').textContent = 'content/scenarios/' + (b.scenario || slug) + '/scenario.json';
+      gstatus('files loaded');
+      setTimeout(function () { gstatus(''); }, 1500);
+    }).catch(function (e) { gstatus('load error: ' + (e.message || e)); });
+  }
+  function save(kind) {
+    var st = $('status-' + kind);
+    var payload = kind === 'playbook'
+      ? { playbook: $('ed-playbook').value }
+      : { scenario: $('scenario').value.trim() || 'the-sunken-bell', scenarioJson: $('ed-scenario').value };
+    st.textContent = 'saving…';
+    fetch('/dm/lab/save', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload) })
+      .then(function (r) { return r.json().then(function (b) { return { ok: r.ok, body: b }; }); })
+      .then(function (x) { st.textContent = x.ok ? 'saved ✓' : ('error: ' + (x.body.error || 'failed')); })
+      .catch(function (e) { st.textContent = 'error: ' + (e.message || e); });
+  }
+  document.querySelectorAll('[data-save]').forEach(function (b) { b.onclick = function () { save(b.getAttribute('data-save')); }; });
+  document.querySelectorAll('[data-reload]').forEach(function (b) { b.onclick = function () { loadFiles(); }; });
+
+  // --- presets + temp + shortcuts ---
+  Object.keys(TRANSCRIPTS).forEach(function (name) {
+    var b = document.createElement('button');
+    b.className = 'ghost';
+    b.textContent = name;
+    b.onclick = function () { $('turns').value = turnsToText(TRANSCRIPTS[name]); };
+    $('presets').appendChild(b);
+  });
+  $('temp').oninput = function () { $('tempVal').textContent = Number($('temp').value).toFixed(2); };
+  $('turns').value = turnsToText(TRANSCRIPTS.default || []);
+  $('run').onclick = run;
+
+  // --- distill: source (transcript|guide) -> block -> diff/apply into the (temp) playbook ---
+  var distillMode = 'transcript'; // the mode the CURRENT output belongs to (set on Distill)
+  function markersFor(mode) {
+    return mode === 'guide'
+      ? { b: '<!-- DISTILLED-PRINCIPLES:BEGIN -->', e: '<!-- DISTILLED-PRINCIPLES:END -->' }
+      : { b: '<!-- DISTILLED-STYLE:BEGIN -->', e: '<!-- DISTILLED-STYLE:END -->' };
+  }
+  function spliceInto(pb, block, mode) {
+    var m = markersFor(mode);
+    var wrapped = m.b + '\\n' + block.trim() + '\\n' + m.e;
+    var bi = pb.indexOf(m.b), ei = pb.indexOf(m.e);
+    if (bi >= 0 && ei > bi) return pb.slice(0, bi) + wrapped + pb.slice(ei + m.e.length);
+    return pb.replace(/\\s*$/, '') + '\\n\\n' + wrapped + '\\n';
+  }
+  function inCount() { $('distill-incount').textContent = $('distill-in').value.length.toLocaleString() + ' chars'; }
+  $('distill-in').oninput = inCount;
+  $('distill-upload').onclick = function () { $('distill-files').click(); };
+  $('distill-files').onchange = function (e) {
+    var files = [].slice.call(e.target.files || []);
+    if (!files.length) return;
+    Promise.all(files.map(function (f) {
+      return new Promise(function (resolve) {
+        var r = new FileReader();
+        r.onload = function () { resolve('### ' + f.name + '\\n' + (r.result || '')); };
+        r.onerror = function () { resolve(''); };
+        r.readAsText(f);
+      });
+    })).then(function (texts) {
+      var cur = $('distill-in').value;
+      $('distill-in').value = (cur ? cur + '\\n\\n' : '') + texts.filter(Boolean).join('\\n\\n');
+      inCount();
+      $('distill-status').textContent = 'loaded ' + files.length + ' file(s)';
+    });
+    e.target.value = '';
+  };
+  $('distill-run').onclick = function () {
+    var input = $('distill-in').value.trim();
+    if (!input) { $('distill-status').textContent = 'paste or upload some text first'; return; }
+    var mode = $('distill-mode').value;
+    var btn = $('distill-run');
+    btn.disabled = true;
+    $('distill-status').innerHTML = '<span class="spin"></span>distilling — real API calls…';
+    fetch('/dm/lab/distill', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ transcript: input, mode: mode }) })
+      .then(function (res) { return res.json().then(function (b) { return { ok: res.ok, body: b }; }); })
+      .then(function (x) {
+        if (!x.ok) { $('distill-status').textContent = 'error: ' + (x.body.error || 'failed'); return; }
+        distillMode = x.body.mode || mode;
+        $('distill-out').value = x.body.styleBlock || '';
+        $('distill-out-name').textContent = distillMode === 'guide' ? 'Distilled principles (editable)' : 'Distilled voice (editable)';
+        setDiffView(false);
+        $('distill-status').textContent = 'distilled ' + x.body.chunks + ' excerpt(s) of ' + (x.body.inputChars || 0).toLocaleString() + ' chars — review/Diff, then Apply';
+      })
+      .catch(function (e) { $('distill-status').textContent = 'error: ' + (e.message || e); })
+      .finally(function () { btn.disabled = false; });
+  };
+  $('distill-apply').onclick = function () {
+    var block = $('distill-out').value.trim();
+    if (!block) { $('distill-status').textContent = 'nothing to apply — Distill first'; return; }
+    $('ed-playbook').value = spliceInto($('ed-playbook').value, block, distillMode);
+    $('distill-status').textContent = 'applied to playbook (unsaved) — switch to Run to test, or Playbook to review/Save';
+    showTab('playbook');
+  };
+
+  // Diff preview: current playbook vs the playbook AFTER applying this block (git-style).
+  function lineDiff(aText, bText) {
+    var a = aText.split('\\n'), b = bText.split('\\n');
+    var n = a.length, m = b.length;
+    var dp = []; for (var i = 0; i <= n; i++) dp.push(new Int32Array(m + 1));
+    for (var i = n - 1; i >= 0; i--) for (var j = m - 1; j >= 0; j--) dp[i][j] = a[i] === b[j] ? dp[i + 1][j + 1] + 1 : (dp[i + 1][j] >= dp[i][j + 1] ? dp[i + 1][j] : dp[i][j + 1]);
+    var out = [], i = 0, j = 0;
+    while (i < n && j < m) {
+      if (a[i] === b[j]) { out.push({ t: ' ', v: a[i] }); i++; j++; }
+      else if (dp[i + 1][j] >= dp[i][j + 1]) { out.push({ t: '-', v: a[i] }); i++; }
+      else { out.push({ t: '+', v: b[j] }); j++; }
+    }
+    while (i < n) out.push({ t: '-', v: a[i++] });
+    while (j < m) out.push({ t: '+', v: b[j++] });
+    return out;
+  }
+  function diffLine(cls, sign, v) { return '<div class="ln ' + cls + '">' + esc(sign + ' ' + v) + '</div>'; }
+  function renderDiff(aText, bText) {
+    var d = lineDiff(aText, bText);
+    if (!d.some(function (it) { return it.t !== ' '; })) return '<div class="none">No changes — this block already matches the playbook.</div>';
+    var html = [], ctx = [];
+    function flush() {
+      if (!ctx.length) return;
+      if (ctx.length <= 6) ctx.forEach(function (l) { html.push(diffLine('ctx', ' ', l)); });
+      else {
+        ctx.slice(0, 2).forEach(function (l) { html.push(diffLine('ctx', ' ', l)); });
+        html.push('<div class="ln gap">  … ' + (ctx.length - 4) + ' unchanged lines …</div>');
+        ctx.slice(-2).forEach(function (l) { html.push(diffLine('ctx', ' ', l)); });
+      }
+      ctx = [];
+    }
+    d.forEach(function (it) { if (it.t === ' ') ctx.push(it.v); else { flush(); html.push(diffLine(it.t === '+' ? 'add' : 'del', it.t, it.v)); } });
+    flush();
+    return html.join('');
+  }
+  function setDiffView(on) {
+    $('wrap-block').style.display = on ? 'none' : '';
+    $('wrap-diff').style.display = on ? '' : 'none';
+    $('view-block').classList.toggle('active', !on);
+    $('view-diff').classList.toggle('active', on);
+    if (on) {
+      var block = $('distill-out').value.trim();
+      if (!block) { $('wrap-diff').innerHTML = '<div class="none">Distill or paste a block first.</div>'; return; }
+      var pb = $('ed-playbook').value;
+      $('wrap-diff').innerHTML = renderDiff(pb, spliceInto(pb, block, distillMode));
+    }
+  }
+  $('view-block').onclick = function () { setDiffView(false); };
+  $('view-diff').onclick = function () { setDiffView(true); };
+  document.addEventListener('keydown', function (e) {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { e.preventDefault(); run(); }
+  });
+  loadFiles();
+</script>
+</body>
+</html>`;
+}

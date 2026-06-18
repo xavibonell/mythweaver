@@ -1,0 +1,82 @@
+[
+  {
+    "id": "aldric",
+    "name": "Sir Aldric Vane",
+    "ancestry": "Human",
+    "className": "Fighter",
+    "level": 1,
+    "abilities": { "str": 16, "dex": 14, "con": 15, "int": 11, "wis": 13, "cha": 9 },
+    "proficiencyBonus": 2,
+    "armorClass": 19,
+    "maxHitPoints": 12,
+    "speedFt": 30,
+    "skillProficiencies": ["athletics", "perception", "intimidation"],
+    "savingThrowProficiencies": ["str", "con"],
+    "attacks": [
+      { "name": "Longsword", "attackBonus": 5, "damage": "1d8+3", "damageType": "slashing", "reachOrRangeFt": 5, "notes": "Versatile (1d10) two-handed — but forgoing the shield drops AC to 17." },
+      { "name": "Javelin", "attackBonus": 5, "damage": "1d6+3", "damageType": "piercing", "reachOrRangeFt": 30 }
+    ],
+    "features": [
+      { "name": "Fighting Style: Defense", "text": "+1 AC while wearing armor (already included in AC 19)." },
+      { "name": "Second Wind", "text": "Bonus action, 1/short rest: regain 1d10+1 hit points." }
+    ],
+    "inventory": ["Chain mail", "Shield", "Longsword", "4 javelins", "Explorer's pack"]
+  },
+  {
+    "id": "brakka",
+    "name": "Brakka Stoneheart",
+    "ancestry": "Hill Dwarf",
+    "className": "Cleric (Life Domain)",
+    "level": 1,
+    "abilities": { "str": 13, "dex": 10, "con": 16, "int": 8, "wis": 16, "cha": 12 },
+    "proficiencyBonus": 2,
+    "armorClass": 16,
+    "maxHitPoints": 12,
+    "speedFt": 25,
+    "skillProficiencies": ["insight", "medicine", "religion", "persuasion"],
+    "savingThrowProficiencies": ["wis", "cha"],
+    "attacks": [
+      { "name": "Mace", "attackBonus": 3, "damage": "1d6+1", "damageType": "bludgeoning", "reachOrRangeFt": 5 },
+      { "name": "Light Crossbow", "attackBonus": 2, "damage": "1d8", "damageType": "piercing", "reachOrRangeFt": 80 }
+    ],
+    "spellcasting": {
+      "ability": "wis",
+      "spellSaveDc": 13,
+      "spellAttackBonus": 5,
+      "slots": [0, 2],
+      "cantrips": ["Sacred Flame", "Guidance", "Light"],
+      "prepared": ["Cure Wounds", "Healing Word", "Bless", "Guiding Bolt"]
+    },
+    "features": [
+      { "name": "Disciple of Life", "text": "A healing spell of 1st level or higher restores +2 + the spell's level extra HP." },
+      { "name": "Dwarven Resilience", "text": "Advantage on saves vs. poison; resistance to poison damage." },
+      { "name": "Darkvision", "text": "See in dim light within 60 ft. as if bright light." }
+    ],
+    "inventory": ["Chain mail", "Mace", "Light crossbow + 20 bolts", "Holy symbol", "Priest's pack"]
+  },
+  {
+    "id": "pip",
+    "name": "Pip Quickfingers",
+    "ancestry": "Lightfoot Halfling",
+    "className": "Rogue",
+    "level": 1,
+    "abilities": { "str": 8, "dex": 17, "con": 13, "int": 12, "wis": 10, "cha": 15 },
+    "proficiencyBonus": 2,
+    "armorClass": 14,
+    "maxHitPoints": 9,
+    "speedFt": 25,
+    "skillProficiencies": ["stealth", "perception", "investigation", "acrobatics", "deception"],
+    "savingThrowProficiencies": ["dex", "int"],
+    "attacks": [
+      { "name": "Shortbow", "attackBonus": 5, "damage": "1d6+3", "damageType": "piercing", "reachOrRangeFt": 80 },
+      { "name": "Shortsword", "attackBonus": 5, "damage": "1d6+3", "damageType": "piercing", "reachOrRangeFt": 5, "notes": "Finesse." }
+    ],
+    "features": [
+      { "name": "Sneak Attack (1d6)", "text": "Once per turn, +1d6 damage on a hit with advantage, or when an ally is adjacent to the target and you don't have disadvantage." },
+      { "name": "Expertise", "text": "Double proficiency on Stealth and Investigation." },
+      { "name": "Halfling Lucky", "text": "Reroll a natural 1 on an attack, ability check, or save." },
+      { "name": "Naturally Stealthy", "text": "Can attempt to Hide while obscured by a creature at least one size larger." }
+    ],
+    "inventory": ["Leather armor", "Shortbow + 20 arrows", "Two shortswords", "Thieves' tools", "Burglar's pack"]
+  }
+]

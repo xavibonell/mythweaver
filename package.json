@@ -1,0 +1,38 @@
+{
+  "name": "mythweaver",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Self-hosted, AI-driven Dungeon Master for D&D 5e (SRD). Text-first v1.",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "build": "tsc --build",
+    "typecheck": "tsc --build --pretty",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "dev:web": "npm --workspace @mythweaver/web run dev",
+    "dev:server": "npm --workspace @mythweaver/server run dev",
+    "db:up": "docker compose up -d db",
+    "langfuse:up": "docker compose -f infra/langfuse/docker-compose.yml up -d",
+    "langfuse:down": "docker compose -f infra/langfuse/docker-compose.yml down",
+    "eval": "node scripts/eval.mjs",
+    "eval:update": "node scripts/eval.mjs --update",
+    "dm:lab": "node scripts/dm-lab.mjs",
+    "test:providers": "node scripts/test-providers.mjs",
+    "compose:demo": "node scripts/compose-demo.mjs",
+    "scene:eval": "node scripts/scene-eval.mjs",
+    "scene:eval:update": "node scripts/scene-eval.mjs --update",
+    "assets:extract": "python3 scripts/extract-assets.py",
+    "up": "docker compose up --build"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "typescript": "^5.5.4",
+    "vitest": "^2.0.5"
+  }
+}

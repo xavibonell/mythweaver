@@ -1,0 +1,11 @@
+{
+  "files": [],
+  "references": [
+    { "path": "packages/shared" },
+    { "path": "packages/engine" },
+    { "path": "packages/llm" },
+    { "path": "packages/rag" },
+    { "path": "packages/scene" },
+    { "path": "apps/server" }
+  ]
+}

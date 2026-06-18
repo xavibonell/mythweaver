@@ -1,0 +1,162 @@
+# Local self-hosted Langfuse for MythWeaver.
+# Start:  docker compose -f infra/langfuse/docker-compose.yml up -d
+# UI:     http://localhost:3001   (login: admin@mythweaver.local / mythweaver-admin)
+# The headless-init below auto-creates an org/project + the API keys our app uses
+# (see .env: LANGFUSE_PUBLIC_KEY / LANGFUSE_SECRET_KEY / LANGFUSE_BASEURL=http://localhost:3001).
+#
+# Ports are shifted to avoid clashing with the app: web 3001 (app web=3000),
+# langfuse postgres 5433 (app pgvector=5432). Postgres creds are hardcoded so the
+# repo-root .env never interferes. All secrets here are LOCAL DEV defaults — CHANGEME for anything exposed.
+services:
+  langfuse-worker:
+    image: docker.io/langfuse/langfuse-worker:3
+    restart: always
+    depends_on: &langfuse-depends-on
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      clickhouse:
+        condition: service_healthy
+    ports:
+      - 127.0.0.1:3030:3030
+    environment: &langfuse-worker-env
+      NEXTAUTH_URL: http://localhost:3001
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/postgres
+      SALT: mythweaver-dev-salt # CHANGEME
+      ENCRYPTION_KEY: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef" # CHANGEME: openssl rand -hex 32
+      TELEMETRY_ENABLED: "true"
+      LANGFUSE_ENABLE_EXPERIMENTAL_FEATURES: "false"
+      CLICKHOUSE_MIGRATION_URL: clickhouse://clickhouse:9000
+      CLICKHOUSE_URL: http://clickhouse:8123
+      CLICKHOUSE_USER: clickhouse
+      CLICKHOUSE_PASSWORD: clickhouse # CHANGEME
+      CLICKHOUSE_CLUSTER_ENABLED: "false"
+      LANGFUSE_S3_EVENT_UPLOAD_BUCKET: langfuse
+      LANGFUSE_S3_EVENT_UPLOAD_REGION: auto
+      LANGFUSE_S3_EVENT_UPLOAD_ACCESS_KEY_ID: minio
+      LANGFUSE_S3_EVENT_UPLOAD_SECRET_ACCESS_KEY: miniosecret # CHANGEME
+      LANGFUSE_S3_EVENT_UPLOAD_ENDPOINT: http://minio:9000
+      LANGFUSE_S3_EVENT_UPLOAD_FORCE_PATH_STYLE: "true"
+      LANGFUSE_S3_EVENT_UPLOAD_PREFIX: events/
+      LANGFUSE_S3_MEDIA_UPLOAD_BUCKET: langfuse
+      LANGFUSE_S3_MEDIA_UPLOAD_REGION: auto
+      LANGFUSE_S3_MEDIA_UPLOAD_ACCESS_KEY_ID: minio
+      LANGFUSE_S3_MEDIA_UPLOAD_SECRET_ACCESS_KEY: miniosecret # CHANGEME
+      LANGFUSE_S3_MEDIA_UPLOAD_ENDPOINT: http://localhost:9090
+      LANGFUSE_S3_MEDIA_UPLOAD_FORCE_PATH_STYLE: "true"
+      LANGFUSE_S3_MEDIA_UPLOAD_PREFIX: media/
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      REDIS_AUTH: myredissecret # CHANGEME
+      REDIS_TLS_ENABLED: "false"
+
+  langfuse-web:
+    image: docker.io/langfuse/langfuse:3
+    restart: always
+    depends_on: *langfuse-depends-on
+    ports:
+      - 3001:3000
+    environment:
+      <<: *langfuse-worker-env
+      NEXTAUTH_SECRET: mythweaver-dev-nextauth-secret # CHANGEME
+      # Headless init — creates org/project/user + the API keys our app uses.
+      LANGFUSE_INIT_ORG_ID: mythweaver
+      LANGFUSE_INIT_ORG_NAME: MythWeaver
+      LANGFUSE_INIT_PROJECT_ID: mythweaver
+      LANGFUSE_INIT_PROJECT_NAME: MythWeaver
+      LANGFUSE_INIT_PROJECT_PUBLIC_KEY: pk-lf-00000000-0000-4000-8000-000000000001
+      LANGFUSE_INIT_PROJECT_SECRET_KEY: sk-lf-00000000-0000-4000-8000-000000000001
+      LANGFUSE_INIT_USER_EMAIL: admin@mythweaver.local
+      LANGFUSE_INIT_USER_NAME: Admin
+      LANGFUSE_INIT_USER_PASSWORD: mythweaver-admin # CHANGEME
+
+  clickhouse:
+    image: docker.io/clickhouse/clickhouse-server
+    restart: always
+    user: "101:101"
+    environment:
+      CLICKHOUSE_DB: default
+      CLICKHOUSE_USER: clickhouse
+      CLICKHOUSE_PASSWORD: clickhouse # CHANGEME
+    volumes:
+      - langfuse_clickhouse_data:/var/lib/clickhouse
+      - langfuse_clickhouse_logs:/var/log/clickhouse-server
+    ports:
+      - 127.0.0.1:8123:8123
+      - 127.0.0.1:9000:9000
+    healthcheck:
+      test: wget --no-verbose --tries=1 --spider http://localhost:8123/ping || exit 1
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 1s
+
+  minio:
+    image: cgr.dev/chainguard/minio
+    restart: always
+    entrypoint: sh
+    command: -c 'mkdir -p /data/langfuse && minio server --address ":9000" --console-address ":9001" /data'
+    environment:
+      MINIO_ROOT_USER: minio
+      MINIO_ROOT_PASSWORD: miniosecret # CHANGEME
+    ports:
+      - 9090:9000
+      - 127.0.0.1:9091:9001
+    volumes:
+      - langfuse_minio_data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 1s
+      timeout: 5s
+      retries: 5
+      start_period: 1s
+
+  redis:
+    image: docker.io/redis:7
+    restart: always
+    command: >
+      --requirepass myredissecret
+      --maxmemory-policy noeviction
+    ports:
+      - 127.0.0.1:6379:6379
+    volumes:
+      - langfuse_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 10s
+      retries: 10
+
+  postgres:
+    image: docker.io/postgres:17
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+      TZ: UTC
+      PGTZ: UTC
+    ports:
+      - 127.0.0.1:5433:5432
+    volumes:
+      - langfuse_postgres_data:/var/lib/postgresql/data
+
+volumes:
+  langfuse_postgres_data:
+    driver: local
+  langfuse_clickhouse_data:
+    driver: local
+  langfuse_clickhouse_logs:
+    driver: local
+  langfuse_minio_data:
+    driver: local
+  langfuse_redis_data:
+    driver: local

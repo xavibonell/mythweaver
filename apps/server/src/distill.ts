@@ -1,0 +1,154 @@
+/**
+ * Style distillation — turn real session transcripts into a DM voice guide (spec §6:
+ * "style is data, not weights"). We do NOT fine-tune; we extract the DM's voice into a
+ * Markdown style block that the DM Lab splices into the playbook (a temporary override the
+ * operator tests live, then persists if happy).
+ *
+ * Strategy: chunk the transcript, MAP each excerpt to terse voice notes (parallel), then
+ * REDUCE the notes into a compact style guide + anonymized exemplars. Two hard guardrails
+ * the prompts enforce: (1) anonymize — strip real names/places so other campaigns don't bleed
+ * in; (2) never capture passages where the DM states a mechanical outcome — the rules engine
+ * stays authoritative, so the voice must not learn to decide hits/damage/success.
+ */
+
+import type { LlmProvider } from '@mythweaver/llm';
+
+/**
+ * Two input kinds:
+ *  - 'transcript' — a real play transcript → distil the DM's VOICE (cadence + exemplars).
+ *  - 'guide'      — a best-practices/advice doc → distil actionable DM PRINCIPLES (directives).
+ */
+export type DistillMode = 'transcript' | 'guide';
+
+/** Hard input cap (chars). Above this we sample; the endpoint rejects beyond DISTILL_MAX_INPUT. */
+export const DISTILL_MAX_INPUT = 400_000;
+const CHUNK_CHARS = 14_000;
+const MAX_CHUNKS = 6; // bound cost: at most MAX_CHUNKS map calls + 1 reduce
+const SINGLE_CALL_UNDER = 16_000;
+
+export interface DistillResult {
+  /** Markdown block (no markers) — the lab wraps + splices it into the playbook. */
+  styleBlock: string;
+  /** Which kind of distillation produced it (drives the playbook marker the lab uses). */
+  mode: DistillMode;
+  /** Excerpts actually analysed, and roughly how many chars were covered (transparency). */
+  chunks: number;
+  sampledChars: number;
+  inputChars: number;
+}
+
+const MAP_SYSTEM = `You analyse a transcript excerpt from a REAL tabletop D&D session to capture the DUNGEON MASTER's voice.
+Extract ONLY the DM's narration and speech patterns; ignore players and out-of-character table talk.
+Report terse bullet notes on:
+- diction & tone (word choice, formality, humour, warmth)
+- sentence rhythm & length; how descriptions are paced
+- scene-opening techniques (how a new place/beat is introduced)
+- how NPCs are voiced (tics, cadence, how dialogue is framed)
+- pacing / transitions / how the DM hands agency back to players
+- 2-3 SHORT example snippets of the DM's narration, ANONYMISED (replace any proper noun — names, places, gods, campaign terms — with a generic placeholder like [name]/[place]).
+HARD RULES: never include a passage where the DM states a mechanical OUTCOME (a hit, miss, damage number, or whether a check succeeded) — we keep all mechanics in a separate engine. Output bullets only, no preamble.`;
+
+const REDUCE_SYSTEM = `You are a DM style editor. You are given voice notes distilled from several excerpts of ONE Dungeon Master's real sessions.
+Synthesise them into a concise STYLE GUIDE that will make an AI Dungeon Master speak in this DM's voice.
+
+Output GitHub-flavoured Markdown, under ~400 words, in EXACTLY this shape:
+
+## VOICE (distilled from real sessions)
+- <6-9 imperative style directives: tone, diction, sentence rhythm, scene openings, NPC voicing, pacing/handing-back agency>
+
+### Exemplars (emulate the cadence, NEVER copy the content)
+- "<short anonymised snippet 1>"
+- "<short anonymised snippet 2>"
+- "<4-6 snippets total>"
+
+HARD RULES:
+- Anonymise everything: no real proper nouns (names, places, deities, campaign terms) — use generic placeholders.
+- NEVER instruct the DM to decide a mechanical outcome (hit/miss/damage/success). Voice only; the rules engine owns mechanics.
+- Directives must be about HOW to speak, not WHAT happens in any specific campaign.`;
+
+const GUIDE_MAP_SYSTEM = `You extract actionable Dungeon Master guidance from an excerpt of a best-practices / advice document (NOT a play transcript).
+List terse imperative bullets: concrete directives on HOW a DM should run play — pacing, telegraphing danger, spotlight sharing, player agency, ruling fairly, improvising, session flow, handling tone.
+Ignore rules-math specifics and any campaign-specific examples.
+HARD RULE: never produce a directive that has the DM decide a mechanical OUTCOME (a hit/miss/damage/whether a check passed) — a separate engine owns that; "call for a check" is fine. Output bullets only, no preamble.`;
+
+const GUIDE_REDUCE_SYSTEM = `You are a DM coaching editor. You are given best-practices material (either bullet notes or a short excerpt) about running a tabletop RPG.
+Synthesise it into a concise PRINCIPLES guide for an AI Dungeon Master.
+
+Output GitHub-flavoured Markdown, under ~400 words, in EXACTLY this shape:
+
+## PRINCIPLES (distilled from a guide)
+- <6-12 imperative directives, grouped logically: pacing, player agency, telegraphing, spotlight, fairness, improv, tone>
+
+HARD RULES:
+- Keep it about HOW to run play, not specific rules numbers or DCs.
+- NEVER instruct the DM to decide a mechanical outcome (hit/miss/damage/success) — the rules engine owns mechanics; the DM may "call for" a check.
+- No campaign-specific proper nouns.`;
+
+interface PromptSet {
+  map: string;
+  reduce: string;
+  /** Instruction for the small-input single call. */
+  single: string;
+  userLabel: string;
+}
+const PROMPTS: Record<DistillMode, PromptSet> = {
+  transcript: {
+    map: MAP_SYSTEM,
+    reduce: REDUCE_SYSTEM,
+    single: `${MAP_SYSTEM}\n\nAfter analysing, IMMEDIATELY produce the final style guide.\n\n${REDUCE_SYSTEM}`,
+    userLabel: 'Transcript',
+  },
+  guide: {
+    map: GUIDE_MAP_SYSTEM,
+    // The reduce prompt accepts notes OR a short excerpt, so it doubles as the single-call prompt.
+    reduce: GUIDE_REDUCE_SYSTEM,
+    single: GUIDE_REDUCE_SYSTEM,
+    userLabel: 'Best-practices document',
+  },
+};
+
+async function complete(llm: LlmProvider, system: string, user: string, maxTokens: number): Promise<string> {
+  const res = await llm.complete({ system, messages: [{ role: 'user', content: user }], maxTokens, temperature: 0.3 });
+  return res.text.trim();
+}
+
+function chunk(text: string): string[] {
+  const out: string[] = [];
+  for (let i = 0; i < text.length; i += CHUNK_CHARS) out.push(text.slice(i, i + CHUNK_CHARS));
+  return out;
+}
+
+/** Evenly sample at most MAX_CHUNKS excerpts so a long corpus is represented, not just its head. */
+function sample(chunks: string[]): string[] {
+  if (chunks.length <= MAX_CHUNKS) return chunks;
+  const picked: string[] = [];
+  const step = chunks.length / MAX_CHUNKS;
+  for (let i = 0; i < MAX_CHUNKS; i++) picked.push(chunks[Math.floor(i * step)]!);
+  return picked;
+}
+
+export async function distillStyle(llm: LlmProvider, input: string, mode: DistillMode = 'transcript'): Promise<DistillResult> {
+  const text = input.trim();
+  if (!text) throw new Error('No text provided.');
+  const p = PROMPTS[mode];
+  const clipped = text.slice(0, DISTILL_MAX_INPUT);
+
+  // Small input: a single analyse-and-synthesise call.
+  if (clipped.length <= SINGLE_CALL_UNDER) {
+    const styleBlock = await complete(llm, p.single, `${p.userLabel}:\n\n${clipped}`, 1600);
+    return { styleBlock, mode, chunks: 1, sampledChars: clipped.length, inputChars: text.length };
+  }
+
+  // Large input: MAP each sampled excerpt to notes (parallel), then REDUCE to the final block.
+  const excerpts = sample(chunk(clipped));
+  const notes = await Promise.all(
+    excerpts.map((e, i) => complete(llm, p.map, `Excerpt ${i + 1} of ${excerpts.length}:\n\n${e}`, 700)),
+  );
+  const styleBlock = await complete(
+    llm,
+    p.reduce,
+    `Notes from ${excerpts.length} excerpts:\n\n${notes.map((n, i) => `--- excerpt ${i + 1} ---\n${n}`).join('\n\n')}`,
+    1600,
+  );
+  return { styleBlock, mode, chunks: excerpts.length, sampledChars: excerpts.length * CHUNK_CHARS, inputChars: text.length };
+}

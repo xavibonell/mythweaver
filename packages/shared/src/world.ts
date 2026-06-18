@@ -1,0 +1,336 @@
+/**
+ * Scene/World contracts (docs/SCENE-CONTRACTS.md).
+ *
+ * The typed artifacts that flow across the actor boundaries of the visual layer:
+ *
+ *   DM ──EstablishScene──► Director ──SceneComposition──► Cartographer ──SceneMap──► [FREEZE]
+ *                                                                           │
+ *                                              manipulation: ──SceneDelta──►┘ (mutates objects in place)
+ *
+ * Principle (mirrors the rules engine, spec §4.1): the LLMs PROPOSE in semantic terms
+ * (ids, anchors, zones) and never own coordinates or memory; a deterministic layer owns
+ * identity, geometry and persistence. Everything is addressed by STABLE ID, generated
+ * once per location and FROZEN — so a fully-procedural world stays consistent.
+ *
+ * These are pure type/const contracts (no behavior). Validators live in ./world-validate.
+ */
+
+import type { Facing, Lighting } from './scene.js';
+
+// ---------------------------------------------------------------------------
+// Identity
+// ---------------------------------------------------------------------------
+
+/** Stable location id, e.g. "loc:mistmoor-green". A node in the world graph. */
+export type LocationId = string;
+
+/** Stable entity id, e.g. "npc:edda", "bldg:bell-tower", "prop:well", "pc:aldric", "mob:orc-1". */
+export type EntityId = string;
+
+/** Prefix → kind. Ids are `<prefix>:<kebab-slug>`; the prefix is the canonical kind hint. */
+export const ENTITY_ID_PREFIXES = ['loc', 'bldg', 'prop', 'npc', 'pc', 'mob'] as const;
+export type EntityIdPrefix = (typeof ENTITY_ID_PREFIXES)[number];
+
+/** `<prefix>:<slug>` where slug is lowercase kebab/alphanumeric. */
+export const ENTITY_ID_PATTERN = /^(loc|bldg|prop|npc|pc|mob):[a-z0-9]+(?:-[a-z0-9]+)*$/;
+
+/** What an object IS on the map. fixture = building/large structure; prop = small object; actor = mover. */
+export type EntityKind = 'fixture' | 'prop' | 'actor';
+/** For actors only. */
+export type ActorRole = 'pc' | 'npc' | 'mob';
+
+// ---------------------------------------------------------------------------
+// Layout grammars + semantic anchors (the LLM's coordinate-free vocabulary)
+// ---------------------------------------------------------------------------
+
+/** Reusable structural layout grammars (NOT authored maps). */
+export const LAYOUT_GRAMMARS = ['open-outdoor', 'enclosed-interior', 'town-square'] as const;
+export type LayoutGrammar = (typeof LAYOUT_GRAMMARS)[number];
+
+/** Zones each grammar exposes; `in:<zone>` anchors resolve into these. */
+export const GRAMMAR_ZONES: Record<LayoutGrammar, readonly string[]> = {
+  'open-outdoor': ['commons', 'perimeter', 'waterside', 'building-row', 'path'],
+  'enclosed-interior': ['floor', 'back', 'entrance', 'wall'],
+  // A village/town centred on a plaza: a fountain at `center`, stalls along `market-row`,
+  // houses lining `building-row`, a `street` through it, the sea on `waterside`.
+  'town-square': ['plaza', 'center', 'market-row', 'building-row', 'street', 'waterside', 'perimeter', 'commons'],
+};
+
+/** Grammar-agnostic anchors usable in any scene. */
+export const BASE_ANCHORS = [
+  'center',
+  'north',
+  'south',
+  'east',
+  'west',
+  'north-edge',
+  'south-edge',
+  'east-edge',
+  'west-edge',
+  'waterside',
+  'entrance',
+] as const;
+export type BaseAnchor = (typeof BASE_ANCHORS)[number];
+
+/**
+ * A coordinate-free placement hint the LLMs emit. One of:
+ *   - a BaseAnchor ("center", "waterside", …)
+ *   - `near:<entityId>`  (relational — "by the well")
+ *   - `in:<zone>`        (a grammar zone)
+ * Typed loosely (string) because it crosses the LLM boundary; validated by isValidAnchor().
+ */
+export type SemanticAnchor = string;
+
+// ---------------------------------------------------------------------------
+// Contract 1 — EstablishScene  (DM → Director). The FICTION. No coordinates.
+// ---------------------------------------------------------------------------
+
+export interface FixtureDecl {
+  id: EntityId; // "bldg:bell-tower" | "prop:well"
+  kind: 'fixture' | 'prop';
+  tag: string; // catalog tag the renderer can resolve
+  /** Optional placement hint; if omitted, the Director decides from the grammar (e.g. a fountain centres). */
+  anchor?: SemanticAnchor;
+  facing?: Facing;
+  /** GM-facing flavor; never rendered. */
+  note?: string;
+}
+
+export interface NpcDecl {
+  id: EntityId; // "npc:edda"
+  name: string;
+  /** Free-text role/appearance; the Director maps it to a character sprite tag. */
+  look: string;
+  /** Optional placement hint; if omitted, the Director decides from the grammar. */
+  anchor?: SemanticAnchor;
+  /** false = present but not drawn (a lurker); revealed later by a SceneDelta. */
+  visible: boolean;
+  disposition?: 'friendly' | 'neutral' | 'hostile' | 'unknown';
+}
+
+/** The DM's tool call to stand up a brand-new location (the fiction, semantic only). */
+export interface EstablishScene {
+  locationId: LocationId;
+  brief: { setting: string; biome: string; timeOfDay: Lighting; mood?: string };
+  fixtures: FixtureDecl[];
+  npcs: NpcDecl[];
+  size?: 'small' | 'medium' | 'large';
+}
+
+/** The Director's input = the DM's fiction + engine-authoritative party + the deterministic seed. */
+export interface PartyMemberRef {
+  id: EntityId; // "pc:aldric"
+  spriteTag: string;
+  name: string;
+}
+export interface CompositionRequest {
+  establish: EstablishScene;
+  party: PartyMemberRef[];
+  /** Deterministic, derived from locationId (same place → same ambiance). */
+  seed: number;
+  /**
+   * The player's raw layout request, verbatim. The EstablishScene loses spatial language
+   * ("path left-to-right", "trees top and bottom", "party on the left"); this carries it
+   * straight to the Director so it can honor composition the DM couldn't encode. Optional.
+   */
+  directive?: string;
+}
+
+// ---------------------------------------------------------------------------
+// Contract 2 — SceneComposition  (Director → Cartographer). Semantic layout.
+// ---------------------------------------------------------------------------
+
+export interface TerrainRegion {
+  tag: string; // terrain tag (catalog)
+  zone: string; // grammar zone the region fills
+}
+/**
+ * The Director's concretized per-entity plan: WHAT (resolved sprite tag, kind, visibility —
+ * it maps an NPC's free-text `look` to a catalog tag here) + WHERE (zone/anchor). The
+ * Cartographer turns each Placement into a positioned MapObject. One per declared entity + party.
+ */
+export interface Placement {
+  id: EntityId;
+  kind: EntityKind;
+  role?: ActorRole; // for actors
+  tag: string; // catalog art tag the Director chose (fixtures echo their decl tag; NPCs map look→tag)
+  name?: string;
+  visible: boolean;
+  zone: string; // a grammar zone
+  anchor?: SemanticAnchor; // optional finer hint within the zone
+  facing?: Facing;
+}
+/**
+ * A coarse top-down "blockout" the Director PAINTS to control composition directly — one region
+ * char per tile, plus a coarse cell per entity. The Cartographer upscales it deterministically
+ * (dense tree fill for forest, path of whatever orientation was painted, entities snapped to
+ * walkable). This is how spatial intent ("path left→right", "thick treeline top+bottom", "party on
+ * the left") survives — semantic zones can't express orientation. Used for open-outdoor scenes;
+ * structural grammars (town-square / enclosed-interior) keep their deterministic layout.
+ * Legend: G=grass  P=path/dirt  W=water  T=trees(dense)  S=stone  #=wall.
+ */
+export const BLOCKOUT_CHARS = 'GPWTS#' as const;
+export interface SceneBlockout {
+  cols: number;
+  rows: number;
+  /** `rows` strings, each `cols` chars from BLOCKOUT_CHARS; grid[row][col]. */
+  grid: string[];
+  /** Coarse entity positions on the grid. Entities omitted here are auto-placed on open ground. */
+  cells: { id: EntityId; col: number; row: number }[];
+}
+export interface SceneComposition {
+  locationId: LocationId;
+  seed: number;
+  grammar: LayoutGrammar;
+  biome: string; // carried through from the brief; the SceneMap needs it
+  lighting: Lighting;
+  grid: { cols: number; rows: number };
+  terrain: { base: string; regions: TerrainRegion[] };
+  placements: Placement[];
+  ambiance: { density: number; tags: string[] }; // 0..1 density of seed-scattered decor
+  /** Present for open-outdoor scenes the Director painted; the Cartographer prefers it over zones. */
+  blockout?: SceneBlockout;
+}
+
+/** Grid bounds the Director must stay within (also enforced by validation). */
+export const GRID_LIMITS = { minCols: 12, maxCols: 40, minRows: 8, maxRows: 28 } as const;
+
+// ---------------------------------------------------------------------------
+// Contract 3 — SceneMap  (Cartographer → FREEZE). The canonical object_map.
+// ---------------------------------------------------------------------------
+
+/** One addressable thing on the map. The `objects` array is the object_map / registry. */
+export interface MapObject {
+  id: EntityId;
+  kind: EntityKind;
+  /** Present iff kind === 'actor'. */
+  role?: ActorRole;
+  tag: string; // catalog art tag
+  name?: string;
+  col: number;
+  row: number;
+  footprint: { w: number; h: number }; // tiles; props/actors usually 1x1
+  facing: Facing;
+  /** false = present in the map but NOT drawn (lurkers, secrets). */
+  visible: boolean;
+  /** Arbitrary flags the DM can flip via setState (e.g. { door: 'open', burning: true }). */
+  state?: Record<string, string | number | boolean>;
+  /** The original anchor, kept so relations survive and re-resolution stays consistent. */
+  anchorRef?: SemanticAnchor;
+  /** The grammar zone the entity was placed in — the coarse, coordinate-free locus the
+   *  digest narrates from when no finer anchorRef exists. Carried from SceneComposition. */
+  zone?: string;
+}
+
+/** Seed-scattered decoration — rich but NOT narratively addressable (no stable id). */
+export interface AmbianceItem {
+  tag: string;
+  col: number;
+  row: number;
+}
+
+/** A door/exit tile linking to another location in the world graph. */
+export interface Entrance {
+  toLocationId: LocationId;
+  col: number;
+  row: number;
+  /** The fixture this entrance belongs to, if any (e.g. "bldg:hut-2"). */
+  fixtureId?: EntityId;
+}
+
+/** The frozen, canonical scene — the single source of truth for renderer AND DM digest. */
+export interface SceneMap {
+  locationId: LocationId;
+  seed: number;
+  biome: string;
+  lighting: Lighting;
+  grammar: LayoutGrammar;
+  grid: { cols: number; rows: number; feetPerTile: number };
+  tiles: string[][]; // terrain tag per cell; tiles[row][col]
+  walkable: boolean[][]; // walkable[row][col]
+  objects: MapObject[]; // the object_map (id-addressed registry)
+  ambiance: AmbianceItem[];
+  entrances: Entrance[];
+}
+
+// ---------------------------------------------------------------------------
+// World graph (persistent, engine-owned) — lazily generated, frozen on first visit.
+// ---------------------------------------------------------------------------
+
+export interface WorldLink {
+  from: LocationId;
+  to: LocationId;
+  via?: EntityId; // the entrance/fixture traversed
+}
+export interface WorldState {
+  currentLocationId: LocationId | null;
+  /** Frozen maps keyed by id; re-entering a location reuses its map verbatim. */
+  locations: Record<LocationId, SceneMap>;
+  links: WorldLink[];
+}
+
+// ---------------------------------------------------------------------------
+// Contract 4 — SceneDelta  (manipulation). Shaped now; wired in a later phase.
+// ---------------------------------------------------------------------------
+
+/** A target for a move: a semantic anchor (preferred) or an explicit resolved tile. */
+export type MoveTarget = { anchor: SemanticAnchor } | { col: number; row: number };
+
+export type SceneDelta =
+  | { op: 'move'; id: EntityId; to: MoveTarget }
+  | { op: 'face'; id: EntityId; facing: Facing }
+  | { op: 'reveal'; id: EntityId }
+  | { op: 'hide'; id: EntityId }
+  | { op: 'setState'; id: EntityId; state: Record<string, string | number | boolean> }
+  | { op: 'despawn'; id: EntityId }
+  | {
+      op: 'spawn';
+      id: EntityId;
+      kind: EntityKind;
+      role?: ActorRole;
+      tag: string;
+      name?: string;
+      anchor: SemanticAnchor;
+      visible?: boolean;
+    }
+  | { op: 'enter'; id: EntityId; toLocationId: LocationId; via?: EntityId };
+
+// ---------------------------------------------------------------------------
+// Digest — SceneMap → DM (closes the loop so narration reads from truth).
+// ---------------------------------------------------------------------------
+
+/** A compact, LLM-friendly view of a frozen SceneMap the DM narrates from. */
+export interface SceneDigest {
+  locationId: LocationId;
+  biome: string;
+  lighting: Lighting;
+  // `at` is a coordinate-free locus (anchorRef ?? zone), never raw coordinates.
+  fixtures: { id: EntityId; tag: string; at: string }[];
+  npcs: { id: EntityId; name: string; at: string; visible: boolean }[];
+  party: { id: EntityId; name?: string; at: string }[];
+  exits: { toLocationId: LocationId; via?: EntityId }[];
+}
+
+// ---------------------------------------------------------------------------
+// Helpers (pure, dependency-free) — shared by validators + future resolver.
+// ---------------------------------------------------------------------------
+
+export function isEntityId(id: string): boolean {
+  return ENTITY_ID_PATTERN.test(id);
+}
+
+/** Validate a semantic anchor's FORM (and, when context is given, its referents). */
+export function isValidAnchor(anchor: string, ctx?: { grammar?: LayoutGrammar; knownIds?: ReadonlySet<string> }): boolean {
+  if ((BASE_ANCHORS as readonly string[]).includes(anchor)) return true;
+  const near = /^near:(.+)$/.exec(anchor);
+  if (near) return isEntityId(near[1]!) && (!ctx?.knownIds || ctx.knownIds.has(near[1]!));
+  const inz = /^in:(.+)$/.exec(anchor);
+  if (inz) return !ctx?.grammar || GRAMMAR_ZONES[ctx.grammar].includes(inz[1]!);
+  return false;
+}
+
+/** Eval dimensions for the LLM-judged surfaces (used by the eval harness; spec §10). */
+export const SCENE_EVAL_DIMENSIONS = {
+  establish: ['narrative-fidelity', 'completeness', 'visibility-correctness'],
+  composition: ['spatial-sense', 'legibility', 'brief-coherence'],
+} as const;

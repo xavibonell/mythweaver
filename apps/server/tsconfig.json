@@ -1,0 +1,15 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "dist"
+  },
+  "references": [
+    { "path": "../../packages/shared" },
+    { "path": "../../packages/engine" },
+    { "path": "../../packages/llm" },
+    { "path": "../../packages/rag" },
+    { "path": "../../packages/scene" }
+  ],
+  "include": ["src/**/*"]
+}
