@@ -89,6 +89,12 @@ SceneComposition / SceneMap artifacts shown so you can see *which stage* is at f
 - [x] **Cartographer safety nets** — interiors: force a closed wall ring + normalise interior ground to stone floor (keep painted pillars), skip forest-fill indoors; settlements: a fountain/well is snapped to centre even if painted off-centre (preserves the square's read + the `fountainCentered` gate).
 - **Result:** beach/coast/river now route to open-outdoor and paint water-on-a-side (the beach-as-town-square bug is GONE); crypts are real walled rooms with pillars/alcoves; villages keep a centred fountain + back-row houses. Eval all green; baseline rose to **spatialSense 3.33, legibility 2.83, briefCoherence 3.83, completeness 3.00** (from 2.50/2.50/3.17/2.67). 91 tests. Known art gap: no `sand`/`snow` terrain tile yet (beach "sand" renders as grass) — an asset-pack item, not layout.
 
+**Step 5 / Lever C — intentional look (DONE 2026-06-18, art-agnostic):** uses the blockout's clean region boundaries, existing tiles only — no edge art needed.
+- [x] **Feathered treelines** — forest fill is no longer uniform. A BFS computes each forest cell's depth (steps from the nearest OPEN cell; the map border does NOT count, so screen-edge treelines stay dense). Density gradients dense core (0.95) → 0.8 → bushy fringe (0.4); fringe cells favour bushes (`FRINGE` pool) vs the `CORE` tree pool. A treeline now reads as a natural mass thinning into the clearing, not a rectangle.
+- [x] **Fringe spill** — a little undergrowth (bushes) creeps from the treeline into adjacent open grass (15%), reserved from placement (occ) so no one stands in a bush; tile stays walkable. Softens the hard forest→clearing edge.
+- [x] **Shoreline band** — open LAND (grass) directly adjacent to water is laid as `dirt` (a 1-tile wet-sand/mud strip), so the waterline reads as a real shore (also gives beaches a sandy strip at the tideline). Skips forest cells + interiors.
+- Verified in `/lab`: the forest's treelines visibly feather + spill; the beach has a dirt shoreline at the tideline. All deterministic (seed-stable), 91 tests still green. (Deeper Phase-C items — full autotiling/transitions C1, decal layer C2 — remain deferred to the cohesive-pack swap.)
+
 ---
 
 ## ◻ Phase D — Manipulation (DEFERRED until setup is great — user's call: "no manipulation yet")

@@ -87,9 +87,6 @@ const BLOCKOUT_REGION: Record<string, { terrain: string; forest?: boolean }> = {
   S: { terrain: 'stone' },
   '#': { terrain: 'wall' },
 };
-/** Trees that fill a forest cell — weighted to full trees so a treeline reads as a solid mass. */
-const FOREST_TREE_TAGS = ['tree', 'tree', 'tree_pine', 'tree_pine', 'tree_autumn', 'bush'] as const;
-
 export function buildSceneMap(comp: SceneComposition): SceneMap {
   const cols = Math.max(1, comp.grid.cols);
   const rows = Math.max(1, comp.grid.rows);
@@ -151,19 +148,74 @@ export function buildSceneMap(comp: SceneComposition): SceneMap {
         }
     }
   }
+  // Index forest cells for boundary-aware effects (feathering + shoreline).
+  const fkey = (c: number, r: number) => r * cols + c;
+  const forestSet = new Set(forestCells.map((c) => fkey(c.c, c.r)));
+
+  // Shoreline: where open LAND meets water, lay a 1-tile wet-sand/mud strip (dirt) so the waterline
+  // reads as a real shore instead of a hard grass↔water seam. Existing tiles only — no edge art.
+  if (!isInterior) {
+    const shore: Array<[number, number]> = [];
+    for (let y = 0; y < rows; y++)
+      for (let x = 0; x < cols; x++) {
+        if (tiles[y]![x] !== 'grass' || forestSet.has(fkey(x, y))) continue;
+        const nearWater = ([[1, 0], [-1, 0], [0, 1], [0, -1]] as const).some(([dx, dy]) => tiles[y + dy]?.[x + dx] === 'water');
+        if (nearWater) shore.push([x, y]);
+      }
+    for (const [x, y] of shore) tiles[y]![x] = 'dirt';
+  }
+
   const walkable: boolean[][] = tiles.map((row) => row.map((t) => terrainWalkable(t)));
   const occ: boolean[][] = Array.from({ length: rows }, () => Array.from({ length: cols }, () => false));
 
-  // Dense-fill forest cells with trees (a treeline is a BARRIER, so tree'd cells are non-walkable).
-  // This is what makes "thick lines of trees" actually read as a wall of forest.
+  // Forest fill with FEATHERED density: dense at the forest's core, thinning toward the clearing, with
+  // bushy undergrowth at the fringe + a little spill into the open — so a treeline reads as a natural
+  // mass, not a flat rectangle. depth = steps from the nearest OPEN (non-forest) cell; the map border
+  // does NOT count as open, so a treeline at the screen edge stays dense there.
   const forestAmbiance: AmbianceItem[] = [];
-  if (useBlockout) {
+  if (useBlockout && forestCells.length) {
+    const ORTH = [[1, 0], [-1, 0], [0, 1], [0, -1]] as const;
+    const depth = new Map<number, number>();
+    let frontier: { c: number; r: number }[] = [];
     for (const fc of forestCells) {
-      if (rand() >= 0.85) continue; // a few gaps so the line isn't a perfect rectangle
-      const tag = FOREST_TREE_TAGS[Math.floor(rand() * FOREST_TREE_TAGS.length)]!;
-      forestAmbiance.push({ tag, col: fc.c, row: fc.r });
-      walkable[fc.r]![fc.c] = false;
+      let fringe = false;
+      for (let dy = -1; dy <= 1 && !fringe; dy++)
+        for (let dx = -1; dx <= 1 && !fringe; dx++) {
+          if (!dx && !dy) continue;
+          const nx = fc.c + dx, ny = fc.r + dy;
+          if (nx >= 0 && ny >= 0 && nx < cols && ny < rows && !forestSet.has(fkey(nx, ny))) fringe = true; // touches open ground
+        }
+      if (fringe) { depth.set(fkey(fc.c, fc.r), 1); frontier.push(fc); }
     }
+    for (let d = 1; frontier.length; d++) {
+      const next: { c: number; r: number }[] = [];
+      for (const fc of frontier)
+        for (const [dx, dy] of ORTH) {
+          const nx = fc.c + dx, ny = fc.r + dy, k = fkey(nx, ny);
+          if (nx >= 0 && ny >= 0 && nx < cols && ny < rows && forestSet.has(k) && !depth.has(k)) { depth.set(k, d + 1); next.push({ c: nx, r: ny }); }
+        }
+      frontier = next;
+    }
+    const CORE = ['tree', 'tree', 'tree_pine', 'tree_pine', 'tree_autumn'] as const;
+    const FRINGE = ['bush', 'bush', 'tree', 'tree_autumn'] as const;
+    for (const fc of forestCells) {
+      const dep = depth.get(fkey(fc.c, fc.r)) ?? 3;
+      const density = dep >= 3 ? 0.95 : dep === 2 ? 0.8 : 0.4; // feather toward the clearing
+      if (rand() >= density) continue;
+      const pool = dep <= 1 ? FRINGE : CORE;
+      forestAmbiance.push({ tag: pool[Math.floor(rand() * pool.length)]!, col: fc.c, row: fc.r });
+      walkable[fc.r]![fc.c] = false; // forest is a barrier
+    }
+    // A little undergrowth creeps from the treeline into the open, softening the hard edge. Decorative
+    // (the tile stays walkable for pathing) but reserved from entity placement so no one stands in a bush.
+    const spilled = new Set<number>();
+    for (const fc of forestCells)
+      for (const [dx, dy] of ORTH) {
+        const nx = fc.c + dx, ny = fc.r + dy, k = fkey(nx, ny);
+        if (nx < 0 || ny < 0 || nx >= cols || ny >= rows) continue;
+        if (forestSet.has(k) || spilled.has(k) || tiles[ny]![nx] !== 'grass') continue;
+        if (rand() < 0.15) { forestAmbiance.push({ tag: 'bush', col: nx, row: ny }); occ[ny]![nx] = true; spilled.add(k); }
+      }
   }
 
   const inB = (c: number, r: number) => c >= 0 && c < cols && r >= 0 && r < rows;

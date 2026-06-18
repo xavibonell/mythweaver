@@ -1,10 +1,12 @@
 # MythWeaver
 
-A self-hosted, AI-driven Dungeon Master for tabletop RPGs. **v1 is text-first, D&D 5e (SRD only).**
+A self-hosted, AI-driven Dungeon Master for tabletop RPGs. **v1 is text-first, D&D 5e.**
 A deterministic rules engine owns every number; the LLM is the narrator and tool-caller.
 
+- **Agent / fresh-machine setup:** [CLAUDE.md](CLAUDE.md) — get it running on another computer fast.
 - **Specification:** [docs/MythWeaver-Dev-Spec.md](docs/MythWeaver-Dev-Spec.md) — the single source of truth.
 - **Build plan:** [docs/BUILD-PLAN.md](docs/BUILD-PLAN.md) — P0/P1 tickets and exit criteria.
+- **DM roadmap:** [docs/DM-LAYER-TODO.md](docs/DM-LAYER-TODO.md) — DM Lab, voice distillation, and the planned Showrunner/arc layer.
 
 ## Why this shape
 
@@ -46,13 +48,17 @@ docs/       spec + build plan
 ```bash
 cp .env.example .env          # fill in ANTHROPIC_API_KEY (+ OPENAI_API_KEY for semantic RAG)
 npm install                   # install workspace deps
-npm run db:up                 # start Postgres + pgvector (loads db/init schema)
 npm run build                 # build packages (TS project references)
-npm test                      # run the rules-correctness checks (engine)
-npm run dev:server            # backend on :8080
-npm run dev:web               # web UI on :3000
-# or: npm run up              # everything via docker compose
+npm test                      # full test suite (engine + orchestrator + scene + rag + rubric)
+npm run dev:server            # backend on :6984 (tsx watch — hot-reloads)
+npm run dev:web               # web UI on :6985 (expects the backend at :6984)
+npm run db:up                 # Postgres + pgvector — ONLY for the play/session API; the DM Lab needs no DB
+# or: npm run up              # everything via docker compose (containers use :8080 / :3000)
 ```
+
+Tuning tools: **DM Lab** at http://localhost:6984/dm/lab (`npm run dm:lab` for the CLI) ·
+**evals** `npm run eval` / `npm run eval:update` (real API calls) · **Scene Lab** at
+http://localhost:6985/lab. See [CLAUDE.md](CLAUDE.md) for the full agent setup guide.
 
 ### Rules corpus (RAG) setup — personal use only
 
@@ -69,7 +75,7 @@ offline keyword and the embed step is unnecessary. `raw-data/` and `content/corp
 
 **Foundation + P1 checks + RAG (offline keyword) complete; P2 combat, semantic retrieval, and memory next.**
 
-**Real & tested** (41 tests, CI on every push):
+**Real & tested** (84 tests, CI on every push):
 - Deterministic dice + declared-roll plausibility engine (spec §4.3); `NotImplemented(<phase>)` ramp guard (§4.2).
 - **Engine-authoritative checks/saves/attacks** (P1): the engine decides pass/fail vs a DC or AC and the DM narrates the verdict (it cannot decide it).
 - Agentic **turn-loop** with physical-dice suspend/resume, content-block LLM contract, `FakeLlmProvider` + orchestrator tests + serialization round-trip.
@@ -78,9 +84,10 @@ offline keyword and the embed step is unnecessary. `raw-data/` and `content/corp
 - Editable **DM playbook as data** (`prompts/dm-playbook.md`, hot-reloaded; A/B via `MYTHWEAVER_PLAYBOOK_PATH`).
 - Canonical transcript in the `messages` table; bounded state blob.
 - **Rules corpus (RAG):** game-agnostic PDF→chunked-corpus extraction (PyMuPDF) + a `lookupRule` tool that cites sources. Three retrievers behind one seam, best-available first: **in-memory semantic vector** (cached embeddings, no DB — active with an `OPENAI_API_KEY`), **pgvector** (scale path), or **offline BM25+stemming** (no key/DB). Corpus is **personal-use + gitignored**.
+- **DM Lab + eval harness:** a web/CLI workbench (`/dm/lab`, `npm run dm:lab`) to drive turns and inspect narration + tool calls + state diffs + cost, with live playbook/scenario editing, a temperature knob, and transcript→voice distillation; plus an eval set (`npm run eval`) scored by a 6-dim LLM judge **and** deterministic tool-use assertions (spec §10).
 
 **Stub / not built yet** (intentionally — see [build plan](docs/BUILD-PLAN.md)):
 - P2 combat state: HP, damage (resist/immunity), initiative, action economy, conditions — `NotImplemented`.
 - High-quality **semantic** retrieval (needs an embeddings key; offline keyword path is the fallback). Episodic vector memory (schema only).
 - Tactical/spatial model. Voice I/O (the `IoChannel` seam is declared but the live path is HTTP/JSON).
-- LLM-judge eval/A-B harness (spec §10).
+- Per-turn style-exemplar RAG + the Showrunner/campaign-arc layer (designed — see [DM roadmap](docs/DM-LAYER-TODO.md)).
