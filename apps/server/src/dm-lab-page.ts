@@ -770,6 +770,7 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
   }
   function startGeneratedSession() {
     if (!lastGeneratedArc) { $('gen-status').textContent = 'generate an arc first'; return; }
+    $('gen-start').disabled = true; $('gen-run').disabled = true;
     $('gen-status').innerHTML = '<span class="spin"></span>starting generated session…';
     fetch('/dm/lab/session', {
       method: 'POST', headers: { 'content-type': 'application/json' },
@@ -781,11 +782,14 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
         playbook: $('ed-playbook').value,
       }),
     }).then(function (r) { return r.json().then(function (b) { return { ok: r.ok, body: b }; }); }).then(function (x) {
+      $('gen-start').disabled = false; $('gen-run').disabled = false;
       if (!x.ok) { $('gen-status').textContent = 'error: ' + (x.body.error || 'failed'); return; }
       sessionStarted(x.body);
       showTab('run');
-      $('status').textContent = 'generated session live — talk to the DM (Arc tab shows the generated plan)';
-    }).catch(function (e) { $('gen-status').textContent = 'error: ' + (e.message || e); });
+      $('gen-status').textContent = '✓ session started — switched to the Run tab';
+      $('status').textContent = 'generated session live — type a player action below (Arc tab shows the plan)';
+      try { $('msg').focus(); } catch (e) {}
+    }).catch(function (e) { $('gen-start').disabled = false; $('gen-run').disabled = false; $('gen-status').textContent = 'error: ' + (e.message || e); });
   }
   var REROLL = ['ember', 'hollow', 'tide', 'lantern', 'thornwood', 'saltmarsh', 'ravenfall', 'gravemoor', 'witchlight', 'ironvale', 'mistral', 'cinder'];
   $('gen-temp').oninput = function () { $('gen-tempVal').textContent = Number($('gen-temp').value).toFixed(2); };
