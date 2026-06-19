@@ -211,6 +211,12 @@ export interface Combatant {
   temporaryHitPoints: number;
   armorClass: number;
   conditions: Condition[];
+  /** Set when reduced to 0 HP (P2). npcs are out of the fight; PCs would roll death saves (later). */
+  downed?: boolean;
+  /** Damage modifiers — engine-owned, copied from the stat block when an npc is spawned (P2). */
+  damageResistances?: DamageType[];
+  damageImmunities?: DamageType[];
+  damageVulnerabilities?: DamageType[];
   /** Initiative roll total; undefined outside combat. */
   initiative?: number;
   /** Abstract position label in v1 (e.g. "near the door"); grid is a later phase (OQ #10). */

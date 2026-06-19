@@ -1,6 +1,6 @@
 /** GameState construction helpers (the engine is the sole mutator — spec §4.1). */
 
-import { classToSpriteTag, type AdventureContext, type CharacterSheet, type Combatant, type GameState } from '@mythweaver/shared';
+import { classToSpriteTag, type AdventureContext, type CharacterSheet, type Combatant, type GameState, type StatBlock } from '@mythweaver/shared';
 
 export function pcToCombatant(pc: CharacterSheet): Combatant {
   return {
@@ -15,6 +15,24 @@ export function pcToCombatant(pc: CharacterSheet): Combatant {
     armorClass: pc.armorClass,
     conditions: [],
     ...(pc.spellcasting ? { slotsRemaining: [...pc.spellcasting.slots] } : {}),
+  };
+}
+
+/** Build a live npc Combatant from a monster stat block (P2 combat spawn). */
+export function statBlockToCombatant(sb: StatBlock, instanceId: string, name?: string): Combatant {
+  return {
+    id: instanceId,
+    name: name ?? sb.name,
+    kind: 'npc',
+    refId: sb.id,
+    currentHitPoints: sb.hitPoints.average,
+    maxHitPoints: sb.hitPoints.average,
+    temporaryHitPoints: 0,
+    armorClass: sb.armorClass,
+    conditions: [],
+    ...(sb.damageResistances ? { damageResistances: [...sb.damageResistances] } : {}),
+    ...(sb.damageImmunities ? { damageImmunities: [...sb.damageImmunities] } : {}),
+    ...(sb.damageVulnerabilities ? { damageVulnerabilities: [...sb.damageVulnerabilities] } : {}),
   };
 }
 

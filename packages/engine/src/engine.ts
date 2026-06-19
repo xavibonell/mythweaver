@@ -13,6 +13,7 @@ import {
   type AdvantageState,
   type AttackResult,
   type CheckResult,
+  type Combatant,
   type Condition,
   type DamageType,
   type DiceExpr,
@@ -22,8 +23,10 @@ import {
   type RollRequest,
   type RollResult,
   type Skill,
+  type StatBlock,
 } from '@mythweaver/shared';
 import { rollDice, validateDeclaredRoll, type Rng } from './dice.js';
+import { statBlockToCombatant } from './state.js';
 
 export class Engine implements EngineTools {
   private readonly pending = new Map<string, RollRequest>();
@@ -72,7 +75,11 @@ export class Engine implements EngineTools {
     this.state.log.push({ seq: this.state.log.length + 1, kind, text, ...(data ? { data } : {}) });
   }
 
-  // --- P1: checks, saves, attacks (engine-authoritative at P1) -------------
+  // --- P1: checks, saves, attacks ------------------------------------------
+  // NOTE: in this build the orchestrator resolves checks/saves/attacks through the
+  // dice-trust path — requestRoll(dc) -> submitRoll -> validateDeclaredRoll computes
+  // success vs the DC/AC (dice.ts). These typed resolve* APIs are reserved for a future
+  // direct-call path and remain unimplemented on purpose (the ramp guard, spec §4.2).
 
   resolveCheck(_args: { combatantId: string; skill?: Skill; ability: Ability; dc: number; declaredTotal: number }): CheckResult {
     throw new NotImplemented('resolveCheck', 'P1');
@@ -86,22 +93,92 @@ export class Engine implements EngineTools {
     throw new NotImplemented('resolveAttack', 'P1');
   }
 
-  // --- P2: combat state ----------------------------------------------------
+  // --- P2: combat state (engine-authoritative) -----------------------------
 
-  applyDamage(_args: { targetId: string; amount: number; type: DamageType }): { remaining: number; downed: boolean } {
-    throw new NotImplemented('applyDamage', 'P2');
+  /** Spawn a live npc combatant from a monster stat block. Returns the created combatant. */
+  spawnCombatant(statBlock: StatBlock, instanceId?: string, name?: string): Combatant {
+    const existing = Object.values(this.state.combatants).filter((c) => c.refId === statBlock.id).length;
+    const id = instanceId ?? `npc:${statBlock.id}-${existing + 1}`;
+    const combatant = statBlockToCombatant(statBlock, id, name ?? `${statBlock.name} ${existing + 1}`);
+    this.state.combatants[combatant.id] = combatant;
+    this.record('engine', `Spawned ${combatant.name} (${combatant.currentHitPoints} HP, AC ${combatant.armorClass})`, {
+      combatantId: combatant.id,
+      refId: statBlock.id,
+    });
+    return combatant;
   }
 
-  startCombat(_initiatives: { combatantId: string; initiative: number }[]): void {
-    throw new NotImplemented('startCombat', 'P2');
+  /**
+   * Apply damage to a combatant (the engine owns HP). Honors immunity/resistance/vulnerability,
+   * soaks temporary HP first, clamps at 0, and marks a creature downed at 0 HP.
+   */
+  applyDamage(args: { targetId: string; amount: number; type: DamageType }): { remaining: number; downed: boolean } {
+    const c = this.state.combatants[args.targetId];
+    if (!c) throw new Error(`Unknown combatant: ${args.targetId}`);
+
+    const raw = Math.max(0, Math.floor(args.amount));
+    let amount = raw;
+    if (c.damageImmunities?.includes(args.type)) amount = 0;
+    else if (c.damageResistances?.includes(args.type)) amount = Math.floor(raw / 2);
+    else if (c.damageVulnerabilities?.includes(args.type)) amount = raw * 2;
+
+    let toHp = amount;
+    if (c.temporaryHitPoints > 0) {
+      const soak = Math.min(c.temporaryHitPoints, toHp);
+      c.temporaryHitPoints -= soak;
+      toHp -= soak;
+    }
+    const before = c.currentHitPoints;
+    c.currentHitPoints = Math.max(0, c.currentHitPoints - toHp);
+    const downed = c.currentHitPoints === 0;
+    if (downed && !c.downed) {
+      c.downed = true;
+      if (!c.conditions.includes('unconscious')) c.conditions.push('unconscious');
+    }
+    this.record(
+      'engine',
+      `${c.name} takes ${amount} ${args.type} damage (${before} -> ${c.currentHitPoints} HP)${downed ? ' — downed' : ''}`,
+      { combatantId: c.id, field: 'currentHitPoints', before, after: c.currentHitPoints, type: args.type, raw, applied: amount, downed },
+    );
+    return { remaining: c.currentHitPoints, downed };
   }
 
+  /** Begin combat: set initiative on each named combatant and build the turn order (desc). */
+  startCombat(initiatives: { combatantId: string; initiative: number }[]): void {
+    for (const { combatantId, initiative } of initiatives) {
+      const c = this.state.combatants[combatantId];
+      if (c) c.initiative = initiative;
+    }
+    const order = [...initiatives]
+      .filter((i) => this.state.combatants[i.combatantId])
+      .sort((a, b) => b.initiative - a.initiative)
+      .map((i) => i.combatantId);
+    this.state.combat = { active: true, round: 1, turnIndex: 0, order };
+    this.record('engine', `Combat started (round 1) — order: ${order.join(', ')}`);
+  }
+
+  /** Advance to the next combatant; wraps to the next round at the end of the order. */
   nextTurn(): { activeCombatantId: string; round: number } {
-    throw new NotImplemented('nextTurn', 'P2');
+    const cs = this.state.combat;
+    if (!cs.active || cs.order.length === 0) throw new Error('No active combat to advance.');
+    cs.turnIndex += 1;
+    if (cs.turnIndex >= cs.order.length) {
+      cs.turnIndex = 0;
+      cs.round += 1;
+    }
+    const activeCombatantId = cs.order[cs.turnIndex]!;
+    this.record('engine', `Round ${cs.round} — active: ${activeCombatantId}`, { round: cs.round, activeCombatantId });
+    return { activeCombatantId, round: cs.round };
   }
 
-  applyCondition(_args: { combatantId: string; condition: Condition; add: boolean }): void {
-    throw new NotImplemented('applyCondition', 'P2');
+  /** Add or remove a condition on a combatant. */
+  applyCondition(args: { combatantId: string; condition: Condition; add: boolean }): void {
+    const c = this.state.combatants[args.combatantId];
+    if (!c) throw new Error(`Unknown combatant: ${args.combatantId}`);
+    const has = c.conditions.includes(args.condition);
+    if (args.add && !has) c.conditions.push(args.condition);
+    else if (!args.add && has) c.conditions = c.conditions.filter((x) => x !== args.condition);
+    this.record('engine', `${c.name} ${args.add ? 'gains' : 'loses'} ${args.condition}`, { combatantId: c.id, condition: args.condition, add: args.add });
   }
 
   // --- P3: resources -------------------------------------------------------
