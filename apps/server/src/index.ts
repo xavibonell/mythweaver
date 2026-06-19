@@ -14,7 +14,7 @@ import { buildRetriever } from './corpus.js';
 import { buildTracer } from './tracing.js';
 import { runTurn, type TurnInput } from './orchestrator.js';
 import { labBuildScene, labComposeScene } from './scene-lab.js';
-import { runDmLab, DM_LAB_TRANSCRIPTS, type LabTurn } from './dm-lab.js';
+import { runDmLab, createDmLabSession, dmLabSubmit, autoRollTotal, DM_LAB_TRANSCRIPTS, type LabTurn, type DmLabSession } from './dm-lab.js';
 import { renderDmLabPage } from './dm-lab-page.js';
 import { distillStyle, DISTILL_MAX_INPUT } from './distill.js';
 
@@ -27,6 +27,10 @@ const SESSION_BUDGET_USD = Number(process.env.MYTHWEAVER_SESSION_BUDGET_USD || 0
 
 const app = Fastify({ logger: true });
 const db = new Db();
+
+// In-memory store for interactive DM-Lab sessions (ephemeral — lost on restart; lab-only).
+const dmLabSessions = new Map<string, DmLabSession>();
+const DM_LAB_SESSION_CAP = 50;
 
 // DM (narrator) provider — anthropic | gemini | openai (+ optional model override).
 const dmProvider = (process.env.MYTHWEAVER_DM_PROVIDER || 'anthropic').toLowerCase();
@@ -249,6 +253,80 @@ app.post('/dm/lab', async (req, reply) => {
     );
   } catch (err) {
     app.log.error(err, 'dm lab failed');
+    reply.code(502);
+    return { error: (err as Error).message };
+  }
+});
+
+// Interactive DM Lab — create a stateful session, then submit one turn at a time (accumulating
+// context), the natural way to vibe-test the DM. The persona/scenario/temp are captured at create.
+app.post('/dm/lab/session', async (req, reply) => {
+  const body = (req.body ?? {}) as { scenario?: unknown; temperature?: unknown; playbook?: unknown; scenarioJson?: unknown; startScene?: unknown };
+  const scenario = typeof body.scenario === 'string' && body.scenario ? body.scenario : DEFAULT_SCENARIO;
+  if (!/^[a-z0-9-]+$/.test(scenario)) return badRequest(reply, 'invalid scenario');
+  const playbook = typeof body.playbook === 'string' && body.playbook.trim() ? body.playbook : undefined;
+  const scenarioJson = typeof body.scenarioJson === 'string' && body.scenarioJson.trim() ? body.scenarioJson : undefined;
+  const startSceneId = typeof body.startScene === 'string' && body.startScene.trim() ? body.startScene.trim() : undefined;
+  let temperature: number | undefined;
+  if (body.temperature !== undefined && body.temperature !== null && body.temperature !== '') {
+    const t = Number(body.temperature);
+    if (!Number.isFinite(t) || t < 0 || t > 1) return badRequest(reply, 'temperature must be between 0 and 1');
+    temperature = t;
+  }
+  let session: DmLabSession;
+  try {
+    session = createDmLabSession(
+      {
+        llm,
+        ...(retriever ? { retriever } : {}),
+        composer: new FakeSceneComposer(),
+        ...(playbook ? { playbook } : {}),
+        ...(scenarioJson ? { scenarioJson } : {}),
+        ...(temperature !== undefined ? { temperature } : {}),
+        ...(startSceneId ? { startSceneId } : {}),
+      },
+      scenario,
+    );
+  } catch (err) {
+    return badRequest(reply, (err as Error).message);
+  }
+  if (dmLabSessions.size >= DM_LAB_SESSION_CAP) {
+    const oldest = dmLabSessions.keys().next().value;
+    if (oldest) dmLabSessions.delete(oldest);
+  }
+  const sessionId = randomUUID();
+  dmLabSessions.set(sessionId, session);
+  return { sessionId, scenarioId: session.scenarioId, scene: session.scene, party: session.party };
+});
+
+app.post('/dm/lab/session/:id/turn', async (req, reply) => {
+  const { id } = req.params as { id: string };
+  const session = dmLabSessions.get(id);
+  if (!session) {
+    reply.code(404);
+    return { error: 'session not found — start a new one' };
+  }
+  const body = (req.body ?? {}) as { say?: unknown; as?: unknown; roll?: unknown; auto?: unknown };
+  let input: { say: string; as?: string } | { roll: number; auto?: boolean };
+  if (body.auto === true) {
+    if (!session.pendingRoll) return badRequest(reply, 'no roll is pending to auto-roll');
+    input = { roll: autoRollTotal(session.pendingRoll.expr), auto: true };
+  } else if (body.roll !== undefined && body.roll !== null && body.roll !== '') {
+    const n = Number(body.roll);
+    if (!Number.isFinite(n)) return badRequest(reply, 'roll must be a number');
+    if (!session.pendingRoll) return badRequest(reply, 'no roll is pending — submit a player line');
+    input = { roll: n };
+  } else {
+    const say = typeof body.say === 'string' ? body.say.trim() : '';
+    if (!say) return badRequest(reply, 'say (a player line) is required');
+    if (say.length > 2000) return badRequest(reply, 'turn too long (max 2000 chars)');
+    input = { say, ...(typeof body.as === 'string' && body.as.trim() ? { as: body.as.trim().slice(0, 40) } : {}) };
+  }
+  try {
+    const turn = await dmLabSubmit(session, input);
+    return { turn, totalCostUsd: session.totalCostUsd, totalLatencyMs: session.totalLatencyMs, pendingRoll: session.pendingRoll ?? null };
+  } catch (err) {
+    app.log.error(err, 'dm lab session turn failed');
     reply.code(502);
     return { error: (err as Error).message };
   }

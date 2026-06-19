@@ -191,12 +191,33 @@ function buildResultIndex(exchanges: { request: LlmRequest }[]): Map<string, str
 }
 
 /**
- * Run a scripted session through the real DM and return a full per-turn trace.
- * Costs money: each player turn (and roll resume) is a real model call.
+ * A stateful interactive DM-Lab session: a live engine + recorder + accumulating transcript that
+ * advances ONE turn per `dmLabSubmit`, so you can vibe-test the DM turn-by-turn, piling on context.
+ * The persona/scenario/temperature are captured at creation (edit them → start a new session).
  */
-export async function runDmLab(deps: DmLabDeps, scenarioId: string, script: LabTurn[]): Promise<DmLabResult> {
+export interface DmLabSession {
+  scenarioId: string;
+  engine: Engine;
+  recorder: RecordingProvider;
+  composer: SceneComposer;
+  retriever?: Retriever;
+  playbook: string;
+  temperature?: number;
+  recent: string[];
+  turnIndex: number;
+  totalCostUsd: number;
+  totalLatencyMs: number;
+  /** Set when the last turn asked for a roll (the next submit should declare it). */
+  pendingRoll?: TurnRollRequest;
+  /** Scene the party started in + the party roster (for the UI header). */
+  scene: string;
+  party: { id: string; name: string }[];
+}
+
+/** Build a fresh interactive session (engine state, recorder, captured persona/scenario/temp). */
+export function createDmLabSession(deps: DmLabDeps, scenarioId: string): DmLabSession {
   const bundle = loadScenario(scenarioId);
-  // Live editing: an override scenario.json replaces the on-disk one for this run (pregens/bestiary stay).
+  // Live editing: an override scenario.json replaces the on-disk one for this session (pregens/bestiary stay).
   const scenario = deps.scenarioJson ? parseScenario(deps.scenarioJson, scenarioId) : bundle.scenario;
   const adventure = {
     pitch: scenario.pitch,
@@ -213,99 +234,110 @@ export async function runDmLab(deps: DmLabDeps, scenarioId: string, script: LabT
     encounters: scenario.encounters,
     bestiary: Object.fromEntries(bundle.bestiary.map((b) => [b.id, b])),
   });
-  const engine = new Engine(state);
-  const recorder = new RecordingProvider(deps.llm);
-  const composer = deps.composer ?? new FakeSceneComposer();
-  const playbook = deps.playbook ?? loadPlaybook(); // the edited persona, re-read each run (hot reload)
-
-  const recent: string[] = [];
-  // Each turn keeps the toolUseIds it produced so results (which may arrive a turn later,
-  // e.g. a roll verdict) can be backfilled from the global index after the session runs.
-  const turns: { turn: DmLabTurn; ids: string[] }[] = [];
-
-  const runOne = async (
-    input: TurnInput,
-    label: { speaker: string; text: string; kind: DmLabTurn['kind'] },
-  ): Promise<TurnResult> => {
-    const sliceStart = recorder.exchanges.length;
-    const before = snapshot(engine.getState());
-    const startedAt = Date.now();
-    const result = await runTurn(
-      { engine, llm: recorder, retriever: deps.retriever, composer, playbook, recentTranscript: recent, ...(deps.temperature !== undefined ? { temperature: deps.temperature } : {}) },
-      input,
-    );
-    const latencyMs = Date.now() - startedAt;
-    const after = snapshot(engine.getState());
-
-    // Tool calls made during this turn's exchanges (results indexed globally below).
-    const tools: { name: string; input: Record<string, unknown>; id: string }[] = [];
-    for (const ex of recorder.exchanges.slice(sliceStart)) {
-      for (const tc of ex.response.toolCalls) tools.push({ name: tc.name, input: tc.input, id: tc.id });
-    }
-
-    turns.push({
-      ids: tools.map((t) => t.id),
-      turn: {
-        index: turns.length + 1,
-        speaker: label.speaker,
-        input: label.text,
-        kind: label.kind,
-        narration: result.narration,
-        ...(result.rollRequest ? { rollRequest: result.rollRequest } : {}),
-        tools: tools.map((t) => ({ name: t.name, input: t.input })), // result backfilled after the run
-        diff: diffSnaps(before, after),
-        model: result.model,
-        steps: result.trace.steps,
-        costUsd: result.costUsd,
-        latencyMs,
-      },
-    });
-
-    recent.push(`${label.speaker}: ${label.text}`);
-    if (result.narration) recent.push(`Dungeon Master: ${result.narration}`);
-    return result;
+  return {
+    scenarioId,
+    engine: new Engine(state),
+    recorder: new RecordingProvider(deps.llm),
+    composer: deps.composer ?? new FakeSceneComposer(),
+    ...(deps.retriever ? { retriever: deps.retriever } : {}),
+    playbook: deps.playbook ?? loadPlaybook(),
+    ...(deps.temperature !== undefined ? { temperature: deps.temperature } : {}),
+    recent: [],
+    turnIndex: 0,
+    totalCostUsd: 0,
+    totalLatencyMs: 0,
+    scene: startSceneId,
+    party: Object.values(state.combatants)
+      .filter((c) => c.kind === 'pc')
+      .map((c) => ({ id: c.id, name: c.name })),
   };
+}
 
+/** Advance the session by ONE turn (a player line, or a declared/auto roll). Mutates the session. */
+export async function dmLabSubmit(session: DmLabSession, input: { say: string; as?: string } | { roll: number; auto?: boolean }): Promise<DmLabTurn> {
+  const { engine, recorder, composer } = session;
+  const sliceStart = recorder.exchanges.length;
+  const before = snapshot(engine.getState());
+  const startedAt = Date.now();
+
+  let turnInput: TurnInput;
+  let label: { speaker: string; text: string; kind: DmLabTurn['kind'] };
+  if ('roll' in input) {
+    turnInput = { kind: 'roll', requestId: session.pendingRoll?.id ?? '', total: input.roll };
+    label = { speaker: 'roll', text: `🎲 ${input.roll}`, kind: input.auto ? 'auto-roll' : 'roll' };
+  } else {
+    turnInput = { kind: 'message', speakerId: input.as ?? 'player', text: input.say };
+    label = { speaker: input.as ?? 'player', text: input.say, kind: 'message' };
+  }
+
+  const result = await runTurn(
+    {
+      engine,
+      llm: recorder,
+      ...(session.retriever ? { retriever: session.retriever } : {}),
+      composer,
+      playbook: session.playbook,
+      recentTranscript: session.recent,
+      ...(session.temperature !== undefined ? { temperature: session.temperature } : {}),
+    },
+    turnInput,
+  );
+  const latencyMs = Date.now() - startedAt;
+  const after = snapshot(engine.getState());
+
+  const index = buildResultIndex(recorder.exchanges);
+  const tools: ToolTrace[] = [];
+  for (const ex of recorder.exchanges.slice(sliceStart)) {
+    for (const tc of ex.response.toolCalls) tools.push({ name: tc.name, input: tc.input, ...(index.has(tc.id) ? { result: index.get(tc.id)! } : {}) });
+  }
+
+  session.turnIndex += 1;
+  session.totalCostUsd += result.costUsd;
+  session.totalLatencyMs += latencyMs;
+  if (result.rollRequest) session.pendingRoll = result.rollRequest;
+  else delete session.pendingRoll;
+  session.recent.push(`${label.speaker}: ${label.text}`);
+  if (result.narration) session.recent.push(`Dungeon Master: ${result.narration}`);
+
+  return {
+    index: session.turnIndex,
+    speaker: label.speaker,
+    input: label.text,
+    kind: label.kind,
+    narration: result.narration,
+    ...(result.rollRequest ? { rollRequest: result.rollRequest } : {}),
+    tools,
+    diff: diffSnaps(before, after),
+    model: result.model,
+    steps: result.trace.steps,
+    costUsd: result.costUsd,
+    latencyMs,
+  };
+}
+
+/**
+ * Run a scripted session through the real DM and return a full per-turn trace (the batch path,
+ * used by the CLI). Built on createDmLabSession + dmLabSubmit. Costs money: one model call per turn.
+ */
+export async function runDmLab(deps: DmLabDeps, scenarioId: string, script: LabTurn[]): Promise<DmLabResult> {
+  const session = createDmLabSession(deps, scenarioId);
+  const turns: DmLabTurn[] = [];
   for (let i = 0; i < script.length; i++) {
     const entry = script[i]!;
     if ('roll' in entry) continue; // a stray roll with no pending request — ignore
-    let result = await runOne(
-      { kind: 'message', speakerId: entry.as ?? 'player', text: entry.say },
-      { speaker: entry.as ?? 'player', text: entry.say, kind: 'message' },
-    );
+    turns.push(await dmLabSubmit(session, { say: entry.say, ...(entry.as ? { as: entry.as } : {}) }));
     // Resolve any chain of roll requests before advancing to the next scripted line.
-    while (result.rollRequest) {
+    while (session.pendingRoll) {
       const next = script[i + 1];
-      let total: number;
-      let kind: DmLabTurn['kind'];
       if (next && 'roll' in next) {
-        total = next.roll;
-        kind = 'roll';
         i++;
+        turns.push(await dmLabSubmit(session, { roll: next.roll }));
       } else {
-        total = autoRollTotal(result.rollRequest.expr);
-        kind = 'auto-roll';
+        turns.push(await dmLabSubmit(session, { roll: autoRollTotal(session.pendingRoll.expr), auto: true }));
       }
-      result = await runOne(
-        { kind: 'roll', requestId: result.rollRequest.id, total },
-        { speaker: 'roll', text: `🎲 ${total}`, kind },
-      );
     }
   }
-
-  // Backfill each tool's result from the global index (roll verdicts land a turn later).
-  const resultIndex = buildResultIndex(recorder.exchanges);
-  const finalTurns: DmLabTurn[] = turns.map(({ turn, ids }) => ({
-    ...turn,
-    tools: turn.tools.map((t, n) => ({ ...t, ...(resultIndex.has(ids[n]!) ? { result: resultIndex.get(ids[n]!) } : {}) })),
-  }));
-
-  return {
-    scenario: scenarioId,
-    turns: finalTurns,
-    totalCostUsd: finalTurns.reduce((s, t) => s + t.costUsd, 0),
-    totalLatencyMs: finalTurns.reduce((s, t) => s + t.latencyMs, 0),
-  };
+  return { scenario: scenarioId, turns, totalCostUsd: session.totalCostUsd, totalLatencyMs: session.totalLatencyMs };
 }
 
 // --- Formatting (shared by the CLI) ---------------------------------------

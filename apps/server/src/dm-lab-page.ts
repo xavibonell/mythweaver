@@ -39,6 +39,24 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
   .view { display: none; height: 100%; }
   .view.run.active { display: grid; grid-template-columns: 400px 1fr; }
   .view.editor.active { display: flex; flex-direction: column; }
+  /* interactive chat (Run tab) */
+  .right-wrap { display: flex; flex-direction: column; min-height: 0; }
+  .convo { flex: 1; overflow: auto; padding: 16px 20px; }
+  .inputbar { border-top: 1px solid #23262e; padding: 10px 16px; background: #0c0e12; }
+  .inputbar .row { gap: 8px; }
+  .inputbar input { background: #161922; color: #e6e8ee; border: 1px solid #2b2f3a; border-radius: 8px; padding: 9px 11px; font: inherit; }
+  .bubble { margin-bottom: 14px; max-width: 760px; }
+  .bubble .who { font-size: 11px; color: #8b90a0; margin-bottom: 3px; font-weight: 600; }
+  .bubble.player .who { color: #6ab0ff; }
+  .bubble.player .line { color: #c7ccda; }
+  .bubble.dm .narr { white-space: pre-wrap; }
+  .bubble .meta { color: #7b8090; font-size: 11px; font-family: ui-monospace, monospace; margin-top: 5px; }
+  .bubble .roll-pending { color: #e8a13a; font-size: 12px; margin-top: 5px; }
+  .bubble details { margin-top: 6px; }
+  .bubble details summary { color: #7b8090; font-size: 11px; cursor: pointer; user-select: none; }
+  .bubble details > .tool, .bubble details > .diff { margin-top: 6px; }
+  .rollask { color: #e8a13a; font-size: 12px; align-self: center; margin-right: auto; font-family: ui-monospace, monospace; }
+  .sys { color: #6b7080; font-style: italic; font-size: 12px; margin-bottom: 12px; }
   .panel { padding: 16px 20px; overflow: auto; }
   .panel.left { border-right: 1px solid #23262e; }
   label { display: block; font-size: 12px; color: #9aa0b0; margin: 12px 0 4px; }
@@ -126,17 +144,29 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
         <input id="temp" type="range" min="0" max="1" step="0.05" value="1" />
         <span class="val" id="tempVal">1.00</span>
       </div>
-      <label for="turns">Turns — one per line: <code>Name: text</code>, or <code>roll: 15</code></label>
-      <textarea id="turns" spellcheck="false"></textarea>
-      <div class="hint">A <code>roll:</code> line resolves a check the DM asked for; otherwise the lab auto-rolls a plausible total. The Playbook/Scenario tabs are applied to this run even if unsaved.</div>
       <div class="row" style="margin-top:12px;">
-        <button id="run">Run</button>
-        <span id="presets"></span>
+        <button id="newSession">New session</button>
       </div>
-      <div class="hint" id="status"><kbd>⌘/Ctrl</kbd> + <kbd>Enter</kbd> runs from any tab.</div>
+      <div class="hint">A session captures the current Playbook + Scenario tabs + temperature. Edit them, then start a new session to apply.</div>
+      <label>Quick-start a situation</label>
+      <div class="row" id="presets"></div>
+      <div class="hint" id="status">Start a session, then play turn by turn.</div>
     </div>
-    <div class="panel right">
-      <div id="out"><div class="empty-state">Enter turns and hit Run to see the DM play.</div></div>
+    <div class="right-wrap">
+      <div class="convo" id="convo"><div class="empty-state">Start a session, then play turn by turn — the DM keeps the growing context.</div></div>
+      <div class="inputbar">
+        <div class="row" id="msgbar">
+          <input id="speaker" type="text" placeholder="who (optional)" style="width:130px" />
+          <input id="msg" type="text" placeholder="What does the party do?  (Enter to send)" style="flex:1" />
+          <button id="send" disabled>Send</button>
+        </div>
+        <div class="row" id="rollbar" style="display:none">
+          <span id="rollask" class="rollask"></span>
+          <input id="rollval" type="number" placeholder="total" style="width:90px" />
+          <button id="declare">Declare</button>
+          <button class="ghost" id="autoroll">Auto-roll</button>
+        </div>
+      </div>
     </div>
   </section>
 
@@ -232,59 +262,111 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
     b.onclick = function () { showTab(b.getAttribute('data-tab')); };
   });
 
-  // --- results render ---
-  function renderResult(r) {
-    if (!r.turns.length) return '<div class="empty-state">No turns ran.</div>';
-    var html = r.turns.map(function (t) {
-      var tools = (t.tools || []).map(function (c) {
-        var res = c.result ? '<span class="res">→ ' + esc(c.result) + '</span>' : '';
-        return '<div class="tool"><span class="name">' + esc(c.name) + '</span>' +
-          '<span class="inp">(' + esc(JSON.stringify(c.input)) + ')</span>' + res + '</div>';
-      }).join('');
-      var roll = t.rollRequest ? '<div class="roll">⏸ roll requested: ' + esc(t.rollRequest.expr) + ' — ' + esc(t.rollRequest.reason) + '</div>' : '';
-      var diff = (t.diff && t.diff.length) ? '<div class="diff"><b>state Δ</b> ' + t.diff.map(esc).join('  |  ') + '</div>' : '';
-      var tag = t.kind === 'auto-roll' ? '<span class="tag">auto-roll</span>' : '';
-      var narr = t.narration ? '<div class="narr">' + esc(t.narration) + '</div>' : '<div class="narr empty">(no narration — turn paused for a roll)</div>';
-      var meta = esc(t.model || '?') + ' · ' + t.steps + ' step(s) · ' + fmtTime(t.latencyMs) + ' · ' + fmtCost(t.costUsd);
-      return '<div class="turn"><div class="head"><span class="who">' + esc(t.speaker) + tag +
-        ': <span style="font-weight:400;color:#b7bccb">' + esc(t.input) + '</span></span>' +
-        '<span class="meta">' + meta + '</span></div>' +
-        '<div class="body">' + tools + roll + diff + narr + '</div></div>';
-    }).join('');
-    html += '<div class="total">Total: ' + fmtCost(r.totalCostUsd) + ' · ' + fmtTime(r.totalLatencyMs) + ' · ' + r.turns.length + ' turn(s)</div>';
-    return html;
+  // --- interactive session (turn by turn, accumulating context) ---
+  var sessionId = null;
+  var pendingRoll = null;
+  function convo() { return $('convo'); }
+  function scrollConvo() { var c = $('convo'); c.scrollTop = c.scrollHeight; }
+  function addSys(t) { var d = document.createElement('div'); d.className = 'sys'; d.textContent = t; convo().appendChild(d); scrollConvo(); }
+  function addPlayer(speaker, text) {
+    var d = document.createElement('div'); d.className = 'bubble player';
+    d.innerHTML = '<div class="who">' + esc(speaker) + '</div><div class="line">' + esc(text) + '</div>';
+    convo().appendChild(d); scrollConvo();
   }
+  function addDm(t) {
+    var tools = (t.tools || []).map(function (c) {
+      var res = c.result ? '<span class="res">→ ' + esc(c.result) + '</span>' : '';
+      return '<div class="tool"><span class="name">' + esc(c.name) + '</span><span class="inp">(' + esc(JSON.stringify(c.input)) + ')</span>' + res + '</div>';
+    }).join('');
+    var diff = (t.diff && t.diff.length) ? '<div class="diff"><b>state Δ</b> ' + t.diff.map(esc).join('  |  ') + '</div>' : '';
+    var details = (tools || diff) ? ('<details><summary>tools + state Δ</summary>' + tools + diff + '</details>') : '';
+    var roll = t.rollRequest ? '<div class="roll-pending">⏸ needs a roll: ' + esc(t.rollRequest.expr) + ' — ' + esc(t.rollRequest.reason) + '</div>' : '';
+    var narr = t.narration ? '<div class="narr">' + esc(t.narration) + '</div>' : '<div class="narr" style="color:#6b7080;font-style:italic">(no narration — awaiting your roll)</div>';
+    var meta = esc(t.model || '?') + ' · ' + t.steps + ' step(s) · ' + fmtTime(t.latencyMs) + ' · ' + fmtCost(t.costUsd);
+    var d = document.createElement('div'); d.className = 'bubble dm';
+    d.innerHTML = '<div class="who">Dungeon Master</div>' + narr + roll + '<div class="meta">' + meta + '</div>' + details;
+    convo().appendChild(d); scrollConvo();
+  }
+  function setPending(rr) {
+    pendingRoll = rr || null;
+    $('rollbar').style.display = pendingRoll ? 'flex' : 'none';
+    $('msgbar').style.display = pendingRoll ? 'none' : 'flex';
+    if (pendingRoll) { $('rollask').textContent = '🎲 ' + pendingRoll.expr + ' — ' + pendingRoll.reason; $('rollval').value = ''; $('rollval').focus(); }
+    else if (sessionId) { $('msg').focus(); }
+  }
+  function setBusy(b) { $('send').disabled = b || !sessionId; $('declare').disabled = b; $('autoroll').disabled = b; }
 
-  // --- run ---
-  function run() {
-    var btn = $('run');
-    var turns = parseTurns($('turns').value);
-    if (!turns.length) { $('status').textContent = 'Add at least one turn.'; showTab('run'); return; }
-    btn.disabled = true;
-    showTab('run');
-    var players = turns.filter(function (t) { return 'say' in t; }).length;
-    $('status').innerHTML = '<span class="spin"></span>running ' + players + ' player turn(s) at temp ' + Number($('temp').value).toFixed(2) + ' — real API calls…';
-    fetch('/dm/lab', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
+  function newSession() {
+    $('status').innerHTML = '<span class="spin"></span>starting session…';
+    return fetch('/dm/lab/session', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
         scenario: $('scenario').value.trim() || 'the-sunken-bell',
-        turns: turns,
+        startScene: $('startScene').value,
         temperature: Number($('temp').value),
         playbook: $('ed-playbook').value,
         scenarioJson: $('ed-scenario').value,
-        startScene: $('startScene').value,
       }),
-    }).then(function (res) {
-      return res.json().then(function (body) { return { ok: res.ok, body: body }; });
-    }).then(function (x) {
-      if (!x.ok) { $('out').innerHTML = '<div class="err">' + esc(x.body && x.body.error ? x.body.error : 'request failed') + '</div>'; $('status').textContent = ''; return; }
-      $('out').innerHTML = renderResult(x.body);
-      $('status').textContent = 'done · ' + fmtCost(x.body.totalCostUsd) + ' · ' + fmtTime(x.body.totalLatencyMs);
-    }).catch(function (e) {
-      $('out').innerHTML = '<div class="err">' + esc(e.message || String(e)) + '</div>';
-      $('status').textContent = '';
-    }).finally(function () { btn.disabled = false; });
+    }).then(function (r) { return r.json().then(function (b) { return { ok: r.ok, body: b }; }); }).then(function (x) {
+      if (!x.ok) { $('status').textContent = 'error: ' + (x.body.error || 'failed'); return false; }
+      sessionId = x.body.sessionId; pendingRoll = null;
+      convo().innerHTML = '';
+      addSys('Session started · scene "' + x.body.scene + '" · party: ' + (x.body.party || []).map(function (p) { return p.name; }).join(', '));
+      setPending(null); setBusy(false);
+      $('status').textContent = 'session live — talk to the DM';
+      return true;
+    }).catch(function (e) { $('status').textContent = 'error: ' + (e.message || e); return false; });
+  }
+
+  function submitTurn(payload) {
+    if (!sessionId) return Promise.resolve();
+    setBusy(true);
+    $('status').innerHTML = '<span class="spin"></span>DM thinking…';
+    return fetch('/dm/lab/session/' + sessionId + '/turn', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload) })
+      .then(function (r) { return r.json().then(function (b) { return { ok: r.ok, body: b }; }); })
+      .then(function (x) {
+        if (!x.ok) { addSys('error: ' + (x.body.error || 'failed')); setBusy(false); $('status').textContent = ''; return; }
+        var t = x.body.turn;
+        if (t.kind !== 'message') addPlayer('roll', t.input); // show the actual declared/auto total
+        addDm(t);
+        setPending(x.body.pendingRoll);
+        setBusy(false);
+        $('status').textContent = 'turn ' + t.index + ' · total ' + fmtCost(x.body.totalCostUsd) + ' · ' + fmtTime(x.body.totalLatencyMs);
+      }).catch(function (e) { addSys('error: ' + (e.message || e)); setBusy(false); $('status').textContent = ''; });
+  }
+
+  function sendMsg() {
+    if (!sessionId || pendingRoll) return;
+    var text = $('msg').value.trim(); if (!text) return;
+    var as = $('speaker').value.trim();
+    $('msg').value = '';
+    addPlayer(as || 'player', text);
+    var payload = { say: text }; if (as) payload.as = as;
+    submitTurn(payload);
+  }
+  function declareRoll() { if (!pendingRoll) return; var n = Number($('rollval').value); if (!isFinite(n)) return; submitTurn({ roll: n }); }
+  function autoRoll() { if (!pendingRoll) return; submitTurn({ auto: true }); }
+
+  // Quick-start: new session, then auto-play a preset transcript to seed context, then continue manually.
+  function playPreset(turns) {
+    newSession().then(function (ok) {
+      if (!ok) return;
+      var i = 0;
+      function next() {
+        if (i >= turns.length) { $('status').textContent = 'preset seeded — continue the conversation'; return; }
+        var e = turns[i++];
+        if ('roll' in e) { if (pendingRoll) { submitTurn({ roll: e.roll }).then(next); } else { next(); } return; }
+        addPlayer(e.as || 'player', e.say);
+        var payload = { say: e.say }; if (e.as) payload.as = e.as;
+        submitTurn(payload).then(function resolveRolls() {
+          if (!pendingRoll) { next(); return; }
+          var nxt = turns[i];
+          if (nxt && ('roll' in nxt)) { i++; submitTurn({ roll: nxt.roll }).then(resolveRolls); }
+          else { submitTurn({ auto: true }).then(resolveRolls); }
+        });
+      }
+      next();
+    });
   }
 
   // --- load / save editable files ---
@@ -322,17 +404,22 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
   document.querySelectorAll('[data-save]').forEach(function (b) { b.onclick = function () { save(b.getAttribute('data-save')); }; });
   document.querySelectorAll('[data-reload]').forEach(function (b) { b.onclick = function () { loadFiles(); }; });
 
-  // --- presets + temp + shortcuts ---
+  // --- presets + session controls + temp ---
   Object.keys(TRANSCRIPTS).forEach(function (name) {
     var b = document.createElement('button');
     b.className = 'ghost';
     b.textContent = name;
-    b.onclick = function () { $('turns').value = turnsToText(TRANSCRIPTS[name]); };
+    b.title = 'start a new session and auto-play the "' + name + '" transcript, then continue manually';
+    b.onclick = function () { playPreset(TRANSCRIPTS[name]); };
     $('presets').appendChild(b);
   });
   $('temp').oninput = function () { $('tempVal').textContent = Number($('temp').value).toFixed(2); };
-  $('turns').value = turnsToText(TRANSCRIPTS.default || []);
-  $('run').onclick = run;
+  $('newSession').onclick = newSession;
+  $('send').onclick = sendMsg;
+  $('msg').addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); sendMsg(); } });
+  $('declare').onclick = declareRoll;
+  $('autoroll').onclick = autoRoll;
+  $('rollval').addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); declareRoll(); } });
 
   // --- distill: source (transcript|guide) -> block -> diff/apply into the (temp) playbook ---
   var distillMode = 'transcript'; // the mode the CURRENT output belongs to (set on Distill)
@@ -446,9 +533,6 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
   }
   $('view-block').onclick = function () { setDiffView(false); };
   $('view-diff').onclick = function () { setDiffView(true); };
-  document.addEventListener('keydown', function (e) {
-    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { e.preventDefault(); run(); }
-  });
   loadFiles();
 </script>
 </body>
