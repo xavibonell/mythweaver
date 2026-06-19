@@ -186,19 +186,139 @@
         {
           "art": "/assets/dawnlike/terrain/wall0.png",
           "from": {
-            "pack": "DawnLike",
-            "crop": "Objects/Wall.png",
-            "rect": [
-              16,
-              64,
-              16,
-              16
-            ]
+            "gen": "wall",
+            "edges": ""
           }
         }
-      ],
-      "license": "CC-BY-4.0",
-      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
+      ]
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_tl",
+      "desc": "wall — top-left corner",
+      "walkable": false,
+      "internal": true,
+      "variants": [
+        {
+          "art": "/assets/dawnlike/terrain/wall_tl.png",
+          "from": {
+            "gen": "wall",
+            "edges": "tl"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_t",
+      "desc": "wall — top edge",
+      "walkable": false,
+      "internal": true,
+      "variants": [
+        {
+          "art": "/assets/dawnlike/terrain/wall_t.png",
+          "from": {
+            "gen": "wall",
+            "edges": "t"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_tr",
+      "desc": "wall — top-right corner",
+      "walkable": false,
+      "internal": true,
+      "variants": [
+        {
+          "art": "/assets/dawnlike/terrain/wall_tr.png",
+          "from": {
+            "gen": "wall",
+            "edges": "tr"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_l",
+      "desc": "wall — left edge",
+      "walkable": false,
+      "internal": true,
+      "variants": [
+        {
+          "art": "/assets/dawnlike/terrain/wall_l.png",
+          "from": {
+            "gen": "wall",
+            "edges": "l"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_r",
+      "desc": "wall — right edge",
+      "walkable": false,
+      "internal": true,
+      "variants": [
+        {
+          "art": "/assets/dawnlike/terrain/wall_r.png",
+          "from": {
+            "gen": "wall",
+            "edges": "r"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_bl",
+      "desc": "wall — bottom-left corner",
+      "walkable": false,
+      "internal": true,
+      "variants": [
+        {
+          "art": "/assets/dawnlike/terrain/wall_bl.png",
+          "from": {
+            "gen": "wall",
+            "edges": "bl"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_b",
+      "desc": "wall — bottom edge",
+      "walkable": false,
+      "internal": true,
+      "variants": [
+        {
+          "art": "/assets/dawnlike/terrain/wall_b.png",
+          "from": {
+            "gen": "wall",
+            "edges": "b"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_br",
+      "desc": "wall — bottom-right corner",
+      "walkable": false,
+      "internal": true,
+      "variants": [
+        {
+          "art": "/assets/dawnlike/terrain/wall_br.png",
+          "from": {
+            "gen": "wall",
+            "edges": "br"
+          }
+        }
+      ]
     },
     {
       "kind": "prop",

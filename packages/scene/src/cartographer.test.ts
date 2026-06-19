@@ -306,7 +306,7 @@ describe('buildSceneMap (Cartographer)', () => {
     const m = buildSceneMap(comp);
     expect(validateSceneMap(m)).toEqual({ ok: true, violations: [] });
     // A wall ring: the footprint border is wall, the interior has walkable floor.
-    expect(m.tiles[1]![2]).toBe('wall');
+    expect(m.tiles[1]![2]).toMatch(/^wall/); // faced corner auto-tile (wall_tl)
     expect(m.tiles[3]![5]).toBe('stone');
     // A door Entrance links the building.
     const door = m.entrances.find((e) => e.fixtureId === 'bldg:shop');

@@ -50,6 +50,22 @@ interface Rect {
   h: number;
 }
 
+/** Pick a faced wall AUTO-TILE by which edges of a rectangular wall border this cell sits on (top/
+ *  bottom/left/right). A 1-cell wall ring has floor on both sides, so neighbour-connectivity alone
+ *  can't tell interior from exterior — but the Cartographer knows the rect, so it assigns the right
+ *  faced tile directly. Falls back to the plain fill 'wall' for non-border / interior-pillar cells. */
+function wallTagFor(top: boolean, bot: boolean, left: boolean, right: boolean): string {
+  if (top && left) return 'wall_tl';
+  if (top && right) return 'wall_tr';
+  if (bot && left) return 'wall_bl';
+  if (bot && right) return 'wall_br';
+  if (top) return 'wall_t';
+  if (bot) return 'wall_b';
+  if (left) return 'wall_l';
+  if (right) return 'wall_r';
+  return 'wall';
+}
+
 /** Deterministic PRNG (mulberry32) — reproducible from the scene seed. */
 function makeRng(seed: number): () => number {
   let s = seed >>> 0;
@@ -142,8 +158,7 @@ export function buildSceneMap(comp: SceneComposition): SceneMap {
     if (isInterior) {
       for (let y = 0; y < rows; y++)
         for (let x = 0; x < cols; x++) {
-          const border = x === 0 || y === 0 || x === cols - 1 || y === rows - 1;
-          if (border) tiles[y]![x] = 'wall';
+          if (x === 0 || y === 0 || x === cols - 1 || y === rows - 1) tiles[y]![x] = wallTagFor(y === 0, y === rows - 1, x === 0, x === cols - 1);
           else if (tiles[y]![x] !== 'wall') tiles[y]![x] = 'stone';
         }
       if (rows > 2 && cols > 2) tiles[Math.floor(rows / 2)]![Math.floor(cols / 2)] = 'stone'; // guarantee floor
@@ -168,8 +183,7 @@ export function buildSceneMap(comp: SceneComposition): SceneMap {
       const floorTag = terrainWalkable(comp.terrain.base) ? comp.terrain.base : 'stone';
       for (let y = 0; y < rows; y++)
         for (let x = 0; x < cols; x++) {
-          const border = x === 0 || y === 0 || x === cols - 1 || y === rows - 1;
-          if (border) tiles[y]![x] = 'wall';
+          if (x === 0 || y === 0 || x === cols - 1 || y === rows - 1) tiles[y]![x] = wallTagFor(y === 0, y === rows - 1, x === 0, x === cols - 1);
           else if (!terrainWalkable(tiles[y]![x]!)) tiles[y]![x] = floorTag;
         }
     }
@@ -452,8 +466,8 @@ export function buildSceneMap(comp: SceneComposition): SceneMap {
     const safe = (b.id.includes(':') ? b.id.slice(b.id.indexOf(':') + 1) : b.id).replace(/[^a-z0-9_-]/gi, '-').toLowerCase() || 'bldg';
     for (let y = ry; y < ry + rh; y++)
       for (let x = rx; x < rx + rw; x++) {
-        const border = x === rx || y === ry || x === rx + rw - 1 || y === ry + rh - 1;
-        if (border) { tiles[y]![x] = 'wall'; walkable[y]![x] = false; occ[y]![x] = true; }
+        const top = y === ry, bot = y === ry + rh - 1, left = x === rx, right = x === rx + rw - 1;
+        if (top || bot || left || right) { tiles[y]![x] = wallTagFor(top, bot, left, right); walkable[y]![x] = false; occ[y]![x] = true; }
         else { tiles[y]![x] = 'stone'; walkable[y]![x] = true; occ[y]![x] = false; }
       }
     // Door: the middle of a wall → floor + walkable, with the cell just OUTSIDE open. Try the declared
@@ -470,7 +484,7 @@ export function buildSceneMap(comp: SceneComposition): SceneMap {
     if (!inB(door.oC, door.oR)) door = [b.door, 'south', 'north', 'east', 'west'].map(doorFor).find((d) => inB(d.oC, d.oR)) ?? door;
     const { dC, dR, oC, oR } = door;
     tiles[dR]![dC] = 'stone'; walkable[dR]![dC] = true; occ[dR]![dC] = false;
-    if (inB(oC, oR)) { walkable[oR]![oC] = true; occ[oR]![oC] = false; if (tiles[oR]![oC] === 'wall') tiles[oR]![oC] = 'dirt'; }
+    if (inB(oC, oR)) { walkable[oR]![oC] = true; occ[oR]![oC] = false; if (tiles[oR]![oC]!.startsWith('wall')) tiles[oR]![oC] = 'dirt'; }
     entrances.push({ toLocationId: comp.locationId, col: dC, row: dR, ...(b.id ? { fixtureId: b.id } : {}) });
 
     // FURNISH the interior from the per-type template; keep the door's inner cell clear so the room
@@ -711,7 +725,7 @@ export function buildSceneMap(comp: SceneComposition): SceneMap {
       let reach = bfs(start);
       const carve = (from: { c: number; r: number }, to: { c: number; r: number }): void => {
         let c = from.c, r = from.r;
-        const open = (): void => { if (inB(c, r)) { walkable[r]![c] = true; if (tiles[r]![c] === 'wall') tiles[r]![c] = 'dirt'; } };
+        const open = (): void => { if (inB(c, r)) { walkable[r]![c] = true; if (tiles[r]![c]!.startsWith('wall')) tiles[r]![c] = 'dirt'; } };
         open();
         while (c !== to.c) { c += c < to.c ? 1 : -1; open(); }
         while (r !== to.r) { r += r < to.r ? 1 : -1; open(); }

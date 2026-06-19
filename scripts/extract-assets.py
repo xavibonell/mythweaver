@@ -169,6 +169,38 @@ def gen_dlhouse(dst: str, frm: dict) -> None:
     im.save(dst)
 
 
+def gen_wall(dst: str, frm: dict) -> None:
+    """A flat DawnBringer brick wall tile with a dark outline on its EXPOSED edges, so a room's
+    perimeter reads as a crisp outlined wall with turned corners — without DawnLike's dungeon-style
+    black depth-faces (which look like holes in a bright, roofless top-down room). `edges` ⊆ "tblr"
+    names the exposed sides (t=top/b=bottom/l=left/r=right); the Cartographer picks the variant by
+    the cell's position on the building/room rectangle."""
+    from PIL import ImageDraw
+
+    edges = frm.get("edges", "")
+    base, brick, mortar, cap = _db("lgrey"), _db("grey"), _db("dgrey"), _db("maroon")
+    im = Image.new("RGBA", (16, 16), base)
+    d = ImageDraw.Draw(im)
+    for y in range(0, 16, 4):  # horizontal mortar courses
+        d.line([(0, y), (15, y)], fill=mortar)
+    for y in range(0, 16, 8):  # staggered vertical joints (brick bond)
+        for x in range(0, 16, 8):
+            d.line([(x, y), (x, y + 3)], fill=mortar)
+    for y in range(4, 16, 8):
+        for x in range(4, 16, 8):
+            d.line([(x, y), (x, y + 3)], fill=mortar)
+    d.point([(2, 2), (10, 6), (6, 10), (14, 14)], fill=brick)  # a few highlight bricks
+    if "t" in edges:
+        d.rectangle([0, 0, 15, 1], fill=cap)
+    if "b" in edges:
+        d.rectangle([0, 14, 15, 15], fill=cap)
+    if "l" in edges:
+        d.rectangle([0, 0, 1, 15], fill=cap)
+    if "r" in edges:
+        d.rectangle([14, 0, 15, 15], fill=cap)
+    im.save(dst)
+
+
 def gen_stall(dst: str, frm: dict) -> None:
     """A market stall: a striped awning over a wooden counter with a few goods. DB16 palette."""
     from PIL import ImageDraw
@@ -199,7 +231,7 @@ def gen_stall(dst: str, frm: dict) -> None:
 
 GENERATORS = {
     "water": gen_water, "water_deep": gen_water_deep, "sand": gen_sand, "boat": gen_boat,
-    "house": gen_house, "fountain": gen_fountain, "dlhouse": gen_dlhouse, "stall": gen_stall,
+    "house": gen_house, "fountain": gen_fountain, "dlhouse": gen_dlhouse, "stall": gen_stall, "wall": gen_wall,
 }
 
 

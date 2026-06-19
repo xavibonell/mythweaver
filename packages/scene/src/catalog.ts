@@ -32,6 +32,10 @@ const LIB = loadAssetLibrary();
 const byKind = (k: AssetEntry['kind']): AssetEntry[] => LIB.assets.filter((a) => a.kind === k);
 
 export const TERRAINS: TerrainDef[] = byKind('terrain').map((a) => ({ tag: a.tag, desc: a.desc ?? a.tag, walkable: a.walkable ?? true }));
+/** Internal terrains (e.g. the directional wall auto-tiles the Cartographer assigns) — renderable +
+ *  walkable-resolvable, but NEVER offered to the Director (it paints '#' and the engine picks the tile). */
+const INTERNAL_TERRAIN_TAGS = new Set(byKind('terrain').filter((a) => a.internal).map((a) => a.tag));
+export const PROMPT_TERRAINS: TerrainDef[] = TERRAINS.filter((t) => !INTERNAL_TERRAIN_TAGS.has(t.tag));
 
 export const PROPS: PropDef[] = byKind('prop').map((a) => ({ tag: a.tag, desc: a.desc ?? a.tag, w: a.footW ?? 1, h: a.footH ?? 1, blocks: a.blocks ?? true, ...(a.platform ? { platform: true } : {}) }));
 
@@ -72,7 +76,7 @@ export function catalogPrompt(): string {
     return b ? `  [${b.join('/')}]` : '';
   };
   const line = (x: { tag: string; desc: string }): string => `  ${x.tag} — ${x.desc}${hint(x.tag)}`;
-  const t = TERRAINS.map(line).join('\n');
+  const t = PROMPT_TERRAINS.map(line).join('\n');
   const p = PROMPT_PROPS.map(line).join('\n');
   const c = CHARACTERS.map(line).join('\n');
   return `TERRAINS (floor):\n${t}\n\nPROPS (placed objects):\n${p}\n\nCHARACTER SPRITES (for actors):\n${c}`;

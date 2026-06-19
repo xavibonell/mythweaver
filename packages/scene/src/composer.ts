@@ -304,7 +304,7 @@ function layoutBuildings(specs: { id: string; type: BuildingType; name?: string 
   const list = specs.slice(0, maxBuildings);
   const margin = 1;
   const gap = 1;
-  const plazaH = Math.max(3, Math.floor(rows * 0.28)); // reserve the bottom band as walkable plaza
+  const plazaH = Math.max(2, Math.floor(rows * 0.22)); // reserve the bottom band as walkable plaza (small enough that 2 building rows still fit a short grid)
   const bandH = rows - margin - plazaH; // vertical space available for building rows
   // Fit ALL declared buildings: choose row count (≤ what fits at minH), then per-row count, then size
   // the plots DOWN so nothing is dropped. Prefer one row for a few buildings, two rows for many.

@@ -69,7 +69,7 @@ describe('FakeSceneComposer', () => {
     // Each building rendered as a roofless room: a wall ring, a walkable interior floor, a door
     // Entrance, and grouped interior objects (furniture + keeper).
     const b1 = comp.buildings!.find((b) => b.id === 'bldg:h1')!;
-    expect(m.tiles[b1.rect.y]![b1.rect.x]).toBe('wall'); // corner of the ring
+    expect(m.tiles[b1.rect.y]![b1.rect.x]).toMatch(/^wall/); // corner of the ring (faced auto-tile, e.g. wall_tl)
     let floorWalkable = 0;
     for (let y = b1.rect.y + 1; y < b1.rect.y + b1.rect.h - 1; y++) for (let x = b1.rect.x + 1; x < b1.rect.x + b1.rect.w - 1; x++) if (m.walkable[y]![x]) floorWalkable++;
     expect(floorWalkable).toBeGreaterThan(0); // never sealed solid by furniture
