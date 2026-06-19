@@ -25,10 +25,12 @@ import {
 import type { Retriever } from '@mythweaver/rag';
 import { FakeSceneComposer, type SceneComposer } from '@mythweaver/scene';
 import type { GameState } from '@mythweaver/shared';
+import { createHash } from 'node:crypto';
 import { loadScenario, parseScenario } from './content.js';
 import { buildRetriever } from './corpus.js';
-import { loadPlaybook } from './prompts.js';
+import { loadDirectorArchitect, loadDirectorComposer, loadDirectorPlanner, loadPlaybook } from './prompts.js';
 import { buildArcPlanner, type ArcPlanner } from './arc-planner.js';
+import { buildArcComposer, type ArcComposer, type GeneratedArc } from './arc-composer.js';
 import { runTurn, type TurnInput, type TurnResult, type TurnRollRequest } from './orchestrator.js';
 
 /** A scripted lab turn: a player line, or a declared physical-dice total. */
@@ -77,10 +79,17 @@ export interface DmLabDeps {
   scenarioJson?: string;
   /** Sampling temperature for the DM model (omit to use the provider default). */
   temperature?: number;
+  /** Sampling temperature for the Game Director's own calls (independent of the DM). */
+  arcTemperature?: number;
   /** Drop the party into a specific scene (e.g. the combat scene) instead of the scenario start. */
   startSceneId?: string;
   /** Game Director (D2). When present, STEERING is (re)planned by the LLM on triggers. */
   arcPlanner?: ArcPlanner;
+  /** Arc Composer (Phase 1). When present, the lab can generate fresh arcs from a seed. */
+  arcComposer?: ArcComposer;
+  /** A pre-generated arc (from the Composer): use it INSTEAD of loading the scenario's adventure.
+   *  pregens + bestiary are still taken from `scenarioId` (the mechanical base). */
+  generatedArc?: GeneratedArc;
 }
 
 /**
@@ -93,8 +102,16 @@ export function buildDmLabDeps(): DmLabDeps & { ragMode: string } {
   const model = process.env.MYTHWEAVER_DM_MODEL || undefined;
   const llm = createProvider(provider, model ? { model } : {});
   const { retriever, description: ragMode } = buildRetriever(null); // no DB needed for in-memory retrieval
-  const arcPlanner = buildArcPlanner(llm);
-  return { llm, ...(retriever ? { retriever } : {}), composer: new FakeSceneComposer(), ...(arcPlanner ? { arcPlanner } : {}), ragMode };
+  const arcPlanner = buildArcPlanner(llm, { architectSystem: loadDirectorArchitect, plannerSystem: loadDirectorPlanner });
+  const arcComposer = buildArcComposer(llm, { composerSystem: loadDirectorComposer });
+  return {
+    llm,
+    ...(retriever ? { retriever } : {}),
+    composer: new FakeSceneComposer(),
+    ...(arcPlanner ? { arcPlanner } : {}),
+    ...(arcComposer ? { arcComposer } : {}),
+    ragMode,
+  };
 }
 
 /** Records each provider exchange so the lab can surface tool inputs + the results fed back. */
@@ -208,6 +225,7 @@ export interface DmLabSession {
   arcPlanner?: ArcPlanner;
   playbook: string;
   temperature?: number;
+  arcTemperature?: number;
   recent: string[];
   turnIndex: number;
   totalCostUsd: number;
@@ -221,24 +239,35 @@ export interface DmLabSession {
 
 /** Build a fresh interactive session (engine state, recorder, captured persona/scenario/temp). */
 export function createDmLabSession(deps: DmLabDeps, scenarioId: string): DmLabSession {
-  const bundle = loadScenario(scenarioId);
-  // Live editing: an override scenario.json replaces the on-disk one for this session (pregens/bestiary stay).
+  const bundle = loadScenario(scenarioId); // pregens + bestiary always come from the base scenario
+  // Generate-mode: a Composer-generated arc replaces the authored adventure (its own beats/start/blueprint).
+  // Authored-mode: the on-disk scenario (or a live-edited override) drives the session, as before.
+  const gen = deps.generatedArc;
   const scenario = deps.scenarioJson ? parseScenario(deps.scenarioJson, scenarioId) : bundle.scenario;
-  const adventure = {
-    pitch: scenario.pitch,
-    scenes: Object.fromEntries(scenario.scenes.map((s) => [s.id, { title: s.title, summary: s.summary, exits: s.exits }])),
-  };
+  const adventure = gen
+    ? gen.adventure
+    : {
+        pitch: scenario.pitch,
+        scenes: Object.fromEntries(scenario.scenes.map((s) => [s.id, { title: s.title, summary: s.summary, exits: s.exits }])),
+      };
+  const encounters = gen ? gen.encounters : scenario.encounters;
   // Optionally drop the party into a chosen scene (e.g. the undercroft fight) to test it directly.
-  const startSceneId = deps.startSceneId && scenario.scenes.some((s) => s.id === deps.startSceneId) ? deps.startSceneId : scenario.startSceneId;
+  const startSceneId = gen
+    ? gen.startSceneId
+    : deps.startSceneId && scenario.scenes.some((s) => s.id === deps.startSceneId)
+      ? deps.startSceneId
+      : scenario.startSceneId;
   const state = createInitialState({
     sessionId: `dm-lab-${scenarioId}`,
-    scenarioId: scenario.id,
+    scenarioId: gen ? 'generated' : scenario.id,
     startSceneId,
     party: bundle.pregens,
     adventure,
-    encounters: scenario.encounters,
+    encounters,
     bestiary: Object.fromEntries(bundle.bestiary.map((b) => [b.id, b])),
   });
+  // Pre-prime the architected blueprint so the orchestrator SKIPS the architect step in generate-mode.
+  if (gen) state.arc = { blueprint: gen.blueprint, genMeta: gen.genMeta };
   return {
     scenarioId,
     engine: new Engine(state),
@@ -248,6 +277,7 @@ export function createDmLabSession(deps: DmLabDeps, scenarioId: string): DmLabSe
     ...(deps.arcPlanner ? { arcPlanner: deps.arcPlanner } : {}),
     playbook: deps.playbook ?? loadPlaybook(),
     ...(deps.temperature !== undefined ? { temperature: deps.temperature } : {}),
+    ...(deps.arcTemperature !== undefined ? { arcTemperature: deps.arcTemperature } : {}),
     recent: [],
     turnIndex: 0,
     totalCostUsd: 0,
@@ -286,6 +316,7 @@ export async function dmLabSubmit(session: DmLabSession, input: { say: string; a
       playbook: session.playbook,
       recentTranscript: session.recent,
       ...(session.temperature !== undefined ? { temperature: session.temperature } : {}),
+      ...(session.arcTemperature !== undefined ? { arcTemperature: session.arcTemperature } : {}),
     },
     turnInput,
   );
@@ -339,7 +370,11 @@ export function arcView(session: DmLabSession) {
     : [];
   const decisions = Object.entries(st.flags).filter(([k]) => k.startsWith('decision:')).map(([k, v]) => ({ key: k.slice(9), value: String(v) }));
   const npcs = Object.entries(st.flags).filter(([k]) => k.startsWith('npc:')).map(([k, v]) => ({ key: k.slice(4), value: String(v) }));
-  return { blueprint: arc.blueprint ?? null, brief: arc.brief ?? null, currentScene: st.currentSceneId, beats, decisions, npcs };
+  // Freshness: a generated arc is "stale" once the on-disk composer prompt no longer matches the one
+  // it was generated under (the user edited director-composer.md since) — surface it so you can regenerate.
+  const genMeta = arc.genMeta ?? null;
+  const stale = genMeta ? createHash('sha1').update(loadDirectorComposer()).digest('hex').slice(0, 12) !== genMeta.composerPromptHash : false;
+  return { blueprint: arc.blueprint ?? null, brief: arc.brief ?? null, currentScene: st.currentSceneId, beats, decisions, npcs, genMeta, stale };
 }
 
 /**

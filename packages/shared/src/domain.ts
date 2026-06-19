@@ -311,6 +311,27 @@ export interface CampaignBlueprint {
  * The Game Director's steering brief (Phase D / D2): non-canonical, regenerated guidance the turn DM
  * reads. OFFERS ONLY — there is deliberately no imperative "do X" field (player agency is sacred).
  */
+/**
+ * Provenance for a GENERATED campaign arc (Composer output). Proves freshness — seed/model/temperature/
+ * timestamp tell two generations apart — and detects staleness: when `composerPromptHash` no longer
+ * matches the on-disk composer prompt (or the seed/temperature differ), the arc was made under
+ * different conditions. `fallback` flags the deterministic Fake path (the model gave nothing usable).
+ */
+export interface ArcGenMeta {
+  /** Hash of the canonical seed — same seed ⇒ same hash. */
+  seedHash: string;
+  seedPhrase?: string;
+  model: string;
+  temperature?: number;
+  timestampMs: number;
+  inputTokens: number;
+  outputTokens: number;
+  /** Hash of the composer system prompt actually used (fresh-vs-stale signal). */
+  composerPromptHash: string;
+  /** True when generation fell back to the deterministic Fake composer. */
+  fallback: boolean;
+}
+
 export interface ArcBrief {
   /** One line on what this beat is really about / what's at stake now. */
   activeBeatIntent: string;
@@ -353,6 +374,8 @@ export interface GameState {
     plannedForScene?: string;
     plannedDecisionCount?: number;
     plannedNpcCount?: number;
+    /** Provenance when the arc was Composer-generated from a seed (absent for authored scenarios). */
+    genMeta?: ArcGenMeta;
   };
   /** Persistent, lazily-generated, frozen world graph for the visual layer
    *  (docs/SCENE-CONTRACTS.md). Locations are generated once and reused on re-entry. */

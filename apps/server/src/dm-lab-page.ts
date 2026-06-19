@@ -116,6 +116,23 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
   .diff-view .ctx { color: #6b7080; }
   .diff-view .gap { color: #4b5060; font-style: italic; padding: 3px 6px; }
   .diff-view .none { color: #6b7080; font-style: italic; }
+  /* director tab (3 editable prompts side by side) */
+  .view.director.active { display: flex; flex-direction: column; }
+  .dir-head { padding: 10px 20px; border-bottom: 1px solid #23262e; background: #0c0e12; color: #8b90a0; font-size: 12px; }
+  .dir-grid { flex: 1; display: grid; grid-template-columns: 1fr 1fr 1fr; min-height: 0; }
+  .dir-col { display: flex; flex-direction: column; min-height: 0; border-right: 1px solid #23262e; }
+  .dir-col:last-child { border-right: 0; }
+  .dir-col .ed-toolbar { padding: 8px 12px; gap: 7px; }
+  .dir-col .ed-toolbar .name { font-size: 11px; }
+  /* generate tab */
+  .view.generate.active { display: grid; grid-template-columns: 400px 1fr; }
+  .gen-form textarea { min-height: 64px; }
+  .gen-badge { border-bottom: 1px solid #23262e; padding: 8px 24px; font-size: 12px; font-family: ui-monospace, monospace; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .pill { border-radius: 20px; padding: 2px 10px; font-size: 11px; font-weight: 600; }
+  .pill.fresh { background: #11351e; color: #8fd6a2; border: 1px solid #2a6b40; }
+  .pill.stale { background: #38301a; color: #e8c98a; border: 1px solid #7b6a2e; }
+  .pill.fallback { background: #38141d; color: #f0a6b0; border: 1px solid #5a2630; }
+  .gen-badge .det { color: #8b90a0; }
   /* results */
   .turn { border: 1px solid #23262e; border-radius: 10px; margin-bottom: 14px; overflow: hidden; }
   .turn .head { display: flex; justify-content: space-between; gap: 10px; padding: 9px 13px; background: #161922; border-bottom: 1px solid #23262e; align-items: baseline; }
@@ -148,6 +165,8 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
   <button class="tab active" data-tab="run">Run</button>
   <button class="tab" data-tab="playbook">Playbook</button>
   <button class="tab" data-tab="scenario">Scenario</button>
+  <button class="tab" data-tab="director">Director</button>
+  <button class="tab" data-tab="generate">Generate</button>
   <button class="tab" data-tab="distill">Distill</button>
   <button class="tab" data-tab="arc">Arc</button>
   <span class="gstatus" id="gstatus"></span>
@@ -208,6 +227,80 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
       <span class="status" id="status-scenario"></span>
     </div>
     <div class="ed-wrap"><textarea id="ed-scenario" spellcheck="false" placeholder="loading…"></textarea></div>
+  </section>
+
+  <section class="view director" id="view-director">
+    <div class="dir-head">The Game Director's brain is editable data — three hot-reloaded prompts. Edit + Save, then start a new (or generated) session to apply.</div>
+    <div class="dir-grid">
+      <div class="dir-col">
+        <div class="ed-toolbar">
+          <span class="name">prompts/director-architect.md</span>
+          <button class="ghost" data-reload="director">Reload</button>
+          <button data-save="director-architect">Save</button>
+          <span class="status" id="status-director-architect"></span>
+        </div>
+        <div class="ed-wrap"><textarea id="ed-director-architect" spellcheck="false" placeholder="loading…" title="Builds the campaign blueprint (north star) from an authored scenario."></textarea></div>
+      </div>
+      <div class="dir-col">
+        <div class="ed-toolbar">
+          <span class="name">prompts/director-planner.md</span>
+          <button class="ghost" data-reload="director">Reload</button>
+          <button data-save="director-planner">Save</button>
+          <span class="status" id="status-director-planner"></span>
+        </div>
+        <div class="ed-wrap"><textarea id="ed-director-planner" spellcheck="false" placeholder="loading…" title="Per-turn steering brief that adapts as the party plays."></textarea></div>
+      </div>
+      <div class="dir-col">
+        <div class="ed-toolbar">
+          <span class="name">prompts/director-composer.md</span>
+          <button class="ghost" data-reload="director">Reload</button>
+          <button data-save="director-composer">Save</button>
+          <span class="status" id="status-director-composer"></span>
+        </div>
+        <div class="ed-wrap"><textarea id="ed-director-composer" spellcheck="false" placeholder="loading…" title="Generates a brand-new arc (beats + blueprint) from a seed."></textarea></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="view generate" id="view-generate">
+    <div class="panel left gen-form">
+      <label for="gen-theme">Theme <span style="color:#6b7080">— what's the adventure about?</span></label>
+      <input id="gen-theme" type="text" placeholder="e.g. a haunted lighthouse hiding a smuggler's secret" />
+      <label for="gen-tone">Tone</label>
+      <select id="gen-tone" class="seg" style="width:100%">
+        <option value="">(unspecified)</option>
+        <option value="grim">grim</option>
+        <option value="heroic">heroic</option>
+        <option value="whimsical">whimsical</option>
+        <option value="mystery">mystery</option>
+        <option value="horror">horror</option>
+      </select>
+      <label for="gen-len">Length <span style="color:#6b7080">— beats (3–8)</span></label>
+      <input id="gen-len" type="number" min="3" max="8" value="5" />
+      <label for="gen-constraints">Constraints <span style="color:#6b7080">— one per line, optional</span></label>
+      <textarea id="gen-constraints" rows="3" placeholder="no undead&#10;must feature a betrayal"></textarea>
+      <label for="gen-seedphrase">Seed phrase <span style="color:#6b7080">— vary for a different arc</span></label>
+      <div class="row">
+        <input id="gen-seedphrase" type="text" style="flex:1" placeholder="(blank = let the model choose)" />
+        <button class="ghost" id="gen-reroll" title="new random seed phrase">Reroll</button>
+      </div>
+      <label for="gen-base">Mechanical base <span style="color:#6b7080">— party + monsters reused from this scenario</span></label>
+      <input id="gen-base" type="text" value="the-sunken-bell" />
+      <label for="gen-temp">Director temperature <span style="color:#6b7080">— novelty of the arc</span></label>
+      <div class="temp">
+        <input id="gen-temp" type="range" min="0" max="1" step="0.05" value="0.9" />
+        <span class="val" id="gen-tempVal">0.90</span>
+      </div>
+      <div class="row" style="margin-top:14px;">
+        <button id="gen-run">Generate arc</button>
+        <button class="ghost" id="gen-start" disabled>Start session →</button>
+      </div>
+      <div class="hint" id="gen-status">Generation creates a fresh arc each time. Authored scenarios stay the default quality lane.</div>
+    </div>
+    <div class="right-wrap">
+      <div class="gen-badge" id="gen-badge" style="display:none"></div>
+      <div class="arc-body" id="gen-preview"><div class="empty-state">Set a theme and click <b>Generate arc</b> — the Director composes a brand-new campaign (premise → ending → beats) from your seed.</div></div>
+    </div>
   </section>
 
   <section class="view distill" id="view-distill">
@@ -280,7 +373,7 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
 
   // --- tabs ---
   function showTab(name) {
-    ['run', 'playbook', 'scenario', 'distill', 'arc'].forEach(function (n) {
+    ['run', 'playbook', 'scenario', 'director', 'generate', 'distill', 'arc'].forEach(function (n) {
       $('view-' + n).classList.toggle('active', n === name);
     });
     document.querySelectorAll('nav.tabs .tab').forEach(function (b) {
@@ -320,12 +413,34 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
 
   // --- Arc tab (Game Director plan) ---
   var latestArc = null;
+  var composerOn = true;
+  var lastGeneratedArc = null; // the last /generate-arc result (arc + costUsd + markdown)
+
+  // Freshness fingerprint badge from a generated arc's genMeta (proves fresh vs stale at a glance).
+  function genBadgeHtml(meta, stale) {
+    if (!meta) return '';
+    var pill = meta.fallback
+      ? '<span class="pill fallback">fallback — deterministic</span>'
+      : stale
+        ? '<span class="pill stale">stale — prompt edited since</span>'
+        : '<span class="pill fresh">fresh</span>';
+    var when = meta.timestampMs ? new Date(meta.timestampMs).toLocaleTimeString() : '';
+    var bits = [];
+    if (when) bits.push(when);
+    bits.push('seed ' + esc(meta.seedHash || '?'));
+    if (meta.seedPhrase) bits.push('“' + esc(meta.seedPhrase) + '”');
+    bits.push(esc(meta.model || '?') + (meta.temperature != null ? '@' + meta.temperature : ''));
+    if ((meta.inputTokens || meta.outputTokens)) bits.push((meta.inputTokens || 0) + '/' + (meta.outputTokens || 0) + ' tok');
+    return pill + '<span class="det">' + bits.join(' · ') + '</span>';
+  }
+
   function renderArc() {
     var el = $('arc-body');
     var a = latestArc;
     if (!a || (!a.blueprint && (!a.beats || !a.beats.length))) { el.innerHTML = '<div class="empty-state">No arc yet — start a session and the Director will architect it.</div>'; return; }
     var bp = a.blueprint;
     var h = '';
+    if (a.genMeta) h += '<div class="gen-badge" style="padding:0 0 14px;border:0;">' + genBadgeHtml(a.genMeta, a.stale) + '</div>';
     if (bp) {
       h += '<div class="arc-sec"><h3>Premise</h3><div class="kv">' + esc(bp.premise || '—') + '</div></div>';
       h += '<div class="arc-sec"><h3>Central problem</h3><div class="kv arc-problem">' + esc(bp.centralProblem || '—') + '</div></div>';
@@ -386,18 +501,22 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
       }),
     }).then(function (r) { return r.json().then(function (b) { return { ok: r.ok, body: b }; }); }).then(function (x) {
       if (!x.ok) { $('status').textContent = 'error: ' + (x.body.error || 'failed'); return false; }
-      sessionId = x.body.sessionId; pendingRoll = null;
-      convo().innerHTML = '';
-      addSys('Session started · scene "' + x.body.scene + '" · party: ' + (x.body.party || []).map(function (p) { return p.name; }).join(', '));
-      // Speaker dropdown: "The party" + every party member.
-      var sp = $('speaker'); sp.innerHTML = '';
-      var grp = document.createElement('option'); grp.value = 'The party'; grp.textContent = 'The party'; sp.appendChild(grp);
-      (x.body.party || []).forEach(function (p) { var o = document.createElement('option'); o.value = p.name; o.textContent = p.name; sp.appendChild(o); });
-      latestArc = x.body.arc || null; renderArc(); // the Director architected the arc at session start
-      setPending(null); setBusy(false);
+      sessionStarted(x.body);
       $('status').textContent = 'session live — talk to the DM (the Arc tab shows the plan)';
       return true;
     }).catch(function (e) { $('status').textContent = 'error: ' + (e.message || e); return false; });
+  }
+
+  // Shared success handler for both authored and generated session starts.
+  function sessionStarted(b) {
+    sessionId = b.sessionId; pendingRoll = null;
+    convo().innerHTML = '';
+    addSys('Session started · scene "' + b.scene + '" · party: ' + (b.party || []).map(function (p) { return p.name; }).join(', '));
+    var sp = $('speaker'); sp.innerHTML = '';
+    var grp = document.createElement('option'); grp.value = 'The party'; grp.textContent = 'The party'; sp.appendChild(grp);
+    (b.party || []).forEach(function (p) { var o = document.createElement('option'); o.value = p.name; o.textContent = p.name; sp.appendChild(o); });
+    latestArc = b.arc || null; renderArc();
+    setPending(null); setBusy(false);
   }
 
   function submitTurn(payload) {
@@ -460,6 +579,11 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
       if (b.error) { gstatus('load error: ' + b.error); return; }
       $('ed-playbook').value = b.playbook || '';
       $('ed-scenario').value = b.scenarioJson || '';
+      $('ed-director-architect').value = b.directorArchitect || '';
+      $('ed-director-planner').value = b.directorPlanner || '';
+      $('ed-director-composer').value = b.directorComposer || '';
+      composerOn = b.composerOn !== false;
+      if (!composerOn) $('gen-status').textContent = 'arc generation is OFF — set MYTHWEAVER_ARC_COMPOSER=llm and restart the server';
       $('scenario-name').textContent = 'content/scenarios/' + (b.scenario || slug) + '/scenario.json';
       var sel = $('startScene');
       sel.innerHTML = '';
@@ -475,9 +599,13 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
   }
   function save(kind) {
     var st = $('status-' + kind);
-    var payload = kind === 'playbook'
-      ? { playbook: $('ed-playbook').value }
-      : { scenario: $('scenario').value.trim() || 'the-sunken-bell', scenarioJson: $('ed-scenario').value };
+    var payload;
+    if (kind === 'playbook') payload = { playbook: $('ed-playbook').value };
+    else if (kind === 'scenario') payload = { scenario: $('scenario').value.trim() || 'the-sunken-bell', scenarioJson: $('ed-scenario').value };
+    else if (kind === 'director-architect') payload = { directorArchitect: $('ed-director-architect').value };
+    else if (kind === 'director-planner') payload = { directorPlanner: $('ed-director-planner').value };
+    else if (kind === 'director-composer') payload = { directorComposer: $('ed-director-composer').value };
+    else return;
     st.textContent = 'saving…';
     fetch('/dm/lab/save', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload) })
       .then(function (r) { return r.json().then(function (b) { return { ok: r.ok, body: b }; }); })
@@ -504,6 +632,87 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
   $('autoroll').onclick = autoRoll;
   $('rollval').addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); declareRoll(); } });
   $('arc-refresh').onclick = renderArc;
+
+  // --- Generate tab (compose a fresh arc from a seed, preview it, start a session with it) ---
+  function collectSeed() {
+    var seed = { theme: $('gen-theme').value.trim() };
+    var tone = $('gen-tone').value; if (tone) seed.tone = tone;
+    var len = Number($('gen-len').value); if (isFinite(len)) seed.lengthBeats = len;
+    var cons = $('gen-constraints').value.split('\\n').map(function (s) { return s.trim(); }).filter(Boolean);
+    if (cons.length) seed.constraints = cons;
+    var sp = $('gen-seedphrase').value.trim(); if (sp) seed.seedPhrase = sp;
+    seed.temperature = Number($('gen-temp').value);
+    return seed;
+  }
+  function renderGenPreview(arc) {
+    var bp = arc.blueprint || {};
+    var h = '';
+    h += '<div class="arc-sec"><h3>Premise</h3><div class="kv">' + esc(bp.premise || '—') + '</div></div>';
+    h += '<div class="arc-sec"><h3>Central problem</h3><div class="kv arc-problem">' + esc(bp.centralProblem || '—') + '</div></div>';
+    h += '<div class="arc-sec"><h3>Intended ending — north star</h3><div class="arc-ending">' + esc(bp.intendedEnding || '—') + '</div></div>';
+    h += '<div class="arc-sec"><h3>Opening</h3><div class="kv">' + esc(bp.opening || '—') + '</div></div>';
+    if (bp.spine && bp.spine.length) {
+      h += '<div class="arc-sec"><h3>Spine — route to the ending</h3><ul class="spine">' + bp.spine.map(function (s) {
+        return '<li><div class="ms">' + esc(s.milestone || s.sceneId || '') + (s.sceneId ? ' <span style="color:#6b7080">[' + esc(s.sceneId) + ']</span>' : '') + '</div><div class="mi">' + esc(s.intent || '') + '</div></li>';
+      }).join('') + '</ul></div>';
+    }
+    var scenes = (arc.adventure && arc.adventure.scenes) || {};
+    var ids = Object.keys(scenes);
+    if (ids.length) {
+      h += '<div class="arc-sec"><h3>Beats</h3><ul class="spine">' + ids.map(function (id) {
+        var s = scenes[id];
+        var ex = (s.exits && s.exits.length) ? ' <span style="color:#6b7080">→ ' + s.exits.map(esc).join(', ') + '</span>' : '';
+        return '<li><div class="ms">' + esc(s.title) + ' <span style="color:#6b7080">[' + esc(id) + ']</span>' + ex + '</div><div class="mi">' + esc(s.summary || '') + '</div></li>';
+      }).join('') + '</ul></div>';
+    }
+    $('gen-preview').innerHTML = h;
+  }
+  function generateArc() {
+    if (!composerOn) { $('gen-status').textContent = 'arc generation is OFF — set MYTHWEAVER_ARC_COMPOSER=llm and restart'; return; }
+    var seed = collectSeed();
+    if (!seed.theme) { $('gen-status').textContent = 'enter a theme first'; return; }
+    $('gen-run').disabled = true; $('gen-start').disabled = true;
+    $('gen-status').innerHTML = '<span class="spin"></span>composing a fresh arc — real API call…';
+    fetch('/dm/lab/generate-arc', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(seed) })
+      .then(function (r) { return r.json().then(function (b) { return { ok: r.ok, body: b }; }); })
+      .then(function (x) {
+        if (!x.ok) { $('gen-status').textContent = 'error: ' + (x.body.error || 'failed'); return; }
+        lastGeneratedArc = x.body.arc;
+        var meta = x.body.arc.genMeta;
+        $('gen-badge').style.display = 'flex';
+        $('gen-badge').innerHTML = genBadgeHtml(meta, false) + '<span class="det">· ' + fmtCost(x.body.costUsd) + '</span>';
+        renderGenPreview(x.body.arc);
+        $('gen-start').disabled = false;
+        $('gen-status').textContent = 'arc ready — review it, then Start session (or Reroll for a different one)';
+      })
+      .catch(function (e) { $('gen-status').textContent = 'error: ' + (e.message || e); })
+      .finally(function () { $('gen-run').disabled = false; });
+  }
+  function startGeneratedSession() {
+    if (!lastGeneratedArc) { $('gen-status').textContent = 'generate an arc first'; return; }
+    $('gen-status').innerHTML = '<span class="spin"></span>starting generated session…';
+    fetch('/dm/lab/session', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        scenario: $('gen-base').value.trim() || 'the-sunken-bell',
+        generatedArc: lastGeneratedArc,
+        temperature: Number($('temp').value), // DM narration temp (Run tab)
+        arcTemperature: Number($('gen-temp').value), // Director temp (this tab)
+        playbook: $('ed-playbook').value,
+      }),
+    }).then(function (r) { return r.json().then(function (b) { return { ok: r.ok, body: b }; }); }).then(function (x) {
+      if (!x.ok) { $('gen-status').textContent = 'error: ' + (x.body.error || 'failed'); return; }
+      sessionStarted(x.body);
+      showTab('run');
+      $('status').textContent = 'generated session live — talk to the DM (Arc tab shows the generated plan)';
+    }).catch(function (e) { $('gen-status').textContent = 'error: ' + (e.message || e); });
+  }
+  var REROLL = ['ember', 'hollow', 'tide', 'lantern', 'thornwood', 'saltmarsh', 'ravenfall', 'gravemoor', 'witchlight', 'ironvale', 'mistral', 'cinder'];
+  $('gen-temp').oninput = function () { $('gen-tempVal').textContent = Number($('gen-temp').value).toFixed(2); };
+  $('gen-reroll').onclick = function () { $('gen-seedphrase').value = REROLL[Math.floor(Math.random() * REROLL.length)] + '-' + Math.floor(Math.random() * 1000); };
+  $('gen-run').onclick = generateArc;
+  $('gen-start').onclick = startGeneratedSession;
+  $('gen-theme').addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); generateArc(); } });
 
   // --- distill: source (transcript|guide) -> block -> diff/apply into the (temp) playbook ---
   var distillMode = 'transcript'; // the mode the CURRENT output belongs to (set on Distill)

@@ -9,7 +9,16 @@ import { CHARACTERS, FakeSceneComposer, LlmSceneComposer, PROPS, TERRAINS, build
 import { BIOMES, classToSpriteTag, validateEstablishScene, type EstablishScene } from '@mythweaver/shared';
 import { Db } from './db.js';
 import { loadScenario, readScenarioRaw, writeScenarioRaw, parseScenario } from './content.js';
-import { loadPlaybook, savePlaybook } from './prompts.js';
+import {
+  loadPlaybook,
+  savePlaybook,
+  loadDirectorArchitect,
+  loadDirectorPlanner,
+  loadDirectorComposer,
+  saveDirectorArchitect,
+  saveDirectorPlanner,
+  saveDirectorComposer,
+} from './prompts.js';
 import { buildRetriever } from './corpus.js';
 import { buildTracer } from './tracing.js';
 import { runTurn, type TurnInput } from './orchestrator.js';
@@ -18,6 +27,7 @@ import { runDmLab, createDmLabSession, dmLabSubmit, arcView, autoRollTotal, DM_L
 import { renderDmLabPage } from './dm-lab-page.js';
 import { distillStyle, DISTILL_MAX_INPUT } from './distill.js';
 import { buildArcPlanner } from './arc-planner.js';
+import { buildArcComposer, type ArcSeed, type GeneratedArc } from './arc-composer.js';
 
 const PORT = Number(process.env.PORT ?? 8080);
 // Bind to localhost by default; containers set HOST=0.0.0.0 (and should set a token).
@@ -54,8 +64,12 @@ const composer =
 app.log.info(`Scene Composer: ${dirName}${dirModel ? ` (${dirModel})` : ''}`);
 
 // Game Director / arc planner (Phase D / D2) — MYTHWEAVER_ARC_PLANNER = llm (default) | fake | off.
-const arcPlanner = buildArcPlanner(llm);
+// Director prompts are editable/hot-reloaded (prompts/director-*.md), mirroring the DM playbook.
+const arcPlanner = buildArcPlanner(llm, { architectSystem: loadDirectorArchitect, plannerSystem: loadDirectorPlanner });
 app.log.info(`Game Director (arc planner): ${arcPlanner ? 'on' : 'off'}`);
+// Arc Composer (Phase 1) — generate fresh arcs from a seed. MYTHWEAVER_ARC_COMPOSER = llm (default) | fake | off.
+const arcComposer = buildArcComposer(llm, { composerSystem: loadDirectorComposer });
+app.log.info(`Game Director (arc composer): ${arcComposer ? 'on' : 'off'}`);
 
 app.addHook('onRequest', async (req, reply) => {
   reply.header('access-control-allow-origin', '*');
@@ -157,7 +171,17 @@ app.get('/dm/lab/files', async (req, reply) => {
   } catch {
     /* leave empty if the scenario JSON is mid-edit/invalid */
   }
-  return { scenario, playbook: loadPlaybook(), scenarioJson, scenes };
+  return {
+    scenario,
+    playbook: loadPlaybook(),
+    scenarioJson,
+    scenes,
+    // Editable Game Director prompts (architect / per-turn planner / arc composer).
+    directorArchitect: loadDirectorArchitect(),
+    directorPlanner: loadDirectorPlanner(),
+    directorComposer: loadDirectorComposer(),
+    composerOn: Boolean(arcComposer),
+  };
 });
 
 // Distill real session transcripts into a DM voice guide (spec §6). Returns a Markdown style
@@ -179,9 +203,16 @@ app.post('/dm/lab/distill', async (req, reply) => {
   }
 });
 
-// Persist edited inputs to disk (validated). Body: { playbook?, scenario?, scenarioJson? }.
+// Persist edited inputs to disk (validated). Body: { playbook?, scenario?, scenarioJson?, director*? }.
 app.post('/dm/lab/save', async (req, reply) => {
-  const body = (req.body ?? {}) as { playbook?: unknown; scenario?: unknown; scenarioJson?: unknown };
+  const body = (req.body ?? {}) as {
+    playbook?: unknown;
+    scenario?: unknown;
+    scenarioJson?: unknown;
+    directorArchitect?: unknown;
+    directorPlanner?: unknown;
+    directorComposer?: unknown;
+  };
   const saved: string[] = [];
   try {
     if (typeof body.playbook === 'string' && body.playbook.trim()) {
@@ -193,11 +224,97 @@ app.post('/dm/lab/save', async (req, reply) => {
       writeScenarioRaw(slug, body.scenarioJson); // validates JSON + shape before overwriting
       saved.push(`scenario:${slug}`);
     }
+    if (typeof body.directorArchitect === 'string' && body.directorArchitect.trim()) {
+      saveDirectorArchitect(body.directorArchitect);
+      saved.push('director:architect');
+    }
+    if (typeof body.directorPlanner === 'string' && body.directorPlanner.trim()) {
+      saveDirectorPlanner(body.directorPlanner);
+      saved.push('director:planner');
+    }
+    if (typeof body.directorComposer === 'string' && body.directorComposer.trim()) {
+      saveDirectorComposer(body.directorComposer);
+      saved.push('director:composer');
+    }
   } catch (err) {
     return badRequest(reply, (err as Error).message);
   }
-  if (!saved.length) return badRequest(reply, 'nothing to save (provide playbook and/or scenarioJson)');
+  if (!saved.length) return badRequest(reply, 'nothing to save (provide playbook, scenarioJson, and/or director prompts)');
   return { ok: true, saved };
+});
+
+// Parse + validate a generation seed from a request body. Returns the seed or an error string.
+function parseArcSeed(raw: unknown): ArcSeed | { error: string } {
+  const b = (raw ?? {}) as Record<string, unknown>;
+  const theme = typeof b.theme === 'string' ? b.theme.trim() : '';
+  if (!theme) return { error: 'a theme is required to generate an arc' };
+  if (theme.length > 400) return { error: 'theme is too long (max 400 chars)' };
+  const tone = typeof b.tone === 'string' && b.tone.trim() ? b.tone.trim().slice(0, 60) : undefined;
+  let lengthBeats: number | undefined;
+  if (b.lengthBeats !== undefined && b.lengthBeats !== null && b.lengthBeats !== '') {
+    const n = Number(b.lengthBeats);
+    if (!Number.isFinite(n)) return { error: 'lengthBeats must be a number' };
+    lengthBeats = n;
+  }
+  const party = Array.isArray(b.party)
+    ? b.party
+        .map((p) => {
+          const pp = (p ?? {}) as Record<string, unknown>;
+          return { name: typeof pp.name === 'string' ? pp.name.slice(0, 60) : '', className: typeof pp.className === 'string' ? pp.className.slice(0, 40) : undefined };
+        })
+        .filter((p) => p.name)
+    : [];
+  const constraints = Array.isArray(b.constraints) ? b.constraints.filter((c): c is string => typeof c === 'string').map((c) => c.slice(0, 200)).slice(0, 8) : undefined;
+  const seedPhrase = typeof b.seedPhrase === 'string' && b.seedPhrase.trim() ? b.seedPhrase.trim().slice(0, 200) : undefined;
+  return { theme: theme.slice(0, 400), ...(tone ? { tone } : {}), ...(lengthBeats !== undefined ? { lengthBeats } : {}), party, ...(constraints && constraints.length ? { constraints } : {}), ...(seedPhrase ? { seedPhrase } : {}) };
+}
+
+// Render a generated arc as a readable markdown preview for the Generate tab.
+function arcMarkdown(arc: GeneratedArc): string {
+  const bp = arc.blueprint;
+  const lines: string[] = [];
+  lines.push(`# ${bp.premise || 'Generated arc'}`);
+  lines.push('');
+  lines.push(`**Central problem:** ${bp.centralProblem || '—'}`);
+  lines.push('');
+  lines.push(`**Intended ending (north star):** ${bp.intendedEnding || '—'}`);
+  lines.push('');
+  lines.push(`**Opening:** ${bp.opening || '—'}`);
+  lines.push('');
+  lines.push('## Spine — route to the ending');
+  for (const s of bp.spine) lines.push(`- **${s.milestone || s.sceneId || ''}**${s.sceneId ? ` _(${s.sceneId})_` : ''}: ${s.intent || ''}`);
+  lines.push('');
+  lines.push('## Beats');
+  for (const [id, s] of Object.entries(arc.adventure.scenes)) {
+    lines.push(`### ${s.title} _(${id})_`);
+    lines.push(s.summary || '');
+    if (s.exits && s.exits.length) lines.push(`→ exits: ${s.exits.join(', ')}`);
+    lines.push('');
+  }
+  return lines.join('\n');
+}
+
+// Generate a fresh campaign arc from a seed (Phase 1) — preview only; start a session with it via
+// POST /dm/lab/session { generatedArc, scenario }. Returns the arc + a markdown preview + provenance.
+app.post('/dm/lab/generate-arc', async (req, reply) => {
+  if (!arcComposer) return badRequest(reply, 'arc generation is off (set MYTHWEAVER_ARC_COMPOSER=llm)');
+  const body = (req.body ?? {}) as { temperature?: unknown };
+  const seed = parseArcSeed(req.body);
+  if ('error' in seed) return badRequest(reply, seed.error);
+  let temperature: number | undefined;
+  if (body.temperature !== undefined && body.temperature !== null && body.temperature !== '') {
+    const t = Number(body.temperature);
+    if (!Number.isFinite(t) || t < 0 || t > 1) return badRequest(reply, 'temperature must be between 0 and 1');
+    temperature = t;
+  }
+  try {
+    const { arc, costUsd } = await arcComposer.compose(seed, { ...(temperature !== undefined ? { temperature } : {}) });
+    return { arc, costUsd, markdown: arcMarkdown(arc) };
+  } catch (err) {
+    app.log.error(err, 'arc generation failed');
+    reply.code(502);
+    return { error: (err as Error).message };
+  }
 });
 
 function parseDmLabTurns(raw: unknown): LabTurn[] | { error: string } {
@@ -266,18 +383,32 @@ app.post('/dm/lab', async (req, reply) => {
 // Interactive DM Lab — create a stateful session, then submit one turn at a time (accumulating
 // context), the natural way to vibe-test the DM. The persona/scenario/temp are captured at create.
 app.post('/dm/lab/session', async (req, reply) => {
-  const body = (req.body ?? {}) as { scenario?: unknown; temperature?: unknown; playbook?: unknown; scenarioJson?: unknown; startScene?: unknown };
+  const body = (req.body ?? {}) as {
+    scenario?: unknown;
+    temperature?: unknown;
+    arcTemperature?: unknown;
+    playbook?: unknown;
+    scenarioJson?: unknown;
+    startScene?: unknown;
+    generatedArc?: unknown;
+  };
   const scenario = typeof body.scenario === 'string' && body.scenario ? body.scenario : DEFAULT_SCENARIO;
   if (!/^[a-z0-9-]+$/.test(scenario)) return badRequest(reply, 'invalid scenario');
   const playbook = typeof body.playbook === 'string' && body.playbook.trim() ? body.playbook : undefined;
   const scenarioJson = typeof body.scenarioJson === 'string' && body.scenarioJson.trim() ? body.scenarioJson : undefined;
   const startSceneId = typeof body.startScene === 'string' && body.startScene.trim() ? body.startScene.trim() : undefined;
-  let temperature: number | undefined;
-  if (body.temperature !== undefined && body.temperature !== null && body.temperature !== '') {
-    const t = Number(body.temperature);
-    if (!Number.isFinite(t) || t < 0 || t > 1) return badRequest(reply, 'temperature must be between 0 and 1');
-    temperature = t;
-  }
+  // A previously-previewed generated arc (from /dm/lab/generate-arc). Re-validated by createDmLabSession.
+  const generatedArc = body.generatedArc && typeof body.generatedArc === 'object' ? (body.generatedArc as GeneratedArc) : undefined;
+  const readTemp = (v: unknown): number | undefined | { error: string } => {
+    if (v === undefined || v === null || v === '') return undefined;
+    const t = Number(v);
+    if (!Number.isFinite(t) || t < 0 || t > 1) return { error: 'temperature must be between 0 and 1' };
+    return t;
+  };
+  const temperature = readTemp(body.temperature);
+  if (temperature && typeof temperature === 'object') return badRequest(reply, temperature.error);
+  const arcTemperature = readTemp(body.arcTemperature);
+  if (arcTemperature && typeof arcTemperature === 'object') return badRequest(reply, arcTemperature.error);
   let session: DmLabSession;
   try {
     session = createDmLabSession(
@@ -288,8 +419,10 @@ app.post('/dm/lab/session', async (req, reply) => {
         ...(arcPlanner ? { arcPlanner } : {}),
         ...(playbook ? { playbook } : {}),
         ...(scenarioJson ? { scenarioJson } : {}),
-        ...(temperature !== undefined ? { temperature } : {}),
+        ...(temperature !== undefined ? { temperature: temperature as number } : {}),
+        ...(arcTemperature !== undefined ? { arcTemperature: arcTemperature as number } : {}),
         ...(startSceneId ? { startSceneId } : {}),
+        ...(generatedArc ? { generatedArc } : {}),
       },
       scenario,
     );
@@ -301,15 +434,18 @@ app.post('/dm/lab/session', async (req, reply) => {
     if (oldest) dmLabSessions.delete(oldest);
   }
   // Architect the campaign arc up front (the north star) so the Arc tab shows it before any turn.
-  if (session.arcPlanner) {
+  // Generated sessions already have a blueprint primed, so the architect is skipped.
+  if (session.arcPlanner && !session.engine.getState().arc?.blueprint) {
     try {
       const st = session.engine.getState();
+      const directorTemp = (arcTemperature ?? temperature) as number | undefined; // Director temp, else DM's
       const { blueprint, costUsd } = await session.arcPlanner.architect({
         adventure: st.adventure!,
         currentSceneId: st.currentSceneId,
         flags: st.flags,
         recentTranscript: [],
         party: session.party.map((p) => ({ name: p.name })),
+        ...(directorTemp !== undefined ? { temperature: directorTemp } : {}),
       });
       st.arc = { ...(st.arc ?? {}), blueprint };
       session.totalCostUsd += costUsd;

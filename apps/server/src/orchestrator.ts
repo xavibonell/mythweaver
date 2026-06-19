@@ -123,6 +123,8 @@ export interface OrchestratorDeps {
   arcPlanner?: ArcPlanner;
   /** Sampling temperature for the DM model (omit to use the provider default). Used by the DM Lab. */
   temperature?: number;
+  /** Sampling temperature for the Game Director's own calls (architect/plan). Falls back to `temperature`. */
+  arcTemperature?: number;
   /** Injectable clock for deterministic tests (defaults to Date.now). */
   now?: () => number;
 }
@@ -550,7 +552,8 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
     if (deps.arcPlanner && adv) {
       const arc = (state.arc ??= {});
       const pcs = Object.values(state.combatants).filter((c) => c.kind === 'pc').map((c) => ({ name: c.name }));
-      const planInput = { adventure: adv, currentSceneId: state.currentSceneId, flags: state.flags, recentTranscript: deps.recentTranscript ?? [], party: pcs };
+      const directorTemp = deps.arcTemperature ?? deps.temperature; // Director temp (independent), else the DM's
+      const planInput = { adventure: adv, currentSceneId: state.currentSceneId, flags: state.flags, recentTranscript: deps.recentTranscript ?? [], party: pcs, ...(directorTemp !== undefined ? { temperature: directorTemp } : {}) };
       // Architect the campaign arc once (the north star); all steering anchors to its intended ending.
       if (!arc.blueprint) {
         try {

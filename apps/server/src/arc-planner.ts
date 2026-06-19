@@ -22,6 +22,16 @@ export interface ArcPlanInput {
   party: { name: string }[];
   /** The architected arc (north star); the tactical brief steers toward its intended ending. */
   blueprint?: CampaignBlueprint;
+  /** Sampling temperature for the Director's own calls (independent of the DM). Omit = provider default. */
+  temperature?: number;
+}
+
+/** Editable, hot-reloaded system prompts for the Director (mirrors the DM playbook seam). */
+export interface DirectorPrompts {
+  /** Returns the architect system prompt (falls back to the in-code default if the file is missing). */
+  architectSystem?: () => string;
+  /** Returns the per-turn planner system prompt. */
+  plannerSystem?: () => string;
 }
 
 export interface ArcPlanResult {
@@ -44,10 +54,10 @@ export interface ArcPlanner {
 
 // Collapse newlines too — the brief is rendered into a line-structured STEERING block, so an
 // embedded newline could forge a fake "=== ... ===" section / imperative in the DM prompt.
-const str = (v: unknown, max: number): string => (typeof v === 'string' ? v.replace(/\s*\n\s*/g, ' ').trim().slice(0, max) : '');
+export const str = (v: unknown, max: number): string => (typeof v === 'string' ? v.replace(/\s*\n\s*/g, ' ').trim().slice(0, max) : '');
 
 /** Extract the first complete top-level JSON object (brace-depth aware, string/escape safe). */
-function extractJson(text: string): string | null {
+export function extractJson(text: string): string | null {
   const start = text.indexOf('{');
   if (start < 0) return null;
   let depth = 0;
@@ -114,12 +124,13 @@ export function buildBlueprint(raw: unknown, sceneIds: Set<string>): CampaignBlu
   };
 }
 
-/** Pick a planner from the environment: MYTHWEAVER_ARC_PLANNER = llm (default) | fake | off. */
-export function buildArcPlanner(llm: LlmProvider): ArcPlanner | undefined {
+/** Pick a planner from the environment: MYTHWEAVER_ARC_PLANNER = llm (default) | fake | off.
+ *  `prompts` injects hot-reloaded architect/planner system prompts (the editable Director files). */
+export function buildArcPlanner(llm: LlmProvider, prompts?: DirectorPrompts): ArcPlanner | undefined {
   const name = (process.env.MYTHWEAVER_ARC_PLANNER || 'llm').toLowerCase();
   if (name === 'off' || name === 'none') return undefined;
   if (name === 'fake') return new FakeArcPlanner();
-  return new LlmArcPlanner(llm); // no explicit model → routes 'set_piece' to the heavy model
+  return new LlmArcPlanner(llm, prompts); // no explicit model → routes 'set_piece' to the heavy model
 }
 
 /** Deterministic planner: the blueprint + brief from the authored data alone (no API). Tests/eval/fallback. */
@@ -149,7 +160,7 @@ export class FakeArcPlanner implements ArcPlanner {
   }
 }
 
-const ARC_SYSTEM = `You are the GAME DIRECTOR (Showrunner) for a tabletop RPG. You do NOT narrate to the table and you NEVER touch mechanics (no numbers, rolls, HP, or DCs). Given the authored adventure (beats + their exits), where the party is, what they have done/decided, and recent play, produce a concise ARC BRIEF that helps the table's DM steer toward interesting content WITHOUT railroading.
+export const ARC_SYSTEM = `You are the GAME DIRECTOR (Showrunner) for a tabletop RPG. You do NOT narrate to the table and you NEVER touch mechanics (no numbers, rolls, HP, or DCs). Given the authored adventure (beats + their exits), where the party is, what they have done/decided, and recent play, produce a concise ARC BRIEF that helps the table's DM steer toward interesting content WITHOUT railroading.
 React to the party's choices: if they diverged from the obvious path, reassess which beats are still reachable and how to BRIDGE toward a satisfying payoff (a new NPC, a rumor, an event).
 
 Respond with ONLY a JSON object (no prose, no code fence):
@@ -182,7 +193,7 @@ function digest(input: ArcPlanInput): string {
     .join('\n\n');
 }
 
-const ARCHITECT_SYSTEM = `You are the GAME DIRECTOR architecting a tabletop campaign arc BEFORE play begins. You do NOT narrate and you NEVER touch mechanics. Given the authored premise + beat map, produce the campaign's NORTH STAR so the table never derails: what the whole thing is about, the central problem the characters must address, where they start, the ENVISIONED ENDING you will steer toward, and the interim spine of milestones from opening to that ending.
+export const ARCHITECT_SYSTEM = `You are the GAME DIRECTOR architecting a tabletop campaign arc BEFORE play begins. You do NOT narrate and you NEVER touch mechanics. Given the authored premise + beat map, produce the campaign's NORTH STAR so the table never derails: what the whole thing is about, the central problem the characters must address, where they start, the ENVISIONED ENDING you will steer toward, and the interim spine of milestones from opening to that ending.
 
 Respond with ONLY a JSON object (no prose, no code fence):
 {"premise":"<what the campaign is about / its theme>","centralProblem":"<the problem the characters must address>","intendedEnding":"<a clear, specific resolution — how the story should end if it lands>","opening":"<where/how the party starts>","spine":[{"milestone":"<short label>","sceneId":"<a real beat id, or omit>","intent":"<what this step accomplishes on the way to the ending>"}]}
@@ -199,18 +210,24 @@ function architectDigest(input: ArcPlanInput): string {
 /** Real planner: asks the LLM for a brief, normalizes it, and falls back to deterministic on any error. */
 export class LlmArcPlanner implements ArcPlanner {
   private readonly fallback = new FakeArcPlanner();
-  constructor(private readonly llm: LlmProvider, private readonly model?: string) {}
+  private readonly model?: string;
+  private readonly prompts: DirectorPrompts;
+  constructor(private readonly llm: LlmProvider, prompts: DirectorPrompts & { model?: string } = {}) {
+    this.model = prompts.model;
+    this.prompts = prompts;
+  }
 
   async architect(input: ArcPlanInput): Promise<ArcBlueprintResult> {
     const sceneIds = new Set(Object.keys(input.adventure.scenes));
     let res;
     try {
       res = await this.llm.complete({
-        system: ARCHITECT_SYSTEM,
+        system: this.prompts.architectSystem ? this.prompts.architectSystem() : ARCHITECT_SYSTEM,
         messages: [{ role: 'user', content: architectDigest(input) }],
         maxTokens: 900,
         taskClass: 'set_piece',
         ...(this.model ? { model: this.model } : {}),
+        ...(input.temperature !== undefined ? { temperature: input.temperature } : {}),
       });
     } catch {
       return this.fallback.architect(input);
@@ -236,11 +253,12 @@ export class LlmArcPlanner implements ArcPlanner {
     let res;
     try {
       res = await this.llm.complete({
-        system: ARC_SYSTEM,
+        system: this.prompts.plannerSystem ? this.prompts.plannerSystem() : ARC_SYSTEM,
         messages: [{ role: 'user', content: digest(input) }],
         maxTokens: 600,
         taskClass: 'set_piece', // heavier reasoning for planning (routes to the strong model)
         ...(this.model ? { model: this.model } : {}),
+        ...(input.temperature !== undefined ? { temperature: input.temperature } : {}),
       });
     } catch {
       return this.fallback.plan(input); // never break a turn
