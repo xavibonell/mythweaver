@@ -315,4 +315,27 @@ describe('orchestrator turn-loop', () => {
     expect(userMsg).toContain('STEERING (Game Director');
     expect(userMsg).toContain('Dusk on the green.');
   });
+
+  it('re-plans only on a high-signal change — incl. an NPC-standing flag (not every turn)', async () => {
+    const state = createInitialState({
+      sessionId: 's1',
+      scenarioId: 'test',
+      startSceneId: 'green',
+      party: [fighter()],
+      adventure: { pitch: 'p', scenes: { green: { title: 'Green', summary: 'Dusk.', exits: ['tower'] }, tower: { title: 'Tower', summary: '', exits: [] } } },
+    });
+    const engine = new Engine(state, () => 0.5);
+    let planCalls = 0;
+    const counting = { plan: async () => { planCalls += 1; return { brief: { activeBeatIntent: 'x', reachable: [] }, costUsd: 0 }; } };
+    const llm = new FakeLlmProvider([fakeText('a'), fakeText('b'), fakeText('c')]);
+    const run = (text: string) => runTurn({ engine, llm, arcPlanner: counting, now: frozenClock }, { kind: 'message', speakerId: 'Aldric', text });
+
+    await run('look around'); // no brief -> plan #1
+    expect(planCalls).toBe(1);
+    await run('keep looking'); // same scene, no new flags -> reuse
+    expect(planCalls).toBe(1);
+    engine.setArcFlag('npc:edda:trust', 'low'); // NPC standing changed
+    await run('press Edda'); // -> re-plan #2
+    expect(planCalls).toBe(2);
+  });
 });

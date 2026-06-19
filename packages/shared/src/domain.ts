@@ -335,6 +335,7 @@ export interface GameState {
     brief?: ArcBrief;
     plannedForScene?: string;
     plannedDecisionCount?: number;
+    plannedNpcCount?: number;
   };
   /** Persistent, lazily-generated, frozen world graph for the visual layer
    *  (docs/SCENE-CONTRACTS.md). Locations are generated once and reused on re-entry. */

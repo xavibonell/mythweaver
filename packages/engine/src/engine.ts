@@ -310,8 +310,10 @@ export class Engine implements EngineTools {
     if (!/^(decision|beat|npc):[a-z0-9:_-]+$/i.test(key)) {
       throw new Error(`Arc flag key must be namespaced "decision:"/"beat:"/"npc:" — got "${key}".`);
     }
-    this.state.flags[key] = value;
-    this.record('engine', `Arc flag ${key} = ${value}`, { key, value });
+    // Strip newlines: flag values are rendered into the line-structured STEERING block (anti-injection).
+    const v = typeof value === 'string' ? value.replace(/\s*\n\s*/g, ' ').slice(0, 200) : value;
+    this.state.flags[key] = v;
+    this.record('engine', `Arc flag ${key} = ${v}`, { key, value: v });
   }
 
   // --- P3: resources -------------------------------------------------------

@@ -543,12 +543,19 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
       ? `=== ADVENTURE (GM guidance — run this scene; reveal it through play, don't read aloud verbatim) ===\n` +
         `Premise: ${adv.pitch}\nCurrent scene — ${scene?.title ?? state.currentSceneId}: ${scene?.summary ?? ''}\n\n`
       : '';
-    // Game Director (D2): re-plan the steering brief on a high-signal trigger (scene change, a new
-    // decision, or no brief yet), then steer from it. Runs inline; planner cost joins the turn.
+    // Game Director (D2): re-plan the steering brief on a high-signal trigger (scene change, or a new
+    // decision/NPC-standing flag, or no brief yet), then steer from it. Runs inline; planner cost joins
+    // the turn. NOTE: this is in the message branch only — an advanceScene/setArcFlag during a roll
+    // resume isn't reflected until the next message turn (roll turns emit no STEERING; harmless).
     if (deps.arcPlanner && adv) {
       const arc = (state.arc ??= {});
       const decisionCount = Object.keys(state.flags).filter((k) => k.startsWith('decision:')).length;
-      const due = !arc.brief || arc.plannedForScene !== state.currentSceneId || arc.plannedDecisionCount !== decisionCount;
+      const npcCount = Object.keys(state.flags).filter((k) => k.startsWith('npc:')).length;
+      const due =
+        !arc.brief ||
+        arc.plannedForScene !== state.currentSceneId ||
+        arc.plannedDecisionCount !== decisionCount ||
+        arc.plannedNpcCount !== npcCount;
       if (due) {
         try {
           const { brief, costUsd: planCost } = await deps.arcPlanner.plan({
@@ -561,11 +568,12 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
           arc.brief = brief;
           arc.plannedForScene = state.currentSceneId;
           arc.plannedDecisionCount = decisionCount;
+          arc.plannedNpcCount = npcCount;
           costUsd += planCost;
           toolCallLog.push('arcPlanner');
           span.event('arcPlanner');
-        } catch {
-          /* keep the prior brief; the Director never breaks a turn */
+        } catch (err) {
+          span.event('arcPlanner.error', { message: String(err) }); // keep the prior brief; never break the turn
         }
       }
     }
