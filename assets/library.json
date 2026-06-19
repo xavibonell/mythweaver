@@ -861,7 +861,8 @@
         "gen": "dlhouse",
         "roof": "red",
         "tiles": 3
-      }
+      },
+      "internal": true
     },
     {
       "kind": "prop",
@@ -883,7 +884,8 @@
         "gen": "dlhouse",
         "roof": "blue",
         "tiles": 3
-      }
+      },
+      "internal": true
     },
     {
       "kind": "prop",
@@ -904,7 +906,8 @@
         "gen": "dlhouse",
         "roof": "lgrey",
         "tiles": 3
-      }
+      },
+      "internal": true
     },
     {
       "kind": "prop",
@@ -926,7 +929,8 @@
         "gen": "dlhouse",
         "roof": "brown",
         "tiles": 3
-      }
+      },
+      "internal": true
     },
     {
       "kind": "prop",
@@ -947,7 +951,8 @@
         "gen": "dlhouse",
         "roof": "navy",
         "tiles": 4
-      }
+      },
+      "internal": true
     },
     {
       "kind": "prop",

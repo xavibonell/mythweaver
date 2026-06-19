@@ -164,6 +164,10 @@ function parseFields(raw: unknown): ObjectField[] {
     if (!idBase.includes(':')) idBase = `${kind === 'actor' ? 'npc' : 'prop'}:${idBase.replace(/[^a-z0-9_-]/gi, '').toLowerCase() || 'group'}`;
     if (seen.has(idBase)) continue;
     const rawTag = typeof f.tag === 'string' ? f.tag : '';
+    // A BUILDING is never a field — it's carved as a walled room from a structure fixture. Drop any
+    // field the model invented that resolves to a building/house facade (it would render as a row of
+    // facade "towers" alongside the real rooms — the old-strategy remnant).
+    if (kind !== 'actor' && (buildingTypeOf(rawTag) || /^house/.test(resolveFixtureTag(rawTag)))) continue;
     const tag = kind === 'actor' ? (isCharacter(rawTag) ? rawTag : lookToSprite(rawTag)) : resolveFixtureTag(rawTag);
     const arrangement = FIELD_ARRANGEMENTS.has(f.arrangement as FieldArrangement) ? (f.arrangement as FieldArrangement) : 'scatter';
     const reg = f.region && typeof f.region === 'object' ? (f.region as Record<string, unknown>) : {};
