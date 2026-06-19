@@ -168,9 +168,9 @@ export interface Placement {
  * walkable). This is how spatial intent ("path left→right", "thick treeline top+bottom", "party on
  * the left") survives — semantic zones can't express orientation. Used for open-outdoor scenes;
  * structural grammars (town-square / enclosed-interior) keep their deterministic layout.
- * Legend: G=grass  P=path/dirt  W=water  T=trees(dense)  S=stone  #=wall.
+ * Legend: G=grass  P=path/dirt  W=water  D=deep/dark water  A=sand  T=trees(dense)  S=stone  #=wall.
  */
-export const BLOCKOUT_CHARS = 'GPWTS#' as const;
+export const BLOCKOUT_CHARS = 'GPWDATS#' as const;
 export interface SceneBlockout {
   cols: number;
   rows: number;

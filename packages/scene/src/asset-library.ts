@@ -47,6 +47,8 @@ export interface AssetEntry {
   footH?: number;
   blocks?: boolean;
   light?: boolean;
+  /** A platform (boat/raft/bridge): makes its footprint tiles WALKABLE (even over water) so actors stand on it. */
+  platform?: boolean;
   /** Renderable + resolvable, but NOT advertised to the LLM (e.g. the no-art placeholder fallback). */
   internal?: boolean;
   // character

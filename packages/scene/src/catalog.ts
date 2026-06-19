@@ -19,6 +19,8 @@ export interface PropDef {
   w: number;
   h: number;
   blocks: boolean;
+  /** A platform (boat/raft/bridge): its footprint becomes WALKABLE so actors can stand on it. */
+  platform?: boolean;
 }
 export interface CharDef {
   tag: string;
@@ -31,7 +33,7 @@ const byKind = (k: AssetEntry['kind']): AssetEntry[] => LIB.assets.filter((a) =>
 
 export const TERRAINS: TerrainDef[] = byKind('terrain').map((a) => ({ tag: a.tag, desc: a.desc ?? a.tag, walkable: a.walkable ?? true }));
 
-export const PROPS: PropDef[] = byKind('prop').map((a) => ({ tag: a.tag, desc: a.desc ?? a.tag, w: a.footW ?? 1, h: a.footH ?? 1, blocks: a.blocks ?? true }));
+export const PROPS: PropDef[] = byKind('prop').map((a) => ({ tag: a.tag, desc: a.desc ?? a.tag, w: a.footW ?? 1, h: a.footH ?? 1, blocks: a.blocks ?? true, ...(a.platform ? { platform: true } : {}) }));
 
 /** Internal props (e.g. the no-art placeholder) — renderable + resolvable, but NEVER offered to the LLM. */
 const INTERNAL_PROP_TAGS = new Set(byKind('prop').filter((a) => a.internal).map((a) => a.tag));

@@ -52,6 +52,46 @@ def gen_water(dst: str, frm: dict) -> None:
     im.save(dst)
 
 
+def gen_water_deep(dst: str, frm: dict) -> None:
+    """A darker 'deep / dark water' variant — same ripple grammar as gen_water, dimmer palette."""
+    im = Image.new("RGBA", (16, 16), (28, 54, 92, 255))
+    rip = (52, 86, 130, 255)
+    for y in range(16):
+        for x in range(16):
+            if (x * 3 + y * 5) % 16 in (0, 1) or (x + y * 2) % 13 == 0:
+                im.putpixel((x, y), rip)
+    im.save(dst)
+
+
+def gen_sand(dst: str, frm: dict) -> None:
+    """A flat sandy/beach tile: warm tan with a few lighter + darker grains (Kenney-ish speckle)."""
+    im = Image.new("RGBA", (16, 16), (214, 192, 138, 255))
+    light, dark = (230, 212, 165, 255), (190, 166, 112, 255)
+    for y in range(16):
+        for x in range(16):
+            if (x * 5 + y * 3) % 17 == 0:
+                im.putpixel((x, y), light)
+            elif (x * 2 + y * 7) % 19 == 0:
+                im.putpixel((x, y), dark)
+    im.save(dst)
+
+
+def gen_boat(dst: str, frm: dict) -> None:
+    """A simple top-down wooden boat the party can stand on (a platform). Sized footW x footH tiles."""
+    from PIL import ImageDraw
+
+    w = int(frm.get("footW", 3)) * 16
+    h = int(frm.get("footH", 2)) * 16
+    im = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    d = ImageDraw.Draw(im)
+    hull_d, hull, deck = (74, 52, 33, 255), (110, 78, 49, 255), (150, 112, 70, 255)
+    # pointed hull (bow at the right), rounded stern at the left
+    d.polygon([(2, 3), (w - 3, h // 2), (2, h - 4)], fill=hull_d)
+    d.polygon([(4, 5), (w - 7, h // 2), (4, h - 6)], fill=hull)
+    d.polygon([(6, 7), (w - 12, h // 2), (6, h - 8)], fill=deck)
+    im.save(dst)
+
+
 def gen_house(dst: str, frm: dict) -> None:
     """Compose a cottage by stacking Tiny Town tiles top-to-bottom: roof gable, wall(s), door."""
     parts = frm["parts"]
@@ -82,7 +122,7 @@ def gen_fountain(dst: str, frm: dict) -> None:
     base.save(dst)
 
 
-GENERATORS = {"water": gen_water, "house": gen_house, "fountain": gen_fountain}
+GENERATORS = {"water": gen_water, "water_deep": gen_water_deep, "sand": gen_sand, "boat": gen_boat, "house": gen_house, "fountain": gen_fountain}
 
 
 def extract_one(art: str, frm: dict) -> tuple[bool, str]:

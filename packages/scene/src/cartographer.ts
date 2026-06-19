@@ -85,6 +85,8 @@ const BLOCKOUT_REGION: Record<string, { terrain: string; forest?: boolean }> = {
   G: { terrain: 'grass' },
   P: { terrain: 'dirt' },
   W: { terrain: 'water' },
+  D: { terrain: 'water_deep' },
+  A: { terrain: 'sand' },
   T: { terrain: 'grass', forest: true },
   S: { terrain: 'stone' },
   '#': { terrain: 'wall' },
@@ -154,17 +156,20 @@ export function buildSceneMap(comp: SceneComposition): SceneMap {
   const fkey = (c: number, r: number) => r * cols + c;
   const forestSet = new Set(forestCells.map((c) => fkey(c.c, c.r)));
 
-  // Shoreline: where open LAND meets water, lay a 1-tile wet-sand/mud strip (dirt) so the waterline
-  // reads as a real shore instead of a hard grass↔water seam. Existing tiles only — no edge art.
+  // Shoreline: where open LAND meets water, lay a 1-tile SAND strip so the waterline reads as a real
+  // beach instead of a hard grass↔water seam. Also CAPTURE those cells as the `shore` region so object
+  // fields ("crates along the sandy shore") can bind to the true waterline — which RINGS an island, not
+  // just the bottom edge. Existing tiles only (sand is a flat gen tile).
+  const shoreCells: { c: number; r: number }[] = [];
+  const isWaterTile = (t: string | undefined): boolean => t === 'water' || t === 'water_deep';
   if (!isInterior) {
-    const shore: Array<[number, number]> = [];
     for (let y = 0; y < rows; y++)
       for (let x = 0; x < cols; x++) {
         if (tiles[y]![x] !== 'grass' || forestSet.has(fkey(x, y))) continue;
-        const nearWater = ([[1, 0], [-1, 0], [0, 1], [0, -1]] as const).some(([dx, dy]) => tiles[y + dy]?.[x + dx] === 'water');
-        if (nearWater) shore.push([x, y]);
+        const nearWater = ([[1, 0], [-1, 0], [0, 1], [0, -1]] as const).some(([dx, dy]) => isWaterTile(tiles[y + dy]?.[x + dx]));
+        if (nearWater) shoreCells.push({ c: x, r: y });
       }
-    for (const [x, y] of shore) tiles[y]![x] = 'dirt';
+    for (const { c, r } of shoreCells) tiles[r]![c] = 'sand';
   }
 
   const walkable: boolean[][] = tiles.map((row) => row.map((t) => terrainWalkable(t)));
@@ -402,6 +407,27 @@ export function buildSceneMap(comp: SceneComposition): SceneMap {
 
   const objects: MapObject[] = [];
   for (const p of order) {
+    // PLATFORM (boat/raft/bridge): may sit ON water — anchor at its painted cell (or the nearest water
+    // tile) WITHOUT snapping to land, and make its whole footprint walkable so the party can board it.
+    const pdef = p.kind !== 'actor' ? propDef(p.tag) : undefined;
+    if (pdef?.platform) {
+      const pw = Math.max(1, pdef.w), ph = Math.max(1, pdef.h);
+      const cell = cellById.get(p.id);
+      let ac: number, ar: number;
+      if (cell) { ac = cell.col; ar = cell.row; }
+      else {
+        let found: { c: number; r: number } | null = null;
+        for (let r = 0; r < rows && !found; r++) for (let c = 0; c < cols && !found; c++) if (isWaterTile(tiles[r]![c])) found = { c, r };
+        ac = found?.c ?? Math.round(cxC); ar = found?.r ?? Math.round(cyC);
+      }
+      ac = Math.max(0, Math.min(cols - pw, ac)); ar = Math.max(0, Math.min(rows - ph, ar));
+      for (let dy = 0; dy < ph; dy++) for (let dx = 0; dx < pw; dx++) { const cc = ac + dx, rr = ar + dy; if (inB(cc, rr)) { walkable[rr]![cc] = true; occ[rr]![cc] = false; } }
+      occ[ar]![ac] = true; // the hull's own origin cell (so an actor doesn't overlap the boat object)
+      placedPos.set(p.id, { c: ac, r: ar });
+      placedCells.push({ c: ac, r: ar, kind: p.kind });
+      objects.push({ id: p.id, kind: p.kind, ...(p.role ? { role: p.role } : {}), tag: p.tag, ...(p.name ? { name: p.name } : {}), col: ac, row: ar, footprint: { w: pw, h: ph }, facing: p.facing ?? 'down', visible: p.visible, zone: p.zone, ...(p.anchor ? { anchorRef: p.anchor } : {}) });
+      continue;
+    }
     const fp = footprintOf(p.tag, p.kind);
     const pos = useBlockout ? resolveBlockout(p, fp) : resolve(p, fp);
     for (let dy = 0; dy < fp.h; dy++)
@@ -495,13 +521,22 @@ export function buildSceneMap(comp: SceneComposition): SceneMap {
     const d = propDef(field.tag);
     const fp = field.kind === 'actor' ? { w: 1, h: 1 } : { w: d?.w ?? 1, h: d?.h ?? 1 };
     const blocks = field.kind !== 'actor' && (d?.blocks ?? true);
-    const rect = regionRect(field);
     const spacing = field.spacing ?? (field.arrangement === 'scatter' ? 1 : 2);
-    const targets = fieldTargets(rect, field.arrangement, spacing, field.aisle);
-    const defaultCount = field.arrangement === 'scatter' ? 6 : field.arrangement === 'flank' ? 2 : targets.length;
+    // `shore` is a special region: the computed waterline cells (a ring on an island), not a rect.
+    const onShore = field.region.band === 'shore';
+    const rect = regionRect(field);
+    let targets: { c: number; r: number }[];
+    if (onShore) {
+      targets = [...shoreCells];
+      for (let i = targets.length - 1; i > 0; i--) { const j = Math.floor(rand() * (i + 1)); const t = targets[i]!; targets[i] = targets[j]!; targets[j] = t; }
+    } else {
+      targets = fieldTargets(rect, field.arrangement, spacing, field.aisle);
+    }
+    const defaultCount = field.arrangement === 'scatter' || onShore ? 6 : field.arrangement === 'flank' ? 2 : targets.length;
     const cap = Math.min(FIELD_LIMITS.maxCount, field.count ?? defaultCount);
     const snapMax = Math.max(2, spacing); // a child may snap up to ~one spacing-step toward a free cell
-    const midR2 = rect.y + Math.floor(rect.h / 2), midC2 = rect.x + Math.floor(rect.w / 2);
+    const midR2 = onShore && shoreCells.length ? shoreCells[0]!.r : rect.y + Math.floor(rect.h / 2);
+    const midC2 = onShore && shoreCells.length ? shoreCells[0]!.c : rect.x + Math.floor(rect.w / 2);
     const place = (pos: { c: number; r: number }, n: number): void => {
       for (let dy = 0; dy < fp.h; dy++)
         for (let dx = 0; dx < fp.w; dx++) {

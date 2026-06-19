@@ -139,7 +139,7 @@ function parseBlockout(raw: unknown, knownIds: Set<string>): SceneBlockout | und
 }
 
 const FIELD_ARRANGEMENTS = new Set<FieldArrangement>(['row', 'grid', 'ring', 'line', 'scatter', 'flank']);
-const FIELD_BANDS = new Set(['left', 'right', 'top', 'bottom', 'north', 'south', 'east', 'west', 'center', 'all']);
+const FIELD_BANDS = new Set(['left', 'right', 'top', 'bottom', 'north', 'south', 'east', 'west', 'center', 'all', 'shore']);
 
 /**
  * Sanitize the Director's object-FIELD directives into clean ObjectFields (or drop the bad ones).
@@ -430,7 +430,7 @@ const KIND_GUIDE: Record<SceneKind, { guidance: string; example: string }> = {
     guidance: `This is a WILD outdoor scene — paint terrain bands and natural features:
 - Path "left to right" / "horizontal" → a HORIZONTAL run of P across one row. "Top to bottom" / "vertical" → a vertical column of P. Curved/diagonal → paint it so.
 - "Thick lines/walls of trees on top and bottom" → SEVERAL FULL rows of T at the very top AND bottom.
-- Water on a side → a band of W down that edge. Keep the playable middle open (G/P).`,
+- Water on a side → a band of W down that edge. "DARK / DEEP water" zone → paint D there. A beach / sandy shore → paint A (sand). An island → land (G) surrounded by W. Keep the playable middle open (G/P/A).`,
     example: `Example — "forest, thick treelines top & bottom, horizontal dirt path across the middle, heroes left, enemies centre":
 {"blockout":{"grid":[
 "TTTTTTTTTTTTTTTTTTTT","TTTTTTTTTTTTTTTTTTTT","TTTTTTTTTTTTTTTTTTTT",
@@ -480,7 +480,7 @@ function blockoutPrompt(req: CompositionRequest, kind: SceneKind): string {
   return `You are the SCENE DIRECTOR for a top-down pixel-art RPG. Compose this scene by PAINTING A BLOCKOUT. Output ONLY JSON, no prose.
 
 PAINT A BLOCKOUT — a top-down map, ONE CHARACTER PER TILE. Legend:
-  G = grass    P = path / dirt road    W = water    T = trees (DENSE forest)    S = stone / floor    # = wall
+  G = grass   P = path/dirt   W = water   D = deep/DARK water   A = sand/beach   T = trees (DENSE forest)   S = stone/floor   # = wall
 
 ${g.guidance}
 
@@ -494,7 +494,8 @@ ${g.example}
 
 REPEATED OBJECTS → use a FIELD, never list each one. For "rows of benches/pews", "statues along the left wall", "a ring of standing stones", "ranks of guards", "torches lining the aisle", emit ONE field (the engine expands it into many, each individually placed):
   { "idBase":"prop:<name>" (or "npc:<name>" for creatures), "tag":"<catalog tag>", "region":{...}, "arrangement":"row|grid|ring|line|scatter|flank", "count":<n>, "spacing":2 }
-- region is ONE of: {"band":"left|right|top|bottom|center|all"}, {"rect":{"x":,"y":,"w":,"h":}}, or {"near":"<id of a cell you placed>"} to lay the group AROUND a landmark — use near+"flank" for "guards flanking the throne", near+"ring" for "candles ringing the altar".
+- region is ONE of: {"band":"left|right|top|bottom|center|all|shore"}, {"rect":{"x":,"y":,"w":,"h":}}, or {"near":"<id of a cell you placed>"} to lay the group AROUND a landmark — use near+"flank" for "guards flanking the throne", near+"ring" for "candles ringing the altar". band:"shore" = the WATERLINE (rings an island) — use it for "crates scattered along the sandy shore".
+- ACTORS IN WATER (e.g. "warriors on a boat in the sea"): place a "boat" fixture (a floating PLATFORM) on the water cells, then put those actors ON it — give them cells on the boat, or a field with region near:<boat id>. Don't leave them on land.
 - Add "aisle":"vertical" (or "horizontal") to a row/grid to leave a clear central lane (e.g. pews either side of a central aisle).
 - If a listed ENTITY above is plural (its description is "benches"/"pews"/"statues"/"a rank of …"), make a field whose **idBase IS that entity's id** and OMIT its cell — otherwise it gets placed twice.
 - Use a CELL for a SINGLE notable thing; a FIELD for anything plural. Pick the catalog tag that best matches (e.g. pews→table). Leave spacing ≥2 so there are walkable lanes.

@@ -203,6 +203,65 @@ describe('buildSceneMap (Cartographer)', () => {
     expect([...cols].some((c) => c < aisleCol) && [...cols].some((c) => c > aisleCol)).toBe(true); // pews on both sides
   });
 
+  it('blockout chars D/A paint deep water + sand terrain', () => {
+    const comp: SceneComposition = {
+      locationId: 'loc:coast', seed: 1, grammar: 'open-outdoor', biome: 'forest', lighting: 'day',
+      grid: { cols: 12, rows: 8 }, terrain: { base: 'grass', regions: [] }, placements: [], ambiance: { density: 0, tags: [] },
+      blockout: { cols: 12, rows: 8, cells: [], grid: ['AAAAAAAAAAAA', 'GGGGGGGGGGGG', 'GGGGGGGGGGGG', 'GGGGGGGGGGGG', 'GGGGGGGGGGGG', 'GGGGGGGGGGGG', 'DDDDDDDDDDDD', 'DDDDDDDDDDDD'] },
+    };
+    const m = buildSceneMap(comp);
+    expect(m.tiles[0]!.every((t) => t === 'sand')).toBe(true);
+    expect(m.tiles[7]!.every((t) => t === 'water_deep')).toBe(true);
+    expect(m.walkable[7]!.every((w) => w === false)).toBe(true); // deep water is impassable
+  });
+
+  it('a band:"shore" field binds crates to the waterline (an island ringed by water)', () => {
+    // An island: grass interior, water all around the border → shore = the land ring.
+    const grid: string[] = [];
+    for (let r = 0; r < 10; r++) {
+      let row = '';
+      for (let c = 0; c < 16; c++) row += r === 0 || r === 9 || c === 0 || c === 1 || c === 14 || c === 15 ? 'W' : 'G';
+      grid.push(row);
+    }
+    const comp: SceneComposition = {
+      locationId: 'loc:isle', seed: 3, grammar: 'open-outdoor', biome: 'forest', lighting: 'day',
+      grid: { cols: 16, rows: 10 }, terrain: { base: 'grass', regions: [] }, placements: [], ambiance: { density: 0, tags: [] },
+      blockout: { cols: 16, rows: 10, cells: [], grid },
+      fields: [{ idBase: 'prop:crates', kind: 'prop', tag: 'crate', region: { band: 'shore' }, arrangement: 'scatter', count: 6 }],
+    };
+    const m = buildSceneMap(comp);
+    expect(validateSceneMap(m)).toEqual({ ok: true, violations: [] });
+    const crates = m.objects.filter((o) => o.group === 'prop:crates');
+    expect(crates.length).toBeGreaterThanOrEqual(4);
+    // every crate sits on a shore (sand) tile — i.e. land orthogonally adjacent to water
+    for (const cr of crates) {
+      const adjWater = ([[1, 0], [-1, 0], [0, 1], [0, -1]] as const).some(([dx, dy]) => m.tiles[cr.row + dy]?.[cr.col + dx] === 'water');
+      expect(adjWater).toBe(true);
+    }
+  });
+
+  it('a boat is a PLATFORM: its footprint becomes walkable so an actor can stand on it over water', () => {
+    const comp: SceneComposition = {
+      locationId: 'loc:sea', seed: 2, grammar: 'open-outdoor', biome: 'forest', lighting: 'day',
+      grid: { cols: 14, rows: 10 }, terrain: { base: 'water', regions: [] },
+      placements: [
+        { id: 'prop:boat', kind: 'prop', tag: 'boat', visible: true, zone: 'commons' },
+        { id: 'npc:sailor', kind: 'actor', role: 'npc', tag: 'knight', visible: true, zone: 'commons', anchor: 'near:prop:boat' },
+      ],
+      ambiance: { density: 0, tags: [] },
+    };
+    const m = buildSceneMap(comp);
+    expect(validateSceneMap(m)).toEqual({ ok: true, violations: [] });
+    const boat = m.objects.find((o) => o.id === 'prop:boat')!;
+    expect(boat.footprint).toEqual({ w: 3, h: 2 }); // the platform footprint
+    // the boat's deck tiles are walkable even though the base terrain is water
+    let deckWalkable = 0;
+    for (let dy = 0; dy < 2; dy++) for (let dx = 0; dx < 3; dx++) if (m.walkable[boat.row + dy]?.[boat.col + dx]) deckWalkable++;
+    expect(deckWalkable).toBeGreaterThanOrEqual(5);
+    const sailor = m.objects.find((o) => o.id === 'npc:sailor')!;
+    expect(m.walkable[sailor.row]?.[sailor.col]).toBe(true); // standing on the boat, not drowning
+  });
+
   it('guarantees a walkable interior for enclosed rooms even if the wall region is painted last', () => {
     // The 'wall' zone spans the whole grid; with regions in this (LLM-plausible) order a naive
     // painter would bury the floor and collapse every object onto (0,0).
