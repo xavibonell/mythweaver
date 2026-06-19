@@ -3,8 +3,25 @@ import { Engine, createInitialState } from '@mythweaver/engine';
 import { FakeLlmProvider, fakeText, fakeToolUse, type LlmContentBlock } from '@mythweaver/llm';
 import { InMemoryRetriever } from '@mythweaver/rag';
 import { FakeSceneComposer, type SceneComposer } from '@mythweaver/scene';
-import { validateSceneMap, type CharacterSheet } from '@mythweaver/shared';
+import { validateSceneMap, type CharacterSheet, type StatBlock } from '@mythweaver/shared';
 import { runTurn } from './orchestrator.js';
+
+function goblinStat(): StatBlock {
+  return {
+    id: 'goblin',
+    name: 'Goblin',
+    size: 'small',
+    type: 'humanoid (goblinoid)',
+    armorClass: 15,
+    hitPoints: { average: 7, formula: '2d6' },
+    speedFt: 30,
+    abilities: { str: 8, dex: 14, con: 10, int: 10, wis: 8, cha: 8 },
+    challengeRating: 0.25,
+    proficiencyBonus: 2,
+    attacks: [{ name: 'Scimitar', attackBonus: 4, damage: '1d6+2', damageType: 'slashing' }],
+    source: 'SRD 5.1',
+  };
+}
 
 function fighter(): CharacterSheet {
   return {
@@ -225,5 +242,31 @@ describe('orchestrator turn-loop', () => {
     expect(composeCalls).toBe(1); // generated once, REUSED on re-entry — nothing re-rolled
     expect(r1.sceneMap).toBe(r2.sceneMap); // the same frozen map
     expect(Object.keys(engine.getState().world!.locations)).toEqual(['loc:green']);
+  });
+
+  it('runs engine-authoritative combat: startEncounter spawns + applyDamage downs a monster', async () => {
+    const state = createInitialState({
+      sessionId: 's1',
+      scenarioId: 'test',
+      startSceneId: 'lair',
+      party: [fighter()],
+      bestiary: { goblin: goblinStat() },
+      encounters: [{ id: 'e', sceneId: 'lair', monsters: [{ statBlockId: 'goblin', count: 1 }] }],
+    });
+    const engine = new Engine(state, () => 0.5);
+    const llm = new FakeLlmProvider([
+      fakeToolUse([{ id: 'se', name: 'startEncounter', input: {} }]),
+      fakeToolUse([{ id: 'dmg', name: 'applyDamage', input: { targetId: 'npc:goblin-1', amount: 99, type: 'slashing' } }]),
+      fakeText('The goblin crumples into the muck.'),
+    ]);
+
+    const result = await runTurn({ engine, llm, now: frozenClock }, { kind: 'message', speakerId: 'Aldric', text: 'I cut the goblin down.' });
+
+    expect(result.trace.toolCalls).toEqual(['startEncounter', 'applyDamage']);
+    expect(engine.getState().combat.active).toBe(true);
+    const g = engine.getState().combatants['npc:goblin-1'];
+    expect(g?.currentHitPoints).toBe(0); // engine owns HP — not invented by the DM
+    expect(g?.downed).toBe(true);
+    expect(result.narration).toContain('crumples');
   });
 });

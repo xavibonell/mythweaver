@@ -8,7 +8,7 @@ import { createProvider } from '@mythweaver/llm';
 import { CHARACTERS, FakeSceneComposer, LlmSceneComposer, PROPS, TERRAINS, buildSceneMap, loadAssetLibrary } from '@mythweaver/scene';
 import { BIOMES, classToSpriteTag, validateEstablishScene, type EstablishScene } from '@mythweaver/shared';
 import { Db } from './db.js';
-import { loadScenario, readScenarioRaw, writeScenarioRaw } from './content.js';
+import { loadScenario, readScenarioRaw, writeScenarioRaw, parseScenario } from './content.js';
 import { loadPlaybook, savePlaybook } from './prompts.js';
 import { buildRetriever } from './corpus.js';
 import { buildTracer } from './tracing.js';
@@ -141,7 +141,14 @@ app.get('/dm/lab/files', async (req, reply) => {
   } catch {
     return badRequest(reply, `scenario not found: ${scenario}`);
   }
-  return { scenario, playbook: loadPlaybook(), scenarioJson };
+  // Scene list powers the Run tab's scene picker (start the party in any scene, e.g. the fight).
+  let scenes: { id: string; title: string }[] = [];
+  try {
+    scenes = parseScenario(scenarioJson, scenario).scenes.map((s) => ({ id: s.id, title: s.title }));
+  } catch {
+    /* leave empty if the scenario JSON is mid-edit/invalid */
+  }
+  return { scenario, playbook: loadPlaybook(), scenarioJson, scenes };
 });
 
 // Distill real session transcripts into a DM voice guide (spec §6). Returns a Markdown style
@@ -215,15 +222,17 @@ app.post('/dm/lab', async (req, reply) => {
     temperature?: unknown;
     playbook?: unknown;
     scenarioJson?: unknown;
+    startScene?: unknown;
   };
   const scenario = typeof body.scenario === 'string' && body.scenario ? body.scenario : DEFAULT_SCENARIO;
   if (!/^[a-z0-9-]+$/.test(scenario)) return badRequest(reply, 'invalid scenario');
   const turns = parseDmLabTurns(body.turns);
   if ('error' in turns) return badRequest(reply, turns.error);
 
-  // Live overrides (not persisted): the editor's playbook/scenario text + a temperature.
+  // Live overrides (not persisted): the editor's playbook/scenario text + a temperature + start scene.
   const playbook = typeof body.playbook === 'string' && body.playbook.trim() ? body.playbook : undefined;
   const scenarioJson = typeof body.scenarioJson === 'string' && body.scenarioJson.trim() ? body.scenarioJson : undefined;
+  const startSceneId = typeof body.startScene === 'string' && body.startScene.trim() ? body.startScene.trim() : undefined;
   let temperature: number | undefined;
   if (body.temperature !== undefined && body.temperature !== null && body.temperature !== '') {
     const t = Number(body.temperature);
@@ -234,7 +243,7 @@ app.post('/dm/lab', async (req, reply) => {
   try {
     // Reuse the live DM provider + retriever; a deterministic FakeSceneComposer keeps the lab cheap.
     return await runDmLab(
-      { llm, retriever, composer: new FakeSceneComposer(), ...(playbook ? { playbook } : {}), ...(scenarioJson ? { scenarioJson } : {}), ...(temperature !== undefined ? { temperature } : {}) },
+      { llm, retriever, composer: new FakeSceneComposer(), ...(playbook ? { playbook } : {}), ...(scenarioJson ? { scenarioJson } : {}), ...(temperature !== undefined ? { temperature } : {}), ...(startSceneId ? { startSceneId } : {}) },
       scenario,
       turns,
     );

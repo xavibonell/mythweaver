@@ -119,6 +119,8 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
     <div class="panel left">
       <label for="scenario">Scenario</label>
       <input id="scenario" type="text" value="the-sunken-bell" />
+      <label for="startScene">Start scene <span style="color:#6b7080">— drop the party here (pick the fight to test combat)</span></label>
+      <select id="startScene" class="seg" style="width:100%"></select>
       <label for="temp">Temperature <span style="color:#6b7080">— 0 = deterministic, 1 = creative</span></label>
       <div class="temp">
         <input id="temp" type="range" min="0" max="1" step="0.05" value="1" />
@@ -271,6 +273,7 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
         temperature: Number($('temp').value),
         playbook: $('ed-playbook').value,
         scenarioJson: $('ed-scenario').value,
+        startScene: $('startScene').value,
       }),
     }).then(function (res) {
       return res.json().then(function (body) { return { ok: res.ok, body: body }; });
@@ -293,6 +296,14 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
       $('ed-playbook').value = b.playbook || '';
       $('ed-scenario').value = b.scenarioJson || '';
       $('scenario-name').textContent = 'content/scenarios/' + (b.scenario || slug) + '/scenario.json';
+      var sel = $('startScene');
+      sel.innerHTML = '';
+      (b.scenes || []).forEach(function (s, i) {
+        var o = document.createElement('option');
+        o.value = s.id;
+        o.textContent = s.title + (i === 0 ? ' (start)' : '');
+        sel.appendChild(o);
+      });
       gstatus('files loaded');
       setTimeout(function () { gstatus(''); }, 1500);
     }).catch(function (e) { gstatus('load error: ' + (e.message || e)); });

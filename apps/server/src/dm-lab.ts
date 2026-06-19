@@ -76,6 +76,8 @@ export interface DmLabDeps {
   scenarioJson?: string;
   /** Sampling temperature for the DM model (omit to use the provider default). */
   temperature?: number;
+  /** Drop the party into a specific scene (e.g. the combat scene) instead of the scenario start. */
+  startSceneId?: string;
 }
 
 /**
@@ -112,17 +114,18 @@ export function autoRollTotal(expr: string): number {
   }
 }
 
-interface PcSnap {
+interface CombatantSnap {
   id: string;
   hp: string;
   conditions: string[];
+  downed: boolean;
 }
 interface StateSnap {
   scene: string;
   location: string | null;
   combat: string;
   pending: string | null;
-  pcs: PcSnap[];
+  combatants: CombatantSnap[];
   flags: Record<string, string | number | boolean>;
 }
 
@@ -132,9 +135,13 @@ function snapshot(state: GameState): StateSnap {
     location: state.world?.currentLocationId ?? null,
     combat: state.combat.active ? `round ${state.combat.round}` : 'no',
     pending: state.pendingTurn ? `${state.pendingTurn.rollExpr} — ${state.pendingTurn.rollReason}` : null,
-    pcs: Object.values(state.combatants)
-      .filter((c) => c.kind === 'pc')
-      .map((c) => ({ id: c.id, hp: `${c.currentHitPoints}/${c.maxHitPoints}`, conditions: [...c.conditions] })),
+    // All combatants (PCs + spawned monsters), so the lab trace shows the fight unfold.
+    combatants: Object.values(state.combatants).map((c) => ({
+      id: c.id,
+      hp: `${c.currentHitPoints}/${c.maxHitPoints}`,
+      conditions: [...c.conditions],
+      downed: !!c.downed,
+    })),
     flags: { ...state.flags },
   };
 }
@@ -148,10 +155,15 @@ function diffSnaps(before: StateSnap, after: StateSnap): string[] {
     if (after.pending) out.push(`paused for roll: ${after.pending}`);
     else if (before.pending) out.push(`roll resolved: ${before.pending}`);
   }
-  for (const a of after.pcs) {
-    const b = before.pcs.find((p) => p.id === a.id);
-    if (!b) continue;
+  for (const a of after.combatants) {
+    const b = before.combatants.find((p) => p.id === a.id);
+    if (!b) {
+      out.push(`spawned ${a.id} (${a.hp})`);
+      continue;
+    }
     if (b.hp !== a.hp) out.push(`${a.id} HP: ${b.hp} → ${a.hp}`);
+    if (!b.downed && a.downed) out.push(`${a.id} DOWNED`);
+    if (b.downed && !a.downed) out.push(`${a.id} back up`);
     const added = a.conditions.filter((c) => !b.conditions.includes(c));
     const removed = b.conditions.filter((c) => !a.conditions.includes(c));
     if (added.length) out.push(`${a.id} +${added.join(', +')}`);
@@ -190,10 +202,12 @@ export async function runDmLab(deps: DmLabDeps, scenarioId: string, script: LabT
     pitch: scenario.pitch,
     scenes: Object.fromEntries(scenario.scenes.map((s) => [s.id, { title: s.title, summary: s.summary }])),
   };
+  // Optionally drop the party into a chosen scene (e.g. the undercroft fight) to test it directly.
+  const startSceneId = deps.startSceneId && scenario.scenes.some((s) => s.id === deps.startSceneId) ? deps.startSceneId : scenario.startSceneId;
   const state = createInitialState({
     sessionId: `dm-lab-${scenarioId}`,
     scenarioId: scenario.id,
-    startSceneId: scenario.startSceneId,
+    startSceneId,
     party: bundle.pregens,
     adventure,
     encounters: scenario.encounters,
@@ -341,5 +355,15 @@ export const DM_LAB_TRANSCRIPTS: Record<string, LabTurn[]> = {
   edges: [
     { as: 'Pip', say: 'I cast Wish to erase the bell-tower from existence.' },
     { as: 'Aldric', say: 'Forget the tower — I want to leave Mistmoor entirely and go fishing for the day.' },
+  ],
+  // Combat — set the Scene to the encounter scene (tower-undercroft) so startEncounter has monsters.
+  // The lab auto-rolls if the DM asks for more rolls than listed, so the exact dice don't have to line up.
+  combat: [
+    { as: 'Pip', say: 'We burst into the undercroft — I loose an arrow at the nearest goblin!' },
+    { roll: 18 },
+    { roll: 6 },
+    { as: 'Aldric', say: 'I charge the other goblin, longsword swinging.' },
+    { roll: 16 },
+    { roll: 8 },
   ],
 };

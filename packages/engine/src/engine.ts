@@ -264,9 +264,16 @@ export class Engine implements EngineTools {
    * Begin the authored encounter for a scene: spawn its monsters from the bestiary,
    * roll initiative for every active combatant (1d20 + initiativeBonus), and start combat.
    */
-  startEncounter(sceneId: string): { spawned: string[]; order: string[] } {
-    const encounter = (this.state.encounters ?? []).find((e) => e.sceneId === sceneId);
-    if (!encounter) throw new Error(`No authored encounter for scene: ${sceneId}`);
+  startEncounter(sceneId?: string): { spawned: string[]; order: string[] } {
+    const encs = this.state.encounters ?? [];
+    // Prefer the named scene, else the current scene, else the only authored encounter (one-shots).
+    const encounter =
+      (sceneId ? encs.find((e) => e.sceneId === sceneId) : undefined) ??
+      encs.find((e) => e.sceneId === this.state.currentSceneId) ??
+      (encs.length === 1 ? encs[0] : undefined);
+    if (!encounter) {
+      throw new Error(`No authored encounter for "${sceneId ?? this.state.currentSceneId}" (available: ${encs.map((e) => e.sceneId).join(', ') || 'none'}).`);
+    }
     const bestiary = this.state.bestiary ?? {};
     const spawned: string[] = [];
     for (const m of encounter.monsters) {

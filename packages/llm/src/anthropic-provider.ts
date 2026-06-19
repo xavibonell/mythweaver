@@ -111,9 +111,18 @@ export class AnthropicProvider implements LlmProvider {
       body.tools = toolList;
     }
 
-    const res = await this.fetchWithRetry(body);
+    let res = await this.fetchWithRetry(body);
     if (!res.ok) {
-      throw new Error(`Anthropic API error ${res.status}: ${await res.text()}`);
+      const errText = await res.text();
+      // Some models reject `temperature` ("deprecated for this model"). Drop it and retry once,
+      // so the temperature knob is best-effort rather than fatal.
+      if (res.status === 400 && 'temperature' in body && /temperature/i.test(errText)) {
+        delete body.temperature;
+        res = await this.fetchWithRetry(body);
+        if (!res.ok) throw new Error(`Anthropic API error ${res.status}: ${await res.text()}`);
+      } else {
+        throw new Error(`Anthropic API error ${res.status}: ${errText}`);
+      }
     }
     const data = (await res.json()) as AnthropicMessageResponse;
 

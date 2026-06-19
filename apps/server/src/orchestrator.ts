@@ -29,7 +29,7 @@ import {
   type ToolDef,
 } from '@mythweaver/llm';
 import type { Retriever } from '@mythweaver/rag';
-import { isEntityId, type EstablishScene, type FixtureDecl, type GameState, type NpcDecl, type PendingTurn, type SceneMap } from '@mythweaver/shared';
+import { isEntityId, type DamageType, type EstablishScene, type FixtureDecl, type GameState, type NpcDecl, type PendingTurn, type SceneMap } from '@mythweaver/shared';
 import { CHARACTERS, PROMPT_PROPS, buildSceneMap, type SceneComposer } from '@mythweaver/scene';
 
 // Catalog tag hints surfaced to the DM in the setScene tool, so it declares real art tags
@@ -210,6 +210,55 @@ export function buildToolDefs(retrieval: boolean, scene: boolean): ToolDef[] {
       },
     });
   }
+  // Combat tools (engine-authoritative HP/damage/initiative/death). Always available; the DM uses
+  // them only in a fight. The engine owns every number — the DM passes ROLLED totals, never invents.
+  tools.push(
+    {
+      name: 'startEncounter',
+      description:
+        "Begin the authored combat where the party is: spawns the scene's monsters at full HP and rolls initiative. Call ONCE when a fight breaks out (no arguments — the engine knows the current scene). Returns the spawned combatant ids + initiative order.",
+      inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+    },
+    {
+      name: 'applyDamage',
+      description:
+        'Apply damage to a combatant after a hit. Pass the ROLLED damage total (from a requestRoll), never an invented number. The engine reduces HP and reports whether the target is downed.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          targetId: { type: 'string', description: 'Combatant id, e.g. "npc:goblin-1" or "pc:aldric".' },
+          amount: { type: 'number', description: 'The rolled damage total.' },
+          type: { type: 'string', description: 'Damage type, e.g. "slashing", "piercing", "fire".' },
+        },
+        required: ['targetId', 'amount', 'type'],
+        additionalProperties: false,
+      },
+    },
+    {
+      name: 'heal',
+      description: 'Restore hit points to a combatant (e.g. a healing spell). Pass the rolled amount. Healing a creature above 0 ends its dying state.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          targetId: { type: 'string', description: 'Combatant id.' },
+          amount: { type: 'number', description: 'The rolled healing amount.' },
+        },
+        required: ['targetId', 'amount'],
+        additionalProperties: false,
+      },
+    },
+    {
+      name: 'rollDeathSave',
+      description:
+        'Roll a death save for a dying player character (at 0 HP), on their turn. The engine rolls the d20 and tracks it (3 successes = stable, 3 failures = dead; nat 20 revives at 1 HP).',
+      inputSchema: {
+        type: 'object',
+        properties: { combatantId: { type: 'string', description: 'The dying PC combatant id.' } },
+        required: ['combatantId'],
+        additionalProperties: false,
+      },
+    },
+  );
   return tools;
 }
 
@@ -258,11 +307,19 @@ function summarizeState(state: GameState): string {
         (c.conditions.length ? `, conditions: ${c.conditions.join(', ')}` : ''),
     )
     .join('\n');
+  const npcs = Object.values(state.combatants)
+    .filter((c) => c.kind === 'npc')
+    .map((c) => `- ${c.name} (${c.id}): ${c.currentHitPoints}/${c.maxHitPoints} HP, AC ${c.armorClass}` + (c.downed ? ' [down]' : '') + (c.conditions.length ? `, ${c.conditions.join(', ')}` : ''))
+    .join('\n');
   const map = currentMap(state);
+  const inCombat = state.combat.active
+    ? `yes (round ${state.combat.round}; initiative: ${state.combat.order.join(' > ')})`
+    : 'no';
   return [
     `Scene: ${state.currentSceneId}`,
     `Party:\n${pcs || '- (none)'}`,
-    `In combat: ${state.combat.active ? `yes (round ${state.combat.round})` : 'no'}`,
+    ...(npcs ? [`Enemies/NPCs present:\n${npcs}`] : []),
+    `In combat: ${inCombat}`,
     ...(map ? [`\n=== MAP (current location, authoritative) ===\n${sceneDigest(map)}`] : []),
   ].join('\n');
 }
@@ -521,6 +578,36 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
           });
         } catch {
           resolved.push({ toolUseId: tc.id, content: 'Scene setup failed; continue narrating.' });
+        }
+      } else if (tc.name === 'startEncounter') {
+        try {
+          const r = engine.startEncounter(); // engine resolves the encounter from the current scene
+          resolved.push({ toolUseId: tc.id, content: JSON.stringify({ started: true, ...r }) });
+        } catch (e) {
+          resolved.push({ toolUseId: tc.id, content: JSON.stringify({ started: false, error: (e as Error).message }) });
+        }
+      } else if (tc.name === 'applyDamage') {
+        try {
+          const amount = Number(tc.input.amount);
+          const r = engine.applyDamage({ targetId: String(tc.input.targetId ?? ''), amount: Number.isFinite(amount) ? amount : 0, type: String(tc.input.type ?? 'bludgeoning') as DamageType });
+          resolved.push({ toolUseId: tc.id, content: JSON.stringify(r) });
+        } catch (e) {
+          resolved.push({ toolUseId: tc.id, content: JSON.stringify({ error: (e as Error).message }) });
+        }
+      } else if (tc.name === 'heal') {
+        try {
+          const amount = Number(tc.input.amount);
+          const r = engine.heal({ targetId: String(tc.input.targetId ?? ''), amount: Number.isFinite(amount) ? amount : 0 });
+          resolved.push({ toolUseId: tc.id, content: JSON.stringify(r) });
+        } catch (e) {
+          resolved.push({ toolUseId: tc.id, content: JSON.stringify({ error: (e as Error).message }) });
+        }
+      } else if (tc.name === 'rollDeathSave') {
+        try {
+          const r = engine.rollDeathSave(String(tc.input.combatantId ?? ''));
+          resolved.push({ toolUseId: tc.id, content: JSON.stringify(r) });
+        } catch (e) {
+          resolved.push({ toolUseId: tc.id, content: JSON.stringify({ error: (e as Error).message }) });
         }
       } else {
         resolved.push({ toolUseId: tc.id, content: `Unknown tool: ${tc.name}` });
