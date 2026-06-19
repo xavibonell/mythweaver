@@ -133,6 +133,15 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
   .pill.stale { background: #38301a; color: #e8c98a; border: 1px solid #7b6a2e; }
   .pill.fallback { background: #38141d; color: #f0a6b0; border: 1px solid #5a2630; }
   .gen-badge .det { color: #8b90a0; }
+  .prow { display: flex; gap: 6px; align-items: center; margin-bottom: 6px; }
+  .prow select { flex: 0 0 116px; }
+  .prow input { flex: 1; min-width: 0; }
+  .prow .premove { padding: 6px 9px; color: #c08; }
+  .radiorow, .ckrow { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: #c7ccda; margin: 0; cursor: pointer; }
+  .ckrow { margin-top: 6px; }
+  .mon-lib { display: flex; flex-wrap: wrap; gap: 6px; max-height: 150px; overflow: auto; }
+  .mon-lib label { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: #c7ccda; margin: 0; border: 1px solid #2b2f3a; border-radius: 7px; padding: 4px 8px; cursor: pointer; }
+  .mon-lib .cr { color: #6b7080; }
   /* results */
   .turn { border: 1px solid #23262e; border-radius: 10px; margin-bottom: 14px; overflow: hidden; }
   .turn .head { display: flex; justify-content: space-between; gap: 10px; padding: 9px 13px; background: #161922; border-bottom: 1px solid #23262e; align-items: baseline; }
@@ -264,8 +273,13 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
 
   <section class="view generate" id="view-generate">
     <div class="panel left gen-form">
-      <label for="gen-theme">Theme <span style="color:#6b7080">— what's the adventure about?</span></label>
-      <input id="gen-theme" type="text" placeholder="e.g. a haunted lighthouse hiding a smuggler's secret" />
+      <label>1 · Your party <span style="color:#6b7080">— add players, pick a role</span></label>
+      <div id="party-list"></div>
+      <button class="ghost" id="party-add" style="margin-top:6px">+ Add player</button>
+      <div class="hint">The party pre-exists the campaign — the Director designs the adventure for them.</div>
+
+      <label for="gen-theme" style="margin-top:18px">2 · Theme <span style="color:#6b7080">— optional; blank = the Director invents it</span></label>
+      <input id="gen-theme" type="text" placeholder="(optional) e.g. a haunted lighthouse hiding a smuggler's secret" />
       <label for="gen-tone">Tone</label>
       <select id="gen-tone" class="seg" style="width:100%">
         <option value="">(unspecified)</option>
@@ -278,14 +292,24 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
       <label for="gen-len">Length <span style="color:#6b7080">— beats (3–8)</span></label>
       <input id="gen-len" type="number" min="3" max="8" value="5" />
       <label for="gen-constraints">Constraints <span style="color:#6b7080">— one per line, optional</span></label>
-      <textarea id="gen-constraints" rows="3" placeholder="no undead&#10;must feature a betrayal"></textarea>
-      <label for="gen-seedphrase">Seed phrase <span style="color:#6b7080">— vary for a different arc</span></label>
+      <textarea id="gen-constraints" rows="2" placeholder="no undead&#10;must feature a betrayal"></textarea>
+
+      <label style="margin-top:18px">3 · Monsters</label>
+      <div class="row">
+        <label class="radiorow"><input type="radio" name="mmode" value="auto" checked /> Director fits them</label>
+        <label class="radiorow"><input type="radio" name="mmode" value="manual" /> I pick the palette</label>
+      </div>
+      <div id="mon-auto"><label class="ckrow"><input type="checkbox" id="mon-commission" checked /> may commission new creatures <span style="color:#6b7080">(engine-statted)</span></label></div>
+      <div id="mon-manual" style="display:none">
+        <div class="hint" style="margin-bottom:4px">Allowed creatures (the Director places only these):</div>
+        <div id="mon-library" class="mon-lib"></div>
+      </div>
+
+      <label for="gen-seedphrase" style="margin-top:18px">Seed phrase <span style="color:#6b7080">— vary for a different arc</span></label>
       <div class="row">
         <input id="gen-seedphrase" type="text" style="flex:1" placeholder="(blank = let the model choose)" />
         <button class="ghost" id="gen-reroll" title="new random seed phrase">Reroll</button>
       </div>
-      <label for="gen-base">Mechanical base <span style="color:#6b7080">— party + monsters reused from this scenario</span></label>
-      <input id="gen-base" type="text" value="the-sunken-bell" />
       <label for="gen-temp">Director temperature <span style="color:#6b7080">— novelty of the arc</span></label>
       <div class="temp">
         <input id="gen-temp" type="range" min="0" max="1" step="0.05" value="0.9" />
@@ -633,19 +657,70 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
   $('rollval').addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); declareRoll(); } });
   $('arc-refresh').onclick = renderArc;
 
-  // --- Generate tab (compose a fresh arc from a seed, preview it, start a session with it) ---
+  // --- Generate tab (build a party → compose a fresh arc from a seed → start a session) ---
+  var libraryRoles = [];   // [{id,name,className,...}]
+  var libraryBestiary = []; // [{id,name,cr,type}]
+
+  function loadLibrary() {
+    fetch('/dm/lab/library').then(function (r) { return r.json(); }).then(function (b) {
+      if (b.error) { $('gen-status').textContent = 'library error: ' + b.error; return; }
+      libraryRoles = b.roles || [];
+      libraryBestiary = b.bestiary || [];
+      // Monster palette browser (manual mode).
+      $('mon-library').innerHTML = libraryBestiary.map(function (m) {
+        return '<label><input type="checkbox" value="' + esc(m.id) + '" /> ' + esc(m.name) + ' <span class="cr">CR ' + esc(m.cr) + '</span></label>';
+      }).join('');
+      // Seed a default party once the roles are known.
+      if (!$('party-list').children.length) ['fighter', 'cleric', 'rogue'].forEach(function (role) { addPlayer(role); });
+    }).catch(function (e) { $('gen-status').textContent = 'library error: ' + (e.message || e); });
+  }
+  function roleOptions(sel) {
+    return libraryRoles.map(function (r) { return '<option value="' + esc(r.id) + '"' + (r.id === sel ? ' selected' : '') + '>' + esc(r.name) + '</option>'; }).join('');
+  }
+  function addPlayer(role, name) {
+    var row = document.createElement('div'); row.className = 'prow';
+    row.innerHTML = '<select class="seg prole">' + roleOptions(role) + '</select>' +
+      '<input class="pname" type="text" placeholder="name (optional)" value="' + esc(name || '') + '" />' +
+      '<button class="ghost premove" title="remove">×</button>';
+    row.querySelector('.premove').onclick = function () { row.remove(); };
+    $('party-list').appendChild(row);
+  }
+  function collectParty() {
+    return [].slice.call(document.querySelectorAll('#party-list .prow')).map(function (row) {
+      var role = row.querySelector('.prole').value;
+      var name = row.querySelector('.pname').value.trim();
+      return name ? { role: role, name: name } : { role: role };
+    }).filter(function (p) { return p.role; });
+  }
+  function monsterConfig() {
+    var mode = (document.querySelector('input[name="mmode"]:checked') || {}).value || 'auto';
+    if (mode === 'manual') {
+      var palette = [].slice.call(document.querySelectorAll('#mon-library input:checked')).map(function (c) { return c.value; });
+      return { monsterMode: 'manual', monsterPalette: palette, allowCommission: false };
+    }
+    return { monsterMode: 'auto', allowCommission: $('mon-commission').checked };
+  }
   function collectSeed() {
-    var seed = { theme: $('gen-theme').value.trim() };
+    var seed = { party: collectParty() };
+    var theme = $('gen-theme').value.trim(); if (theme) seed.theme = theme;
     var tone = $('gen-tone').value; if (tone) seed.tone = tone;
     var len = Number($('gen-len').value); if (isFinite(len)) seed.lengthBeats = len;
     var cons = $('gen-constraints').value.split('\\n').map(function (s) { return s.trim(); }).filter(Boolean);
     if (cons.length) seed.constraints = cons;
     var sp = $('gen-seedphrase').value.trim(); if (sp) seed.seedPhrase = sp;
     seed.temperature = Number($('gen-temp').value);
+    var mc = monsterConfig();
+    seed.monsterMode = mc.monsterMode; seed.allowCommission = mc.allowCommission;
+    if (mc.monsterPalette) seed.monsterPalette = mc.monsterPalette;
     return seed;
   }
   function renderGenPreview(arc) {
     var bp = arc.blueprint || {};
+    var encBySceneId = {}; (arc.encounters || []).forEach(function (e) { encBySceneId[e.sceneId] = e; });
+    function monLine(enc) {
+      if (!enc) return '';
+      return ' <span style="color:#e8a13a">⚔ ' + enc.monsters.map(function (m) { return m.count + '× ' + esc((arc.bestiary[m.statBlockId] || {}).name || m.statBlockId); }).join(', ') + '</span>';
+    }
     var h = '';
     h += '<div class="arc-sec"><h3>Premise</h3><div class="kv">' + esc(bp.premise || '—') + '</div></div>';
     h += '<div class="arc-sec"><h3>Central problem</h3><div class="kv arc-problem">' + esc(bp.centralProblem || '—') + '</div></div>';
@@ -662,7 +737,13 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
       h += '<div class="arc-sec"><h3>Beats</h3><ul class="spine">' + ids.map(function (id) {
         var s = scenes[id];
         var ex = (s.exits && s.exits.length) ? ' <span style="color:#6b7080">→ ' + s.exits.map(esc).join(', ') + '</span>' : '';
-        return '<li><div class="ms">' + esc(s.title) + ' <span style="color:#6b7080">[' + esc(id) + ']</span>' + ex + '</div><div class="mi">' + esc(s.summary || '') + '</div></li>';
+        return '<li><div class="ms">' + esc(s.title) + ' <span style="color:#6b7080">[' + esc(id) + ']</span>' + ex + monLine(encBySceneId[id]) + '</div><div class="mi">' + esc(s.summary || '') + '</div></li>';
+      }).join('') + '</ul></div>';
+    }
+    var commissioned = Object.keys(arc.bestiary || {}).map(function (k) { return arc.bestiary[k]; }).filter(function (b) { return b.source === 'commissioned' || b.source === 'generated'; });
+    if (commissioned.length) {
+      h += '<div class="arc-sec"><h3>Commissioned creatures <span style="color:#6b7080">— engine-statted</span></h3><ul class="spine">' + commissioned.map(function (c) {
+        return '<li><div class="ms">' + esc(c.name) + ' <span style="color:#6b7080">CR ' + esc(c.challengeRating) + '</span></div><div class="mi">AC ' + esc(c.armorClass) + ' · ' + esc(c.hitPoints.average) + ' HP · ' + esc((c.attacks[0] || {}).name || '') + ' ' + esc((c.attacks[0] || {}).damage || '') + '</div></li>';
       }).join('') + '</ul></div>';
     }
     $('gen-preview').innerHTML = h;
@@ -670,7 +751,7 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
   function generateArc() {
     if (!composerOn) { $('gen-status').textContent = 'arc generation is OFF — set MYTHWEAVER_ARC_COMPOSER=llm and restart'; return; }
     var seed = collectSeed();
-    if (!seed.theme) { $('gen-status').textContent = 'enter a theme first'; return; }
+    if (!seed.party.length) { $('gen-status').textContent = 'add at least one player to the party first'; return; }
     $('gen-run').disabled = true; $('gen-start').disabled = true;
     $('gen-status').innerHTML = '<span class="spin"></span>composing a fresh arc — real API call…';
     fetch('/dm/lab/generate-arc', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(seed) })
@@ -678,9 +759,8 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
       .then(function (x) {
         if (!x.ok) { $('gen-status').textContent = 'error: ' + (x.body.error || 'failed'); return; }
         lastGeneratedArc = x.body.arc;
-        var meta = x.body.arc.genMeta;
         $('gen-badge').style.display = 'flex';
-        $('gen-badge').innerHTML = genBadgeHtml(meta, false) + '<span class="det">· ' + fmtCost(x.body.costUsd) + '</span>';
+        $('gen-badge').innerHTML = genBadgeHtml(x.body.arc.genMeta, false) + '<span class="det">· ' + fmtCost(x.body.costUsd) + '</span>';
         renderGenPreview(x.body.arc);
         $('gen-start').disabled = false;
         $('gen-status').textContent = 'arc ready — review it, then Start session (or Reroll for a different one)';
@@ -694,8 +774,8 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
     fetch('/dm/lab/session', {
       method: 'POST', headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
-        scenario: $('gen-base').value.trim() || 'the-sunken-bell',
         generatedArc: lastGeneratedArc,
+        party: collectParty(), // resolved to character sheets server-side
         temperature: Number($('temp').value), // DM narration temp (Run tab)
         arcTemperature: Number($('gen-temp').value), // Director temp (this tab)
         playbook: $('ed-playbook').value,
@@ -712,7 +792,16 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
   $('gen-reroll').onclick = function () { $('gen-seedphrase').value = REROLL[Math.floor(Math.random() * REROLL.length)] + '-' + Math.floor(Math.random() * 1000); };
   $('gen-run').onclick = generateArc;
   $('gen-start').onclick = startGeneratedSession;
+  $('party-add').onclick = function () { addPlayer('fighter'); };
+  document.querySelectorAll('input[name="mmode"]').forEach(function (r) {
+    r.onchange = function () {
+      var manual = (document.querySelector('input[name="mmode"]:checked') || {}).value === 'manual';
+      $('mon-manual').style.display = manual ? '' : 'none';
+      $('mon-auto').style.display = manual ? 'none' : '';
+    };
+  });
   $('gen-theme').addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); generateArc(); } });
+  loadLibrary();
 
   // --- distill: source (transcript|guide) -> block -> diff/apply into the (temp) playbook ---
   var distillMode = 'transcript'; // the mode the CURRENT output belongs to (set on Distill)

@@ -24,9 +24,9 @@ import {
 } from '@mythweaver/llm';
 import type { Retriever } from '@mythweaver/rag';
 import { FakeSceneComposer, type SceneComposer } from '@mythweaver/scene';
-import type { GameState } from '@mythweaver/shared';
+import type { CharacterSheet, GameState, StatBlock } from '@mythweaver/shared';
 import { createHash } from 'node:crypto';
-import { loadScenario, parseScenario } from './content.js';
+import { loadScenario, parseScenario, resolveParty } from './content.js';
 import { buildRetriever } from './corpus.js';
 import { loadDirectorArchitect, loadDirectorComposer, loadDirectorPlanner, loadPlaybook } from './prompts.js';
 import { buildArcPlanner, type ArcPlanner } from './arc-planner.js';
@@ -87,9 +87,11 @@ export interface DmLabDeps {
   arcPlanner?: ArcPlanner;
   /** Arc Composer (Phase 1). When present, the lab can generate fresh arcs from a seed. */
   arcComposer?: ArcComposer;
-  /** A pre-generated arc (from the Composer): use it INSTEAD of loading the scenario's adventure.
-   *  pregens + bestiary are still taken from `scenarioId` (the mechanical base). */
+  /** A pre-generated arc (from the Composer): use its adventure + blueprint + encounters + bestiary. */
   generatedArc?: GeneratedArc;
+  /** The hand-built party (resolved character sheets). Required for generated sessions; authored
+   *  sessions fall back to the scenario's pregens. */
+  party?: CharacterSheet[];
 }
 
 /**
@@ -239,32 +241,43 @@ export interface DmLabSession {
 
 /** Build a fresh interactive session (engine state, recorder, captured persona/scenario/temp). */
 export function createDmLabSession(deps: DmLabDeps, scenarioId: string): DmLabSession {
-  const bundle = loadScenario(scenarioId); // pregens + bestiary always come from the base scenario
-  // Generate-mode: a Composer-generated arc replaces the authored adventure (its own beats/start/blueprint).
-  // Authored-mode: the on-disk scenario (or a live-edited override) drives the session, as before.
+  // Generate-mode: a Composer-generated arc supplies the adventure/blueprint/encounters/bestiary, and
+  // the party comes from the hand-built roster (deps.party). Authored-mode: the on-disk scenario (or a
+  // live-edited override) drives everything, with the scenario's own pregens + bestiary, as before.
   const gen = deps.generatedArc;
-  const scenario = deps.scenarioJson ? parseScenario(deps.scenarioJson, scenarioId) : bundle.scenario;
-  const adventure = gen
-    ? gen.adventure
-    : {
-        pitch: scenario.pitch,
-        scenes: Object.fromEntries(scenario.scenes.map((s) => [s.id, { title: s.title, summary: s.summary, exits: s.exits }])),
-      };
-  const encounters = gen ? gen.encounters : scenario.encounters;
-  // Optionally drop the party into a chosen scene (e.g. the undercroft fight) to test it directly.
-  const startSceneId = gen
-    ? gen.startSceneId
-    : deps.startSceneId && scenario.scenes.some((s) => s.id === deps.startSceneId)
-      ? deps.startSceneId
-      : scenario.startSceneId;
+  let adventure: GameState['adventure'];
+  let startSceneId: string;
+  let encounters: GameState['encounters'];
+  let bestiary: Record<string, StatBlock>;
+  let party: CharacterSheet[];
+  let stateScenarioId: string;
+
+  if (gen) {
+    adventure = gen.adventure;
+    startSceneId = gen.startSceneId;
+    encounters = gen.encounters;
+    bestiary = gen.bestiary;
+    party = deps.party && deps.party.length ? deps.party : resolveParty([]); // fallback: a default fighter
+    stateScenarioId = 'generated';
+  } else {
+    const bundle = loadScenario(scenarioId);
+    const scenario = deps.scenarioJson ? parseScenario(deps.scenarioJson, scenarioId) : bundle.scenario;
+    adventure = { pitch: scenario.pitch, scenes: Object.fromEntries(scenario.scenes.map((s) => [s.id, { title: s.title, summary: s.summary, exits: s.exits }])) };
+    encounters = scenario.encounters;
+    // Optionally drop the party into a chosen scene (e.g. the undercroft fight) to test it directly.
+    startSceneId = deps.startSceneId && scenario.scenes.some((s) => s.id === deps.startSceneId) ? deps.startSceneId : scenario.startSceneId;
+    bestiary = Object.fromEntries(bundle.bestiary.map((b) => [b.id, b]));
+    party = deps.party && deps.party.length ? deps.party : bundle.pregens;
+    stateScenarioId = scenario.id;
+  }
   const state = createInitialState({
     sessionId: `dm-lab-${scenarioId}`,
-    scenarioId: gen ? 'generated' : scenario.id,
+    scenarioId: stateScenarioId,
     startSceneId,
-    party: bundle.pregens,
-    adventure,
-    encounters,
-    bestiary: Object.fromEntries(bundle.bestiary.map((b) => [b.id, b])),
+    party,
+    ...(adventure ? { adventure } : {}),
+    ...(encounters ? { encounters } : {}),
+    bestiary,
   });
   // Pre-prime the architected blueprint so the orchestrator SKIPS the architect step in generate-mode.
   if (gen) state.arc = { blueprint: gen.blueprint, genMeta: gen.genMeta };
@@ -374,7 +387,12 @@ export function arcView(session: DmLabSession) {
   // it was generated under (the user edited director-composer.md since) — surface it so you can regenerate.
   const genMeta = arc.genMeta ?? null;
   const stale = genMeta ? createHash('sha1').update(loadDirectorComposer()).digest('hex').slice(0, 12) !== genMeta.composerPromptHash : false;
-  return { blueprint: arc.blueprint ?? null, brief: arc.brief ?? null, currentScene: st.currentSceneId, beats, decisions, npcs, genMeta, stale };
+  // Per-beat encounters (resolved monster names + counts) so the lab can show the fights the Director placed.
+  const encounters = (st.encounters ?? []).map((e) => ({
+    sceneId: e.sceneId,
+    monsters: e.monsters.map((m) => ({ name: st.bestiary?.[m.statBlockId]?.name ?? m.statBlockId, count: m.count })),
+  }));
+  return { blueprint: arc.blueprint ?? null, brief: arc.brief ?? null, currentScene: st.currentSceneId, beats, decisions, npcs, genMeta, stale, encounters };
 }
 
 /**

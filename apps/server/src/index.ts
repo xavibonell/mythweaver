@@ -8,7 +8,7 @@ import { createProvider } from '@mythweaver/llm';
 import { CHARACTERS, FakeSceneComposer, LlmSceneComposer, PROPS, TERRAINS, buildSceneMap, loadAssetLibrary } from '@mythweaver/scene';
 import { BIOMES, classToSpriteTag, validateEstablishScene, type EstablishScene } from '@mythweaver/shared';
 import { Db } from './db.js';
-import { loadScenario, readScenarioRaw, writeScenarioRaw, parseScenario } from './content.js';
+import { loadScenario, readScenarioRaw, writeScenarioRaw, parseScenario, loadSharedParty, loadSharedBestiary, resolveParty } from './content.js';
 import {
   loadPlaybook,
   savePlaybook,
@@ -243,12 +243,34 @@ app.post('/dm/lab/save', async (req, reply) => {
   return { ok: true, saved };
 });
 
-// Parse + validate a generation seed from a request body. Returns the seed or an error string.
+// The shared libraries the Generate tab draws from: pickable roles + the monster palette.
+app.get('/dm/lab/library', async (_req, reply) => {
+  try {
+    return {
+      roles: loadSharedParty().map((p) => ({ id: p.id, name: p.name, className: p.className, hp: p.maxHitPoints, ac: p.armorClass })),
+      bestiary: loadSharedBestiary().map((b) => ({ id: b.id, name: b.name, cr: b.challengeRating, type: b.type })),
+    };
+  } catch (err) {
+    return badRequest(reply, (err as Error).message);
+  }
+});
+
+// Parse the hand-built party (Add player → role) from a request body: [{role, name?}], capped at 6.
+function parsePartyPicks(raw: unknown): { role: string; name?: string }[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((p) => {
+      const pp = (p ?? {}) as Record<string, unknown>;
+      return { role: typeof pp.role === 'string' ? pp.role.trim().slice(0, 40) : '', ...(typeof pp.name === 'string' && pp.name.trim() ? { name: pp.name.trim().slice(0, 60) } : {}) };
+    })
+    .filter((p) => p.role)
+    .slice(0, 6);
+}
+
+// Parse a generation seed from a request body. Theme is OPTIONAL (blank → the Director invents it).
 function parseArcSeed(raw: unknown): ArcSeed | { error: string } {
   const b = (raw ?? {}) as Record<string, unknown>;
-  const theme = typeof b.theme === 'string' ? b.theme.trim() : '';
-  if (!theme) return { error: 'a theme is required to generate an arc' };
-  if (theme.length > 400) return { error: 'theme is too long (max 400 chars)' };
+  const theme = typeof b.theme === 'string' ? b.theme.trim().slice(0, 400) : '';
   const tone = typeof b.tone === 'string' && b.tone.trim() ? b.tone.trim().slice(0, 60) : undefined;
   let lengthBeats: number | undefined;
   if (b.lengthBeats !== undefined && b.lengthBeats !== null && b.lengthBeats !== '') {
@@ -256,22 +278,34 @@ function parseArcSeed(raw: unknown): ArcSeed | { error: string } {
     if (!Number.isFinite(n)) return { error: 'lengthBeats must be a number' };
     lengthBeats = n;
   }
-  const party = Array.isArray(b.party)
-    ? b.party
-        .map((p) => {
-          const pp = (p ?? {}) as Record<string, unknown>;
-          return { name: typeof pp.name === 'string' ? pp.name.slice(0, 60) : '', className: typeof pp.className === 'string' ? pp.className.slice(0, 40) : undefined };
-        })
-        .filter((p) => p.name)
-    : [];
+  // Party comes from role picks; resolve each role's className for the composer's flavor.
+  const lib = new Map(loadSharedParty().map((p) => [p.id, p]));
+  const party = parsePartyPicks(b.party).map((pk) => {
+    const a = lib.get(pk.role);
+    return { name: (pk.name || '').trim() || (a ? a.name : pk.role), className: a ? a.className : pk.role };
+  });
   const constraints = Array.isArray(b.constraints) ? b.constraints.filter((c): c is string => typeof c === 'string').map((c) => c.slice(0, 200)).slice(0, 8) : undefined;
   const seedPhrase = typeof b.seedPhrase === 'string' && b.seedPhrase.trim() ? b.seedPhrase.trim().slice(0, 200) : undefined;
-  return { theme: theme.slice(0, 400), ...(tone ? { tone } : {}), ...(lengthBeats !== undefined ? { lengthBeats } : {}), party, ...(constraints && constraints.length ? { constraints } : {}), ...(seedPhrase ? { seedPhrase } : {}) };
+  const monsterMode = b.monsterMode === 'manual' ? 'manual' : 'auto';
+  const monsterPalette = Array.isArray(b.monsterPalette) ? b.monsterPalette.filter((s): s is string => typeof s === 'string').map((s) => s.slice(0, 60)).slice(0, 40) : undefined;
+  const allowCommission = b.allowCommission !== false;
+  return {
+    ...(theme ? { theme } : {}),
+    ...(tone ? { tone } : {}),
+    ...(lengthBeats !== undefined ? { lengthBeats } : {}),
+    party,
+    ...(constraints && constraints.length ? { constraints } : {}),
+    ...(seedPhrase ? { seedPhrase } : {}),
+    monsterMode,
+    ...(monsterPalette && monsterPalette.length ? { monsterPalette } : {}),
+    allowCommission,
+  };
 }
 
 // Render a generated arc as a readable markdown preview for the Generate tab.
 function arcMarkdown(arc: GeneratedArc): string {
   const bp = arc.blueprint;
+  const encBySceneId = new Map(arc.encounters.map((e) => [e.sceneId, e]));
   const lines: string[] = [];
   lines.push(`# ${bp.premise || 'Generated arc'}`);
   lines.push('');
@@ -289,7 +323,14 @@ function arcMarkdown(arc: GeneratedArc): string {
     lines.push(`### ${s.title} _(${id})_`);
     lines.push(s.summary || '');
     if (s.exits && s.exits.length) lines.push(`→ exits: ${s.exits.join(', ')}`);
+    const enc = encBySceneId.get(id);
+    if (enc) lines.push(`⚔ ${enc.monsters.map((m) => `${m.count}× ${arc.bestiary[m.statBlockId]?.name ?? m.statBlockId}`).join(', ')}`);
     lines.push('');
+  }
+  const commissioned = Object.values(arc.bestiary).filter((b) => b.source === 'commissioned' || b.source === 'generated');
+  if (commissioned.length) {
+    lines.push('## Commissioned creatures (engine-statted)');
+    for (const c of commissioned) lines.push(`- **${c.name}** — CR ${c.challengeRating}, AC ${c.armorClass}, ${c.hitPoints.average} HP, ${c.attacks[0]?.name ?? 'attack'} ${c.attacks[0]?.damage ?? ''}`);
   }
   return lines.join('\n');
 }
@@ -308,7 +349,7 @@ app.post('/dm/lab/generate-arc', async (req, reply) => {
     temperature = t;
   }
   try {
-    const { arc, costUsd } = await arcComposer.compose(seed, { ...(temperature !== undefined ? { temperature } : {}) });
+    const { arc, costUsd } = await arcComposer.compose(seed, { ...(temperature !== undefined ? { temperature } : {}), library: loadSharedBestiary() });
     return { arc, costUsd, markdown: arcMarkdown(arc) };
   } catch (err) {
     app.log.error(err, 'arc generation failed');
@@ -391,6 +432,7 @@ app.post('/dm/lab/session', async (req, reply) => {
     scenarioJson?: unknown;
     startScene?: unknown;
     generatedArc?: unknown;
+    party?: unknown;
   };
   const scenario = typeof body.scenario === 'string' && body.scenario ? body.scenario : DEFAULT_SCENARIO;
   if (!/^[a-z0-9-]+$/.test(scenario)) return badRequest(reply, 'invalid scenario');
@@ -399,6 +441,9 @@ app.post('/dm/lab/session', async (req, reply) => {
   const startSceneId = typeof body.startScene === 'string' && body.startScene.trim() ? body.startScene.trim() : undefined;
   // A previously-previewed generated arc (from /dm/lab/generate-arc). Re-validated by createDmLabSession.
   const generatedArc = body.generatedArc && typeof body.generatedArc === 'object' ? (body.generatedArc as GeneratedArc) : undefined;
+  // The hand-built party (role picks) → resolved character sheets. Used for generated sessions.
+  const partyPicks = parsePartyPicks(body.party);
+  const party = partyPicks.length ? resolveParty(partyPicks) : undefined;
   const readTemp = (v: unknown): number | undefined | { error: string } => {
     if (v === undefined || v === null || v === '') return undefined;
     const t = Number(v);
@@ -423,6 +468,7 @@ app.post('/dm/lab/session', async (req, reply) => {
         ...(arcTemperature !== undefined ? { arcTemperature: arcTemperature as number } : {}),
         ...(startSceneId ? { startSceneId } : {}),
         ...(generatedArc ? { generatedArc } : {}),
+        ...(party ? { party } : {}),
       },
       scenario,
     );

@@ -79,6 +79,56 @@ export function writeScenarioRaw(slug: string, json: string): void {
   writeFileSync(scenarioJsonPath(slug), json.endsWith('\n') ? json : `${json}\n`);
 }
 
+// --- Shared libraries (Game Director generation) ------------------------------------------------
+// Party archetypes + a game-wide bestiary live OUTSIDE any one scenario, so a generated campaign
+// draws its mechanical pieces from a shared pool instead of being chained to an authored scenario.
+
+const SHARED_DIR = resolve(CONTENT_DIR, 'shared');
+
+/** The role archetypes a player can pick (Fighter, Rogue, …) — validated level-1 character sheets. */
+export function loadSharedParty(): CharacterSheet[] {
+  const party = readJson<CharacterSheet[]>(resolve(SHARED_DIR, 'party.json'));
+  for (const p of party) {
+    if (!p.id || !p.name || typeof p.maxHitPoints !== 'number' || typeof p.armorClass !== 'number') {
+      throw new Error(`Shared party archetype is invalid (need id, name, numeric HP/AC): ${JSON.stringify(p).slice(0, 80)}`);
+    }
+  }
+  return party;
+}
+
+/** The game-wide monster library the Director selects from (and the engine generates alongside). */
+export function loadSharedBestiary(): StatBlock[] {
+  const bestiary = readJson<StatBlock[]>(resolve(SHARED_DIR, 'bestiary.json'));
+  for (const b of bestiary) {
+    if (!b.id || !b.name || typeof b.armorClass !== 'number') {
+      throw new Error(`Shared bestiary entry is invalid (need id, name, numeric AC): ${JSON.stringify(b).slice(0, 80)}`);
+    }
+  }
+  return bestiary;
+}
+
+/**
+ * Resolve a hand-built party (Add player → pick role) into playable character sheets: each pick clones
+ * its role archetype, with a unique id and the player's chosen name (falling back to the role label).
+ * Unknown roles are dropped; an empty/garbage party falls back to a single Fighter so play never breaks.
+ */
+export function resolveParty(picks: { role: string; name?: string }[]): CharacterSheet[] {
+  const lib = loadSharedParty();
+  const byId = new Map(lib.map((p) => [p.id, p]));
+  const out: CharacterSheet[] = [];
+  picks.forEach((pick, i) => {
+    const archetype = byId.get(pick.role);
+    if (!archetype) return;
+    const name = (pick.name || '').trim() || `${archetype.name} ${out.filter((p) => p.className === archetype.className).length + 1}`;
+    out.push({ ...archetype, id: `pc-${i + 1}-${archetype.id}`, name });
+  });
+  if (out.length === 0) {
+    const fighter = byId.get('fighter') ?? lib[0]!;
+    out.push({ ...fighter, id: 'pc-1-fighter', name: fighter.name });
+  }
+  return out;
+}
+
 export function loadScenario(slug: string): ScenarioBundle {
   const base = resolve(CONTENT_DIR, 'scenarios', slug);
   const scenario = readJson<Scenario>(resolve(base, 'scenario.json'));
