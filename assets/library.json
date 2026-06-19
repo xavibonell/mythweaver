@@ -16,7 +16,7 @@
       ],
       "variants": [
         {
-          "art": "/assets/tiny/terrain/grass0.png",
+          "art": "/assets/dawnlike/terrain/grass0.png",
           "from": {
             "pack": "DawnLike",
             "crop": "Objects/Floor.png",
@@ -45,7 +45,7 @@
       ],
       "variants": [
         {
-          "art": "/assets/tiny/terrain/dirt0.png",
+          "art": "/assets/dawnlike/terrain/dirt0.png",
           "from": {
             "pack": "DawnLike",
             "crop": "Objects/Floor.png",
@@ -74,7 +74,7 @@
       ],
       "variants": [
         {
-          "art": "/assets/tiny/terrain/stone0.png",
+          "art": "/assets/dawnlike/terrain/stone0.png",
           "from": {
             "pack": "DawnLike",
             "crop": "Objects/Floor.png",
@@ -102,7 +102,7 @@
       ],
       "variants": [
         {
-          "art": "/assets/tiny/terrain/water.png",
+          "art": "/assets/dawnlike/terrain/water.png",
           "from": {
             "pack": "DawnLike",
             "crop": "Objects/Floor.png",
@@ -129,7 +129,7 @@
       ],
       "variants": [
         {
-          "art": "/assets/tiny/terrain/water_deep.png",
+          "art": "/assets/dawnlike/terrain/water_deep.png",
           "from": {
             "pack": "DawnLike",
             "crop": "Objects/Floor.png",
@@ -156,7 +156,7 @@
       ],
       "variants": [
         {
-          "art": "/assets/tiny/terrain/sand.png",
+          "art": "/assets/dawnlike/terrain/sand.png",
           "from": {
             "pack": "DawnLike",
             "crop": "Objects/Floor.png",
@@ -184,7 +184,7 @@
       ],
       "variants": [
         {
-          "art": "/assets/tiny/terrain/wall0.png",
+          "art": "/assets/dawnlike/terrain/wall0.png",
           "from": {
             "pack": "DawnLike",
             "crop": "Objects/Wall.png",
@@ -204,7 +204,7 @@
       "kind": "prop",
       "tag": "tree",
       "desc": "a leafy green tree",
-      "art": "/assets/tiny/props/tree.png",
+      "art": "/assets/dawnlike/props/tree.png",
       "frameW": 16,
       "frameH": 16,
       "frames": 1,
@@ -233,7 +233,7 @@
       "kind": "prop",
       "tag": "tree_pine",
       "desc": "a tall pine/fir tree",
-      "art": "/assets/tiny/props/tree_pine.png",
+      "art": "/assets/dawnlike/props/tree_pine.png",
       "frameW": 16,
       "frameH": 16,
       "frames": 1,
@@ -260,7 +260,7 @@
       "kind": "prop",
       "tag": "tree_autumn",
       "desc": "an orange autumn tree",
-      "art": "/assets/tiny/props/tree_autumn.png",
+      "art": "/assets/dawnlike/props/tree_autumn.png",
       "frameW": 16,
       "frameH": 16,
       "frames": 1,
@@ -288,7 +288,7 @@
       "kind": "prop",
       "tag": "bush",
       "desc": "a small bush / shrub",
-      "art": "/assets/tiny/props/bush.png",
+      "art": "/assets/dawnlike/props/bush.png",
       "frameW": 16,
       "frameH": 16,
       "frames": 1,
@@ -317,7 +317,7 @@
       "kind": "prop",
       "tag": "mushroom",
       "desc": "red mushrooms",
-      "art": "/assets/tiny/props/mushroom.png",
+      "art": "/assets/dawnlike/props/mushroom.png",
       "frameW": 16,
       "frameH": 16,
       "frames": 1,
@@ -430,7 +430,7 @@
       "kind": "prop",
       "tag": "chest",
       "desc": "a treasure chest",
-      "art": "/assets/tiny/props/chest.png",
+      "art": "/assets/dawnlike/props/chest.png",
       "frameW": 16,
       "frameH": 16,
       "frames": 1,
@@ -479,7 +479,7 @@
       "kind": "prop",
       "tag": "gravestone",
       "desc": "a stone gravestone",
-      "art": "/assets/tiny/props/gravestone.png",
+      "art": "/assets/dawnlike/props/gravestone.png",
       "frameW": 16,
       "frameH": 16,
       "frames": 1,
@@ -508,7 +508,7 @@
       "kind": "prop",
       "tag": "table",
       "desc": "a wooden table",
-      "art": "/assets/tiny/props/table.png",
+      "art": "/assets/dawnlike/props/table.png",
       "frameW": 16,
       "frameH": 16,
       "frames": 1,
@@ -537,7 +537,7 @@
       "kind": "prop",
       "tag": "brazier",
       "desc": "a glowing fire / brazier — a light source",
-      "art": "/assets/tiny/props/brazier.png",
+      "art": "/assets/dawnlike/props/brazier.png",
       "frameW": 16,
       "frameH": 16,
       "frames": 1,
@@ -588,7 +588,7 @@
       "kind": "prop",
       "tag": "altar",
       "desc": "a stone altar / shrine / pulpit",
-      "art": "/assets/tiny/props/altar.png",
+      "art": "/assets/dawnlike/props/altar.png",
       "frameW": 16,
       "frameH": 16,
       "frames": 1,
@@ -617,7 +617,7 @@
       "kind": "prop",
       "tag": "sarcophagus",
       "desc": "a stone sarcophagus / coffin",
-      "art": "/assets/tiny/props/sarcophagus.png",
+      "art": "/assets/dawnlike/props/sarcophagus.png",
       "frameW": 16,
       "frameH": 16,
       "frames": 1,
@@ -808,7 +808,7 @@
       "kind": "prop",
       "tag": "fountain",
       "desc": "a stone fountain with water — a town-square centerpiece (2 tiles)",
-      "art": "/assets/tiny/buildings/fountain.png",
+      "art": "/assets/dawnlike/buildings/fountain.png",
       "frameW": 16,
       "frameH": 16,
       "frames": 1,
