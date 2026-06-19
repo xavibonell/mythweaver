@@ -33,6 +33,11 @@ export const TERRAINS: TerrainDef[] = byKind('terrain').map((a) => ({ tag: a.tag
 
 export const PROPS: PropDef[] = byKind('prop').map((a) => ({ tag: a.tag, desc: a.desc ?? a.tag, w: a.footW ?? 1, h: a.footH ?? 1, blocks: a.blocks ?? true }));
 
+/** Internal props (e.g. the no-art placeholder) — renderable + resolvable, but NEVER offered to the LLM. */
+const INTERNAL_PROP_TAGS = new Set(byKind('prop').filter((a) => a.internal).map((a) => a.tag));
+/** The prop vocabulary advertised to the Director/DM (excludes internal fallbacks). */
+export const PROMPT_PROPS: PropDef[] = PROPS.filter((p) => !INTERNAL_PROP_TAGS.has(p.tag));
+
 export const CHARACTERS: CharDef[] = byKind('character').map((a) => ({ tag: a.tag, desc: a.desc ?? a.tag, ...(a.biomes ? { biomes: a.biomes } : {}) }));
 
 /** Biome hints per tag (for a richer Director prompt), keyed from the library. */
@@ -66,7 +71,7 @@ export function catalogPrompt(): string {
   };
   const line = (x: { tag: string; desc: string }): string => `  ${x.tag} — ${x.desc}${hint(x.tag)}`;
   const t = TERRAINS.map(line).join('\n');
-  const p = PROPS.map(line).join('\n');
+  const p = PROMPT_PROPS.map(line).join('\n');
   const c = CHARACTERS.map(line).join('\n');
   return `TERRAINS (floor):\n${t}\n\nPROPS (placed objects):\n${p}\n\nCHARACTER SPRITES (for actors):\n${c}`;
 }

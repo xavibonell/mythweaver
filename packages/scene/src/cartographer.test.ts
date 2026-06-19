@@ -120,6 +120,89 @@ describe('buildSceneMap (Cartographer)', () => {
     expect(m.walkable[hero.row]?.[hero.col]).toBe(true);
   });
 
+  it('expands an object field into many id-addressed children (grid of pews) sharing a group', () => {
+    const comp: SceneComposition = {
+      locationId: 'loc:church',
+      seed: 11,
+      grammar: 'enclosed-interior',
+      biome: 'dungeon',
+      lighting: 'night',
+      grid: { cols: 20, rows: 14 },
+      terrain: { base: 'stone', regions: [{ tag: 'stone', zone: 'floor' }, { tag: 'wall', zone: 'wall' }] },
+      placements: [{ id: 'prop:altar', kind: 'prop', tag: 'altar', visible: true, zone: 'floor', anchor: 'north' }],
+      ambiance: { density: 0, tags: [] },
+      fields: [{ idBase: 'prop:pews', kind: 'prop', tag: 'table', region: { band: 'center' }, arrangement: 'grid', count: 10, spacing: 2 }],
+    };
+    const m = buildSceneMap(comp);
+    expect(validateSceneMap(m)).toEqual({ ok: true, violations: [] });
+    const pews = m.objects.filter((o) => o.group === 'prop:pews');
+    expect(pews.length).toBeGreaterThanOrEqual(6); // a real grid, not one element
+    expect(pews.length).toBeLessThanOrEqual(10); // respects count
+    expect(pews.every((o) => /^prop:pews#\d\d$/.test(o.id))).toBe(true); // deterministic child ids
+    expect(new Set(pews.map((o) => `${o.col},${o.row}`)).size).toBe(pews.length); // no two pews stack
+    expect(pews.every((o) => m.walkable[o.row]?.[o.col] === false)).toBe(true); // blocking props block their tile
+    // spacing leaves walkable lanes between pews
+    expect(m.walkable.some((row) => row.some((w) => w === true))).toBe(true);
+  });
+
+  it('field expansion is deterministic (same composition → identical map)', () => {
+    const comp = (): SceneComposition => ({
+      locationId: 'loc:hall', seed: 3, grammar: 'enclosed-interior', biome: 'dungeon', lighting: 'night',
+      grid: { cols: 18, rows: 12 }, terrain: { base: 'stone', regions: [{ tag: 'stone', zone: 'floor' }] },
+      placements: [], ambiance: { density: 0, tags: [] },
+      fields: [{ idBase: 'npc:guards', kind: 'actor', role: 'mob', tag: 'skeleton', region: { band: 'all' }, arrangement: 'scatter', count: 5 }],
+    });
+    expect(buildSceneMap(comp())).toEqual(buildSceneMap(comp()));
+    const guards = buildSceneMap(comp()).objects.filter((o) => o.group === 'npc:guards');
+    expect(guards.length).toBe(5);
+    expect(guards.every((o) => o.kind === 'actor' && o.role === 'mob')).toBe(true);
+  });
+
+  it('a "line" field along a wall places the requested count in a line', () => {
+    const comp: SceneComposition = {
+      locationId: 'loc:gallery', seed: 7, grammar: 'enclosed-interior', biome: 'dungeon', lighting: 'night',
+      grid: { cols: 20, rows: 14 }, terrain: { base: 'stone', regions: [{ tag: 'stone', zone: 'floor' }] },
+      placements: [], ambiance: { density: 0, tags: [] },
+      fields: [{ idBase: 'prop:statues', kind: 'prop', tag: 'gravestone', region: { band: 'left' }, arrangement: 'line', count: 3, spacing: 3 }],
+    };
+    const statues = buildSceneMap(comp).objects.filter((o) => o.group === 'prop:statues');
+    expect(statues.length).toBe(3);
+    expect(new Set(statues.map((s) => s.col)).size).toBe(1); // a vertical line: one column
+  });
+
+  it('a near:<id> + flank field places children on either side of the referenced landmark', () => {
+    const comp: SceneComposition = {
+      locationId: 'loc:throne', seed: 2, grammar: 'enclosed-interior', biome: 'dungeon', lighting: 'night',
+      grid: { cols: 20, rows: 14 }, terrain: { base: 'stone', regions: [{ tag: 'stone', zone: 'floor' }] },
+      placements: [{ id: 'prop:throne', kind: 'prop', tag: 'altar', visible: true, zone: 'floor', anchor: 'center' }],
+      ambiance: { density: 0, tags: [] },
+      fields: [{ idBase: 'mob:guards', kind: 'actor', role: 'mob', tag: 'skeleton', region: { near: 'prop:throne' }, arrangement: 'flank' }],
+    };
+    const m = buildSceneMap(comp);
+    expect(validateSceneMap(m)).toEqual({ ok: true, violations: [] });
+    const throne = m.objects.find((o) => o.id === 'prop:throne')!;
+    const guards = m.objects.filter((o) => o.group === 'mob:guards');
+    expect(guards.length).toBe(2);
+    expect(guards.every((g) => Math.abs(g.row - throne.row) <= 1)).toBe(true); // flanking on the throne's row
+    expect(guards[0]!.col).toBeLessThan(throne.col); // one to the left
+    expect(guards[1]!.col).toBeGreaterThan(throne.col); // one to the right
+  });
+
+  it('an aisle:"vertical" grid leaves the central column clear', () => {
+    const comp: SceneComposition = {
+      locationId: 'loc:nave', seed: 1, grammar: 'enclosed-interior', biome: 'dungeon', lighting: 'night',
+      grid: { cols: 20, rows: 14 }, terrain: { base: 'stone', regions: [{ tag: 'stone', zone: 'floor' }] },
+      placements: [], ambiance: { density: 0, tags: [] },
+      fields: [{ idBase: 'prop:pews', kind: 'prop', tag: 'table', region: { band: 'center' }, arrangement: 'grid', spacing: 1, aisle: 'vertical' }],
+    };
+    const m = buildSceneMap(comp);
+    const pews = m.objects.filter((o) => o.group === 'prop:pews');
+    const cols = new Set(pews.map((p) => p.col));
+    const aisleCol = 2 + Math.floor((20 - 4) / 2); // region 'center' = {x:2,w:16}; its mid column is the aisle
+    expect(cols.has(aisleCol)).toBe(false); // a clear central lane
+    expect([...cols].some((c) => c < aisleCol) && [...cols].some((c) => c > aisleCol)).toBe(true); // pews on both sides
+  });
+
   it('guarantees a walkable interior for enclosed rooms even if the wall region is painted last', () => {
     // The 'wall' zone spans the whole grid; with regions in this (LLM-plausible) order a naive
     // painter would bury the floor and collapse every object onto (0,0).

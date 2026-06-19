@@ -10,9 +10,11 @@
 
 import {
   FEET_PER_TILE,
+  FIELD_LIMITS,
   type AmbianceItem,
   type LayoutGrammar,
   type MapObject,
+  type ObjectField,
   type Placement,
   type SceneComposition,
   type SceneMap,
@@ -278,6 +280,27 @@ export function buildSceneMap(comp: SceneComposition): SceneMap {
 
   const cxC = (cols - 1) / 2;
   const cyC = (rows - 1) / 2;
+
+  // A cell that is GUARANTEED placeable: the nearest free walkable fit; or, only if the map is
+  // genuinely full (no free fitting cell anywhere), carve a walkable spot at the target so an actor
+  // never lands inside a wall/fixture. The carve is a last-resort for a degenerate, over-full scene.
+  const guaranteedCell = (tc: number, tr: number, fp: { w: number; h: number }): { c: number; r: number } => {
+    const hit = nearestFit(tc, tr, fp);
+    if (hit) return hit;
+    // No free fitting cell anywhere. Carve the nearest UNOCCUPIED cell walkable — never an occupied one,
+    // so we don't stack two objects on a tile (degenerate, only when the map is essentially full).
+    let best: { c: number; r: number } | null = null;
+    let bestD = Infinity;
+    for (let r = 0; r < rows; r++)
+      for (let c = 0; c < cols; c++) {
+        if (occ[r]![c]) continue;
+        const d = (c - tc) * (c - tc) + (r - tr) * (r - tr);
+        if (d < bestD) { bestD = d; best = { c, r }; }
+      }
+    const cell = best ?? { c: Math.max(0, Math.min(cols - 1, Math.round(tc))), r: Math.max(0, Math.min(rows - 1, Math.round(tr))) };
+    if (inB(cell.c, cell.r)) walkable[cell.r]![cell.c] = true;
+    return cell;
+  };
   // Edge/zone anchors resolve to a BAND, so many props sharing 'north-edge' spread into a LINE
   // along the edge instead of piling on one point. ('center' is handled separately as a point —
   // the single centrepiece.) Returns null for an unknown anchor.
@@ -352,7 +375,7 @@ export function buildSceneMap(comp: SceneComposition): SceneMap {
     return (
       pickSpread(rect, fp, p.kind) ??
       pickSpread({ x: 0, y: 0, w: cols, h: rows }, fp, p.kind) ?? // fallback: anywhere walkable
-      { c: Math.floor(cols / 2), r: Math.floor(rows / 2) } // degenerate last resort — center, not a pile at the origin
+      guaranteedCell(cxC, cyC, fp) // degenerate last resort — always a WALKABLE cell, never inside a wall
     );
   };
 
@@ -366,11 +389,7 @@ export function buildSceneMap(comp: SceneComposition): SceneMap {
     const centrepiece = comp.grammar === 'town-square' && /fountain|well/.test(p.tag);
     const tc = centrepiece ? cxC : cell ? cell.col : Math.round(cxC);
     const tr = centrepiece ? cyC : cell ? cell.row : Math.round(cyC);
-    return (
-      nearestFit(tc, tr, fp) ??
-      pickSpread({ x: 0, y: 0, w: cols, h: rows }, fp, p.kind) ??
-      { c: Math.floor(cols / 2), r: Math.floor(rows / 2) }
-    );
+    return nearestFit(tc, tr, fp) ?? pickSpread({ x: 0, y: 0, w: cols, h: rows }, fp, p.kind) ?? guaranteedCell(cxC, cyC, fp);
   };
 
   // Place non-near first (fixtures → props → actors), then near-anchored ones.
@@ -410,6 +429,113 @@ export function buildSceneMap(comp: SceneComposition): SceneMap {
       zone: p.zone,
       ...(p.anchor ? { anchorRef: p.anchor } : {}),
     });
+  }
+
+  // OBJECT FIELDS: expand each into N concrete, id-addressed children (idBase#NN). Runs AFTER point
+  // placement so point actors keep first pick of walkable cells, and field `spacing` leaves lanes.
+  const clampRect = (r: Rect): Rect => {
+    const x = Math.max(0, Math.min(cols - 1, r.x));
+    const y = Math.max(0, Math.min(rows - 1, r.y));
+    return { x, y, w: Math.max(1, Math.min(cols - x, r.w)), h: Math.max(1, Math.min(rows - y, r.h)) };
+  };
+  const BAND_ALIAS: Record<string, string> = { left: 'west', right: 'east', top: 'north', bottom: 'south', north: 'north', south: 'south', east: 'east', west: 'west' };
+  const regionRect = (field: ObjectField): Rect => {
+    // `near:<id>` → a box centred on that placed landmark (flank/ring/cluster around it).
+    if (field.region.near) {
+      const ref = placedPos.get(field.region.near);
+      if (ref) {
+        const half = field.arrangement === 'flank' ? 1 : field.arrangement === 'ring' ? 2 : Math.max(2, Math.ceil(Math.sqrt(field.count ?? 6)));
+        return clampRect({ x: ref.c - half, y: ref.r - half, w: 2 * half + 1, h: 2 * half + 1 });
+      }
+      // unresolvable ref → fall through to band/rect/centre
+    }
+    if (field.region.rect) return clampRect(field.region.rect);
+    const b = field.region.band ?? 'all';
+    const aliased = BAND_ALIAS[b];
+    if (aliased) {
+      const band = anchorBand(aliased);
+      if (band) return clampRect(band);
+    }
+    if (b === 'center') return clampRect({ x: 2, y: 2, w: cols - 4, h: rows - 4 });
+    return clampRect({ x: 1, y: 1, w: cols - 2, h: rows - 2 }); // 'all'
+  };
+  /** Ordered target cells for an arrangement within a rect (deterministic; scatter is seed-shuffled).
+   *  `aisle` carves a clear central lane (a column or row left empty) through a row/grid. */
+  const fieldTargets = (rect: Rect, arr: ObjectField['arrangement'], spacing: number, aisle?: 'vertical' | 'horizontal'): { c: number; r: number }[] => {
+    const s = Math.max(1, spacing);
+    const x0 = rect.x, y0 = rect.y, x1 = rect.x + rect.w - 1, y1 = rect.y + rect.h - 1;
+    const midR = y0 + Math.floor(rect.h / 2), midC = x0 + Math.floor(rect.w / 2);
+    const out: { c: number; r: number }[] = [];
+    if (arr === 'grid') for (let r = y0; r <= y1; r += s) for (let c = x0; c <= x1; c += s) out.push({ c, r });
+    else if (arr === 'row') for (let c = x0; c <= x1; c += s) out.push({ c, r: midR });
+    else if (arr === 'line') {
+      if (rect.w >= rect.h) for (let c = x0; c <= x1; c += s) out.push({ c, r: midR });
+      else for (let r = y0; r <= y1; r += s) out.push({ c: midC, r });
+    } else if (arr === 'ring' && rect.w >= 3 && rect.h >= 3) {
+      for (let c = x0; c <= x1; c += s) { out.push({ c, r: y0 }); if (y1 !== y0) out.push({ c, r: y1 }); }
+      for (let r = y0 + s; r < y1; r += s) { out.push({ c: x0, r }); if (x1 !== x0) out.push({ c: x1, r }); }
+    } else if (arr === 'ring') {
+      // A ring needs a 3×3+ rect to read as a perimeter; on a thin band it degenerates to a line.
+      if (rect.w >= rect.h) for (let c = x0; c <= x1; c += s) out.push({ c, r: midR });
+      else for (let r = y0; r <= y1; r += s) out.push({ c: midC, r });
+    } else if (arr === 'flank') {
+      out.push({ c: x0, r: midR });
+      if (x1 !== x0) out.push({ c: x1, r: midR });
+    } else {
+      for (let r = y0; r <= y1; r++) for (let c = x0; c <= x1; c++) out.push({ c, r });
+      for (let i = out.length - 1; i > 0; i--) { const j = Math.floor(rand() * (i + 1)); const t = out[i]!; out[i] = out[j]!; out[j] = t; }
+    }
+    // Carve a central lane — but if the filter would remove EVERY target (a too-narrow region), keep the
+    // unfiltered targets so the field still places (and an absorbed entity never lands in the empty aisle).
+    if (aisle === 'vertical') { const f = out.filter((t) => t.c !== midC); return f.length ? f : out; }
+    if (aisle === 'horizontal') { const f = out.filter((t) => t.r !== midR); return f.length ? f : out; }
+    return out;
+  };
+  for (const field of comp.fields ?? []) {
+    const d = propDef(field.tag);
+    const fp = field.kind === 'actor' ? { w: 1, h: 1 } : { w: d?.w ?? 1, h: d?.h ?? 1 };
+    const blocks = field.kind !== 'actor' && (d?.blocks ?? true);
+    const rect = regionRect(field);
+    const spacing = field.spacing ?? (field.arrangement === 'scatter' ? 1 : 2);
+    const targets = fieldTargets(rect, field.arrangement, spacing, field.aisle);
+    const defaultCount = field.arrangement === 'scatter' ? 6 : field.arrangement === 'flank' ? 2 : targets.length;
+    const cap = Math.min(FIELD_LIMITS.maxCount, field.count ?? defaultCount);
+    const snapMax = Math.max(2, spacing); // a child may snap up to ~one spacing-step toward a free cell
+    const midR2 = rect.y + Math.floor(rect.h / 2), midC2 = rect.x + Math.floor(rect.w / 2);
+    const place = (pos: { c: number; r: number }, n: number): void => {
+      for (let dy = 0; dy < fp.h; dy++)
+        for (let dx = 0; dx < fp.w; dx++) {
+          const cc = pos.c + dx, rr = pos.r + dy;
+          if (inB(cc, rr)) { occ[rr]![cc] = true; if (blocks) walkable[rr]![cc] = false; }
+        }
+      objects.push({ id: `${field.idBase}#${n.toString().padStart(2, '0')}`, kind: field.kind, ...(field.role ? { role: field.role } : {}), tag: field.tag, ...(field.name ? { name: field.name } : {}), col: pos.c, row: pos.r, footprint: fp, facing: field.facing ?? 'down', visible: field.visible ?? true, group: field.idBase });
+    };
+    let n = 0;
+    for (const t of targets) {
+      if (n >= cap) break;
+      let pos: { c: number; r: number } | null = footFits(t.c, t.r, fp.w, fp.h) ? { c: t.c, r: t.r } : null;
+      if (!pos) {
+        const hit = nearestFit(t.c, t.r, fp); // snap to a nearby free cell, but don't teleport across the map
+        if (hit && Math.max(Math.abs(hit.c - t.c), Math.abs(hit.r - t.r)) <= snapMax) pos = hit;
+      }
+      if (!pos) continue;
+      place(pos, n);
+      n++;
+    }
+    // An ABSORBED declared entity must appear — guarantee at least one child even if every target was
+    // skipped (e.g. a tiny/crowded region), so the entity never silently vanishes from the scene.
+    if (n === 0) place(guaranteedCell(midC2, midR2, fp), 0);
+  }
+
+  // Reachability guard: a dense field must never TRAP an actor. If any actor has no walkable orthogonal
+  // neighbour (boxed in by field props), open one adjacent cell so it can always step out.
+  const ORTH4 = [[1, 0], [-1, 0], [0, 1], [0, -1]] as const;
+  for (const o of objects) {
+    if (o.kind !== 'actor') continue;
+    if (ORTH4.some(([dx, dy]) => walkable[o.row + dy]?.[o.col + dx] === true)) continue;
+    // Open an UNOCCUPIED neighbour (don't make an occupied cell walkable — that would invite an overlap);
+    // if every neighbour is occupied the actor is genuinely packed in, leave it rather than stack.
+    for (const [dx, dy] of ORTH4) { const cc = o.col + dx, rr = o.row + dy; if (inB(cc, rr) && !occ[rr]![cc]) { walkable[rr]![cc] = true; break; } }
   }
 
   // Ambiance. In blockout mode the forest fill IS the ambiance (already placed, intentionally dense);

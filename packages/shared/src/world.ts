@@ -31,8 +31,9 @@ export type EntityId = string;
 export const ENTITY_ID_PREFIXES = ['loc', 'bldg', 'prop', 'npc', 'pc', 'mob'] as const;
 export type EntityIdPrefix = (typeof ENTITY_ID_PREFIXES)[number];
 
-/** `<prefix>:<slug>` where slug is lowercase kebab/alphanumeric. */
-export const ENTITY_ID_PATTERN = /^(loc|bldg|prop|npc|pc|mob):[a-z0-9]+(?:-[a-z0-9]+)*$/;
+/** `<prefix>:<slug>` where slug is lowercase kebab/alphanumeric, with an optional `#NN` suffix for
+ *  object-field children (e.g. "prop:pews#03" — one of an expanded group sharing idBase "prop:pews"). */
+export const ENTITY_ID_PATTERN = /^(loc|bldg|prop|npc|pc|mob):[a-z0-9]+(?:-[a-z0-9]+)*(?:#\d+)?$/;
 
 /** What an object IS on the map. fixture = building/large structure; prop = small object; actor = mover. */
 export type EntityKind = 'fixture' | 'prop' | 'actor';
@@ -178,6 +179,32 @@ export interface SceneBlockout {
   /** Coarse entity positions on the grid. Entities omitted here are auto-placed on open ground. */
   cells: { id: EntityId; col: number; row: number }[];
 }
+/**
+ * An OBJECT FIELD — the Director's way to place MANY copies of one prop/actor by a RULE instead of
+ * one-by-one ("rows of pews", "statues along the left wall", "a ring of standing stones", "guards
+ * flanking the throne"). The Cartographer expands ONE field into N concrete, id-addressed children
+ * (idBase + "#NN"), so a generic verb set × the open catalog covers an open-ended family of scenes
+ * with no per-keyword code, while each child stays individually manipulable (SceneDelta target).
+ */
+export type FieldArrangement = 'row' | 'grid' | 'ring' | 'line' | 'scatter' | 'flank';
+export interface ObjectField {
+  idBase: EntityId; // children are `${idBase}#00`, `${idBase}#01`, … (deterministic)
+  kind: EntityKind; // 'prop' | 'actor'
+  role?: ActorRole;
+  tag: string; // catalog art tag (resolved)
+  name?: string;
+  visible?: boolean;
+  facing?: Facing;
+  /** Where to fill: a named band, an explicit grid rect, OR `near` a placed entity (the field is laid
+   *  out in a box centred on that landmark — "candles ringing the altar", "guards flanking the throne").
+   *  Cartographer clamps + resolves it; an unresolvable `near` falls back to the grid centre. */
+  region: { band?: string; rect?: { x: number; y: number; w: number; h: number }; near?: EntityId };
+  arrangement: FieldArrangement;
+  count?: number; // target number of children (clamped); omitted → derived from region + spacing
+  spacing?: number; // cells between children (clamped); leaves walkable lanes
+  /** Carve a clear central lane through a row/grid (a pew-hall aisle). */
+  aisle?: 'vertical' | 'horizontal';
+}
 export interface SceneComposition {
   locationId: LocationId;
   seed: number;
@@ -190,10 +217,14 @@ export interface SceneComposition {
   ambiance: { density: number; tags: string[] }; // 0..1 density of seed-scattered decor
   /** Present for open-outdoor scenes the Director painted; the Cartographer prefers it over zones. */
   blockout?: SceneBlockout;
+  /** Repeated-object groups the Cartographer expands into many id-addressed children. */
+  fields?: ObjectField[];
 }
 
 /** Grid bounds the Director must stay within (also enforced by validation). */
 export const GRID_LIMITS = { minCols: 12, maxCols: 40, minRows: 8, maxRows: 28 } as const;
+/** Bounds on object fields (expansion caps — keeps a sloppy model from flooding the map). */
+export const FIELD_LIMITS = { maxFields: 12, maxCount: 40, minSpacing: 1, maxSpacing: 6 } as const;
 
 // ---------------------------------------------------------------------------
 // Contract 3 — SceneMap  (Cartographer → FREEZE). The canonical object_map.
@@ -220,6 +251,9 @@ export interface MapObject {
   /** The grammar zone the entity was placed in — the coarse, coordinate-free locus the
    *  digest narrates from when no finer anchorRef exists. Carried from SceneComposition. */
   zone?: string;
+  /** If this object is one child of an expanded ObjectField, the field's idBase (so the digest can
+   *  collapse "prop:pews#00..#07" → "a row of 8 pews" and SceneDelta can address the group). */
+  group?: EntityId;
 }
 
 /** Seed-scattered decoration — rich but NOT narratively addressable (no stable id). */

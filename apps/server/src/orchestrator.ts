@@ -30,11 +30,12 @@ import {
 } from '@mythweaver/llm';
 import type { Retriever } from '@mythweaver/rag';
 import { isEntityId, type EstablishScene, type FixtureDecl, type GameState, type NpcDecl, type PendingTurn, type SceneMap } from '@mythweaver/shared';
-import { CHARACTERS, PROPS, buildSceneMap, type SceneComposer } from '@mythweaver/scene';
+import { CHARACTERS, PROMPT_PROPS, buildSceneMap, type SceneComposer } from '@mythweaver/scene';
 
 // Catalog tag hints surfaced to the DM in the setScene tool, so it declares real art tags
-// (the Composer still maps near-misses, but exact tags render best).
-const FIXTURE_TAG_HINT = PROPS.map((p) => p.tag).join(', ');
+// (the Composer still maps near-misses, but exact tags render best). Internal props (the no-art
+// placeholder) are excluded so the DM never picks them.
+const FIXTURE_TAG_HINT = PROMPT_PROPS.map((p) => p.tag).join(', ');
 const ACTOR_LOOK_HINT = CHARACTERS.map((c) => c.tag).join(', ');
 import { NoopTracer, type Tracer } from './tracing.js';
 
@@ -218,12 +219,27 @@ function currentMap(state: GameState): SceneMap | undefined {
   return w && w.currentLocationId ? w.locations[w.currentLocationId] : undefined;
 }
 
-/** A compact digest of the current location so the DM narrates from TRUTH, not imagination. */
+/** A compact digest of the current location so the DM narrates from TRUTH, not imagination.
+ *  Object-field children (group set) are collapsed to one "group ×N" line so a row of 8 pews reads
+ *  as a group, not 8 lines (the DM addresses the group, or a member by its #NN id when needed). */
 function sceneDigest(map: SceneMap): string {
-  const fix = map.objects.filter((o) => o.kind !== 'actor').map((o) => `${o.id}(${o.zone ?? '?'})`);
-  const npcs = map.objects
-    .filter((o) => o.kind === 'actor' && o.role !== 'pc')
-    .map((o) => `${o.id} "${o.name ?? ''}"@${o.col},${o.row}${o.visible ? '' : ' [hidden]'}`);
+  const fix: string[] = [];
+  const fixGroups = new Map<string, { n: number; tag: string; zone?: string }>();
+  for (const o of map.objects.filter((o) => o.kind !== 'actor')) {
+    if (o.group) {
+      const g = fixGroups.get(o.group) ?? { n: 0, tag: o.tag, zone: o.zone };
+      g.n++;
+      fixGroups.set(o.group, g);
+    } else fix.push(`${o.id}(${o.zone ?? '?'})`);
+  }
+  for (const [id, g] of fixGroups) fix.push(`${id} ×${g.n} ${g.tag}(${g.zone ?? '?'})`);
+  const npcs: string[] = [];
+  const npcGroups = new Map<string, number>();
+  for (const o of map.objects.filter((o) => o.kind === 'actor' && o.role !== 'pc')) {
+    if (o.group) npcGroups.set(o.group, (npcGroups.get(o.group) ?? 0) + 1);
+    else npcs.push(`${o.id} "${o.name ?? ''}"@${o.col},${o.row}${o.visible ? '' : ' [hidden]'}`);
+  }
+  for (const [id, n] of npcGroups) npcs.push(`${id} ×${n}`);
   const pcs = map.objects.filter((o) => o.role === 'pc').map((o) => `${o.id}@${o.col},${o.row}`);
   return [
     `Location ${map.locationId} — ${map.biome}, ${map.lighting}`,

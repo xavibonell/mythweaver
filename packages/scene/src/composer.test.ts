@@ -104,6 +104,41 @@ describe('LlmSceneComposer', () => {
     expect(validateSceneMap(buildSceneMap(comp)).ok).toBe(true);
   });
 
+  it('parses object fields: absorbs a declared entity into a field, adds new groups, stays valid', async () => {
+    const church: EstablishScene = {
+      locationId: 'loc:church',
+      brief: { setting: 'the interior of an old stone church', biome: 'dungeon', timeOfDay: 'night' },
+      fixtures: [
+        { id: 'prop:pews', kind: 'prop', tag: 'benches' }, // a plural the Director will fold into a field
+        { id: 'prop:altar', kind: 'prop', tag: 'altar' },
+      ],
+      npcs: [],
+    };
+    const fparty: PartyMemberRef[] = [{ id: 'pc:aldric', spriteTag: 'knight', name: 'Aldric' }];
+    const llm = new FakeLlmProvider([
+      fakeText(
+        JSON.stringify({
+          fields: [
+            { idBase: 'prop:pews', tag: 'table', region: { band: 'center' }, arrangement: 'grid', count: 8, spacing: 2 },
+            { idBase: 'prop:statues', tag: 'gravestone', region: { band: 'left' }, arrangement: 'line', count: 3 },
+          ],
+        }),
+      ),
+    ]);
+    const comp = await new LlmSceneComposer(llm).compose({ establish: church, party: fparty, seed: 4 });
+    expect(validateComposition(comp, church, fparty, cat)).toEqual({ ok: true, violations: [] });
+    expect(comp.fields?.length).toBe(2);
+    // The declared "prop:pews" is REPRESENTED by its field — not also placed as a single object.
+    expect(comp.placements.some((p) => p.id === 'prop:pews')).toBe(false);
+    // The altar (no field) and the party member are still placed normally.
+    expect(comp.placements.some((p) => p.id === 'prop:altar')).toBe(true);
+    expect(comp.placements.some((p) => p.id === 'pc:aldric')).toBe(true);
+    const m = buildSceneMap(comp);
+    expect(validateSceneMap(m)).toEqual({ ok: true, violations: [] });
+    expect(m.objects.filter((o) => o.group === 'prop:pews').length).toBeGreaterThanOrEqual(4);
+    expect(m.objects.filter((o) => o.group === 'prop:statues').length).toBe(3);
+  });
+
   it('parses a painted blockout for an outdoor scene and renders it (horizontal path + cells)', async () => {
     const forest: EstablishScene = {
       locationId: 'loc:forest-path',

@@ -47,6 +47,8 @@ export interface AssetEntry {
   footH?: number;
   blocks?: boolean;
   light?: boolean;
+  /** Renderable + resolvable, but NOT advertised to the LLM (e.g. the no-art placeholder fallback). */
+  internal?: boolean;
   // character
   idleFrames?: number;
   anchorY?: number;

@@ -141,7 +141,24 @@ export function validateComposition(c: SceneComposition, e: EstablishScene, part
       v.push({ code: 'role-prefix-mismatch', message: `id "${p.id}" implies role "${ROLE_BY_PREFIX[pref]}" but role is "${p.role}"`, path: `${path}.role` });
     }
   }
-  for (const id of required) if (!placed.has(id)) v.push({ code: 'missing-placement', message: `entity "${id}" was not placed`, path: 'placements' });
+  // Object fields — repeated-object groups the Cartographer expands. They live OUTSIDE the 1:1
+  // placement rule (one field → many children), but each must be a valid, catalog-backed directive.
+  const FIELD_ARRANGEMENTS = new Set(['row', 'grid', 'ring', 'line', 'scatter', 'flank']);
+  const fieldBases = new Set<string>();
+  for (const [i, f] of (c.fields ?? []).entries()) {
+    const path = `fields[${i}]`;
+    if (typeof f?.idBase !== 'string') v.push({ code: 'bad-field', message: 'field idBase must be a string', path: `${path}.idBase` });
+    else fieldBases.add(f.idBase);
+    if (!cat.tags.has(f?.tag)) v.push({ code: 'unknown-tag', message: `unknown field tag "${f?.tag}"`, path: `${path}.tag` });
+    if (!['fixture', 'prop', 'actor'].includes(f?.kind)) v.push({ code: 'bad-kind', message: `invalid field kind "${f?.kind}"`, path: `${path}.kind` });
+    if (!FIELD_ARRANGEMENTS.has(f?.arrangement)) v.push({ code: 'bad-arrangement', message: `invalid arrangement "${f?.arrangement}"`, path: `${path}.arrangement` });
+    const fpref = prefixOf(typeof f?.idBase === 'string' ? f.idBase : '');
+    if (KIND_BY_PREFIX[fpref] && f?.kind !== KIND_BY_PREFIX[fpref]) v.push({ code: 'kind-prefix-mismatch', message: `field id "${f?.idBase}" implies kind "${KIND_BY_PREFIX[fpref]}" but kind is "${f?.kind}"`, path: `${path}.kind` });
+  }
+
+  // A declared entity is satisfied either by a direct placement OR by being a field's idBase (a
+  // field expands it into children). Otherwise it was dropped.
+  for (const id of required) if (!placed.has(id) && !fieldBases.has(id)) v.push({ code: 'missing-placement', message: `entity "${id}" was not placed`, path: 'placements' });
 
   const d = c.ambiance?.density;
   if (!(typeof d === 'number' && d >= 0 && d <= 1)) v.push({ code: 'bad-density', message: 'ambiance.density must be 0..1', path: 'ambiance.density' });

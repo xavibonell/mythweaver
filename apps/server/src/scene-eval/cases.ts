@@ -42,8 +42,8 @@ export const SCENE_EVAL_CASES: SceneEvalCase[] = [
   {
     id: 'crypt',
     brief: 'A torchlit crypt antechamber: stone sarcophagi, broken pillars, a hanging banner, an archway to the dark. Two skeletons stand guard.',
-    expect: { grammar: 'enclosed-interior', mustRenderTags: ['gravestone', 'skeleton'], noAmbiance: true },
-    note: 'walled interior: grave markers (no sarcophagus tile in the Kenney set) + skeletons, NO outdoor ambiance',
+    expect: { grammar: 'enclosed-interior', mustRenderTags: ['skeleton'], noAmbiance: true },
+    note: 'walled interior: skeletons + NO outdoor ambiance. (Sarcophagi now have their own tile but the DM may field/vary them, so only the skeleton guard is asserted.)',
   },
   {
     id: 'forest-camp',

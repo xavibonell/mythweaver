@@ -15,13 +15,17 @@ import type { LlmProvider } from '@mythweaver/llm';
 import {
   BIOMES,
   BLOCKOUT_CHARS,
+  FIELD_LIMITS,
   GRAMMAR_ZONES,
   GRID_LIMITS,
   LAYOUT_GRAMMARS,
   isValidAnchor,
   type CompositionRequest,
+  type Facing,
+  type FieldArrangement,
   type LayoutGrammar,
   type Lighting,
+  type ObjectField,
   type Placement,
   type SceneBlockout,
   type SceneComposition,
@@ -134,6 +138,59 @@ function parseBlockout(raw: unknown, knownIds: Set<string>): SceneBlockout | und
   return { cols, rows, grid, cells };
 }
 
+const FIELD_ARRANGEMENTS = new Set<FieldArrangement>(['row', 'grid', 'ring', 'line', 'scatter', 'flank']);
+const FIELD_BANDS = new Set(['left', 'right', 'top', 'bottom', 'north', 'south', 'east', 'west', 'center', 'all']);
+
+/**
+ * Sanitize the Director's object-FIELD directives into clean ObjectFields (or drop the bad ones).
+ * Resolves the tag to a real catalog tag, infers kind/role from the idBase prefix, clamps count/
+ * spacing, and normalizes the region. Robust to a sloppy model — never throws.
+ */
+function parseFields(raw: unknown): ObjectField[] {
+  if (!Array.isArray(raw)) return [];
+  const out: ObjectField[] = [];
+  const seen = new Set<string>();
+  for (const r of raw) {
+    if (!r || typeof r !== 'object') continue;
+    const f = r as Record<string, unknown>;
+    let idBase = typeof f.idBase === 'string' ? f.idBase.trim().replace(/#.*$/, '') : ''; // strip any stray "#NN" — the engine appends the child suffix
+    if (!idBase) continue;
+    const pref = idBase.includes(':') ? idBase.slice(0, idBase.indexOf(':')).toLowerCase() : '';
+    const kind: ObjectField['kind'] = pref === 'npc' || pref === 'mob' || pref === 'pc' ? 'actor' : pref === 'prop' ? 'prop' : f.kind === 'actor' ? 'actor' : 'prop';
+    if (!idBase.includes(':')) idBase = `${kind === 'actor' ? 'npc' : 'prop'}:${idBase.replace(/[^a-z0-9_-]/gi, '').toLowerCase() || 'group'}`;
+    if (seen.has(idBase)) continue;
+    const rawTag = typeof f.tag === 'string' ? f.tag : '';
+    const tag = kind === 'actor' ? (isCharacter(rawTag) ? rawTag : lookToSprite(rawTag)) : resolveFixtureTag(rawTag);
+    const arrangement = FIELD_ARRANGEMENTS.has(f.arrangement as FieldArrangement) ? (f.arrangement as FieldArrangement) : 'scatter';
+    const reg = f.region && typeof f.region === 'object' ? (f.region as Record<string, unknown>) : {};
+    const region: ObjectField['region'] = {};
+    if (typeof reg.band === 'string' && FIELD_BANDS.has(reg.band.toLowerCase())) region.band = reg.band.toLowerCase();
+    if (reg.rect && typeof reg.rect === 'object') {
+      const rr = reg.rect as Record<string, unknown>;
+      const n = (v: unknown): number | undefined => (typeof v === 'number' && Number.isFinite(v) ? Math.round(v) : undefined);
+      const x = n(rr.x), y = n(rr.y), w = n(rr.w), h = n(rr.h);
+      if (x !== undefined && y !== undefined && w !== undefined && h !== undefined && w > 0 && h > 0) region.rect = { x, y, w, h };
+    }
+    // `near` may be given as region.near OR a top-level field.near; keep it only if it LOOKS like an id
+    // (the Cartographer resolves it against placed entities and falls back to centre if unresolvable).
+    const nearRaw = typeof reg.near === 'string' ? reg.near : typeof f.near === 'string' ? (f.near as string) : '';
+    if (nearRaw && nearRaw.includes(':')) region.near = nearRaw.trim().replace(/#.*$/, '');
+    if (!region.band && !region.rect && !region.near) region.band = 'all';
+    const field: ObjectField = { idBase, kind, tag, region, arrangement };
+    if (kind === 'actor') field.role = pref === 'mob' ? 'mob' : pref === 'pc' ? 'pc' : 'npc';
+    if (typeof f.count === 'number' && Number.isFinite(f.count)) field.count = Math.min(FIELD_LIMITS.maxCount, Math.max(1, Math.round(f.count)));
+    if (typeof f.spacing === 'number' && Number.isFinite(f.spacing)) field.spacing = Math.min(FIELD_LIMITS.maxSpacing, Math.max(FIELD_LIMITS.minSpacing, Math.round(f.spacing)));
+    if (typeof f.facing === 'string' && ['up', 'down', 'left', 'right'].includes(f.facing)) field.facing = f.facing as Facing;
+    if (f.aisle === 'vertical' || f.aisle === 'horizontal') field.aisle = f.aisle;
+    if (typeof f.visible === 'boolean') field.visible = f.visible;
+    if (typeof f.name === 'string') field.name = f.name;
+    out.push(field);
+    seen.add(idBase);
+    if (out.length >= FIELD_LIMITS.maxFields) break;
+  }
+  return out;
+}
+
 /** Resolve a declared anchor to a grammar zone (the coarse placement bucket). */
 function anchorToZone(anchor: string | undefined, grammar: LayoutGrammar): string {
   const zones = GRAMMAR_ZONES[grammar];
@@ -172,7 +229,7 @@ function townSquareDefault(kind: string, tag: string): { zone: string; anchor?: 
 /**
  * Resolve a DM-declared fixture tag to a real catalog tag. The DM emits catalog-adjacent names
  * (e.g. "broken_pillar", "wall_sconce_torch"); map them to the nearest art by keyword. The
- * fallback is a CRATE, never a tree — a tree indoors is the worst possible wrong guess.
+ * fallback is the neutral PLACEHOLDER (an honest "no art yet" marker), never a misleading sprite.
  */
 const FIXTURE_SYNONYMS: [RegExp, string][] = [
   // Buildings (composed cottages) + fountain — highest priority so "house"/"tavern" don't fall through.
@@ -181,13 +238,16 @@ const FIXTURE_SYNONYMS: [RegExp, string][] = [
   [/cottage|hut|cabin|shack|hovel|dwelling/, 'house_wood'],
   [/shop|store|smithy|bakery|market.?house|stall.?house/, 'house_grey'],
   [/manor|house|home|residence|building|\bhall\b|abode|cabin/, 'house_red'],
-  [/grave|tomb|sarcophag|coffin|headstone|tombstone|cairn/, 'gravestone'],
+  [/stair|staircase|\bsteps\b|stairwell|stairway/, 'stairs'],
+  [/altar|shrine|pulpit|reliquary|lectern/, 'altar'],
+  [/sarcophag|coffin|casket/, 'sarcophagus'],
+  [/grave|tomb|headstone|tombstone|cairn|barrow/, 'gravestone'],
   [/torch|sconce|brazier|candle|lantern|firepit|fire-?pit|hearth|campfire|bonfire|fire|lava/, 'brazier'],
   [/barrel|cask|keg|tun/, 'barrel'],
   [/chest|treasure|coffer|strongbox/, 'chest'],
   [/crate|box|crab-?pot|trap|supply|sack|basket|cargo/, 'crate'],
   [/stall|cart|market|vendor|stand|booth/, 'market_stall'],
-  [/anvil|forge|smith|furnace|workbench|bench|table|desk|counter|loom/, 'table'],
+  [/anvil|forge|smith|furnace|workbench|bench|pew|table|desk|counter|loom|stool/, 'table'],
   [/sign|post|notice|placard/, 'signpost'],
   [/fence|rail|paling|palisade|hedge/, 'fence'],
   [/mushroom|toadstool|fungus/, 'mushroom'],
@@ -195,14 +255,14 @@ const FIXTURE_SYNONYMS: [RegExp, string][] = [
   [/autumn|maple|orange tree/, 'tree_autumn'],
   [/bush|shrub|fern|reed|cattail|rush|sapling/, 'bush'],
   [/tree|oak|trunk|willow|birch/, 'tree'],
-  // Houses, fountains & wells have no single-tile art yet (Stage B: baked from the Tiny Town kit).
-  // Until then they fall through to the neutral crate rather than a wrong guess.
 ];
 function resolveFixtureTag(tag: string): string {
   if (isProp(tag)) return tag;
   const r = tag.toLowerCase().replace(/_/g, ' ');
   for (const [re, out] of FIXTURE_SYNONYMS) if (re.test(r) && isProp(out)) return out;
-  return 'crate';
+  // Genuinely unknown (statue, pillar, …): a neutral PLACEHOLDER, never a misleading sprite
+  // (the old crate fallback made stairs/statues read as a box). Crate stays reachable via its regex.
+  return isProp('placeholder') ? 'placeholder' : 'crate';
 }
 
 function clampInt(v: unknown, min: number, max: number, dflt: number): number {
@@ -256,6 +316,7 @@ interface CompositionHints {
   placements?: { id?: unknown; zone?: unknown; anchor?: unknown }[];
   ambiance?: { density?: unknown; tags?: unknown };
   blockout?: unknown;
+  fields?: unknown;
 }
 
 function buildComposition(req: CompositionRequest, hints: CompositionHints): SceneComposition {
@@ -304,8 +365,15 @@ function buildComposition(req: CompositionRequest, hints: CompositionHints): Sce
   const hintById = new Map<string, { zone?: unknown; anchor?: unknown }>();
   for (const p of hints.placements ?? []) if (typeof p?.id === 'string') hintById.set(p.id, p);
 
+  // Object fields the Director authored — expanded by the Cartographer into many children. A declared
+  // entity whose id is used as a field idBase is REPRESENTED by that field, so it's not also placed
+  // as a single object (the field replaces it; everything else is an additive Director-made group).
+  const fields = parseFields(hints.fields);
+  const fieldBases = new Set(fields.map((f) => f.idBase));
+
   const placements: Placement[] = [];
   const push = (id: string, kind: Placement['kind'], role: Placement['role'], tag: string, name: string | undefined, visible: boolean, declaredAnchor: string | undefined) => {
+    if (fieldBases.has(id)) return; // absorbed by a field
     const hint = hintById.get(id);
     const explicitZone = hint && typeof hint.zone === 'string' && zones.includes(hint.zone) ? hint.zone : undefined;
     const hintAnchor = hint && typeof hint.anchor === 'string' && isValidAnchor(hint.anchor, { grammar, knownIds }) ? hint.anchor : undefined;
@@ -347,7 +415,7 @@ function buildComposition(req: CompositionRequest, hints: CompositionHints): Sce
   const tags = isInterior ? [] : hintTags.length ? hintTags : ['tree', 'bush'];
 
   const grid = blockout ? { cols: blockout.cols, rows: blockout.rows } : { cols, rows };
-  return { locationId: e.locationId, seed: req.seed, grammar, biome, lighting, grid, terrain: { base, regions }, placements, ambiance: { density, tags }, ...(blockout ? { blockout } : {}) };
+  return { locationId: e.locationId, seed: req.seed, grammar, biome, lighting, grid, terrain: { base, regions }, placements, ambiance: { density, tags }, ...(blockout ? { blockout } : {}), ...(fields.length ? { fields } : {}) };
 }
 
 function composerPrompt(req: CompositionRequest): string {
@@ -424,15 +492,23 @@ GENERAL RULES:
 ${g.example}
 (The example shows the FORMAT and SIZE — copy the SHAPE, not the contents; paint what YOUR request describes.)
 
+REPEATED OBJECTS → use a FIELD, never list each one. For "rows of benches/pews", "statues along the left wall", "a ring of standing stones", "ranks of guards", "torches lining the aisle", emit ONE field (the engine expands it into many, each individually placed):
+  { "idBase":"prop:<name>" (or "npc:<name>" for creatures), "tag":"<catalog tag>", "region":{...}, "arrangement":"row|grid|ring|line|scatter|flank", "count":<n>, "spacing":2 }
+- region is ONE of: {"band":"left|right|top|bottom|center|all"}, {"rect":{"x":,"y":,"w":,"h":}}, or {"near":"<id of a cell you placed>"} to lay the group AROUND a landmark — use near+"flank" for "guards flanking the throne", near+"ring" for "candles ringing the altar".
+- Add "aisle":"vertical" (or "horizontal") to a row/grid to leave a clear central lane (e.g. pews either side of a central aisle).
+- If a listed ENTITY above is plural (its description is "benches"/"pews"/"statues"/"a rank of …"), make a field whose **idBase IS that entity's id** and OMIT its cell — otherwise it gets placed twice.
+- Use a CELL for a SINGLE notable thing; a FIELD for anything plural. Pick the catalog tag that best matches (e.g. pews→table). Leave spacing ≥2 so there are walkable lanes.
+
 LAYOUT REQUEST:
 "${req.directive ?? e.brief.setting}"
 
-ENTITIES (place a cell for EVERY id):
+ENTITIES (place a cell for EVERY id — UNLESS you fold a plural one into a field below, then omit its cell):
 ${entities.map((x) => `  ${x.id} — ${x.what}`).join('\n')}
 
-Output this shape (use the REAL ids below; cols/rows are inferred from your grid — keep rows equal-length, ≥12 rows):
+Output this shape (use the REAL ids below; cols/rows are inferred from your grid — keep rows equal-length, ≥12 rows; "fields" is optional):
 {"blockout":{
   "grid":["...one string per row, 18-24 chars, 12-14 rows..."],
   "cells":[${entities.map((x) => `{"id":"${x.id}","col":<n>,"row":<n>}`).join(',')}]
-}}`;
+ },
+ "fields":[ /* 0+ repeated-object groups, e.g. */ {"idBase":"prop:pews","tag":"table","region":{"band":"center"},"arrangement":"grid","count":12,"spacing":2} ]}`;
 }
