@@ -196,6 +196,8 @@ export async function runDmLab(deps: DmLabDeps, scenarioId: string, script: LabT
     startSceneId: scenario.startSceneId,
     party: bundle.pregens,
     adventure,
+    encounters: scenario.encounters,
+    bestiary: Object.fromEntries(bundle.bestiary.map((b) => [b.id, b])),
   });
   const engine = new Engine(state);
   const recorder = new RecordingProvider(deps.llm);

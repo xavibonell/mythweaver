@@ -64,6 +64,8 @@ async function runCase(
     startSceneId: bundle.scenario.startSceneId,
     party: bundle.pregens,
     adventure,
+    encounters: bundle.scenario.encounters,
+    bestiary: Object.fromEntries(bundle.bestiary.map((b) => [b.id, b])),
   });
   const engine = new Engine(state);
   const composer = new FakeSceneComposer(); // parity with prod: the DM gets the setScene tool

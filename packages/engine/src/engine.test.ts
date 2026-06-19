@@ -150,4 +150,23 @@ describe('Engine — P2 combat', () => {
     e.applyCondition({ combatantId: 'pc:fighter', condition: 'prone', add: false });
     expect(e.getState().combatants['pc:fighter']!.conditions).not.toContain('prone');
   });
+
+  it('startEncounter spawns the authored monsters and rolls initiative (1d20 + dex)', () => {
+    const state = createInitialState({
+      sessionId: 's',
+      scenarioId: 'test',
+      startSceneId: 'lair',
+      party: [fighter()],
+      bestiary: { goblin: goblin() },
+      encounters: [{ id: 'e1', sceneId: 'lair', monsters: [{ statBlockId: 'goblin', count: 2 }] }],
+    });
+    const e = new Engine(state, () => 0.5); // 1d20 -> 11 for everyone; order decided by dex bonus
+    const r = e.startEncounter('lair');
+    expect(r.spawned).toEqual(['npc:goblin-1', 'npc:goblin-2']);
+    const cs = e.getState().combat;
+    expect(cs.active).toBe(true);
+    expect(cs.order).toHaveLength(3); // fighter + 2 goblins
+    // goblins (dex 14 -> +2 -> init 13) act before the fighter (dex 12 -> +1 -> init 12)
+    expect(cs.order).toEqual(['npc:goblin-1', 'npc:goblin-2', 'pc:fighter']);
+  });
 });

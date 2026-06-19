@@ -181,6 +181,27 @@ export class Engine implements EngineTools {
     this.record('engine', `${c.name} ${args.add ? 'gains' : 'loses'} ${args.condition}`, { combatantId: c.id, condition: args.condition, add: args.add });
   }
 
+  /**
+   * Begin the authored encounter for a scene: spawn its monsters from the bestiary,
+   * roll initiative for every active combatant (1d20 + initiativeBonus), and start combat.
+   */
+  startEncounter(sceneId: string): { spawned: string[]; order: string[] } {
+    const encounter = (this.state.encounters ?? []).find((e) => e.sceneId === sceneId);
+    if (!encounter) throw new Error(`No authored encounter for scene: ${sceneId}`);
+    const bestiary = this.state.bestiary ?? {};
+    const spawned: string[] = [];
+    for (const m of encounter.monsters) {
+      const sb = bestiary[m.statBlockId];
+      if (!sb) throw new Error(`Encounter references unknown stat block: ${m.statBlockId}`);
+      for (let i = 0; i < m.count; i++) spawned.push(this.spawnCombatant(sb).id);
+    }
+    const initiatives = Object.values(this.state.combatants)
+      .filter((c) => !c.downed)
+      .map((c) => ({ combatantId: c.id, initiative: this.rollDice('1d20') + (c.initiativeBonus ?? 0) }));
+    this.startCombat(initiatives);
+    return { spawned, order: this.state.combat.order };
+  }
+
   // --- P3: resources -------------------------------------------------------
 
   spendResource(_args: { combatantId: string; resource: 'slot'; level: number }): { remaining: number } {

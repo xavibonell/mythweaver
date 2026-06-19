@@ -219,6 +219,8 @@ export interface Combatant {
   damageVulnerabilities?: DamageType[];
   /** Initiative roll total; undefined outside combat. */
   initiative?: number;
+  /** Dex-based initiative modifier, set at spawn (engine rolls 1d20 + this). */
+  initiativeBonus?: number;
   /** Abstract position label in v1 (e.g. "near the door"); grid is a later phase (OQ #10). */
   position?: string;
   actionEconomy?: ActionEconomy;
@@ -279,6 +281,13 @@ export interface AdventureContext {
   scenes: Record<string, { title: string; summary: string }>;
 }
 
+/** An authored encounter: which monsters appear in a scene (P2 combat spawn). */
+export interface EncounterDef {
+  id: string;
+  sceneId: string;
+  monsters: { statBlockId: string; count: number }[];
+}
+
 export interface GameState {
   sessionId: string;
   scenarioId: string;
@@ -295,6 +304,10 @@ export interface GameState {
   spentUsd: number;
   /** Authored scenario guidance for the DM (so it runs the written adventure). */
   adventure?: AdventureContext;
+  /** Authored encounters by scene + the resolved stat blocks (P2 combat spawn). Engine-owned;
+   *  lets the engine instantiate authored monsters without re-loading content. */
+  encounters?: EncounterDef[];
+  bestiary?: Record<string, StatBlock>;
   /** Persistent, lazily-generated, frozen world graph for the visual layer
    *  (docs/SCENE-CONTRACTS.md). Locations are generated once and reused on re-entry. */
   world?: WorldState;

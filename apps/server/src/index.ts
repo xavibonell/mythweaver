@@ -274,6 +274,8 @@ app.post('/sessions', async (req, reply) => {
     startSceneId: bundle.scenario.startSceneId,
     party: bundle.pregens,
     adventure,
+    encounters: bundle.scenario.encounters,
+    bestiary: Object.fromEntries(bundle.bestiary.map((b) => [b.id, b])),
   });
   await db.createSession(id, bundle.scenario.id, state);
   return {
