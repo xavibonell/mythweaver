@@ -307,7 +307,7 @@ describe('buildSceneMap (Cartographer)', () => {
     expect(validateSceneMap(m)).toEqual({ ok: true, violations: [] });
     // A wall ring: the footprint border is wall, the interior has walkable floor.
     expect(m.tiles[1]![2]).toMatch(/^wall/); // faced corner auto-tile (wall_tl)
-    expect(m.tiles[3]![5]).toBe('stone');
+    expect(m.tiles[3]![5]).toMatch(/^(stone|wood_floor)$/); // material-aware floor (shop = warm wood)
     // A door Entrance links the building.
     const door = m.entrances.find((e) => e.fixtureId === 'bldg:shop');
     expect(door).toBeTruthy();
@@ -328,5 +328,27 @@ describe('buildSceneMap (Cartographer)', () => {
       }
     }
     for (const a of m.objects.filter((o) => o.kind === 'actor')) expect(seen.has(a.row * cols + a.col)).toBe(true);
+  });
+
+  it('furnishes a tavern with sensible arrangement: warm wood floor + a chair beside a table', () => {
+    const comp: SceneComposition = {
+      locationId: 'loc:town', seed: 11, grammar: 'town-square', biome: 'village', lighting: 'day',
+      grid: { cols: 24, rows: 16 }, terrain: { base: 'grass', regions: [{ tag: 'stone', zone: 'plaza' }] },
+      placements: [{ id: 'pc:hero', kind: 'actor', role: 'pc', tag: 'knight', visible: true, zone: 'plaza' }],
+      ambiance: { density: 0, tags: [] },
+      buildings: [{ id: 'bldg:tav', type: 'tavern', rect: { x: 2, y: 1, w: 8, h: 7 }, door: 'south' }],
+    };
+    const m = buildSceneMap(comp);
+    expect(validateSceneMap(m)).toEqual({ ok: true, violations: [] });
+    const furn = m.objects.filter((o) => o.group === 'bldg:tav');
+    expect(furn.some((o) => o.tag === 'wood_floor')).toBe(false); // floor is terrain, not an object
+    expect(m.tiles[3]![5]).toBe('wood_floor'); // warm wood interior
+    const chairs = furn.filter((o) => o.tag === 'chair');
+    const tables = furn.filter((o) => o.tag === 'table');
+    expect(chairs.length).toBeGreaterThan(0);
+    expect(tables.length).toBeGreaterThan(0);
+    // a chair sits orthogonally adjacent to a table (the 'around' arrangement read like seating)
+    const adj = chairs.some((ch) => tables.some((t) => Math.abs(ch.col - t.col) + Math.abs(ch.row - t.row) === 1));
+    expect(adj).toBe(true);
   });
 });

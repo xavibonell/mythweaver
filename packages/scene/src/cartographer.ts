@@ -32,15 +32,22 @@ import { isCharacter, propDef, terrainWalkable } from './catalog.js';
  */
 interface FurnSpec {
   tag: string;
-  where: 'back' | 'corner' | 'center' | 'scatter';
+  where: 'back' | 'corner' | 'center' | 'scatter' | 'wall' | 'around';
   count?: number;
 }
-const BUILDING_TEMPLATES: Record<BuildingType, { occupant: string; items: FurnSpec[] }> = {
-  house: { occupant: 'villager', items: [{ tag: 'table', where: 'center' }, { tag: 'chest', where: 'corner' }, { tag: 'barrel', where: 'corner' }] },
-  shop: { occupant: 'villager', items: [{ tag: 'table', where: 'back', count: 2 }, { tag: 'crate', where: 'scatter', count: 2 }, { tag: 'barrel', where: 'scatter', count: 2 }, { tag: 'chest', where: 'corner' }] },
-  tavern: { occupant: 'villager_woman', items: [{ tag: 'table', where: 'scatter', count: 3 }, { tag: 'barrel', where: 'corner', count: 2 }, { tag: 'brazier', where: 'center' }] },
-  temple: { occupant: 'wizard', items: [{ tag: 'altar', where: 'back' }, { tag: 'brazier', where: 'corner', count: 2 }, { tag: 'table', where: 'scatter', count: 2 }] },
-  smithy: { occupant: 'dwarf', items: [{ tag: 'table', where: 'center' }, { tag: 'brazier', where: 'back' }, { tag: 'barrel', where: 'corner' }, { tag: 'crate', where: 'corner' }] },
+/**
+ * Per-type room recipe: the floor + wall MATERIAL (warm wood for lived-in homes/shops/taverns, cold
+ * stone for temples/smithies) + an occupant + a furniture list placed POSITION-AWARELY so the room
+ * reads as authored: 'back' = a counter/altar along the back wall, 'wall' = goods hugging the walls,
+ * 'around' = chairs ringing the central table, 'center'/'corner'/'scatter' as before. Items are
+ * placed in order, so a 'center' table is laid before the chairs that ring it.
+ */
+const BUILDING_TEMPLATES: Record<BuildingType, { floor: string; wall: 'wood' | 'stone'; occupant: string; items: FurnSpec[] }> = {
+  tavern: { floor: 'wood_floor', wall: 'wood', occupant: 'villager_woman', items: [{ tag: 'table', where: 'back', count: 3 }, { tag: 'table', where: 'center' }, { tag: 'chair', where: 'around', count: 3 }, { tag: 'barrel', where: 'corner', count: 2 }, { tag: 'candelabra', where: 'wall' }] },
+  shop: { floor: 'wood_floor', wall: 'wood', occupant: 'villager', items: [{ tag: 'table', where: 'back', count: 2 }, { tag: 'shelf', where: 'wall', count: 3 }, { tag: 'crate', where: 'corner', count: 2 }, { tag: 'pot', where: 'wall' }] },
+  temple: { floor: 'stone', wall: 'stone', occupant: 'wizard', items: [{ tag: 'altar', where: 'back' }, { tag: 'candelabra', where: 'back', count: 2 }, { tag: 'chair', where: 'around', count: 4 }, { tag: 'bookshelf', where: 'wall' }] },
+  smithy: { floor: 'stone', wall: 'stone', occupant: 'dwarf', items: [{ tag: 'brazier', where: 'back' }, { tag: 'table', where: 'center' }, { tag: 'barrel', where: 'corner' }, { tag: 'crate', where: 'corner' }] },
+  house: { floor: 'wood_floor', wall: 'wood', occupant: 'villager', items: [{ tag: 'bed', where: 'corner' }, { tag: 'table', where: 'center' }, { tag: 'chair', where: 'around', count: 2 }, { tag: 'pot', where: 'wall' }] },
 };
 
 interface Rect {
@@ -54,16 +61,17 @@ interface Rect {
  *  bottom/left/right). A 1-cell wall ring has floor on both sides, so neighbour-connectivity alone
  *  can't tell interior from exterior — but the Cartographer knows the rect, so it assigns the right
  *  faced tile directly. Falls back to the plain fill 'wall' for non-border / interior-pillar cells. */
-function wallTagFor(top: boolean, bot: boolean, left: boolean, right: boolean): string {
-  if (top && left) return 'wall_tl';
-  if (top && right) return 'wall_tr';
-  if (bot && left) return 'wall_bl';
-  if (bot && right) return 'wall_br';
-  if (top) return 'wall_t';
-  if (bot) return 'wall_b';
-  if (left) return 'wall_l';
-  if (right) return 'wall_r';
-  return 'wall';
+function wallTagFor(top: boolean, bot: boolean, left: boolean, right: boolean, mat: 'wood' | 'stone' = 'stone'): string {
+  const b = mat === 'wood' ? 'wall_wood' : 'wall';
+  if (top && left) return `${b}_tl`;
+  if (top && right) return `${b}_tr`;
+  if (bot && left) return `${b}_bl`;
+  if (bot && right) return `${b}_br`;
+  if (top) return `${b}_t`;
+  if (bot) return `${b}_b`;
+  if (left) return `${b}_l`;
+  if (right) return `${b}_r`;
+  return b;
 }
 
 /** Deterministic PRNG (mulberry32) — reproducible from the scene seed. */
@@ -464,11 +472,12 @@ export function buildSceneMap(comp: SceneComposition): SceneMap {
     // Child ids carry a kind-correct prefix (prop:/npc:) so they pass validation; `group` keeps the
     // building link. `safe` = the building id minus its prefix, sanitized.
     const safe = (b.id.includes(':') ? b.id.slice(b.id.indexOf(':') + 1) : b.id).replace(/[^a-z0-9_-]/gi, '-').toLowerCase() || 'bldg';
+    const tmpl = BUILDING_TEMPLATES[b.type];
     for (let y = ry; y < ry + rh; y++)
       for (let x = rx; x < rx + rw; x++) {
         const top = y === ry, bot = y === ry + rh - 1, left = x === rx, right = x === rx + rw - 1;
-        if (top || bot || left || right) { tiles[y]![x] = wallTagFor(top, bot, left, right); walkable[y]![x] = false; occ[y]![x] = true; }
-        else { tiles[y]![x] = 'stone'; walkable[y]![x] = true; occ[y]![x] = false; }
+        if (top || bot || left || right) { tiles[y]![x] = wallTagFor(top, bot, left, right, tmpl.wall); walkable[y]![x] = false; occ[y]![x] = true; }
+        else { tiles[y]![x] = tmpl.floor; walkable[y]![x] = true; occ[y]![x] = false; }
       }
     // Door: the middle of a wall → floor + walkable, with the cell just OUTSIDE open. Try the declared
     // side first, then fall back to any side whose outside cell is on-grid (an edge-flush rect would
@@ -483,7 +492,7 @@ export function buildSceneMap(comp: SceneComposition): SceneMap {
     let door = doorFor(b.door);
     if (!inB(door.oC, door.oR)) door = [b.door, 'south', 'north', 'east', 'west'].map(doorFor).find((d) => inB(d.oC, d.oR)) ?? door;
     const { dC, dR, oC, oR } = door;
-    tiles[dR]![dC] = 'stone'; walkable[dR]![dC] = true; occ[dR]![dC] = false;
+    tiles[dR]![dC] = tmpl.floor; walkable[dR]![dC] = true; occ[dR]![dC] = false;
     if (inB(oC, oR)) { walkable[oR]![oC] = true; occ[oR]![oC] = false; if (tiles[oR]![oC]!.startsWith('wall')) tiles[oR]![oC] = 'dirt'; }
     entrances.push({ toLocationId: comp.locationId, col: dC, row: dR, ...(b.id ? { fixtureId: b.id } : {}) });
 
@@ -497,11 +506,12 @@ export function buildSceneMap(comp: SceneComposition): SceneMap {
     // fallen back to a different side), kept clear so the room is never sealed at its only exit.
     const innerDoor = dR === ry ? { c: dC, r: dR + 1 } : dR === ry + rh - 1 ? { c: dC, r: dR - 1 } : dC === rx ? { c: dC + 1, r: dR } : { c: dC - 1, r: dR };
     const keepClear = innerDoor.r * cols + innerDoor.c;
-    const tmpl = BUILDING_TEMPLATES[b.type];
     const budget = Math.max(1, Math.floor((iw * ih) / 2)); // leave at least half the floor walkable
     const byBack = (cells: { c: number; r: number }[]) => cells.filter((c) => c.r === iy);
     const byCorner = (cells: { c: number; r: number }[]) => cells.filter((c) => (c.c === ix || c.c === ix + iw - 1) && (c.r === iy || c.r === iy + ih - 1));
     const byCenter = (cells: { c: number; r: number }[]) => [...cells].sort((a, z) => Math.abs(a.c - midX) + Math.abs(a.r - midY) - (Math.abs(z.c - midX) + Math.abs(z.r - midY)));
+    const byWall = (cells: { c: number; r: number }[]) => cells.filter((c) => c.r === iy || c.r === iy + ih - 1 || c.c === ix || c.c === ix + iw - 1); // hug the interior perimeter
+    const around = (cells: { c: number; r: number }[]) => cells.filter((c) => Math.max(Math.abs(c.c - midX), Math.abs(c.r - midY)) === 1); // ring the centre item (chairs around a table)
     const takeCell = (pref?: (cells: { c: number; r: number }[]) => { c: number; r: number }[]): { c: number; r: number } | null => {
       for (const cell of pref ? pref(interior) : interior) {
         if (cell.r * cols + cell.c === keepClear) continue;
@@ -514,11 +524,11 @@ export function buildSceneMap(comp: SceneComposition): SceneMap {
     for (const item of tmpl.items) {
       for (let k = 0; k < (item.count ?? 1); k++) {
         if (placedFurn >= budget) break;
-        const pref = item.where === 'back' ? byBack : item.where === 'corner' ? byCorner : item.where === 'center' ? byCenter : undefined;
+        const pref = item.where === 'back' ? byBack : item.where === 'corner' ? byCorner : item.where === 'center' ? byCenter : item.where === 'wall' ? byWall : item.where === 'around' ? around : undefined;
         const cell = takeCell(pref) ?? takeCell();
         if (!cell) break;
-        occ[cell.r]![cell.c] = true;
-        walkable[cell.r]![cell.c] = false; // furniture blocks its tile
+        occ[cell.r]![cell.c] = true; // reserve so nothing else lands here
+        if (propDef(item.tag)?.blocks ?? true) walkable[cell.r]![cell.c] = false; // only blocking furniture blocks pathing (rugs/pots don't)
         objects.push({ id: `prop:${safe}#${(furnSeq++).toString().padStart(2, '0')}`, kind: 'prop', tag: item.tag, col: cell.c, row: cell.r, footprint: { w: 1, h: 1 }, facing: 'down', visible: true, group: b.id });
         placedFurn++;
       }

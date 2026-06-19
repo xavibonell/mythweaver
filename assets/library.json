@@ -321,6 +321,183 @@
       ]
     },
     {
+      "kind": "terrain",
+      "tag": "wood_floor",
+      "desc": "warm wood plank floor",
+      "walkable": true,
+      "internal": true,
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite",
+      "variants": [
+        {
+          "art": "/assets/dawnlike/terrain/wood_floor.png",
+          "from": {
+            "pack": "DawnLike",
+            "crop": "Objects/Floor.png",
+            "rect": [
+              16,
+              448,
+              16,
+              16
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_wood",
+      "desc": "wood plank wall",
+      "walkable": false,
+      "internal": true,
+      "variants": [
+        {
+          "art": "/assets/dawnlike/terrain/wall_wood.png",
+          "from": {
+            "gen": "wall",
+            "mat": "wood",
+            "edges": ""
+          }
+        }
+      ]
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_wood_tl",
+      "desc": "wood plank wall",
+      "walkable": false,
+      "internal": true,
+      "variants": [
+        {
+          "art": "/assets/dawnlike/terrain/wall_wood_tl.png",
+          "from": {
+            "gen": "wall",
+            "mat": "wood",
+            "edges": "tl"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_wood_t",
+      "desc": "wood plank wall",
+      "walkable": false,
+      "internal": true,
+      "variants": [
+        {
+          "art": "/assets/dawnlike/terrain/wall_wood_t.png",
+          "from": {
+            "gen": "wall",
+            "mat": "wood",
+            "edges": "t"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_wood_tr",
+      "desc": "wood plank wall",
+      "walkable": false,
+      "internal": true,
+      "variants": [
+        {
+          "art": "/assets/dawnlike/terrain/wall_wood_tr.png",
+          "from": {
+            "gen": "wall",
+            "mat": "wood",
+            "edges": "tr"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_wood_l",
+      "desc": "wood plank wall",
+      "walkable": false,
+      "internal": true,
+      "variants": [
+        {
+          "art": "/assets/dawnlike/terrain/wall_wood_l.png",
+          "from": {
+            "gen": "wall",
+            "mat": "wood",
+            "edges": "l"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_wood_r",
+      "desc": "wood plank wall",
+      "walkable": false,
+      "internal": true,
+      "variants": [
+        {
+          "art": "/assets/dawnlike/terrain/wall_wood_r.png",
+          "from": {
+            "gen": "wall",
+            "mat": "wood",
+            "edges": "r"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_wood_bl",
+      "desc": "wood plank wall",
+      "walkable": false,
+      "internal": true,
+      "variants": [
+        {
+          "art": "/assets/dawnlike/terrain/wall_wood_bl.png",
+          "from": {
+            "gen": "wall",
+            "mat": "wood",
+            "edges": "bl"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_wood_b",
+      "desc": "wood plank wall",
+      "walkable": false,
+      "internal": true,
+      "variants": [
+        {
+          "art": "/assets/dawnlike/terrain/wall_wood_b.png",
+          "from": {
+            "gen": "wall",
+            "mat": "wood",
+            "edges": "b"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_wood_br",
+      "desc": "wood plank wall",
+      "walkable": false,
+      "internal": true,
+      "variants": [
+        {
+          "art": "/assets/dawnlike/terrain/wall_wood_br.png",
+          "from": {
+            "gen": "wall",
+            "mat": "wood",
+            "edges": "br"
+          }
+        }
+      ]
+    },
+    {
       "kind": "prop",
       "tag": "tree",
       "desc": "a leafy green tree",
@@ -677,6 +854,181 @@
         "rect": [
           0,
           96,
+          16,
+          16
+        ]
+      },
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
+    },
+    {
+      "kind": "prop",
+      "tag": "chair",
+      "desc": "a wooden chair",
+      "art": "/assets/dawnlike/props/chair.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": true,
+      "biomes": [
+        "dungeon",
+        "town",
+        "village"
+      ],
+      "from": {
+        "pack": "DawnLike",
+        "crop": "Objects/Decor0.png",
+        "rect": [
+          0,
+          112,
+          16,
+          16
+        ]
+      },
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
+    },
+    {
+      "kind": "prop",
+      "tag": "bed",
+      "desc": "a bed",
+      "art": "/assets/dawnlike/props/bed.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": true,
+      "biomes": [
+        "dungeon",
+        "town",
+        "village"
+      ],
+      "from": {
+        "pack": "DawnLike",
+        "crop": "Objects/Decor0.png",
+        "rect": [
+          0,
+          144,
+          16,
+          16
+        ]
+      },
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
+    },
+    {
+      "kind": "prop",
+      "tag": "pot",
+      "desc": "a clay pot / urn",
+      "art": "/assets/dawnlike/props/pot.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false,
+      "biomes": [
+        "dungeon",
+        "town",
+        "village"
+      ],
+      "from": {
+        "pack": "DawnLike",
+        "crop": "Objects/Decor0.png",
+        "rect": [
+          0,
+          48,
+          16,
+          16
+        ]
+      },
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
+    },
+    {
+      "kind": "prop",
+      "tag": "candelabra",
+      "desc": "a lit candelabra",
+      "art": "/assets/dawnlike/props/candelabra.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": true,
+      "biomes": [
+        "dungeon",
+        "town",
+        "village"
+      ],
+      "light": true,
+      "from": {
+        "pack": "DawnLike",
+        "crop": "Objects/Decor0.png",
+        "rect": [
+          48,
+          128,
+          16,
+          16
+        ]
+      },
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
+    },
+    {
+      "kind": "prop",
+      "tag": "bookshelf",
+      "desc": "a tall bookshelf",
+      "art": "/assets/dawnlike/props/bookshelf.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": true,
+      "biomes": [
+        "dungeon",
+        "town",
+        "village"
+      ],
+      "from": {
+        "pack": "DawnLike",
+        "crop": "Objects/Decor0.png",
+        "rect": [
+          0,
+          0,
+          16,
+          16
+        ]
+      },
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
+    },
+    {
+      "kind": "prop",
+      "tag": "shelf",
+      "desc": "a stocked shelf of wares",
+      "art": "/assets/dawnlike/props/shelf.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": true,
+      "biomes": [
+        "dungeon",
+        "town",
+        "village"
+      ],
+      "from": {
+        "pack": "DawnLike",
+        "crop": "Objects/Decor0.png",
+        "rect": [
+          16,
+          64,
           16,
           16
         ]

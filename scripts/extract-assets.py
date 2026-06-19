@@ -178,18 +178,29 @@ def gen_wall(dst: str, frm: dict) -> None:
     from PIL import ImageDraw
 
     edges = frm.get("edges", "")
-    base, brick, mortar, cap = _db("lgrey"), _db("grey"), _db("dgrey"), _db("maroon")
-    im = Image.new("RGBA", (16, 16), base)
+    mat = frm.get("mat", "brick")
+    im = Image.new("RGBA", (16, 16), (0, 0, 0, 0))
     d = ImageDraw.Draw(im)
-    for y in range(0, 16, 4):  # horizontal mortar courses
-        d.line([(0, y), (15, y)], fill=mortar)
-    for y in range(0, 16, 8):  # staggered vertical joints (brick bond)
-        for x in range(0, 16, 8):
-            d.line([(x, y), (x, y + 3)], fill=mortar)
-    for y in range(4, 16, 8):
-        for x in range(4, 16, 8):
-            d.line([(x, y), (x, y + 3)], fill=mortar)
-    d.point([(2, 2), (10, 6), (6, 10), (14, 14)], fill=brick)  # a few highlight bricks
+    if mat == "wood":
+        # horizontal timber planks — warm brown with darker seams (log-cabin look)
+        base, seam, cap = _db("brown"), _db("maroon"), _db("black")
+        d.rectangle([0, 0, 15, 15], fill=base)
+        for y in range(0, 16, 4):
+            d.line([(0, y), (15, y)], fill=seam)
+        for y in range(2, 16, 4):  # a highlight streak mid-plank
+            d.line([(1, y), (14, y)], fill=_db("orange"))
+    else:
+        base, brick, mortar, cap = _db("lgrey"), _db("grey"), _db("dgrey"), _db("maroon")
+        d.rectangle([0, 0, 15, 15], fill=base)
+        for y in range(0, 16, 4):  # horizontal mortar courses
+            d.line([(0, y), (15, y)], fill=mortar)
+        for y in range(0, 16, 8):  # staggered vertical joints (brick bond)
+            for x in range(0, 16, 8):
+                d.line([(x, y), (x, y + 3)], fill=mortar)
+        for y in range(4, 16, 8):
+            for x in range(4, 16, 8):
+                d.line([(x, y), (x, y + 3)], fill=mortar)
+        d.point([(2, 2), (10, 6), (6, 10), (14, 14)], fill=brick)  # a few highlight bricks
     if "t" in edges:
         d.rectangle([0, 0, 15, 1], fill=cap)
     if "b" in edges:
