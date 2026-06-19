@@ -122,7 +122,85 @@ def gen_fountain(dst: str, frm: dict) -> None:
     base.save(dst)
 
 
-GENERATORS = {"water": gen_water, "water_deep": gen_water_deep, "sand": gen_sand, "boat": gen_boat, "house": gen_house, "fountain": gen_fountain}
+# DawnBringer-16 — the DawnLike palette. House/stall generators draw in it so our composited
+# settlement props (which DawnLike, being dungeon-centric, ships no flat-facade art for) sit
+# cohesively beside the real DawnLike tiles instead of reintroducing palette drift.
+DB16 = {
+    "black": (20, 12, 28, 255), "maroon": (68, 36, 52, 255), "navy": (48, 52, 109, 255),
+    "dgrey": (78, 74, 78, 255), "brown": (133, 76, 48, 255), "dgreen": (52, 101, 36, 255),
+    "red": (208, 70, 72, 255), "grey": (117, 113, 97, 255), "blue": (89, 125, 206, 255),
+    "orange": (210, 125, 44, 255), "lgrey": (133, 149, 161, 255), "lgreen": (109, 170, 44, 255),
+    "tan": (210, 170, 153, 255), "cyan": (109, 194, 202, 255), "yellow": (218, 212, 94, 255),
+    "cream": (222, 238, 214, 255),
+}
+
+
+def _db(name: str):
+    return DB16[name]
+
+
+def gen_dlhouse(dst: str, frm: dict) -> None:
+    """A DawnBringer-palette cottage facade: a peaked gable roof (variant colour) over a brick
+    wall with a door + window. `roof` = a DB16 colour name; `tiles` = total height in tiles."""
+    from PIL import ImageDraw
+
+    roof = _db(frm.get("roof", "red"))
+    roof_d = tuple(max(0, c - 45) if i < 3 else c for i, c in enumerate(roof))
+    wall, mortar, door, door_d = _db("tan"), _db("grey"), _db("brown"), _db("maroon")
+    h = int(frm.get("tiles", 3))
+    W, H = 16, h * 16
+    im = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    d = ImageDraw.Draw(im)
+    eave = 13  # walls start a little below the top so the gable roof overhangs upward
+    d.rectangle([1, eave, 14, H - 1], fill=wall)
+    d.rectangle([1, eave, 14, H - 1], outline=door_d)
+    for y in range(eave + 3, H - 1, 4):  # brick courses
+        d.line([(2, y), (13, y)], fill=mortar)
+    # peaked gable roof
+    d.polygon([(0, eave + 1), (8, 0), (15, eave + 1)], fill=roof)
+    d.line([(0, eave + 1), (8, 0)], fill=roof_d)
+    d.line([(8, 0), (15, eave + 1)], fill=roof_d)
+    d.line([(0, eave + 1), (15, eave + 1)], fill=roof_d)
+    # door (base, centred) + a window above it
+    d.rectangle([6, H - 8, 10, H - 1], fill=door)
+    d.rectangle([6, H - 8, 10, H - 1], outline=door_d)
+    d.rectangle([3, H - 12, 5, H - 10], fill=_db("cyan"))
+    d.rectangle([11, H - 12, 13, H - 10], fill=_db("cyan"))
+    im.save(dst)
+
+
+def gen_stall(dst: str, frm: dict) -> None:
+    """A market stall: a striped awning over a wooden counter with a few goods. DB16 palette."""
+    from PIL import ImageDraw
+
+    W, H = 16, 32
+    im = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    d = ImageDraw.Draw(im)
+    stripe_a, stripe_b = _db("red"), _db("cream")
+    counter, counter_d = _db("brown"), _db("maroon")
+    # awning: scalloped striped roof across the top ~10px
+    for x in range(0, W, 4):
+        d.rectangle([x, 1, x + 1, 9], fill=stripe_a)
+        d.rectangle([x + 2, 1, x + 3, 9], fill=stripe_b)
+    d.line([(0, 1), (15, 1)], fill=counter_d)
+    for x in range(0, W, 2):  # scalloped lower edge
+        d.point([(x, 10)], fill=stripe_a)
+    # posts + counter
+    d.line([(1, 10), (1, 31)], fill=counter_d)
+    d.line([(14, 10), (14, 31)], fill=counter_d)
+    d.rectangle([0, 24, 15, 31], fill=counter)
+    d.rectangle([0, 24, 15, 31], outline=counter_d)
+    # goods on the counter
+    d.ellipse([3, 20, 6, 23], fill=_db("lgreen"))
+    d.ellipse([7, 20, 10, 23], fill=_db("orange"))
+    d.ellipse([10, 19, 13, 23], fill=_db("red"))
+    im.save(dst)
+
+
+GENERATORS = {
+    "water": gen_water, "water_deep": gen_water_deep, "sand": gen_sand, "boat": gen_boat,
+    "house": gen_house, "fountain": gen_fountain, "dlhouse": gen_dlhouse, "stall": gen_stall,
+}
 
 
 def extract_one(art: str, frm: dict) -> tuple[bool, str]:

@@ -345,10 +345,9 @@
       "kind": "prop",
       "tag": "fence",
       "desc": "a wooden fence rail",
-      "art": "/assets/tiny/props/fence.png",
+      "art": "/assets/dawnlike/props/fence.png",
       "frameW": 16,
       "frameH": 16,
-      "frames": 1,
       "footW": 1,
       "footH": 1,
       "blocks": true,
@@ -358,18 +357,26 @@
         "town"
       ],
       "from": {
-        "pack": "kenney-tiny-town",
-        "copy": "Tiles/tile_0045.png"
-      }
+        "pack": "DawnLike",
+        "crop": "Objects/Fence.png",
+        "rect": [
+          16,
+          48,
+          16,
+          16
+        ]
+      },
+      "fps": 0,
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
     },
     {
       "kind": "prop",
       "tag": "signpost",
       "desc": "a wooden signpost",
-      "art": "/assets/tiny/props/signpost.png",
+      "art": "/assets/dawnlike/props/signpost.png",
       "frameW": 16,
       "frameH": 16,
-      "frames": 1,
       "footW": 1,
       "footH": 1,
       "blocks": true,
@@ -378,18 +385,26 @@
         "town"
       ],
       "from": {
-        "pack": "kenney-tiny-town",
-        "copy": "Tiles/tile_0083.png"
-      }
+        "pack": "DawnLike",
+        "crop": "Objects/Decor0.png",
+        "rect": [
+          0,
+          80,
+          16,
+          16
+        ]
+      },
+      "fps": 0,
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
     },
     {
       "kind": "prop",
       "tag": "barrel",
       "desc": "a wooden barrel",
-      "art": "/assets/tiny/props/barrel.png",
+      "art": "/assets/dawnlike/props/barrel.png",
       "frameW": 16,
       "frameH": 16,
-      "frames": 1,
       "footW": 1,
       "footH": 1,
       "blocks": true,
@@ -400,18 +415,26 @@
         "docks"
       ],
       "from": {
-        "pack": "kenney-tiny-town",
-        "copy": "Tiles/tile_0130.png"
-      }
+        "pack": "DawnLike",
+        "crop": "Objects/Decor0.png",
+        "rect": [
+          16,
+          336,
+          16,
+          16
+        ]
+      },
+      "fps": 0,
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
     },
     {
       "kind": "prop",
       "tag": "crate",
       "desc": "a wooden crate / supply box",
-      "art": "/assets/tiny/props/crate.png",
+      "art": "/assets/dawnlike/props/crate.png",
       "frameW": 16,
       "frameH": 16,
-      "frames": 1,
       "footW": 1,
       "footH": 1,
       "blocks": true,
@@ -422,9 +445,18 @@
         "docks"
       ],
       "from": {
-        "pack": "kenney-tiny-dungeon",
-        "copy": "Tiles/tile_0063.png"
-      }
+        "pack": "DawnLike",
+        "crop": "Objects/Decor0.png",
+        "rect": [
+          32,
+          144,
+          16,
+          16
+        ]
+      },
+      "fps": 0,
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
     },
     {
       "kind": "prop",
@@ -459,9 +491,9 @@
       "kind": "prop",
       "tag": "market_stall",
       "desc": "a market stall with an awning",
-      "art": "/assets/tiny/props/market_stall.png",
+      "art": "/assets/dawnlike/props/market_stall.png",
       "frameW": 16,
-      "frameH": 16,
+      "frameH": 32,
       "frames": 1,
       "footW": 1,
       "footH": 1,
@@ -471,8 +503,7 @@
         "village"
       ],
       "from": {
-        "pack": "kenney-tiny-town",
-        "copy": "Tiles/tile_0104.png"
+        "gen": "stall"
       }
     },
     {
@@ -569,10 +600,9 @@
       "kind": "prop",
       "tag": "stairs",
       "desc": "a stone staircase to another level",
-      "art": "/assets/tiny/props/stairs.png",
+      "art": "/assets/dawnlike/props/stairs.png",
       "frameW": 16,
       "frameH": 16,
-      "frames": 1,
       "footW": 1,
       "footH": 1,
       "blocks": false,
@@ -582,9 +612,18 @@
         "castle"
       ],
       "from": {
-        "pack": "kenney-tiny-dungeon",
-        "copy": "Tiles/tile_0018.png"
-      }
+        "pack": "DawnLike",
+        "crop": "Objects/Tile.png",
+        "rect": [
+          48,
+          0,
+          16,
+          16
+        ]
+      },
+      "fps": 0,
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
     },
     {
       "kind": "prop",
@@ -647,7 +686,7 @@
       "kind": "prop",
       "tag": "boat",
       "desc": "a wooden boat / raft — a PLATFORM the party can stand on (floats on water)",
-      "art": "/assets/tiny/props/boat.png",
+      "art": "/assets/dawnlike/props/boat.png",
       "frameW": 48,
       "frameH": 32,
       "frames": 1,
@@ -686,7 +725,7 @@
       "kind": "prop",
       "tag": "house_red",
       "desc": "a small red-brick cottage",
-      "art": "/assets/tiny/buildings/house_red.png",
+      "art": "/assets/dawnlike/buildings/house_red.png",
       "frameW": 16,
       "frameH": 48,
       "frames": 1,
@@ -699,19 +738,16 @@
         "coast"
       ],
       "from": {
-        "gen": "house",
-        "parts": [
-          67,
-          53,
-          90
-        ]
+        "gen": "dlhouse",
+        "roof": "red",
+        "tiles": 3
       }
     },
     {
       "kind": "prop",
       "tag": "house_blue",
       "desc": "a grey-brick cottage",
-      "art": "/assets/tiny/buildings/house_blue.png",
+      "art": "/assets/dawnlike/buildings/house_blue.png",
       "frameW": 16,
       "frameH": 48,
       "frames": 1,
@@ -724,19 +760,16 @@
         "coast"
       ],
       "from": {
-        "gen": "house",
-        "parts": [
-          63,
-          49,
-          90
-        ]
+        "gen": "dlhouse",
+        "roof": "blue",
+        "tiles": 3
       }
     },
     {
       "kind": "prop",
       "tag": "house_grey",
       "desc": "a plaster-walled house / shop",
-      "art": "/assets/tiny/buildings/house_grey.png",
+      "art": "/assets/dawnlike/buildings/house_grey.png",
       "frameW": 16,
       "frameH": 48,
       "frames": 1,
@@ -748,19 +781,16 @@
         "town"
       ],
       "from": {
-        "gen": "house",
-        "parts": [
-          63,
-          77,
-          90
-        ]
+        "gen": "dlhouse",
+        "roof": "lgrey",
+        "tiles": 3
       }
     },
     {
       "kind": "prop",
       "tag": "house_wood",
       "desc": "a timber cabin with an open doorway",
-      "art": "/assets/tiny/buildings/house_wood.png",
+      "art": "/assets/dawnlike/buildings/house_wood.png",
       "frameW": 16,
       "frameH": 48,
       "frames": 1,
@@ -773,19 +803,16 @@
         "coast"
       ],
       "from": {
-        "gen": "house",
-        "parts": [
-          67,
-          73,
-          74
-        ]
+        "gen": "dlhouse",
+        "roof": "brown",
+        "tiles": 3
       }
     },
     {
       "kind": "prop",
       "tag": "house_tall",
       "desc": "a two-storey brick building (inn / tavern)",
-      "art": "/assets/tiny/buildings/house_tall.png",
+      "art": "/assets/dawnlike/buildings/house_tall.png",
       "frameW": 16,
       "frameH": 64,
       "frames": 1,
@@ -797,13 +824,9 @@
         "village"
       ],
       "from": {
-        "gen": "house",
-        "parts": [
-          67,
-          53,
-          65,
-          90
-        ]
+        "gen": "dlhouse",
+        "roof": "navy",
+        "tiles": 4
       }
     },
     {
@@ -1138,37 +1161,55 @@
       "kind": "character",
       "tag": "wolf",
       "desc": "a grey wolf",
-      "art": "/assets/tiny/char/wolf.png",
+      "art": "/assets/dawnlike/char/wolf.png",
       "frameW": 16,
       "frameH": 16,
-      "idleFrames": 1,
-      "fps": 1,
+      "idleFrames": 2,
+      "fps": 3,
       "biomes": [
         "forest",
         "wild"
       ],
       "from": {
-        "pack": "tiny-creatures",
-        "copy": "Tiles/tile_0024.png"
-      }
+        "pack": "DawnLike",
+        "crop": "Characters/Dog0.png",
+        "rect": [
+          0,
+          64,
+          16,
+          16
+        ],
+        "frame2": "Characters/Dog1.png"
+      },
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
     },
     {
       "kind": "character",
       "tag": "spider",
       "desc": "a giant spider",
-      "art": "/assets/tiny/char/spider.png",
+      "art": "/assets/dawnlike/char/spider.png",
       "frameW": 16,
       "frameH": 16,
-      "idleFrames": 1,
-      "fps": 1,
+      "idleFrames": 2,
+      "fps": 3,
       "biomes": [
         "dungeon",
         "cave"
       ],
       "from": {
-        "pack": "kenney-tiny-dungeon",
-        "copy": "Tiles/tile_0122.png"
-      }
+        "pack": "DawnLike",
+        "crop": "Characters/Pest0.png",
+        "rect": [
+          16,
+          64,
+          16,
+          16
+        ],
+        "frame2": "Characters/Pest1.png"
+      },
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
     },
     {
       "kind": "character",
@@ -1201,166 +1242,247 @@
       "kind": "character",
       "tag": "crab",
       "desc": "a red crab",
-      "art": "/assets/tiny/char/crab.png",
+      "art": "/assets/dawnlike/char/crab.png",
       "frameW": 16,
       "frameH": 16,
-      "idleFrames": 1,
-      "fps": 1,
+      "idleFrames": 2,
+      "fps": 3,
       "biomes": [
         "coast",
         "cave"
       ],
       "from": {
-        "pack": "kenney-tiny-dungeon",
-        "copy": "Tiles/tile_0110.png"
-      }
+        "pack": "DawnLike",
+        "crop": "Characters/Aquatic0.png",
+        "rect": [
+          16,
+          80,
+          16,
+          16
+        ],
+        "frame2": "Characters/Aquatic1.png"
+      },
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
     },
     {
       "kind": "character",
       "tag": "chicken",
       "desc": "a chicken / hen",
-      "art": "/assets/tiny/char/chicken.png",
+      "art": "/assets/dawnlike/char/chicken.png",
       "frameW": 16,
       "frameH": 16,
-      "idleFrames": 1,
-      "fps": 1,
+      "idleFrames": 2,
+      "fps": 3,
       "biomes": [
         "village",
         "farm"
       ],
       "from": {
-        "pack": "tiny-creatures",
-        "copy": "Tiles/tile_0151.png"
-      }
+        "pack": "DawnLike",
+        "crop": "Characters/Avian0.png",
+        "rect": [
+          32,
+          128,
+          16,
+          16
+        ],
+        "frame2": "Characters/Avian1.png"
+      },
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
     },
     {
       "kind": "character",
       "tag": "cow",
       "desc": "a cow",
-      "art": "/assets/tiny/char/cow.png",
+      "art": "/assets/dawnlike/char/cow.png",
       "frameW": 16,
       "frameH": 16,
-      "idleFrames": 1,
-      "fps": 1,
+      "idleFrames": 2,
+      "fps": 3,
       "biomes": [
         "village",
         "farm"
       ],
       "from": {
-        "pack": "tiny-creatures",
-        "copy": "Tiles/tile_0152.png"
-      }
+        "pack": "DawnLike",
+        "crop": "Characters/Quadraped0.png",
+        "rect": [
+          16,
+          32,
+          16,
+          16
+        ],
+        "frame2": "Characters/Quadraped1.png"
+      },
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
     },
     {
       "kind": "character",
       "tag": "sheep",
       "desc": "a sheep",
-      "art": "/assets/tiny/char/sheep.png",
+      "art": "/assets/dawnlike/char/sheep.png",
       "frameW": 16,
       "frameH": 16,
-      "idleFrames": 1,
-      "fps": 1,
+      "idleFrames": 2,
+      "fps": 3,
       "biomes": [
         "village",
         "farm"
       ],
       "from": {
-        "pack": "tiny-creatures",
-        "copy": "Tiles/tile_0154.png"
-      }
+        "pack": "DawnLike",
+        "crop": "Characters/Quadraped0.png",
+        "rect": [
+          48,
+          48,
+          16,
+          16
+        ],
+        "frame2": "Characters/Quadraped1.png"
+      },
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
     },
     {
       "kind": "character",
       "tag": "goat",
       "desc": "a goat",
-      "art": "/assets/tiny/char/goat.png",
+      "art": "/assets/dawnlike/char/goat.png",
       "frameW": 16,
       "frameH": 16,
-      "idleFrames": 1,
-      "fps": 1,
+      "idleFrames": 2,
+      "fps": 3,
       "biomes": [
         "village",
         "farm"
       ],
       "from": {
-        "pack": "tiny-creatures",
-        "copy": "Tiles/tile_0153.png"
-      }
+        "pack": "DawnLike",
+        "crop": "Characters/Quadraped0.png",
+        "rect": [
+          32,
+          32,
+          16,
+          16
+        ],
+        "frame2": "Characters/Quadraped1.png"
+      },
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
     },
     {
       "kind": "character",
       "tag": "horse",
       "desc": "a horse",
-      "art": "/assets/tiny/char/horse.png",
+      "art": "/assets/dawnlike/char/horse.png",
       "frameW": 16,
       "frameH": 16,
-      "idleFrames": 1,
-      "fps": 1,
+      "idleFrames": 2,
+      "fps": 3,
       "biomes": [
         "village",
         "town",
         "farm"
       ],
       "from": {
-        "pack": "tiny-creatures",
-        "copy": "Tiles/tile_0052.png"
-      }
+        "pack": "DawnLike",
+        "crop": "Characters/Quadraped0.png",
+        "rect": [
+          0,
+          16,
+          16,
+          16
+        ],
+        "frame2": "Characters/Quadraped1.png"
+      },
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
     },
     {
       "kind": "character",
       "tag": "dog",
       "desc": "a dog",
-      "art": "/assets/tiny/char/dog.png",
+      "art": "/assets/dawnlike/char/dog.png",
       "frameW": 16,
       "frameH": 16,
-      "idleFrames": 1,
-      "fps": 1,
+      "idleFrames": 2,
+      "fps": 3,
       "biomes": [
         "village",
         "town",
         "farm"
       ],
       "from": {
-        "pack": "tiny-creatures",
-        "copy": "Tiles/tile_0170.png"
-      }
+        "pack": "DawnLike",
+        "crop": "Characters/Dog0.png",
+        "rect": [
+          32,
+          0,
+          16,
+          16
+        ],
+        "frame2": "Characters/Dog1.png"
+      },
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
     },
     {
       "kind": "character",
       "tag": "cat",
       "desc": "a cat",
-      "art": "/assets/tiny/char/cat.png",
+      "art": "/assets/dawnlike/char/cat.png",
       "frameW": 16,
       "frameH": 16,
-      "idleFrames": 1,
-      "fps": 1,
+      "idleFrames": 2,
+      "fps": 3,
       "biomes": [
         "village",
         "town"
       ],
       "from": {
-        "pack": "tiny-creatures",
-        "copy": "Tiles/tile_0146.png"
-      }
+        "pack": "DawnLike",
+        "crop": "Characters/Cat0.png",
+        "rect": [
+          0,
+          0,
+          16,
+          16
+        ],
+        "frame2": "Characters/Cat1.png"
+      },
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
     },
     {
       "kind": "character",
       "tag": "duck",
       "desc": "a duck / waterfowl",
-      "art": "/assets/tiny/char/duck.png",
+      "art": "/assets/dawnlike/char/duck.png",
       "frameW": 16,
       "frameH": 16,
-      "idleFrames": 1,
-      "fps": 1,
+      "idleFrames": 2,
+      "fps": 3,
       "biomes": [
         "village",
         "coast",
         "fen"
       ],
       "from": {
-        "pack": "tiny-creatures",
-        "copy": "Tiles/tile_0136.png"
-      }
+        "pack": "DawnLike",
+        "crop": "Characters/Avian0.png",
+        "rect": [
+          32,
+          48,
+          16,
+          16
+        ],
+        "frame2": "Characters/Avian1.png"
+      },
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
     },
     {
       "kind": "character",
@@ -1393,37 +1515,55 @@
       "kind": "character",
       "tag": "deer",
       "desc": "a deer",
-      "art": "/assets/tiny/char/deer.png",
+      "art": "/assets/dawnlike/char/deer.png",
       "frameW": 16,
       "frameH": 16,
-      "idleFrames": 1,
-      "fps": 1,
+      "idleFrames": 2,
+      "fps": 3,
       "biomes": [
         "forest",
         "wild"
       ],
       "from": {
-        "pack": "tiny-creatures",
-        "copy": "Tiles/tile_0162.png"
-      }
+        "pack": "DawnLike",
+        "crop": "Characters/Quadraped0.png",
+        "rect": [
+          0,
+          128,
+          16,
+          16
+        ],
+        "frame2": "Characters/Quadraped1.png"
+      },
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
     },
     {
       "kind": "character",
       "tag": "rabbit",
       "desc": "a rabbit",
-      "art": "/assets/tiny/char/rabbit.png",
+      "art": "/assets/dawnlike/char/rabbit.png",
       "frameW": 16,
       "frameH": 16,
-      "idleFrames": 1,
-      "fps": 1,
+      "idleFrames": 2,
+      "fps": 3,
       "biomes": [
         "forest",
         "village"
       ],
       "from": {
-        "pack": "tiny-creatures",
-        "copy": "Tiles/tile_0138.png"
-      }
+        "pack": "DawnLike",
+        "crop": "Characters/Rodent0.png",
+        "rect": [
+          32,
+          32,
+          16,
+          16
+        ],
+        "frame2": "Characters/Rodent1.png"
+      },
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
     },
     {
       "kind": "prop",
