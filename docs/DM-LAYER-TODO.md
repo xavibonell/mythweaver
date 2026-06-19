@@ -283,6 +283,7 @@ system prefix), `index.ts` (turn handler/atomicity, budget gate), `packages/shar
 
 ## ☐ Other DM backlog (captured so we don't forget)
 
-- [ ] **Combat engine (spec §4.2 P2)** — make initiative / HP / damage / conditions engine-authoritative (`packages/engine` currently `NotImplemented` for these). This is the biggest `rulesFidelity` ceiling: the judge dings combat narration because HP/damage are still narrative-only. Highest-leverage non-voice work.
+- [x] **Combat engine (spec §4.2 P2) — DONE + wired.** Engine-authoritative HP/damage (resist/immunity/vuln, temp HP), monster spawning, initiative, conditions, PC death saves + healing (`packages/engine`). Wired into the DM as tools `startEncounter`/`applyDamage`/`heal`/`rollDeathSave` and tunable in the DM Lab (Start-scene picker + combat-visible trace + `combat` transcript). Verified live (goblin 7→0, downed). Temperature is best-effort (provider drops it for models that reject it).
+  - **Known limitation — scene advancement:** `state.currentSceneId` doesn't change during play (no scene-advance tool; `setScene` only sets the *visual* location). `startEncounter` falls back to the only authored encounter so the one-shot works, and the Lab's scene picker reaches any scene — but a multi-encounter scenario will need a scene-advance mechanism. Defer until a scenario needs it.
 - [ ] **DM Lab niceties** — a **model picker** (A/B Opus vs Sonnet on the same prompts), a **compare-two-runs** view (run A vs B side by side), and (with Phase B) show retrieved exemplars in the trace.
 - [ ] **Baseline hygiene** — re-pin `eval/baseline.json` after each meaningful playbook/voice change; it's the regression reference and is only meaningful if kept current.
