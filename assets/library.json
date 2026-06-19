@@ -498,6 +498,222 @@
       ]
     },
     {
+      "kind": "terrain",
+      "tag": "carpet_tl",
+      "desc": "ornate carpet",
+      "walkable": true,
+      "internal": true,
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite",
+      "variants": [
+        {
+          "art": "/assets/dawnlike/terrain/carpet_tl.png",
+          "from": {
+            "pack": "DawnLike",
+            "crop": "Objects/Decor0.png",
+            "rect": [
+              0,
+              224,
+              16,
+              16
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "kind": "terrain",
+      "tag": "carpet_t",
+      "desc": "ornate carpet",
+      "walkable": true,
+      "internal": true,
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite",
+      "variants": [
+        {
+          "art": "/assets/dawnlike/terrain/carpet_t.png",
+          "from": {
+            "pack": "DawnLike",
+            "crop": "Objects/Decor0.png",
+            "rect": [
+              16,
+              224,
+              16,
+              16
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "kind": "terrain",
+      "tag": "carpet_tr",
+      "desc": "ornate carpet",
+      "walkable": true,
+      "internal": true,
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite",
+      "variants": [
+        {
+          "art": "/assets/dawnlike/terrain/carpet_tr.png",
+          "from": {
+            "pack": "DawnLike",
+            "crop": "Objects/Decor0.png",
+            "rect": [
+              32,
+              224,
+              16,
+              16
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "kind": "terrain",
+      "tag": "carpet_l",
+      "desc": "ornate carpet",
+      "walkable": true,
+      "internal": true,
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite",
+      "variants": [
+        {
+          "art": "/assets/dawnlike/terrain/carpet_l.png",
+          "from": {
+            "pack": "DawnLike",
+            "crop": "Objects/Decor0.png",
+            "rect": [
+              0,
+              240,
+              16,
+              16
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "kind": "terrain",
+      "tag": "carpet_c",
+      "desc": "ornate carpet",
+      "walkable": true,
+      "internal": true,
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite",
+      "variants": [
+        {
+          "art": "/assets/dawnlike/terrain/carpet_c.png",
+          "from": {
+            "pack": "DawnLike",
+            "crop": "Objects/Decor0.png",
+            "rect": [
+              16,
+              240,
+              16,
+              16
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "kind": "terrain",
+      "tag": "carpet_r",
+      "desc": "ornate carpet",
+      "walkable": true,
+      "internal": true,
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite",
+      "variants": [
+        {
+          "art": "/assets/dawnlike/terrain/carpet_r.png",
+          "from": {
+            "pack": "DawnLike",
+            "crop": "Objects/Decor0.png",
+            "rect": [
+              32,
+              240,
+              16,
+              16
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "kind": "terrain",
+      "tag": "carpet_bl",
+      "desc": "ornate carpet",
+      "walkable": true,
+      "internal": true,
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite",
+      "variants": [
+        {
+          "art": "/assets/dawnlike/terrain/carpet_bl.png",
+          "from": {
+            "pack": "DawnLike",
+            "crop": "Objects/Decor0.png",
+            "rect": [
+              0,
+              256,
+              16,
+              16
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "kind": "terrain",
+      "tag": "carpet_b",
+      "desc": "ornate carpet",
+      "walkable": true,
+      "internal": true,
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite",
+      "variants": [
+        {
+          "art": "/assets/dawnlike/terrain/carpet_b.png",
+          "from": {
+            "pack": "DawnLike",
+            "crop": "Objects/Decor0.png",
+            "rect": [
+              16,
+              256,
+              16,
+              16
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "kind": "terrain",
+      "tag": "carpet_br",
+      "desc": "ornate carpet",
+      "walkable": true,
+      "internal": true,
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite",
+      "variants": [
+        {
+          "art": "/assets/dawnlike/terrain/carpet_br.png",
+          "from": {
+            "pack": "DawnLike",
+            "crop": "Objects/Decor0.png",
+            "rect": [
+              32,
+              256,
+              16,
+              16
+            ]
+          }
+        }
+      ]
+    },
+    {
       "kind": "prop",
       "tag": "tree",
       "desc": "a leafy green tree",
@@ -609,6 +825,26 @@
       },
       "license": "CC-BY-4.0",
       "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
+    },
+    {
+      "kind": "prop",
+      "tag": "flowers",
+      "desc": "a tuft of wildflowers",
+      "art": "/assets/dawnlike/props/flowers.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false,
+      "biomes": [
+        "village",
+        "town",
+        "forest"
+      ],
+      "from": {
+        "gen": "flowers"
+      }
     },
     {
       "kind": "prop",

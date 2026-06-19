@@ -42,10 +42,10 @@ interface FurnSpec {
  * 'around' = chairs ringing the central table, 'center'/'corner'/'scatter' as before. Items are
  * placed in order, so a 'center' table is laid before the chairs that ring it.
  */
-const BUILDING_TEMPLATES: Record<BuildingType, { floor: string; wall: 'wood' | 'stone'; occupant: string; items: FurnSpec[] }> = {
-  tavern: { floor: 'wood_floor', wall: 'wood', occupant: 'villager_woman', items: [{ tag: 'table', where: 'back', count: 3 }, { tag: 'table', where: 'center' }, { tag: 'chair', where: 'around', count: 3 }, { tag: 'barrel', where: 'corner', count: 2 }, { tag: 'candelabra', where: 'wall' }] },
+const BUILDING_TEMPLATES: Record<BuildingType, { floor: string; wall: 'wood' | 'stone'; occupant: string; carpet?: boolean; items: FurnSpec[] }> = {
+  tavern: { floor: 'wood_floor', wall: 'wood', occupant: 'villager_woman', carpet: true, items: [{ tag: 'table', where: 'back', count: 3 }, { tag: 'table', where: 'center' }, { tag: 'chair', where: 'around', count: 3 }, { tag: 'barrel', where: 'corner', count: 2 }, { tag: 'candelabra', where: 'wall' }] },
   shop: { floor: 'wood_floor', wall: 'wood', occupant: 'villager', items: [{ tag: 'table', where: 'back', count: 2 }, { tag: 'shelf', where: 'wall', count: 3 }, { tag: 'crate', where: 'corner', count: 2 }, { tag: 'pot', where: 'wall' }] },
-  temple: { floor: 'stone', wall: 'stone', occupant: 'wizard', items: [{ tag: 'altar', where: 'back' }, { tag: 'candelabra', where: 'back', count: 2 }, { tag: 'chair', where: 'around', count: 4 }, { tag: 'bookshelf', where: 'wall' }] },
+  temple: { floor: 'stone', wall: 'stone', occupant: 'wizard', carpet: true, items: [{ tag: 'altar', where: 'back' }, { tag: 'candelabra', where: 'back', count: 2 }, { tag: 'chair', where: 'around', count: 4 }, { tag: 'bookshelf', where: 'wall' }] },
   smithy: { floor: 'stone', wall: 'stone', occupant: 'dwarf', items: [{ tag: 'brazier', where: 'back' }, { tag: 'table', where: 'center' }, { tag: 'barrel', where: 'corner' }, { tag: 'crate', where: 'corner' }] },
   house: { floor: 'wood_floor', wall: 'wood', occupant: 'villager', items: [{ tag: 'bed', where: 'corner' }, { tag: 'table', where: 'center' }, { tag: 'chair', where: 'around', count: 2 }, { tag: 'pot', where: 'wall' }] },
 };
@@ -502,6 +502,18 @@ export function buildSceneMap(comp: SceneComposition): SceneMap {
     const interior: { c: number; r: number }[] = [];
     for (let y = iy; y < iy + ih; y++) for (let x = ix; x < ix + iw; x++) interior.push({ c: x, r: y });
     for (let i = interior.length - 1; i > 0; i--) { const j = Math.floor(rand() * (i + 1)); const t = interior[i]!; interior[i] = interior[j]!; interior[j] = t; }
+    // CARPET centrepiece (tavern/temple): an ornate 3×3 rug centred in the interior, laid AS TERRAIN
+    // so it renders UNDER the furniture/keeper that sit on it — the reference's big "authored" cue.
+    if (tmpl.carpet && iw >= 3 && ih >= 3) {
+      for (let dy = -1; dy <= 1; dy++)
+        for (let dx = -1; dx <= 1; dx++) {
+          const cc = midX + dx, rr = midY + dy;
+          if (cc < ix || cc > ix + iw - 1 || rr < iy || rr > iy + ih - 1) continue;
+          const vparts = dy < 0 ? 't' : dy > 0 ? 'b' : '';
+          const hparts = dx < 0 ? 'l' : dx > 0 ? 'r' : '';
+          tiles[rr]![cc] = vparts || hparts ? `carpet_${vparts}${hparts}` : 'carpet_c';
+        }
+    }
     // The interior cell adjacent to the door — derived from the ACTUAL door position (which may have
     // fallen back to a different side), kept clear so the room is never sealed at its only exit.
     const innerDoor = dR === ry ? { c: dC, r: dR + 1 } : dR === ry + rh - 1 ? { c: dC, r: dR - 1 } : dC === rx ? { c: dC + 1, r: dR } : { c: dC - 1, r: dR };
@@ -768,6 +780,31 @@ export function buildSceneMap(comp: SceneComposition): SceneMap {
       const tag = tags[Math.floor(rand() * tags.length)]!;
       occ[cell.r]![cell.c] = true;
       ambiance.push({ tag, col: cell.c, row: cell.r });
+    }
+  }
+
+  // SETTLEMENT GREENERY: a town shouldn't sit on a bare lot. Scatter trees/bushes (blocking) +
+  // wildflowers (walkable decals) across the GRASS margins between/around the carved buildings, so it
+  // reads like the reference's leafy village. Seed-stable; only touches free grass, so streets,
+  // plazas, buildings and entities are untouched and reachability holds.
+  if (useBlockout && comp.grammar === 'town-square') {
+    const grass: { c: number; r: number }[] = [];
+    for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) if (tiles[r]![c] === 'grass' && free(c, r)) grass.push({ c, r });
+    for (let i = grass.length - 1; i > 0; i--) { const j = Math.floor(rand() * (i + 1)); const t = grass[i]!; grass[i] = grass[j]!; grass[j] = t; }
+    const TREES = ['tree', 'tree', 'tree_pine', 'bush'] as const;
+    let gi = 0;
+    const trees = Math.min(grass.length, Math.max(6, Math.floor(grass.length * 0.2)));
+    for (let n = 0; n < trees && gi < grass.length; n++, gi++) {
+      const cell = grass[gi]!;
+      occ[cell.r]![cell.c] = true;
+      walkable[cell.r]![cell.c] = false; // trees block
+      ambiance.push({ tag: TREES[Math.floor(rand() * TREES.length)]!, col: cell.c, row: cell.r });
+    }
+    const flowers = Math.min(grass.length - gi, Math.max(4, Math.floor(grass.length * 0.15)));
+    for (let n = 0; n < flowers && gi < grass.length; n++, gi++) {
+      const cell = grass[gi]!;
+      occ[cell.r]![cell.c] = true; // a walkable decal — DON'T clear walkable
+      ambiance.push({ tag: 'flowers', col: cell.c, row: cell.r });
     }
   }
 

@@ -212,6 +212,19 @@ def gen_wall(dst: str, frm: dict) -> None:
     im.save(dst)
 
 
+def gen_flowers(dst: str, frm: dict) -> None:
+    """A small wild-flower tuft decal (non-blocking) scattered on settlement grass for colour."""
+    from PIL import ImageDraw
+
+    im = Image.new("RGBA", (16, 16), (0, 0, 0, 0))
+    d = ImageDraw.Draw(im)
+    stem = _db("dgreen")
+    for x, y, col in [(4, 11, "red"), (8, 9, "yellow"), (11, 12, "cream"), (6, 13, "red"), (12, 8, "blue")]:
+        d.line([(x, y), (x, y + 2)], fill=stem)  # stem
+        d.point([(x, y - 1), (x - 1, y), (x + 1, y)], fill=_db(col))  # petals
+    im.save(dst)
+
+
 def gen_stall(dst: str, frm: dict) -> None:
     """A market stall: a striped awning over a wooden counter with a few goods. DB16 palette."""
     from PIL import ImageDraw
@@ -242,7 +255,7 @@ def gen_stall(dst: str, frm: dict) -> None:
 
 GENERATORS = {
     "water": gen_water, "water_deep": gen_water_deep, "sand": gen_sand, "boat": gen_boat,
-    "house": gen_house, "fountain": gen_fountain, "dlhouse": gen_dlhouse, "stall": gen_stall, "wall": gen_wall,
+    "house": gen_house, "fountain": gen_fountain, "dlhouse": gen_dlhouse, "stall": gen_stall, "wall": gen_wall, "flowers": gen_flowers,
 }
 
 

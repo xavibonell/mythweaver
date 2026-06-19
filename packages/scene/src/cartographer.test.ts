@@ -342,7 +342,9 @@ describe('buildSceneMap (Cartographer)', () => {
     expect(validateSceneMap(m)).toEqual({ ok: true, violations: [] });
     const furn = m.objects.filter((o) => o.group === 'bldg:tav');
     expect(furn.some((o) => o.tag === 'wood_floor')).toBe(false); // floor is terrain, not an object
-    expect(m.tiles[3]![5]).toBe('wood_floor'); // warm wood interior
+    const flat = m.tiles.flat();
+    expect(flat).toContain('wood_floor'); // warm wood interior
+    expect(flat.some((t) => t.startsWith('carpet'))).toBe(true); // an ornate rug centrepiece
     const chairs = furn.filter((o) => o.tag === 'chair');
     const tables = furn.filter((o) => o.tag === 'table');
     expect(chairs.length).toBeGreaterThan(0);

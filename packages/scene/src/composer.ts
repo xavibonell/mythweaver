@@ -313,7 +313,9 @@ function layoutBuildings(specs: { id: string; type: BuildingType; name?: string 
   // Fit ALL declared buildings: choose row count (≤ what fits at minH), then per-row count, then size
   // the plots DOWN so nothing is dropped. Prefer one row for a few buildings, two rows for many.
   const maxRowsThatFit = Math.max(1, Math.floor((bandH + gap) / (minH + gap)));
-  const rowsUsed = Math.min(maxRowsThatFit, list.length <= 4 ? 1 : 2);
+  // ≤3 buildings → one row; 4-6 → two rows. Cap at 3 per row so plots stay WIDE enough (≥~6 cells)
+  // for a roomy interior + a 3×3 carpet, rather than many narrow slivers.
+  const rowsUsed = Math.min(maxRowsThatFit, Math.max(1, Math.ceil(list.length / 3)));
   const perRow = Math.ceil(list.length / rowsUsed);
   const bw = Math.min(maxW, Math.max(minW, Math.floor((cols - 2 * margin - (perRow - 1) * gap) / perRow)));
   const bh = Math.min(maxH, Math.max(minH, Math.floor((bandH - (rowsUsed - 1) * gap) / rowsUsed)));
@@ -430,8 +432,15 @@ function buildComposition(req: CompositionRequest, hints: CompositionHints): Sce
   // else falls back to the deterministic zone layout. Parsed up-front so the building layout + the
   // returned grid agree on dimensions.
   const blockout = parseBlockout(hints.blockout, knownIds);
-  const gridCols = blockout ? blockout.cols : cols;
-  const gridRows = blockout ? blockout.rows : rows;
+  let gridCols = blockout ? blockout.cols : cols;
+  let gridRows = blockout ? blockout.rows : rows;
+  // A settlement needs room for tall walled rooms + a plaza + greenery; the Director often paints a
+  // cramped grid. Enforce a roomy minimum — the Cartographer fills any cells beyond the painted
+  // blockout with grass (so the extra margin just becomes leafy outskirts).
+  if (grammar === 'town-square') {
+    gridCols = Math.min(GRID_LIMITS.maxCols, Math.max(24, gridCols));
+    gridRows = Math.min(GRID_LIMITS.maxRows, Math.max(16, gridRows));
+  }
 
   // BUILDINGS: in a settlement, a fixture whose tag names a STRUCTURE (smithy/tavern/cottage/…)
   // becomes a walled ROOM the Cartographer carves + furnishes — NOT a facade sprite (which top-down
@@ -521,19 +530,21 @@ const KIND_GUIDE: Record<SceneKind, { guidance: string; example: string }> = {
 "cells":[{"id":"pc:a","col":1,"row":6},{"id":"pc:b","col":2,"row":6},{"id":"npc:foe","col":10,"row":6}]}}`,
   },
   settlement: {
-    guidance: `This is a SETTLEMENT (a built-up place) — paint the GROUND only; the engine BUILDS the structures.
-- Paint a big walkable ground: S (stone) plaza in the centre/lower area, G (grass) edges, P (dirt) streets, W (water) ONLY if waterside.
-- The BUILDINGS (tavern, smithy, cottages, …) are auto-carved as walled rooms along the TOP — do NOT paint # walls or place building cells yourself. Just leave the upper area as ground; the engine drops the rooms there.
-- Put the landmark (fountain/well) CENTRALLY. Give cells to the NPCs + the party only, out in the OPEN plaza/streets (lower-middle), NOT in the top building band.
-- Use a ROOMY grid (24-28 cols, 14-16 rows) so the rooms + plaza both fit.`,
-    example: `Example — "a market village by the sea: a fountain, a tavern, a smithy, two cottages, an elder in the square":
+    guidance: `This is a SETTLEMENT — paint mostly GRASS; the engine BUILDS the structures + greenery.
+- Base everything GRASS (G). Lay STONE (S) as a COBBLED PLAZA around the centre (where the well/fountain sits) and a stone STREET or two (a vertical and/or horizontal band) connecting it. Use P (dirt) for side lanes. W (water) ONLY if waterside.
+- Keep GENEROUS GRASS between and around everything — the engine scatters TREES + WILDFLOWERS on the grass to make it leafy like a real village. A solid stone lot reads cold and empty; grass with stone streets reads alive.
+- The BUILDINGS (tavern, smithy, cottages, …) auto-carve as walled rooms along the TOP — do NOT paint # walls or building cells. Leave the upper area as GRASS so rooms drop onto it with grassy margins.
+- Put the landmark (fountain/well) CENTRALLY on the plaza. Give cells to NPCs + the party only, out in the OPEN (plaza/streets, lower-middle), NOT in the top building band.
+- Use a ROOMY grid (24-28 cols, 14-16 rows).`,
+    example: `Example — "a market village: a fountain, a tavern, a smithy, a general store, two cottages, an elder in the square" (26 wide × 15 tall — give the rooms room to breathe):
 {"blockout":{"grid":[
-"GGGGGGGGGGGGGGGGGGGGGGGG","GGGGGGGGGGGGGGGGGGGGGGGG","GGGGGGGGGGGGGGGGGGGGGGGG",
-"GGSSSSSSSSSSSSSSSSSSSSGG","GGSSSSSSSSSSSSSSSSSSSSGG","GGSSSSSSSSSSSSSSSSSSSSGG",
-"GGSSSSSSSSSSSSSSSSSSSSGG","GGSSSSSSSSSSSSSSSSSSSSGG","GGSSSSSSSSSSSSSSSSSSSSGG",
-"GGSSSSSSSSSSSSSSSSSSSSGG","GGGGGGGGGGGGGGGGGGGGGGGG","WWWWWWWWWWWWWWWWWWWWWWWW"],
-"cells":[{"id":"prop:fountain","col":11,"row":7},{"id":"npc:elder","col":9,"row":8}]}}
-(Note: NO building cells — the tavern/smithy/cottages are auto-built as rooms along the top. Only the fountain + NPCs get cells.)`,
+"GGGGGGGGGGGGGGGGGGGGGGGGGG","GGGGGGGGGGGGGGGGGGGGGGGGGG","GGGGGGGGGGGGGGGGGGGGGGGGGG",
+"GGGGGGGGGGGGGGGGGGGGGGGGGG","GGGGGGGGGGGGGGGGGGGGGGGGGG","GGGGGGGGGGGGSSGGGGGGGGGGGG",
+"GGGGGGGGGGSSSSSSGGGGGGGGGG","GGGGGGGGGGSSSSSSGGGGGGGGGG","GGGGGGGGGGSSSSSSGGGGGGGGGG",
+"GGGGGGGGGGGGSSGGGGGGGGGGGG","GGGGGGGGGGGGSSGGGGGGGGGGGG","GGGGGGGGGGGGGGGGGGGGGGGGGG",
+"GGGGGGGGGGGGGGGGGGGGGGGGGG","GGGGGGGGGGGGGGGGGGGGGGGGGG","GGGGGGGGGGGGGGGGGGGGGGGGGG"],
+"cells":[{"id":"prop:fountain","col":12,"row":7},{"id":"npc:elder","col":10,"row":8}]}}
+(Note: mostly GRASS with a central stone plaza + a stone street to it; NO building cells — the tavern/smithy/store/cottages auto-build as rooms along the top. Only the fountain + NPCs get cells. Use ~15 rows so the rooms are roomy.)`,
   },
   interior: {
     guidance: `This is an INTERIOR (a roofed room) — paint a CLOSED room:
