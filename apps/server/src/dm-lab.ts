@@ -303,7 +303,10 @@ export function createDmLabSession(deps: DmLabDeps, scenarioId: string): DmLabSe
 }
 
 /** Advance the session by ONE turn (a player line, or a declared/auto roll). Mutates the session. */
-export async function dmLabSubmit(session: DmLabSession, input: { say: string; as?: string } | { roll: number; auto?: boolean }): Promise<DmLabTurn> {
+export async function dmLabSubmit(
+  session: DmLabSession,
+  input: { say: string; as?: string } | { roll: number; auto?: boolean } | { open: true },
+): Promise<DmLabTurn> {
   const { engine, recorder, composer } = session;
   const sliceStart = recorder.exchanges.length;
   const before = snapshot(engine.getState());
@@ -311,7 +314,10 @@ export async function dmLabSubmit(session: DmLabSession, input: { say: string; a
 
   let turnInput: TurnInput;
   let label: { speaker: string; text: string; kind: DmLabTurn['kind'] };
-  if ('roll' in input) {
+  if ('open' in input) {
+    turnInput = { kind: 'opening' };
+    label = { speaker: 'opening', text: '(opening scene)', kind: 'message' };
+  } else if ('roll' in input) {
     turnInput = { kind: 'roll', requestId: session.pendingRoll?.id ?? '', total: input.roll };
     label = { speaker: 'roll', text: `🎲 ${input.roll}`, kind: input.auto ? 'auto-roll' : 'roll' };
   } else {
@@ -347,7 +353,7 @@ export async function dmLabSubmit(session: DmLabSession, input: { say: string; a
   session.totalLatencyMs += latencyMs;
   if (result.rollRequest) session.pendingRoll = result.rollRequest;
   else delete session.pendingRoll;
-  session.recent.push(`${label.speaker}: ${label.text}`);
+  if (label.speaker !== 'opening') session.recent.push(`${label.speaker}: ${label.text}`); // opening has no player line
   if (result.narration) session.recent.push(`Dungeon Master: ${result.narration}`);
 
   return {

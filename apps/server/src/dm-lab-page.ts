@@ -101,6 +101,15 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
   .beat.current { border-color: #4c6ef5; color: #fff; background: #1b2340; }
   .beat.reach { border-color: #7b6a2e; color: #e8c98a; }
   .bubble .brief { color: #8fa0c8; font-size: 12px; margin-top: 5px; }
+  /* "now playing" — reflects the active session in the Run left panel */
+  .nowplaying { border: 1px solid #2a6b40; background: #0f1f15; border-radius: 10px; padding: 10px 12px; margin-bottom: 6px; }
+  .nowplaying .np-tag { font-size: 10px; text-transform: uppercase; letter-spacing: .05em; color: #8fd6a2; font-weight: 700; margin-bottom: 4px; }
+  .nowplaying.authored { border-color: #3b4663; background: #131722; }
+  .nowplaying.authored .np-tag { color: #8fa0c8; }
+  .nowplaying .np-title { font-size: 14px; font-weight: 600; color: #e6e8ee; line-height: 1.35; margin-bottom: 6px; }
+  .nowplaying .np-row { font-size: 12px; color: #b7bccb; margin-top: 2px; }
+  .nowplaying .np-row b { color: #8b90a0; font-weight: 600; }
+  .np-sep { text-align: center; color: #4b5060; font-size: 11px; margin: 4px 0 8px; }
   /* distill tab */
   .view.distill.active { display: flex; flex-direction: column; }
   .distill-grid { flex: 1; display: grid; grid-template-columns: 1fr 1fr; min-height: 0; }
@@ -183,6 +192,8 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
 <main>
   <section class="view run active" id="view-run">
     <div class="panel left">
+      <div id="nowplaying" class="nowplaying" style="display:none"></div>
+      <div class="np-sep" id="np-sep" style="display:none">— or start a new session —</div>
       <label for="scenario">Scenario</label>
       <input id="scenario" type="text" value="the-sunken-bell" />
       <label for="startScene">Start scene <span style="color:#6b7080">— drop the party here (pick the fight to test combat)</span></label>
@@ -526,8 +537,7 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
     }).then(function (r) { return r.json().then(function (b) { return { ok: r.ok, body: b }; }); }).then(function (x) {
       if (!x.ok) { $('status').textContent = 'error: ' + (x.body.error || 'failed'); return false; }
       sessionStarted(x.body);
-      $('status').textContent = 'session live — talk to the DM (the Arc tab shows the plan)';
-      return true;
+      return autoOpen().then(function () { return true; }); // DM sets the scene before play (serialized)
     }).catch(function (e) { $('status').textContent = 'error: ' + (e.message || e); return false; });
   }
 
@@ -540,7 +550,44 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
     var grp = document.createElement('option'); grp.value = 'The party'; grp.textContent = 'The party'; sp.appendChild(grp);
     (b.party || []).forEach(function (p) { var o = document.createElement('option'); o.value = p.name; o.textContent = p.name; sp.appendChild(o); });
     latestArc = b.arc || null; renderArc();
+    renderNowPlaying(b);
     setPending(null); setBusy(false);
+  }
+
+  // Reflect the ACTIVE campaign in the Run left panel (so it stops showing the stale authored defaults).
+  function renderNowPlaying(b) {
+    var arc = b.arc || {};
+    var bp = arc.blueprint;
+    var gen = !!arc.genMeta;
+    var sceneTitle = (arc.beats || []).filter(function (x) { return x.current; }).map(function (x) { return x.title; })[0] || arc.currentScene || b.scene;
+    var title = (bp && bp.premise) ? bp.premise : (b.scenarioId || 'session');
+    var el = $('nowplaying');
+    el.className = 'nowplaying' + (gen ? '' : ' authored');
+    el.innerHTML = '<div class="np-tag">' + (gen ? '✦ now playing — generated campaign' : 'now playing — authored scenario') + '</div>' +
+      '<div class="np-title">' + esc(title) + '</div>' +
+      '<div class="np-row"><b>Scene:</b> ' + esc(sceneTitle) + '</div>' +
+      '<div class="np-row"><b>Party:</b> ' + esc((b.party || []).map(function (p) { return p.name; }).join(', ')) + '</div>';
+    el.style.display = '';
+    $('np-sep').style.display = '';
+  }
+
+  // Auto-deliver the DM's opening narration so a fresh session sets the scene before the players act.
+  function autoOpen() {
+    if (!sessionId) return Promise.resolve();
+    setBusy(true);
+    $('status').innerHTML = '<span class="spin"></span>DM is setting the scene…';
+    return fetch('/dm/lab/session/' + sessionId + '/turn', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ open: true }) })
+      .then(function (r) { return r.json().then(function (b) { return { ok: r.ok, body: b }; }); })
+      .then(function (x) {
+        if (!x.ok) { addSys('(opening narration skipped: ' + (x.body.error || 'failed') + ')'); setBusy(false); $('status').textContent = 'session live — what do you do?'; return; }
+        var t = x.body.turn;
+        if (x.body.arc) { latestArc = x.body.arc; renderArc(); }
+        addDm(t, latestArc && latestArc.brief);
+        setPending(x.body.pendingRoll);
+        setBusy(false);
+        $('status').textContent = 'the scene is set — what do you do?';
+      })
+      .catch(function (e) { addSys('(opening narration skipped: ' + (e.message || e) + ')'); setBusy(false); $('status').textContent = 'session live — what do you do?'; });
   }
 
   function submitTurn(payload) {
@@ -787,7 +834,7 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
       sessionStarted(x.body);
       showTab('run');
       $('gen-status').textContent = '✓ session started — switched to the Run tab';
-      $('status').textContent = 'generated session live — type a player action below (Arc tab shows the plan)';
+      autoOpen(); // DM sets the opening scene on the Run tab
       try { $('msg').focus(); } catch (e) {}
     }).catch(function (e) { $('gen-start').disabled = false; $('gen-run').disabled = false; $('gen-status').textContent = 'error: ' + (e.message || e); });
   }

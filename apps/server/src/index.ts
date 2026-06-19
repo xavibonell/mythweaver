@@ -511,9 +511,12 @@ app.post('/dm/lab/session/:id/turn', async (req, reply) => {
     reply.code(404);
     return { error: 'session not found — start a new one' };
   }
-  const body = (req.body ?? {}) as { say?: unknown; as?: unknown; roll?: unknown; auto?: unknown };
-  let input: { say: string; as?: string } | { roll: number; auto?: boolean };
-  if (body.auto === true) {
+  const body = (req.body ?? {}) as { say?: unknown; as?: unknown; roll?: unknown; auto?: unknown; open?: unknown };
+  let input: { say: string; as?: string } | { roll: number; auto?: boolean } | { open: true };
+  if (body.open === true) {
+    if (session.turnIndex > 0) return badRequest(reply, 'opening narration is only available at the start of a session');
+    input = { open: true };
+  } else if (body.auto === true) {
     if (!session.pendingRoll) return badRequest(reply, 'no roll is pending to auto-roll');
     input = { roll: autoRollTotal(session.pendingRoll.expr), auto: true };
   } else if (body.roll !== undefined && body.roll !== null && body.roll !== '') {
@@ -623,7 +626,7 @@ app.post('/sessions/:id/turn', async (req, reply) => {
 
     // Canonical transcript lives in the messages table (not the state blob).
     if (parsed.kind === 'message') await db.appendMessage(id, 'player', parsed.speakerId, parsed.text);
-    else await db.appendMessage(id, 'player', 'roll', `🎲 ${parsed.total}`);
+    else if (parsed.kind === 'roll') await db.appendMessage(id, 'player', 'roll', `🎲 ${parsed.total}`);
     if (result.narration) await db.appendMessage(id, 'dm', 'Dungeon Master', result.narration);
 
     app.log.info({ sessionId: id, trace: result.trace }, 'turn');

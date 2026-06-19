@@ -78,7 +78,9 @@ const NOOP_TRACER = new NoopTracer();
 
 export type TurnInput =
   | { kind: 'message'; speakerId: string; text: string }
-  | { kind: 'roll'; requestId: string; total: number };
+  | { kind: 'roll'; requestId: string; total: number }
+  // No player line — asks the DM to deliver the campaign's OPENING narration (session start).
+  | { kind: 'opening' };
 
 export interface TurnRollRequest {
   id: string;
@@ -493,8 +495,8 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
 
   const span = (deps.tracer ?? NOOP_TRACER).startTurn({
     sessionId: state.sessionId,
-    speaker: input.kind === 'message' ? input.speakerId : 'roll',
-    input: input.kind === 'message' ? input.text : `declared roll ${input.total}`,
+    speaker: input.kind === 'message' ? input.speakerId : input.kind === 'roll' ? 'roll' : 'opening',
+    input: input.kind === 'message' ? input.text : input.kind === 'roll' ? `declared roll ${input.total}` : 'session start',
   });
   const finish = (result: TurnResult): TurnResult => {
     span.end({
@@ -537,7 +539,7 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
     messages.push({ role: 'user', content: toolResults });
     state.pendingTurn = undefined;
   } else {
-    engine.record('player', input.text, { speakerId: input.speakerId });
+    if (input.kind === 'message') engine.record('player', input.text, { speakerId: input.speakerId });
     const recent = (deps.recentTranscript ?? []).slice(-12).join('\n');
     const adv = state.adventure;
     const scene = adv?.scenes[state.currentSceneId];
@@ -611,7 +613,9 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
           steering +
           `=== CURRENT STATE (authoritative; from the engine) ===\n${summarizeState(state)}\n\n` +
           (recent ? `=== RECENT ===\n${recent}\n\n` : '') +
-          `${input.speakerId}: ${input.text}`,
+          (input.kind === 'opening'
+            ? `=== SESSION START — OPENING NARRATION ===\nThe session is beginning. Deliver the OPENING: vividly establish where the party is, the immediate situation and what's at stake, and what they can see/sense right now — then end by asking what they do. If a concrete location is established, call setScene. Do NOT request rolls, resolve actions, or advance scenes yet.`
+            : `${input.speakerId}: ${input.text}`),
       },
     ];
   }
