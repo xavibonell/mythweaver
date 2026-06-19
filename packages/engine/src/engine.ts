@@ -288,6 +288,32 @@ export class Engine implements EngineTools {
     return { spawned, order: this.state.combat.order };
   }
 
+  // --- D1: soft arc steering (scene advancement + branch flags) ------------
+
+  /** Advance the active beat to a reachable next scene (per the adventure's exits). */
+  advanceScene(toSceneId: string): { scene: string; from: string } {
+    const adv = this.state.adventure;
+    if (!adv?.scenes[toSceneId]) throw new Error(`Unknown scene: ${toSceneId}`);
+    const from = this.state.currentSceneId;
+    const exits = adv.scenes[from]?.exits ?? [];
+    if (exits.length && !exits.includes(toSceneId)) {
+      throw new Error(`"${toSceneId}" is not reachable from "${from}" (exits: ${exits.join(', ') || 'none'}).`);
+    }
+    this.state.flags[`beat:${from}`] = 'done';
+    this.state.currentSceneId = toSceneId;
+    this.record('engine', `Scene advanced: ${from} -> ${toSceneId}`, { from, to: toSceneId });
+    return { scene: toSceneId, from };
+  }
+
+  /** Record a soft arc fact (a branch decision, a beat status, an NPC standing). Namespaced. */
+  setArcFlag(key: string, value: string | number | boolean): void {
+    if (!/^(decision|beat|npc):[a-z0-9:_-]+$/i.test(key)) {
+      throw new Error(`Arc flag key must be namespaced "decision:"/"beat:"/"npc:" — got "${key}".`);
+    }
+    this.state.flags[key] = value;
+    this.record('engine', `Arc flag ${key} = ${value}`, { key, value });
+  }
+
   // --- P3: resources -------------------------------------------------------
 
   spendResource(_args: { combatantId: string; resource: 'slot'; level: number }): { remaining: number } {

@@ -269,4 +269,25 @@ describe('orchestrator turn-loop', () => {
     expect(g?.downed).toBe(true);
     expect(result.narration).toContain('crumples');
   });
+
+  it('advances the adventure beat via the advanceScene tool (soft arc steering)', async () => {
+    const state = createInitialState({
+      sessionId: 's1',
+      scenarioId: 'test',
+      startSceneId: 'green',
+      party: [fighter()],
+      adventure: { pitch: 'p', scenes: { green: { title: 'Green', summary: '', exits: ['tower'] }, tower: { title: 'Tower', summary: '', exits: [] } } },
+    });
+    const engine = new Engine(state, () => 0.5);
+    const llm = new FakeLlmProvider([
+      fakeToolUse([{ id: 'av', name: 'advanceScene', input: { toSceneId: 'tower' } }]),
+      fakeText('You cross the fen to the crooked tower.'),
+    ]);
+
+    const result = await runTurn({ engine, llm, now: frozenClock }, { kind: 'message', speakerId: 'Aldric', text: 'We head for the tower.' });
+
+    expect(result.trace.toolCalls).toContain('advanceScene');
+    expect(engine.getState().currentSceneId).toBe('tower');
+    expect(engine.getState().flags['beat:green']).toBe('done');
+  });
 });

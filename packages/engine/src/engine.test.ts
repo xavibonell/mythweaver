@@ -224,3 +224,37 @@ describe('Engine — death saves & healing', () => {
     expect(down(() => 0).rollDeathSave('pc:fighter').failures).toBe(2); // d20=1
   });
 });
+
+describe('Engine — soft arc steering (D1)', () => {
+  function arcEngine() {
+    const state = createInitialState({
+      sessionId: 's',
+      scenarioId: 't',
+      startSceneId: 'a',
+      party: [fighter()],
+      adventure: { pitch: 'p', scenes: { a: { title: 'A', summary: '', exits: ['b'] }, b: { title: 'B', summary: '', exits: [] } } },
+    });
+    return new Engine(state, () => 0.5);
+  }
+
+  it('advances to a reachable scene and marks the prior beat done', () => {
+    const e = arcEngine();
+    expect(e.advanceScene('b')).toEqual({ scene: 'b', from: 'a' });
+    expect(e.getState().currentSceneId).toBe('b');
+    expect(e.getState().flags['beat:a']).toBe('done');
+  });
+
+  it('rejects an unreachable scene and leaves currentSceneId unchanged', () => {
+    const e = arcEngine();
+    expect(() => e.advanceScene('a')).toThrow(); // 'a' is not in a's exits (['b'])
+    expect(() => e.advanceScene('zzz')).toThrow(); // unknown scene
+    expect(e.getState().currentSceneId).toBe('a');
+  });
+
+  it('setArcFlag accepts namespaced keys and rejects others', () => {
+    const e = arcEngine();
+    e.setArcFlag('decision:tower-approach', 'stealth');
+    expect(e.getState().flags['decision:tower-approach']).toBe('stealth');
+    expect(() => e.setArcFlag('hp', 5)).toThrow(); // not namespaced
+  });
+});

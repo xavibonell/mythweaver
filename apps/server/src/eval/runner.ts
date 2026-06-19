@@ -56,7 +56,7 @@ async function runCase(
   const bundle = loadScenario(c.scenario);
   const adventure = {
     pitch: bundle.scenario.pitch,
-    scenes: Object.fromEntries(bundle.scenario.scenes.map((s) => [s.id, { title: s.title, summary: s.summary }])),
+    scenes: Object.fromEntries(bundle.scenario.scenes.map((s) => [s.id, { title: s.title, summary: s.summary, exits: s.exits }])),
   };
   const state = createInitialState({
     sessionId: `eval-${c.id}`,

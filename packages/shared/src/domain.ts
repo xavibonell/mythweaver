@@ -281,8 +281,8 @@ export interface PendingTurn {
 /** Authored adventure context fed to the DM so it runs the written scenario (GM-facing, not read aloud). */
 export interface AdventureContext {
   pitch: string;
-  /** sceneId -> scene guidance. */
-  scenes: Record<string, { title: string; summary: string }>;
+  /** sceneId -> scene guidance + reachable next beats (exits) for soft arc steering (D1). */
+  scenes: Record<string, { title: string; summary: string; exits?: string[] }>;
 }
 
 /** An authored encounter: which monsters appear in a scene (P2 combat spawn). */

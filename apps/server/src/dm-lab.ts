@@ -221,7 +221,7 @@ export function createDmLabSession(deps: DmLabDeps, scenarioId: string): DmLabSe
   const scenario = deps.scenarioJson ? parseScenario(deps.scenarioJson, scenarioId) : bundle.scenario;
   const adventure = {
     pitch: scenario.pitch,
-    scenes: Object.fromEntries(scenario.scenes.map((s) => [s.id, { title: s.title, summary: s.summary }])),
+    scenes: Object.fromEntries(scenario.scenes.map((s) => [s.id, { title: s.title, summary: s.summary, exits: s.exits }])),
   };
   // Optionally drop the party into a chosen scene (e.g. the undercroft fight) to test it directly.
   const startSceneId = deps.startSceneId && scenario.scenes.some((s) => s.id === deps.startSceneId) ? deps.startSceneId : scenario.startSceneId;

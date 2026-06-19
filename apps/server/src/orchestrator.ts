@@ -259,6 +259,34 @@ export function buildToolDefs(retrieval: boolean, scene: boolean): ToolDef[] {
       },
     },
   );
+  // Arc / Game-Master steering (D1): move the story by following the players, and remember branch choices.
+  tools.push(
+    {
+      name: 'advanceScene',
+      description:
+        'Move the party to a new beat/scene WHEN THEY CHOOSE to go there — it must be a reachable exit listed in STEERING. Records the prior beat as done. This steers the arc by following the players; never force it.',
+      inputSchema: {
+        type: 'object',
+        properties: { toSceneId: { type: 'string', description: 'Destination scene id (a reachable exit from STEERING).' } },
+        required: ['toSceneId'],
+        additionalProperties: false,
+      },
+    },
+    {
+      name: 'setArcFlag',
+      description:
+        'Record a soft arc fact so later turns stay consistent: a branch decision the party made, a beat status, or an NPC standing. The key MUST be namespaced "decision:<x>", "beat:<x>", or "npc:<x>".',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          key: { type: 'string', description: 'e.g. "decision:tower-approach", "npc:edda:trust".' },
+          value: { type: 'string', description: 'e.g. "stealth", "confessed", "12".' },
+        },
+        required: ['key', 'value'],
+        additionalProperties: false,
+      },
+    },
+  );
   return tools;
 }
 
@@ -491,11 +519,26 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
       ? `=== ADVENTURE (GM guidance — run this scene; reveal it through play, don't read aloud verbatim) ===\n` +
         `Premise: ${adv.pitch}\nCurrent scene — ${scene?.title ?? state.currentSceneId}: ${scene?.summary ?? ''}\n\n`
       : '';
+    // Soft arc steering (D1): the reachable next beats + what the party has done/decided so far,
+    // offered as options — the DM advances the scene (advanceScene) only when the party chooses to.
+    let steering = '';
+    if (adv) {
+      const exits = (scene?.exits ?? []).map((id) => (adv.scenes[id] ? `${id} ("${adv.scenes[id].title}")` : id));
+      const beatsDone = Object.keys(state.flags).filter((k) => k.startsWith('beat:')).map((k) => k.slice(5));
+      const decisions = Object.entries(state.flags).filter(([k]) => k.startsWith('decision:')).map(([k, v]) => `${k.slice(9)}=${v}`);
+      steering =
+        `=== STEERING (soft — OFFER these as the fiction allows; never force. advanceScene only when the party goes there) ===\n` +
+        `Reachable beats from here: ${exits.join(', ') || '(none — this beat resolves the arc)'}\n` +
+        (beatsDone.length ? `Beats done: ${beatsDone.join(', ')}\n` : '') +
+        (decisions.length ? `Decisions so far: ${decisions.join(', ')}\n` : '') +
+        `\n`;
+    }
     messages = [
       {
         role: 'user',
         content:
           gmBlock +
+          steering +
           `=== CURRENT STATE (authoritative; from the engine) ===\n${summarizeState(state)}\n\n` +
           (recent ? `=== RECENT ===\n${recent}\n\n` : '') +
           `${input.speakerId}: ${input.text}`,
@@ -606,6 +649,20 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
         try {
           const r = engine.rollDeathSave(String(tc.input.combatantId ?? ''));
           resolved.push({ toolUseId: tc.id, content: JSON.stringify(r) });
+        } catch (e) {
+          resolved.push({ toolUseId: tc.id, content: JSON.stringify({ error: (e as Error).message }) });
+        }
+      } else if (tc.name === 'advanceScene') {
+        try {
+          const r = engine.advanceScene(String(tc.input.toSceneId ?? ''));
+          resolved.push({ toolUseId: tc.id, content: JSON.stringify({ advanced: true, ...r }) });
+        } catch (e) {
+          resolved.push({ toolUseId: tc.id, content: JSON.stringify({ advanced: false, error: (e as Error).message }) });
+        }
+      } else if (tc.name === 'setArcFlag') {
+        try {
+          engine.setArcFlag(String(tc.input.key ?? ''), typeof tc.input.value === 'string' ? tc.input.value : String(tc.input.value));
+          resolved.push({ toolUseId: tc.id, content: JSON.stringify({ ok: true }) });
         } catch (e) {
           resolved.push({ toolUseId: tc.id, content: JSON.stringify({ error: (e as Error).message }) });
         }
