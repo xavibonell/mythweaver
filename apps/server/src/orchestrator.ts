@@ -29,7 +29,8 @@ import {
   type ToolDef,
 } from '@mythweaver/llm';
 import type { Retriever } from '@mythweaver/rag';
-import { isEntityId, type DamageType, type EstablishScene, type FixtureDecl, type GameState, type NpcDecl, type PendingTurn, type SceneMap } from '@mythweaver/shared';
+import { isEntityId, type ArcBrief, type DamageType, type EstablishScene, type FixtureDecl, type GameState, type NpcDecl, type PendingTurn, type SceneMap } from '@mythweaver/shared';
+import type { ArcPlanner } from './arc-planner.js';
 import { CHARACTERS, PROMPT_PROPS, buildSceneMap, type SceneComposer } from '@mythweaver/scene';
 
 // Catalog tag hints surfaced to the DM in the setScene tool, so it declares real art tags
@@ -118,6 +119,8 @@ export interface OrchestratorDeps {
   tracer?: Tracer;
   /** Scene Composer for the visual layer (docs/SCENE-CONTRACTS.md). When present, the DM gets `setScene`. */
   composer?: SceneComposer;
+  /** Game Director (Phase D / D2). When present, the per-turn STEERING brief is (re)planned on triggers. */
+  arcPlanner?: ArcPlanner;
   /** Sampling temperature for the DM model (omit to use the provider default). Used by the DM Lab. */
   temperature?: number;
   /** Injectable clock for deterministic tests (defaults to Date.now). */
@@ -383,6 +386,27 @@ function serializeStateForModel(state: GameState): string {
   });
 }
 
+/** Render the Game Director's brief (D2) as the per-turn STEERING block — offers, never orders. */
+function steeringFromBrief(brief: ArcBrief, flags: Record<string, string | number | boolean>): string {
+  const beatsDone = Object.keys(flags).filter((k) => k.startsWith('beat:')).map((k) => k.slice(5));
+  const decisions = Object.entries(flags).filter(([k]) => k.startsWith('decision:')).map(([k, v]) => `${k.slice(9)}=${v}`);
+  const reach = brief.reachable.map((r) => `  - ${r.sceneId} — ${r.hook}`).join('\n');
+  return (
+    [
+      `=== STEERING (Game Director — soft; OFFER these as the fiction allows, never force. advanceScene only when the party goes there) ===`,
+      brief.activeBeatIntent ? `Now: ${brief.activeBeatIntent}` : '',
+      reach ? `Reachable beats:\n${reach}` : 'Reachable beats: (none — this beat resolves the arc)',
+      brief.bridgeNpcs?.length ? `Bridge NPCs available: ${brief.bridgeNpcs.map((n) => `${n.name} (${n.role})`).join('; ')}` : '',
+      brief.clocks?.length ? `Pressure: ${brief.clocks.join('; ')}` : '',
+      brief.notes ? `Director note: ${brief.notes}` : '',
+      beatsDone.length ? `Beats done: ${beatsDone.join(', ')}` : '',
+      decisions.length ? `Decisions: ${decisions.join(', ')}` : '',
+    ]
+      .filter(Boolean)
+      .join('\n') + '\n\n'
+  );
+}
+
 function pickTaskClass(state: GameState): TaskClass {
   return state.combat.active ? 'adjudication' : 'routine';
 }
@@ -519,10 +543,37 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
       ? `=== ADVENTURE (GM guidance — run this scene; reveal it through play, don't read aloud verbatim) ===\n` +
         `Premise: ${adv.pitch}\nCurrent scene — ${scene?.title ?? state.currentSceneId}: ${scene?.summary ?? ''}\n\n`
       : '';
-    // Soft arc steering (D1): the reachable next beats + what the party has done/decided so far,
-    // offered as options — the DM advances the scene (advanceScene) only when the party chooses to.
+    // Game Director (D2): re-plan the steering brief on a high-signal trigger (scene change, a new
+    // decision, or no brief yet), then steer from it. Runs inline; planner cost joins the turn.
+    if (deps.arcPlanner && adv) {
+      const arc = (state.arc ??= {});
+      const decisionCount = Object.keys(state.flags).filter((k) => k.startsWith('decision:')).length;
+      const due = !arc.brief || arc.plannedForScene !== state.currentSceneId || arc.plannedDecisionCount !== decisionCount;
+      if (due) {
+        try {
+          const { brief, costUsd: planCost } = await deps.arcPlanner.plan({
+            adventure: adv,
+            currentSceneId: state.currentSceneId,
+            flags: state.flags,
+            recentTranscript: deps.recentTranscript ?? [],
+            party: Object.values(state.combatants).filter((c) => c.kind === 'pc').map((c) => ({ name: c.name })),
+          });
+          arc.brief = brief;
+          arc.plannedForScene = state.currentSceneId;
+          arc.plannedDecisionCount = decisionCount;
+          costUsd += planCost;
+          toolCallLog.push('arcPlanner');
+          span.event('arcPlanner');
+        } catch {
+          /* keep the prior brief; the Director never breaks a turn */
+        }
+      }
+    }
+    // STEERING: the Director's brief (D2) when present, else the static D1 fallback (reachable exits).
     let steering = '';
-    if (adv) {
+    if (state.arc?.brief) {
+      steering = steeringFromBrief(state.arc.brief, state.flags);
+    } else if (adv) {
       const exits = (scene?.exits ?? []).map((id) => (adv.scenes[id] ? `${id} ("${adv.scenes[id].title}")` : id));
       const beatsDone = Object.keys(state.flags).filter((k) => k.startsWith('beat:')).map((k) => k.slice(5));
       const decisions = Object.entries(state.flags).filter(([k]) => k.startsWith('decision:')).map(([k, v]) => `${k.slice(9)}=${v}`);

@@ -17,6 +17,7 @@ import { labBuildScene, labComposeScene } from './scene-lab.js';
 import { runDmLab, createDmLabSession, dmLabSubmit, autoRollTotal, DM_LAB_TRANSCRIPTS, type LabTurn, type DmLabSession } from './dm-lab.js';
 import { renderDmLabPage } from './dm-lab-page.js';
 import { distillStyle, DISTILL_MAX_INPUT } from './distill.js';
+import { buildArcPlanner } from './arc-planner.js';
 
 const PORT = Number(process.env.PORT ?? 8080);
 // Bind to localhost by default; containers set HOST=0.0.0.0 (and should set a token).
@@ -51,6 +52,10 @@ const composer =
     ? new FakeSceneComposer()
     : new LlmSceneComposer(createProvider(dirName, dirModel ? { model: dirModel } : {}), dirModel);
 app.log.info(`Scene Composer: ${dirName}${dirModel ? ` (${dirModel})` : ''}`);
+
+// Game Director / arc planner (Phase D / D2) — MYTHWEAVER_ARC_PLANNER = llm (default) | fake | off.
+const arcPlanner = buildArcPlanner(llm);
+app.log.info(`Game Director (arc planner): ${arcPlanner ? 'on' : 'off'}`);
 
 app.addHook('onRequest', async (req, reply) => {
   reply.header('access-control-allow-origin', '*');
@@ -247,7 +252,7 @@ app.post('/dm/lab', async (req, reply) => {
   try {
     // Reuse the live DM provider + retriever; a deterministic FakeSceneComposer keeps the lab cheap.
     return await runDmLab(
-      { llm, retriever, composer: new FakeSceneComposer(), ...(playbook ? { playbook } : {}), ...(scenarioJson ? { scenarioJson } : {}), ...(temperature !== undefined ? { temperature } : {}), ...(startSceneId ? { startSceneId } : {}) },
+      { llm, retriever, composer: new FakeSceneComposer(), ...(arcPlanner ? { arcPlanner } : {}), ...(playbook ? { playbook } : {}), ...(scenarioJson ? { scenarioJson } : {}), ...(temperature !== undefined ? { temperature } : {}), ...(startSceneId ? { startSceneId } : {}) },
       scenario,
       turns,
     );
@@ -280,6 +285,7 @@ app.post('/dm/lab/session', async (req, reply) => {
         llm,
         ...(retriever ? { retriever } : {}),
         composer: new FakeSceneComposer(),
+        ...(arcPlanner ? { arcPlanner } : {}),
         ...(playbook ? { playbook } : {}),
         ...(scenarioJson ? { scenarioJson } : {}),
         ...(temperature !== undefined ? { temperature } : {}),
@@ -408,7 +414,7 @@ app.post('/sessions/:id/turn', async (req, reply) => {
   const recent = await db.recentMessages(id, 12);
 
   try {
-    const result = await runTurn({ engine, llm, recentTranscript: recent, playbook: loadPlaybook(), retriever, tracer, composer }, parsed);
+    const result = await runTurn({ engine, llm, recentTranscript: recent, playbook: loadPlaybook(), retriever, tracer, composer, ...(arcPlanner ? { arcPlanner } : {}) }, parsed);
 
     const state = engine.getState();
     const newSpent = spent + result.costUsd;

@@ -28,6 +28,7 @@ import type { GameState } from '@mythweaver/shared';
 import { loadScenario, parseScenario } from './content.js';
 import { buildRetriever } from './corpus.js';
 import { loadPlaybook } from './prompts.js';
+import { buildArcPlanner, type ArcPlanner } from './arc-planner.js';
 import { runTurn, type TurnInput, type TurnResult, type TurnRollRequest } from './orchestrator.js';
 
 /** A scripted lab turn: a player line, or a declared physical-dice total. */
@@ -78,6 +79,8 @@ export interface DmLabDeps {
   temperature?: number;
   /** Drop the party into a specific scene (e.g. the combat scene) instead of the scenario start. */
   startSceneId?: string;
+  /** Game Director (D2). When present, STEERING is (re)planned by the LLM on triggers. */
+  arcPlanner?: ArcPlanner;
 }
 
 /**
@@ -90,7 +93,8 @@ export function buildDmLabDeps(): DmLabDeps & { ragMode: string } {
   const model = process.env.MYTHWEAVER_DM_MODEL || undefined;
   const llm = createProvider(provider, model ? { model } : {});
   const { retriever, description: ragMode } = buildRetriever(null); // no DB needed for in-memory retrieval
-  return { llm, ...(retriever ? { retriever } : {}), composer: new FakeSceneComposer(), ragMode };
+  const arcPlanner = buildArcPlanner(llm);
+  return { llm, ...(retriever ? { retriever } : {}), composer: new FakeSceneComposer(), ...(arcPlanner ? { arcPlanner } : {}), ragMode };
 }
 
 /** Records each provider exchange so the lab can surface tool inputs + the results fed back. */
@@ -201,6 +205,7 @@ export interface DmLabSession {
   recorder: RecordingProvider;
   composer: SceneComposer;
   retriever?: Retriever;
+  arcPlanner?: ArcPlanner;
   playbook: string;
   temperature?: number;
   recent: string[];
@@ -240,6 +245,7 @@ export function createDmLabSession(deps: DmLabDeps, scenarioId: string): DmLabSe
     recorder: new RecordingProvider(deps.llm),
     composer: deps.composer ?? new FakeSceneComposer(),
     ...(deps.retriever ? { retriever: deps.retriever } : {}),
+    ...(deps.arcPlanner ? { arcPlanner: deps.arcPlanner } : {}),
     playbook: deps.playbook ?? loadPlaybook(),
     ...(deps.temperature !== undefined ? { temperature: deps.temperature } : {}),
     recent: [],
@@ -276,6 +282,7 @@ export async function dmLabSubmit(session: DmLabSession, input: { say: string; a
       llm: recorder,
       ...(session.retriever ? { retriever: session.retriever } : {}),
       composer,
+      ...(session.arcPlanner ? { arcPlanner: session.arcPlanner } : {}),
       playbook: session.playbook,
       recentTranscript: session.recent,
       ...(session.temperature !== undefined ? { temperature: session.temperature } : {}),

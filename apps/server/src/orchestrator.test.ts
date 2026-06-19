@@ -5,6 +5,7 @@ import { InMemoryRetriever } from '@mythweaver/rag';
 import { FakeSceneComposer, type SceneComposer } from '@mythweaver/scene';
 import { validateSceneMap, type CharacterSheet, type StatBlock } from '@mythweaver/shared';
 import { runTurn } from './orchestrator.js';
+import { FakeArcPlanner } from './arc-planner.js';
 
 function goblinStat(): StatBlock {
   return {
@@ -289,5 +290,29 @@ describe('orchestrator turn-loop', () => {
     expect(result.trace.toolCalls).toContain('advanceScene');
     expect(engine.getState().currentSceneId).toBe('tower');
     expect(engine.getState().flags['beat:green']).toBe('done');
+  });
+
+  it('Game Director (D2) re-plans + injects the STEERING brief into the DM prompt', async () => {
+    const state = createInitialState({
+      sessionId: 's1',
+      scenarioId: 'test',
+      startSceneId: 'green',
+      party: [fighter()],
+      adventure: { pitch: 'p', scenes: { green: { title: 'Green', summary: 'Dusk on the green.', exits: ['tower'] }, tower: { title: 'Tower', summary: '', exits: [] } } },
+    });
+    const engine = new Engine(state, () => 0.5);
+    const llm = new FakeLlmProvider([fakeText('Mist coils over the green.')]);
+
+    const result = await runTurn({ engine, llm, arcPlanner: new FakeArcPlanner(), now: frozenClock }, { kind: 'message', speakerId: 'Aldric', text: 'We look around.' });
+
+    expect(result.narration).toBe('Mist coils over the green.');
+    expect(result.trace.toolCalls).toContain('arcPlanner');
+    const arc = engine.getState().arc;
+    expect(arc?.brief?.activeBeatIntent).toBe('Dusk on the green.');
+    expect(arc?.plannedForScene).toBe('green');
+    // the brief was injected into the DM's per-turn prompt
+    const userMsg = String(llm.requests[0]!.messages[0]!.content);
+    expect(userMsg).toContain('STEERING (Game Director');
+    expect(userMsg).toContain('Dusk on the green.');
   });
 });

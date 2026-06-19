@@ -292,6 +292,23 @@ export interface EncounterDef {
   monsters: { statBlockId: string; count: number }[];
 }
 
+/**
+ * The Game Director's steering brief (Phase D / D2): non-canonical, regenerated guidance the turn DM
+ * reads. OFFERS ONLY — there is deliberately no imperative "do X" field (player agency is sacred).
+ */
+export interface ArcBrief {
+  /** One line on what this beat is really about / what's at stake now. */
+  activeBeatIntent: string;
+  /** 1-3 reachable next beats, each framed as an opportunity/pressure hook (sceneId is a real exit). */
+  reachable: { sceneId: string; hook: string }[];
+  /** Optional bridge NPCs to open a path toward a desired beat when there's a gap. */
+  bridgeNpcs?: { name: string; role: string }[];
+  /** Optional escalating-pressure notes ("clocks"/fronts). */
+  clocks?: string[];
+  /** Optional free-form director note (e.g. how the party's choices reshaped the plan). */
+  notes?: string;
+}
+
 export interface GameState {
   sessionId: string;
   scenarioId: string;
@@ -312,6 +329,13 @@ export interface GameState {
    *  lets the engine instantiate authored monsters without re-loading content. */
   encounters?: EncounterDef[];
   bestiary?: Record<string, StatBlock>;
+  /** Game Director state (Phase D): the cached steering brief + when it was last (re)planned.
+   *  Canonical decisions live in `flags` (decision:/beat:/npc:); this holds the volatile guidance. */
+  arc?: {
+    brief?: ArcBrief;
+    plannedForScene?: string;
+    plannedDecisionCount?: number;
+  };
   /** Persistent, lazily-generated, frozen world graph for the visual layer
    *  (docs/SCENE-CONTRACTS.md). Locations are generated once and reused on re-entry. */
   world?: WorldState;
