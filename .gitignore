@@ -19,3 +19,7 @@ content/corpus/
 # Raw third-party asset packs (curated subset extracted into apps/web/public/assets/).
 # CC0: kenney-tiny-* + tiny-creatures. Free-for-commercial: pixel-crawler (kept for cherry-picking).
 raw-packs/
+
+# Python bytecode (asset extractor / contact-sheet helpers)
+__pycache__/
+*.pyc
