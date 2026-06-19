@@ -156,7 +156,7 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
       <div class="convo" id="convo"><div class="empty-state">Start a session, then play turn by turn — the DM keeps the growing context.</div></div>
       <div class="inputbar">
         <div class="row" id="msgbar">
-          <input id="speaker" type="text" placeholder="who (optional)" style="width:130px" />
+          <select id="speaker" class="seg" style="width:160px" title="who is speaking"></select>
           <input id="msg" type="text" placeholder="What does the party do?  (Enter to send)" style="flex:1" />
           <button id="send" disabled>Send</button>
         </div>
@@ -312,6 +312,10 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
       sessionId = x.body.sessionId; pendingRoll = null;
       convo().innerHTML = '';
       addSys('Session started · scene "' + x.body.scene + '" · party: ' + (x.body.party || []).map(function (p) { return p.name; }).join(', '));
+      // Speaker dropdown: "The party" + every party member.
+      var sp = $('speaker'); sp.innerHTML = '';
+      var grp = document.createElement('option'); grp.value = 'The party'; grp.textContent = 'The party'; sp.appendChild(grp);
+      (x.body.party || []).forEach(function (p) { var o = document.createElement('option'); o.value = p.name; o.textContent = p.name; sp.appendChild(o); });
       setPending(null); setBusy(false);
       $('status').textContent = 'session live — talk to the DM';
       return true;
@@ -338,9 +342,9 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
   function sendMsg() {
     if (!sessionId || pendingRoll) return;
     var text = $('msg').value.trim(); if (!text) return;
-    var as = $('speaker').value.trim();
+    var as = $('speaker').value;
     $('msg').value = '';
-    addPlayer(as || 'player', text);
+    addPlayer(as || 'The party', text);
     var payload = { say: text }; if (as) payload.as = as;
     submitTurn(payload);
   }
