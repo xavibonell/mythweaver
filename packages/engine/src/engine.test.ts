@@ -170,3 +170,57 @@ describe('Engine — P2 combat', () => {
     expect(cs.order).toEqual(['npc:goblin-1', 'npc:goblin-2', 'pc:fighter']);
   });
 });
+
+describe('Engine — death saves & healing', () => {
+  it('downs a PC to dying (not dead) and begins death saves', () => {
+    const e = newEngine();
+    e.applyDamage({ targetId: 'pc:fighter', amount: 100, type: 'slashing' });
+    const f = e.getState().combatants['pc:fighter']!;
+    expect(f.currentHitPoints).toBe(0);
+    expect(f.downed).toBe(true);
+    expect(f.dead).toBeFalsy();
+    expect(f.deathSaves).toEqual({ successes: 0, failures: 0 });
+  });
+
+  it('a hit on a dying PC is a death-save failure; three failures = dead', () => {
+    const e = newEngine();
+    e.applyDamage({ targetId: 'pc:fighter', amount: 100, type: 'slashing' }); // downed, dying
+    e.applyDamage({ targetId: 'pc:fighter', amount: 5, type: 'slashing' });
+    e.applyDamage({ targetId: 'pc:fighter', amount: 5, type: 'slashing' });
+    expect(e.getState().combatants['pc:fighter']!.deathSaves!.failures).toBe(2);
+    expect(e.getState().combatants['pc:fighter']!.dead).toBeFalsy();
+    e.applyDamage({ targetId: 'pc:fighter', amount: 5, type: 'slashing' });
+    expect(e.getState().combatants['pc:fighter']!.dead).toBe(true);
+  });
+
+  it('healing a downed PC revives them and clears death saves', () => {
+    const e = newEngine();
+    e.applyDamage({ targetId: 'pc:fighter', amount: 100, type: 'slashing' });
+    expect(e.heal({ targetId: 'pc:fighter', amount: 6 }).current).toBe(6);
+    const f = e.getState().combatants['pc:fighter']!;
+    expect(f.downed).toBeFalsy();
+    expect(f.deathSaves).toBeUndefined();
+    expect(f.conditions).not.toContain('unconscious');
+  });
+
+  it('heal clamps at max HP', () => {
+    const e = newEngine();
+    e.applyDamage({ targetId: 'pc:fighter', amount: 4, type: 'slashing' }); // 12 -> 8
+    expect(e.heal({ targetId: 'pc:fighter', amount: 999 }).current).toBe(12);
+  });
+
+  it('rollDeathSave: >=10 success, nat 20 revives at 1 HP, nat 1 is two failures', () => {
+    const down = (rng: () => number) => {
+      const e = new Engine(createInitialState({ sessionId: 's', scenarioId: 't', startSceneId: 'x', party: [fighter()] }), rng);
+      e.applyDamage({ targetId: 'pc:fighter', amount: 100, type: 'slashing' });
+      return e;
+    };
+    expect(down(() => 0.5).rollDeathSave('pc:fighter')).toMatchObject({ status: 'dying', successes: 1, failures: 0 }); // d20=11
+
+    const nat20 = down(() => 0.99); // d20=20
+    expect(nat20.rollDeathSave('pc:fighter').status).toBe('revived');
+    expect(nat20.getState().combatants['pc:fighter']!.currentHitPoints).toBe(1);
+
+    expect(down(() => 0).rollDeathSave('pc:fighter').failures).toBe(2); // d20=1
+  });
+});

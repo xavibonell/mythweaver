@@ -211,8 +211,12 @@ export interface Combatant {
   temporaryHitPoints: number;
   armorClass: number;
   conditions: Condition[];
-  /** Set when reduced to 0 HP (P2). npcs are out of the fight; PCs would roll death saves (later). */
+  /** Set when reduced to 0 HP (P2). npcs are out of the fight; PCs are dying (death saves). */
   downed?: boolean;
+  /** Death-save tally while a PC is dying at 0 HP (3 successes = stable, 3 failures = dead). */
+  deathSaves?: { successes: number; failures: number };
+  /** Set when a PC fails three death saves. */
+  dead?: boolean;
   /** Damage modifiers — engine-owned, copied from the stat block when an npc is spawned (P2). */
   damageResistances?: DamageType[];
   damageImmunities?: DamageType[];

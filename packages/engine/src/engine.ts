@@ -110,11 +110,13 @@ export class Engine implements EngineTools {
 
   /**
    * Apply damage to a combatant (the engine owns HP). Honors immunity/resistance/vulnerability,
-   * soaks temporary HP first, clamps at 0, and marks a creature downed at 0 HP.
+   * soaks temporary HP first, clamps at 0, and marks a creature downed at 0 HP. A hit on an
+   * already-dying PC is an automatic death-save failure (three failures = dead).
    */
   applyDamage(args: { targetId: string; amount: number; type: DamageType }): { remaining: number; downed: boolean } {
     const c = this.state.combatants[args.targetId];
     if (!c) throw new Error(`Unknown combatant: ${args.targetId}`);
+    if (c.dead) return { remaining: 0, downed: true };
 
     const raw = Math.max(0, Math.floor(args.amount));
     let amount = raw;
@@ -122,6 +124,7 @@ export class Engine implements EngineTools {
     else if (c.damageResistances?.includes(args.type)) amount = Math.floor(raw / 2);
     else if (c.damageVulnerabilities?.includes(args.type)) amount = raw * 2;
 
+    const wasDyingPc = c.kind === 'pc' && c.currentHitPoints === 0;
     let toHp = amount;
     if (c.temporaryHitPoints > 0) {
       const soak = Math.min(c.temporaryHitPoints, toHp);
@@ -130,17 +133,93 @@ export class Engine implements EngineTools {
     }
     const before = c.currentHitPoints;
     c.currentHitPoints = Math.max(0, c.currentHitPoints - toHp);
+
+    // A struck dying PC fails a death save (no new HP loss possible, already at 0).
+    if (wasDyingPc && amount > 0) {
+      const ds = (c.deathSaves ??= { successes: 0, failures: 0 });
+      ds.failures += 1;
+      if (ds.failures >= 3) c.dead = true;
+    }
+
     const downed = c.currentHitPoints === 0;
     if (downed && !c.downed) {
       c.downed = true;
       if (!c.conditions.includes('unconscious')) c.conditions.push('unconscious');
+      if (c.kind === 'pc' && !c.deathSaves) c.deathSaves = { successes: 0, failures: 0 }; // dying: rolls begin
     }
     this.record(
       'engine',
-      `${c.name} takes ${amount} ${args.type} damage (${before} -> ${c.currentHitPoints} HP)${downed ? ' — downed' : ''}`,
-      { combatantId: c.id, field: 'currentHitPoints', before, after: c.currentHitPoints, type: args.type, raw, applied: amount, downed },
+      `${c.name} takes ${amount} ${args.type} damage (${before} -> ${c.currentHitPoints} HP)${c.dead ? ' — dead' : downed ? ' — downed' : ''}`,
+      { combatantId: c.id, field: 'currentHitPoints', before, after: c.currentHitPoints, type: args.type, raw, applied: amount, downed, dead: c.dead ?? false },
     );
     return { remaining: c.currentHitPoints, downed };
+  }
+
+  /** Restore hit points. Healing a creature above 0 ends the dying state and resets death saves. */
+  heal(args: { targetId: string; amount: number }): { current: number } {
+    const c = this.state.combatants[args.targetId];
+    if (!c) throw new Error(`Unknown combatant: ${args.targetId}`);
+    if (c.dead) throw new Error(`${c.name} is dead and cannot be healed by hit points.`);
+    const before = c.currentHitPoints;
+    c.currentHitPoints = Math.min(c.maxHitPoints, c.currentHitPoints + Math.max(0, Math.floor(args.amount)));
+    const revived = before === 0 && c.currentHitPoints > 0;
+    if (revived) {
+      c.downed = false;
+      delete c.deathSaves;
+      c.conditions = c.conditions.filter((x) => x !== 'unconscious');
+    }
+    this.record('engine', `${c.name} heals ${c.currentHitPoints - before} (${before} -> ${c.currentHitPoints} HP)${revived ? ' — back up' : ''}`, {
+      combatantId: c.id,
+      field: 'currentHitPoints',
+      before,
+      after: c.currentHitPoints,
+      revived,
+    });
+    return { current: c.currentHitPoints };
+  }
+
+  /**
+   * Roll a death save for a dying PC (d20): >=10 success, <10 failure; nat 20 revives at 1 HP;
+   * nat 1 is two failures. Three successes = stable; three failures = dead.
+   */
+  rollDeathSave(combatantId: string): { roll: number; successes: number; failures: number; status: 'dying' | 'stable' | 'revived' | 'dead' } {
+    const c = this.state.combatants[combatantId];
+    if (!c) throw new Error(`Unknown combatant: ${combatantId}`);
+    if (c.kind !== 'pc' || !c.downed || c.dead) throw new Error(`${c.name} is not making death saves.`);
+    const roll = this.rollDice('1d20');
+    const ds = (c.deathSaves ??= { successes: 0, failures: 0 });
+
+    let status: 'dying' | 'stable' | 'revived' | 'dead' = 'dying';
+    if (roll === 20) {
+      c.currentHitPoints = 1;
+      c.downed = false;
+      delete c.deathSaves;
+      c.conditions = c.conditions.filter((x) => x !== 'unconscious');
+      status = 'revived';
+    } else if (roll === 1) {
+      ds.failures += 2;
+    } else if (roll >= 10) {
+      ds.successes += 1;
+    } else {
+      ds.failures += 1;
+    }
+
+    if (status !== 'revived' && c.deathSaves) {
+      if (c.deathSaves.failures >= 3) {
+        c.dead = true;
+        status = 'dead';
+      } else if (c.deathSaves.successes >= 3) {
+        status = 'stable';
+      }
+    }
+    const tally = c.deathSaves ?? { successes: status === 'revived' ? 0 : 3, failures: 0 };
+    this.record('engine', `${c.name} death save: rolled ${roll} — ${status} (${tally.successes}✓/${tally.failures}✗)`, {
+      combatantId: c.id,
+      roll,
+      status,
+      ...tally,
+    });
+    return { roll, successes: tally.successes, failures: tally.failures, status };
   }
 
   /** Begin combat: set initiative on each named combatant and build the turn order (desc). */
