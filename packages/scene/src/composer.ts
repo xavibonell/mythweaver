@@ -300,21 +300,29 @@ function buildingTypeOf(tag: string): BuildingType | null {
  */
 function layoutBuildings(specs: { id: string; type: BuildingType; name?: string }[], cols: number, rows: number): Building[] {
   if (!specs.length) return [];
+  const { minW, maxW, minH, maxH, maxBuildings } = BUILDING_LIMITS;
+  const list = specs.slice(0, maxBuildings);
   const margin = 1;
   const gap = 1;
-  const bw = Math.min(BUILDING_LIMITS.maxW, Math.max(BUILDING_LIMITS.minW, Math.floor((cols - 2 * margin - 2 * gap) / 3))); // ~3 per row
-  const bh = Math.min(BUILDING_LIMITS.maxH, Math.max(BUILDING_LIMITS.minH, Math.floor((rows - 4) / 2))); // up to 2 rows; keep the bottom for plaza
+  const plazaH = Math.max(3, Math.floor(rows * 0.28)); // reserve the bottom band as walkable plaza
+  const bandH = rows - margin - plazaH; // vertical space available for building rows
+  // Fit ALL declared buildings: choose row count (≤ what fits at minH), then per-row count, then size
+  // the plots DOWN so nothing is dropped. Prefer one row for a few buildings, two rows for many.
+  const maxRowsThatFit = Math.max(1, Math.floor((bandH + gap) / (minH + gap)));
+  const rowsUsed = Math.min(maxRowsThatFit, list.length <= 4 ? 1 : 2);
+  const perRow = Math.ceil(list.length / rowsUsed);
+  const bw = Math.min(maxW, Math.max(minW, Math.floor((cols - 2 * margin - (perRow - 1) * gap) / perRow)));
+  const bh = Math.min(maxH, Math.max(minH, Math.floor((bandH - (rowsUsed - 1) * gap) / rowsUsed)));
   const out: Building[] = [];
-  let x = margin;
-  let y = margin;
-  for (const s of specs.slice(0, BUILDING_LIMITS.maxBuildings)) {
-    if (x + bw > cols - margin) {
-      x = margin;
-      y += bh + gap;
-    }
-    if (y + bh > rows - 3) break; // keep ≥3 bottom rows as walkable plaza/street
+  for (let i = 0; i < list.length; i++) {
+    const col = i % perRow;
+    const row = Math.floor(i / perRow);
+    if (row >= rowsUsed) break; // beyond the rows we can fit (only when count > perRow*rowsUsed)
+    const x = margin + col * (bw + gap);
+    const y = margin + row * (bh + gap);
+    if (x + bw > cols - margin || y + bh > rows - margin) continue; // safety: never out of bounds
+    const s = list[i]!;
     out.push({ id: s.id, type: s.type, rect: { x, y, w: bw, h: bh }, door: 'south', ...(s.name ? { name: s.name } : {}) });
-    x += bw + gap;
   }
   return out;
 }
@@ -427,7 +435,6 @@ function buildComposition(req: CompositionRequest, hints: CompositionHints): Sce
   // composer lays them out as non-overlapping plots; the consumed fixture is skipped from point
   // placement, and any field the model folded that fixture into is dropped (the rooms win).
   const buildingFixtures = grammar === 'town-square' ? e.fixtures.filter((f) => buildingTypeOf(f.tag)) : [];
-  const consumed = new Set(buildingFixtures.map((f) => f.id));
   const buildingSpecs = buildingFixtures.flatMap((f) => {
     const type = buildingTypeOf(f.tag)!;
     const plural = /s\s*$/i.test(f.tag.trim()); // "huts"/"cottages"/"houses" → several rooms
@@ -435,6 +442,9 @@ function buildComposition(req: CompositionRequest, hints: CompositionHints): Sce
     return Array.from({ length: n }, (_, i) => ({ id: n > 1 ? `${f.id}#${i + 1}` : f.id, type, name: f.tag }));
   });
   const buildings = layoutBuildings(buildingSpecs, gridCols, gridRows);
+  // Only fixtures that actually got a room are "consumed" (skipped from point placement). A fixture
+  // whose rooms all failed to fit falls back to a normal placement rather than vanishing from the scene.
+  const consumed = new Set(buildings.map((b) => b.id.split('#')[0]!));
 
   // Object fields the Director authored — expanded by the Cartographer into many children. A declared
   // entity whose id is used as a field idBase is REPRESENTED by that field, so it's not also placed

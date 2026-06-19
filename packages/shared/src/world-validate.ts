@@ -170,6 +170,13 @@ export function validateComposition(c: SceneComposition, e: EstablishScene, part
     const okRect = r && r.w >= 3 && r.h >= 3 && r.x >= 0 && r.y >= 0 && r.x + r.w <= c.grid.cols && r.y + r.h <= c.grid.rows;
     if (!okRect) v.push({ code: 'bad-building', message: 'building rect out of bounds or too small (min 3x3)', path: `${path}.rect` });
   }
+  // Building plots must not overlap — overlapping rooms would carve over each other (stacked walls/objects).
+  const brects = (c.buildings ?? []).map((b) => b?.rect).filter((r): r is NonNullable<typeof r> => !!r);
+  for (let i = 0; i < brects.length; i++)
+    for (let j = i + 1; j < brects.length; j++) {
+      const a = brects[i]!, z = brects[j]!;
+      if (a.x < z.x + z.w && a.x + a.w > z.x && a.y < z.y + z.h && a.y + a.h > z.y) v.push({ code: 'building-overlap', message: `building rects ${i} and ${j} overlap`, path: 'buildings' });
+    }
 
   // A declared entity is satisfied by a direct placement, a field idBase, OR a building id (a building
   // fixture is carved as a room). Otherwise it was dropped.
@@ -252,6 +259,17 @@ export function validateSceneMap(m: SceneMap, cat?: { tags?: ReadonlySet<string>
         v.push({ code: 'fixture-overlap', message: `fixtures "${a.id}" and "${b.id}" overlap`, path: 'objects' });
       }
     }
+  }
+
+  // No two SINGLE-CELL objects (props/actors) may share a tile. Multi-cell footprints (a boat platform
+  // the party stands ON, a 2×2 fountain) are excluded — actors legitimately occupy a platform's cells.
+  const cellOwner = new Map<string, string>();
+  for (const o of m.objects ?? []) {
+    if ((o.footprint?.w ?? 1) !== 1 || (o.footprint?.h ?? 1) !== 1) continue;
+    const k = `${o.col},${o.row}`;
+    const prev = cellOwner.get(k);
+    if (prev) v.push({ code: 'object-overlap', message: `objects "${prev}" and "${o.id}" share cell ${k}`, path: 'objects' });
+    else cellOwner.set(k, o.id);
   }
 
   for (const [i, a] of (m.ambiance ?? []).entries()) if (!within(a.col, a.row)) v.push({ code: 'out-of-bounds', message: `ambiance[${i}] off-grid`, path: `ambiance[${i}]` });

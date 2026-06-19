@@ -435,12 +435,18 @@ export function buildSceneMap(comp: SceneComposition): SceneMap {
   // template, and seat an occupant. Runs BEFORE entity placement so the floors/plaza are correct
   // when declared entities snap, and so furniture cells are reserved (occ) against overlap.
   let furnSeq = 0;
+  const carvedRects: Rect[] = [];
   for (const b of comp.buildings ?? []) {
     const rx = Math.max(0, Math.min(cols - 1, b.rect.x));
     const ry = Math.max(0, Math.min(rows - 1, b.rect.y));
     const rw = Math.min(cols - rx, b.rect.w);
     const rh = Math.min(rows - ry, b.rect.h);
     if (rw < 3 || rh < 3) continue; // too small to be a room
+    // Skip a building whose plot overlaps an already-carved one — carving it would reset the prior
+    // room's reserved cells and stack two objects on a tile. (The composer emits non-overlapping
+    // plots; this guards external callers / Director-authored rects.)
+    if (carvedRects.some((q) => rx < q.x + q.w && rx + rw > q.x && ry < q.y + q.h && ry + rh > q.y)) continue;
+    carvedRects.push({ x: rx, y: ry, w: rw, h: rh });
     // Child ids carry a kind-correct prefix (prop:/npc:) so they pass validation; `group` keeps the
     // building link. `safe` = the building id minus its prefix, sanitized.
     const safe = (b.id.includes(':') ? b.id.slice(b.id.indexOf(':') + 1) : b.id).replace(/[^a-z0-9_-]/gi, '-').toLowerCase() || 'bldg';
@@ -450,13 +456,19 @@ export function buildSceneMap(comp: SceneComposition): SceneMap {
         if (border) { tiles[y]![x] = 'wall'; walkable[y]![x] = false; occ[y]![x] = true; }
         else { tiles[y]![x] = 'stone'; walkable[y]![x] = true; occ[y]![x] = false; }
       }
-    // Door: middle of the chosen wall → floor + walkable; make sure the cell just OUTSIDE is open too.
+    // Door: the middle of a wall → floor + walkable, with the cell just OUTSIDE open. Try the declared
+    // side first, then fall back to any side whose outside cell is on-grid (an edge-flush rect would
+    // otherwise punch a door to nowhere).
     const midX = rx + Math.floor(rw / 2);
     const midY = ry + Math.floor(rh / 2);
-    let dC = midX, dR = ry + rh - 1, oC = midX, oR = ry + rh; // default: south wall
-    if (b.door === 'north') { dR = ry; oR = ry - 1; }
-    else if (b.door === 'east') { dC = rx + rw - 1; dR = midY; oC = rx + rw; oR = midY; }
-    else if (b.door === 'west') { dC = rx; dR = midY; oC = rx - 1; oR = midY; }
+    const doorFor = (side: string): { dC: number; dR: number; oC: number; oR: number } =>
+      side === 'north' ? { dC: midX, dR: ry, oC: midX, oR: ry - 1 }
+      : side === 'east' ? { dC: rx + rw - 1, dR: midY, oC: rx + rw, oR: midY }
+      : side === 'west' ? { dC: rx, dR: midY, oC: rx - 1, oR: midY }
+      : { dC: midX, dR: ry + rh - 1, oC: midX, oR: ry + rh }; // south
+    let door = doorFor(b.door);
+    if (!inB(door.oC, door.oR)) door = [b.door, 'south', 'north', 'east', 'west'].map(doorFor).find((d) => inB(d.oC, d.oR)) ?? door;
+    const { dC, dR, oC, oR } = door;
     tiles[dR]![dC] = 'stone'; walkable[dR]![dC] = true; occ[dR]![dC] = false;
     if (inB(oC, oR)) { walkable[oR]![oC] = true; occ[oR]![oC] = false; if (tiles[oR]![oC] === 'wall') tiles[oR]![oC] = 'dirt'; }
     entrances.push({ toLocationId: comp.locationId, col: dC, row: dR, ...(b.id ? { fixtureId: b.id } : {}) });
@@ -467,7 +479,9 @@ export function buildSceneMap(comp: SceneComposition): SceneMap {
     const interior: { c: number; r: number }[] = [];
     for (let y = iy; y < iy + ih; y++) for (let x = ix; x < ix + iw; x++) interior.push({ c: x, r: y });
     for (let i = interior.length - 1; i > 0; i--) { const j = Math.floor(rand() * (i + 1)); const t = interior[i]!; interior[i] = interior[j]!; interior[j] = t; }
-    const innerDoor = b.door === 'south' ? { c: dC, r: dR - 1 } : b.door === 'north' ? { c: dC, r: dR + 1 } : b.door === 'east' ? { c: dC - 1, r: dR } : { c: dC + 1, r: dR };
+    // The interior cell adjacent to the door — derived from the ACTUAL door position (which may have
+    // fallen back to a different side), kept clear so the room is never sealed at its only exit.
+    const innerDoor = dR === ry ? { c: dC, r: dR + 1 } : dR === ry + rh - 1 ? { c: dC, r: dR - 1 } : dC === rx ? { c: dC + 1, r: dR } : { c: dC - 1, r: dR };
     const keepClear = innerDoor.r * cols + innerDoor.c;
     const tmpl = BUILDING_TEMPLATES[b.type];
     const budget = Math.max(1, Math.floor((iw * ih) / 2)); // leave at least half the floor walkable
@@ -498,7 +512,9 @@ export function buildSceneMap(comp: SceneComposition): SceneMap {
     const occCell = takeCell(byCenter);
     if (occCell) {
       occ[occCell.r]![occCell.c] = true; // reserve (actor doesn't block walkable)
-      objects.push({ id: `npc:${safe}-keeper`, kind: 'actor', role: 'npc', tag: isCharacter(tmpl.occupant) ? tmpl.occupant : 'villager', ...(b.name ? { name: b.name } : {}), col: occCell.c, row: occCell.r, footprint: { w: 1, h: 1 }, facing: 'down', visible: true, group: b.id });
+      // The keeper is an individually-addressable NPC — NOT grouped with the furniture (a `group`
+      // would collapse it into an anonymous "×N" line in the DM digest, hiding its id/name/position).
+      objects.push({ id: `npc:${safe}-keeper`, kind: 'actor', role: 'npc', tag: isCharacter(tmpl.occupant) ? tmpl.occupant : 'villager', ...(b.name ? { name: b.name } : {}), col: occCell.c, row: occCell.r, footprint: { w: 1, h: 1 }, facing: 'down', visible: true });
     }
   }
 

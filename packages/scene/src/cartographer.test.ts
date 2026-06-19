@@ -311,10 +311,10 @@ describe('buildSceneMap (Cartographer)', () => {
     // A door Entrance links the building.
     const door = m.entrances.find((e) => e.fixtureId === 'bldg:shop');
     expect(door).toBeTruthy();
-    // Furniture + a keeper were placed inside, grouped under the building.
-    const inside = m.objects.filter((o) => o.group === 'bldg:shop');
-    expect(inside.some((o) => o.kind === 'actor')).toBe(true); // keeper
-    expect(inside.filter((o) => o.kind === 'prop').length).toBeGreaterThan(0); // furniture
+    // Furniture is grouped under the building; the keeper is an individual NPC (ungrouped, so the DM
+    // digest lists it by id/name rather than collapsing it into an anonymous "×N").
+    expect(m.objects.filter((o) => o.group === 'bldg:shop' && o.kind === 'prop').length).toBeGreaterThan(0); // furniture
+    expect(m.objects.some((o) => o.kind === 'actor' && o.id === 'npc:shop-keeper')).toBe(true); // keeper
     // CONNECTIVITY: every actor (incl. the shop keeper) is reachable from the hero via walkable tiles.
     const { cols, rows } = m.grid;
     const start = m.objects.find((o) => o.role === 'pc')!;
