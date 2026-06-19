@@ -38,11 +38,15 @@ npm run up                  # docker compose (db + server + web). Sets HOST=0.0.
 Verify: `curl http://localhost:6984/health` → `{"ok":true}`.
 
 ## The DM-tuning workbench (this is the main current focus)
-- **DM Lab (web):** http://localhost:6984/dm/lab — drive scripted turns through the real DM; inspect
-  narration + tool calls (inputs & results) + state diffs + cost. Tabs: **Run / Playbook / Scenario /
-  Distill**. Live-edit the playbook & scenario (applied per-run even unsaved; Save persists),
-  a **temperature** knob, and **Distill** (paste/upload transcripts→voice or a guide→principles, with
-  a git-style **Diff** preview before applying). Code: `apps/server/src/dm-lab.ts` + `dm-lab-page.ts`.
+- **DM Lab (web):** http://localhost:6984/dm/lab. Tabs: **Run / Playbook / Scenario / Distill**.
+  **Run is an interactive chat** — New session, then play **turn by turn** with accumulating context;
+  each DM reply shows narration + tool calls (inputs & results) + state diff + cost, and an inline
+  **roll bar** (Declare / Auto-roll) appears when the DM asks for a roll. A **Start-scene** picker
+  drops the party into any scene (e.g. the fight) and combat is fully wired (`startEncounter` /
+  `applyDamage` / `heal` / `rollDeathSave`). Live-edit the playbook & scenario (a session captures
+  them at creation; new session to apply), a **temperature** knob, and **Distill** (paste/upload
+  transcripts→voice or a guide→principles, with a git-style **Diff** preview). Code:
+  `apps/server/src/dm-lab.ts` + `dm-lab-page.ts`; endpoints `POST /dm/lab/session(/:id/turn)`.
 - **DM Lab (CLI):** `npm run dm:lab` (built-in transcripts `default`/`edges`, or `--script file.json`).
 - **Evals:** `npm run eval` (gate vs `apps/server/src/eval/baseline.json`) · `npm run eval:update`
   (re-pin baseline). **Real API calls (~$0.3).** 6-dim LLM judge + deterministic tool-use assertions.
