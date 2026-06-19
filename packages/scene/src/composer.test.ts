@@ -41,14 +41,14 @@ describe('FakeSceneComposer', () => {
     expect(validateSceneMap(buildSceneMap(comp))).toEqual({ ok: true, violations: [] });
   });
 
-  it('builds a town-square with no anchors: fountain centred, houses lining the back', async () => {
+  it('town-square: structure fixtures become carved walled ROOMS (not facade sprites), fountain centred', async () => {
     const est: EstablishScene = {
       locationId: 'loc:harbor',
       brief: { setting: 'a seaside village square', biome: 'village', timeOfDay: 'day' },
       fixtures: [
         { id: 'prop:fountain', kind: 'prop', tag: 'fountain' },
-        { id: 'bldg:h1', kind: 'fixture', tag: 'house_red' },
-        { id: 'bldg:h2', kind: 'fixture', tag: 'house_blue' },
+        { id: 'bldg:h1', kind: 'fixture', tag: 'cottage' },
+        { id: 'bldg:h2', kind: 'fixture', tag: 'smithy' },
         { id: 'prop:stall', kind: 'prop', tag: 'market_stall' },
       ],
       npcs: [{ id: 'npc:elder', name: 'Elder', look: 'an old villager', visible: true }],
@@ -56,13 +56,25 @@ describe('FakeSceneComposer', () => {
     const comp = await new FakeSceneComposer().compose({ establish: est, party, seed: 5 });
     expect(comp.grammar).toBe('town-square');
     expect(comp.placements.find((p) => p.id === 'prop:fountain')!.anchor).toBe('center'); // tag default
-    expect(comp.placements.find((p) => p.id === 'bldg:h1')!.zone).toBe('building-row');
+    // Building fixtures are carved as rooms — NOT placed as point sprites (the facade-tower bug).
+    expect(comp.placements.find((p) => p.id === 'bldg:h1')).toBeUndefined();
+    expect(comp.buildings?.map((b) => b.id)).toEqual(['bldg:h1', 'bldg:h2']);
+    expect(comp.buildings?.find((b) => b.id === 'bldg:h1')?.type).toBe('house');
+    expect(comp.buildings?.find((b) => b.id === 'bldg:h2')?.type).toBe('smithy');
     const m = buildSceneMap(comp);
     expect(validateSceneMap(m)).toEqual({ ok: true, violations: [] });
     const fo = m.objects.find((o) => o.id === 'prop:fountain')!;
     expect(Math.abs(fo.col - m.grid.cols / 2)).toBeLessThanOrEqual(3); // near centre
     expect(Math.abs(fo.row - m.grid.rows / 2)).toBeLessThanOrEqual(3);
-    expect(m.objects.find((o) => o.id === 'bldg:h1')!.row).toBeLessThan(Math.floor(m.grid.rows * 0.4)); // up in the building-row band
+    // Each building rendered as a roofless room: a wall ring, a walkable interior floor, a door
+    // Entrance, and grouped interior objects (furniture + keeper).
+    const b1 = comp.buildings!.find((b) => b.id === 'bldg:h1')!;
+    expect(m.tiles[b1.rect.y]![b1.rect.x]).toBe('wall'); // corner of the ring
+    let floorWalkable = 0;
+    for (let y = b1.rect.y + 1; y < b1.rect.y + b1.rect.h - 1; y++) for (let x = b1.rect.x + 1; x < b1.rect.x + b1.rect.w - 1; x++) if (m.walkable[y]![x]) floorWalkable++;
+    expect(floorWalkable).toBeGreaterThan(0); // never sealed solid by furniture
+    expect(m.entrances.some((en) => en.fixtureId === 'bldg:h1')).toBe(true);
+    expect(m.objects.some((o) => o.group === 'bldg:h1')).toBe(true);
   });
 
   it('routes a dungeon brief to the enclosed-interior grammar', async () => {

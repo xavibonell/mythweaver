@@ -12,6 +12,7 @@
 
 import { FEET_PER_TILE } from './scene.js';
 import {
+  BUILDING_TYPES,
   GRAMMAR_ZONES,
   GRID_LIMITS,
   LAYOUT_GRAMMARS,
@@ -156,9 +157,23 @@ export function validateComposition(c: SceneComposition, e: EstablishScene, part
     if (KIND_BY_PREFIX[fpref] && f?.kind !== KIND_BY_PREFIX[fpref]) v.push({ code: 'kind-prefix-mismatch', message: `field id "${f?.idBase}" implies kind "${KIND_BY_PREFIX[fpref]}" but kind is "${f?.kind}"`, path: `${path}.kind` });
   }
 
-  // A declared entity is satisfied either by a direct placement OR by being a field's idBase (a
-  // field expands it into children). Otherwise it was dropped.
-  for (const id of required) if (!placed.has(id) && !fieldBases.has(id)) v.push({ code: 'missing-placement', message: `entity "${id}" was not placed`, path: 'placements' });
+  // Buildings — settlement structures the Cartographer carves as walled rooms. A declared building
+  // fixture is satisfied by its Building entry (not a 1:1 placement). Validate the rects are sane.
+  const buildingBases = new Set<string>();
+  for (const [i, b] of (c.buildings ?? []).entries()) {
+    const path = `buildings[${i}]`;
+    if (typeof b?.id !== 'string') v.push({ code: 'bad-building', message: 'building id must be a string', path: `${path}.id` });
+    else { buildingBases.add(b.id); buildingBases.add(b.id.split('#')[0]!); } // root satisfies a plural-expanded fixture
+    if (!(BUILDING_TYPES as readonly string[]).includes(b?.type)) v.push({ code: 'bad-building', message: `invalid building type "${b?.type}"`, path: `${path}.type` });
+    if (!['north', 'south', 'east', 'west'].includes(b?.door)) v.push({ code: 'bad-building', message: `invalid door "${b?.door}"`, path: `${path}.door` });
+    const r = b?.rect;
+    const okRect = r && r.w >= 3 && r.h >= 3 && r.x >= 0 && r.y >= 0 && r.x + r.w <= c.grid.cols && r.y + r.h <= c.grid.rows;
+    if (!okRect) v.push({ code: 'bad-building', message: 'building rect out of bounds or too small (min 3x3)', path: `${path}.rect` });
+  }
+
+  // A declared entity is satisfied by a direct placement, a field idBase, OR a building id (a building
+  // fixture is carved as a room). Otherwise it was dropped.
+  for (const id of required) if (!placed.has(id) && !fieldBases.has(id) && !buildingBases.has(id)) v.push({ code: 'missing-placement', message: `entity "${id}" was not placed`, path: 'placements' });
 
   const d = c.ambiance?.density;
   if (!(typeof d === 'number' && d >= 0 && d <= 1)) v.push({ code: 'bad-density', message: 'ambiance.density must be 0..1', path: 'ambiance.density' });

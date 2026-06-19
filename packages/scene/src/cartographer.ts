@@ -12,6 +12,9 @@ import {
   FEET_PER_TILE,
   FIELD_LIMITS,
   type AmbianceItem,
+  type Building,
+  type BuildingType,
+  type Entrance,
   type LayoutGrammar,
   type MapObject,
   type ObjectField,
@@ -19,7 +22,26 @@ import {
   type SceneComposition,
   type SceneMap,
 } from '@mythweaver/shared';
-import { propDef, terrainWalkable } from './catalog.js';
+import { isCharacter, propDef, terrainWalkable } from './catalog.js';
+
+/**
+ * Per-type interior furniture + an occupant. DawnLike decor is mostly 1×1, so a "counter" is a row
+ * of tables — the engine places each as a single prop. `where`: back = top interior row; corner =
+ * the interior corners; center = the middle; scatter = random free floor. Tags are catalog props;
+ * occupants are catalog characters. This is what makes a room read as a lived-in shop/home/temple.
+ */
+interface FurnSpec {
+  tag: string;
+  where: 'back' | 'corner' | 'center' | 'scatter';
+  count?: number;
+}
+const BUILDING_TEMPLATES: Record<BuildingType, { occupant: string; items: FurnSpec[] }> = {
+  house: { occupant: 'villager', items: [{ tag: 'table', where: 'center' }, { tag: 'chest', where: 'corner' }, { tag: 'barrel', where: 'corner' }] },
+  shop: { occupant: 'villager', items: [{ tag: 'table', where: 'back', count: 2 }, { tag: 'crate', where: 'scatter', count: 2 }, { tag: 'barrel', where: 'scatter', count: 2 }, { tag: 'chest', where: 'corner' }] },
+  tavern: { occupant: 'villager_woman', items: [{ tag: 'table', where: 'scatter', count: 3 }, { tag: 'barrel', where: 'corner', count: 2 }, { tag: 'brazier', where: 'center' }] },
+  temple: { occupant: 'wizard', items: [{ tag: 'altar', where: 'back' }, { tag: 'brazier', where: 'corner', count: 2 }, { tag: 'table', where: 'scatter', count: 2 }] },
+  smithy: { occupant: 'dwarf', items: [{ tag: 'table', where: 'center' }, { tag: 'brazier', where: 'back' }, { tag: 'barrel', where: 'corner' }, { tag: 'crate', where: 'corner' }] },
+};
 
 interface Rect {
   x: number;
@@ -406,6 +428,80 @@ export function buildSceneMap(comp: SceneComposition): SceneMap {
   });
 
   const objects: MapObject[] = [];
+  const entrances: Entrance[] = [];
+
+  // BUILDINGS → roofless WALLED ROOMS. Carve each plot into a wall ring + stone floor, punch ONE
+  // door (connecting interior↔outside), record an Entrance, furnish the interior from the per-type
+  // template, and seat an occupant. Runs BEFORE entity placement so the floors/plaza are correct
+  // when declared entities snap, and so furniture cells are reserved (occ) against overlap.
+  let furnSeq = 0;
+  for (const b of comp.buildings ?? []) {
+    const rx = Math.max(0, Math.min(cols - 1, b.rect.x));
+    const ry = Math.max(0, Math.min(rows - 1, b.rect.y));
+    const rw = Math.min(cols - rx, b.rect.w);
+    const rh = Math.min(rows - ry, b.rect.h);
+    if (rw < 3 || rh < 3) continue; // too small to be a room
+    // Child ids carry a kind-correct prefix (prop:/npc:) so they pass validation; `group` keeps the
+    // building link. `safe` = the building id minus its prefix, sanitized.
+    const safe = (b.id.includes(':') ? b.id.slice(b.id.indexOf(':') + 1) : b.id).replace(/[^a-z0-9_-]/gi, '-').toLowerCase() || 'bldg';
+    for (let y = ry; y < ry + rh; y++)
+      for (let x = rx; x < rx + rw; x++) {
+        const border = x === rx || y === ry || x === rx + rw - 1 || y === ry + rh - 1;
+        if (border) { tiles[y]![x] = 'wall'; walkable[y]![x] = false; occ[y]![x] = true; }
+        else { tiles[y]![x] = 'stone'; walkable[y]![x] = true; occ[y]![x] = false; }
+      }
+    // Door: middle of the chosen wall → floor + walkable; make sure the cell just OUTSIDE is open too.
+    const midX = rx + Math.floor(rw / 2);
+    const midY = ry + Math.floor(rh / 2);
+    let dC = midX, dR = ry + rh - 1, oC = midX, oR = ry + rh; // default: south wall
+    if (b.door === 'north') { dR = ry; oR = ry - 1; }
+    else if (b.door === 'east') { dC = rx + rw - 1; dR = midY; oC = rx + rw; oR = midY; }
+    else if (b.door === 'west') { dC = rx; dR = midY; oC = rx - 1; oR = midY; }
+    tiles[dR]![dC] = 'stone'; walkable[dR]![dC] = true; occ[dR]![dC] = false;
+    if (inB(oC, oR)) { walkable[oR]![oC] = true; occ[oR]![oC] = false; if (tiles[oR]![oC] === 'wall') tiles[oR]![oC] = 'dirt'; }
+    entrances.push({ toLocationId: comp.locationId, col: dC, row: dR, ...(b.id ? { fixtureId: b.id } : {}) });
+
+    // FURNISH the interior from the per-type template; keep the door's inner cell clear so the room
+    // is never sealed. Furniture blocks its tile; the occupant stands on floor (doesn't block).
+    const ix = rx + 1, iy = ry + 1, iw = rw - 2, ih = rh - 2;
+    const interior: { c: number; r: number }[] = [];
+    for (let y = iy; y < iy + ih; y++) for (let x = ix; x < ix + iw; x++) interior.push({ c: x, r: y });
+    for (let i = interior.length - 1; i > 0; i--) { const j = Math.floor(rand() * (i + 1)); const t = interior[i]!; interior[i] = interior[j]!; interior[j] = t; }
+    const innerDoor = b.door === 'south' ? { c: dC, r: dR - 1 } : b.door === 'north' ? { c: dC, r: dR + 1 } : b.door === 'east' ? { c: dC - 1, r: dR } : { c: dC + 1, r: dR };
+    const keepClear = innerDoor.r * cols + innerDoor.c;
+    const tmpl = BUILDING_TEMPLATES[b.type];
+    const budget = Math.max(1, Math.floor((iw * ih) / 2)); // leave at least half the floor walkable
+    const byBack = (cells: { c: number; r: number }[]) => cells.filter((c) => c.r === iy);
+    const byCorner = (cells: { c: number; r: number }[]) => cells.filter((c) => (c.c === ix || c.c === ix + iw - 1) && (c.r === iy || c.r === iy + ih - 1));
+    const byCenter = (cells: { c: number; r: number }[]) => [...cells].sort((a, z) => Math.abs(a.c - midX) + Math.abs(a.r - midY) - (Math.abs(z.c - midX) + Math.abs(z.r - midY)));
+    const takeCell = (pref?: (cells: { c: number; r: number }[]) => { c: number; r: number }[]): { c: number; r: number } | null => {
+      for (const cell of pref ? pref(interior) : interior) {
+        if (cell.r * cols + cell.c === keepClear) continue;
+        if (!inB(cell.c, cell.r) || occ[cell.r]![cell.c] || !walkable[cell.r]![cell.c]) continue;
+        return cell;
+      }
+      return null;
+    };
+    let placedFurn = 0;
+    for (const item of tmpl.items) {
+      for (let k = 0; k < (item.count ?? 1); k++) {
+        if (placedFurn >= budget) break;
+        const pref = item.where === 'back' ? byBack : item.where === 'corner' ? byCorner : item.where === 'center' ? byCenter : undefined;
+        const cell = takeCell(pref) ?? takeCell();
+        if (!cell) break;
+        occ[cell.r]![cell.c] = true;
+        walkable[cell.r]![cell.c] = false; // furniture blocks its tile
+        objects.push({ id: `prop:${safe}#${(furnSeq++).toString().padStart(2, '0')}`, kind: 'prop', tag: item.tag, col: cell.c, row: cell.r, footprint: { w: 1, h: 1 }, facing: 'down', visible: true, group: b.id });
+        placedFurn++;
+      }
+    }
+    const occCell = takeCell(byCenter);
+    if (occCell) {
+      occ[occCell.r]![occCell.c] = true; // reserve (actor doesn't block walkable)
+      objects.push({ id: `npc:${safe}-keeper`, kind: 'actor', role: 'npc', tag: isCharacter(tmpl.occupant) ? tmpl.occupant : 'villager', ...(b.name ? { name: b.name } : {}), col: occCell.c, row: occCell.r, footprint: { w: 1, h: 1 }, facing: 'down', visible: true, group: b.id });
+    }
+  }
+
   for (const p of order) {
     // PLATFORM (boat/raft/bridge): may sit ON water — anchor at its painted cell (or the nearest water
     // tile) WITHOUT snapping to land, and make its whole footprint walkable so the party can board it.
@@ -573,6 +669,48 @@ export function buildSceneMap(comp: SceneComposition): SceneMap {
     for (const [dx, dy] of ORTH4) { const cc = o.col + dx, rr = o.row + dy; if (inB(cc, rr) && !occ[rr]![cc]) { walkable[rr]![cc] = true; break; } }
   }
 
+  // GLOBAL REACHABILITY: a walled settlement must never seal off an actor or a door. BFS the
+  // walkable graph from a PC (or the open plaza); for any actor/entrance cut off from it, carve an
+  // L-shaped corridor (opening walls) to the nearest reachable cell. Only needed when buildings exist.
+  if ((comp.buildings?.length ?? 0) > 0) {
+    const idx = (c: number, r: number) => r * cols + c;
+    const bfs = (start: { c: number; r: number }): Set<number> => {
+      const seen = new Set<number>();
+      if (!inB(start.c, start.r) || !walkable[start.r]![start.c]) return seen;
+      const q = [start];
+      seen.add(idx(start.c, start.r));
+      while (q.length) {
+        const cur = q.shift()!;
+        for (const [dx, dy] of ORTH4) {
+          const cc = cur.c + dx, rr = cur.r + dy;
+          if (inB(cc, rr) && walkable[rr]![cc] && !seen.has(idx(cc, rr))) { seen.add(idx(cc, rr)); q.push({ c: cc, r: rr }); }
+        }
+      }
+      return seen;
+    };
+    let start: { c: number; r: number } | null = null;
+    for (const o of objects) if (o.role === 'pc' && walkable[o.row]?.[o.col]) { start = { c: o.col, r: o.row }; break; }
+    if (!start) for (let r = rows - 1; r >= 0 && !start; r--) for (let c = 0; c < cols && !start; c++) if (walkable[r]![c]) start = { c, r };
+    if (start) {
+      let reach = bfs(start);
+      const carve = (from: { c: number; r: number }, to: { c: number; r: number }): void => {
+        let c = from.c, r = from.r;
+        const open = (): void => { if (inB(c, r)) { walkable[r]![c] = true; if (tiles[r]![c] === 'wall') tiles[r]![c] = 'dirt'; } };
+        open();
+        while (c !== to.c) { c += c < to.c ? 1 : -1; open(); }
+        while (r !== to.r) { r += r < to.r ? 1 : -1; open(); }
+      };
+      const targets = [...objects.filter((o) => o.kind === 'actor').map((o) => ({ c: o.col, r: o.row })), ...entrances.map((e2) => ({ c: e2.col, r: e2.row }))];
+      for (const t of targets) {
+        if (reach.has(idx(t.c, t.r))) continue;
+        let best: { c: number; r: number } | null = null;
+        let bestD = Infinity;
+        for (const k of reach) { const c = k % cols, r = (k - c) / cols; const d = Math.abs(c - t.c) + Math.abs(r - t.r); if (d < bestD) { bestD = d; best = { c, r }; } }
+        if (best) { carve(t, best); reach = bfs(start); }
+      }
+    }
+  }
+
   // Ambiance. In blockout mode the forest fill IS the ambiance (already placed, intentionally dense);
   // otherwise seed-scatter decor biased to the PERIMETER so the playable middle stays legible, and
   // hard-capped so a village never reads as a forest. Tree sprites are tall/wide, so a little goes far.
@@ -604,6 +742,6 @@ export function buildSceneMap(comp: SceneComposition): SceneMap {
     walkable,
     objects,
     ambiance,
-    entrances: [], // building entrances arrive with the buildings/interiors phase
+    entrances,
   };
 }

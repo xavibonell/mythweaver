@@ -15,11 +15,15 @@ import type { LlmProvider } from '@mythweaver/llm';
 import {
   BIOMES,
   BLOCKOUT_CHARS,
+  BUILDING_LIMITS,
+  BUILDING_TYPES,
   FIELD_LIMITS,
   GRAMMAR_ZONES,
   GRID_LIMITS,
   LAYOUT_GRAMMARS,
   isValidAnchor,
+  type Building,
+  type BuildingType,
   type CompositionRequest,
   type Facing,
   type FieldArrangement,
@@ -270,6 +274,51 @@ function clampInt(v: unknown, min: number, max: number, dflt: number): number {
   return Math.min(max, Math.max(min, n));
 }
 
+/**
+ * Classify a DM-declared structure tag into a BuildingType (or null = not a building). A building
+ * fixture becomes a WALLED ROOM the Cartographer carves + furnishes, not a facade sprite. Order
+ * matters — the specific types (tavern/smithy/temple/shop) win over the generic 'house'.
+ */
+const BUILDING_TAG_TYPE: [RegExp, BuildingType][] = [
+  [/tavern|inn|alehouse|pub|brewery|lodge/, 'tavern'],
+  [/smith|forge|foundry|blacksmith|workshop/, 'smithy'],
+  [/temple|shrine|church|chapel|cathedral|sanctuary|abbey|monastery/, 'temple'],
+  [/shop|store|market.?house|emporium|trading.?post|apothecary|bakery|butcher|tailor|bank|guildhall|general.?store/, 'shop'],
+  [/house|home|cottage|hut|cabin|hovel|shack|dwelling|residence|longhouse|manor|hall|farmhouse|barn|mill|tower/, 'house'],
+];
+function buildingTypeOf(tag: string): BuildingType | null {
+  const r = tag.toLowerCase().replace(/_/g, ' ');
+  for (const [re, type] of BUILDING_TAG_TYPE) if (re.test(r)) return type;
+  return null;
+}
+
+/**
+ * Lay out building footprints as non-overlapping plots packed into the upper area of the grid, left
+ * to right, wrapping to a second row, with 1-tile street gaps and the bottom rows kept open for a
+ * plaza. Deterministic (no RNG) — same fixtures → same town. Door faces SOUTH (toward the plaza).
+ * The Cartographer carves each plot into a roofless walled room with a door + furniture.
+ */
+function layoutBuildings(specs: { id: string; type: BuildingType; name?: string }[], cols: number, rows: number): Building[] {
+  if (!specs.length) return [];
+  const margin = 1;
+  const gap = 1;
+  const bw = Math.min(BUILDING_LIMITS.maxW, Math.max(BUILDING_LIMITS.minW, Math.floor((cols - 2 * margin - 2 * gap) / 3))); // ~3 per row
+  const bh = Math.min(BUILDING_LIMITS.maxH, Math.max(BUILDING_LIMITS.minH, Math.floor((rows - 4) / 2))); // up to 2 rows; keep the bottom for plaza
+  const out: Building[] = [];
+  let x = margin;
+  let y = margin;
+  for (const s of specs.slice(0, BUILDING_LIMITS.maxBuildings)) {
+    if (x + bw > cols - margin) {
+      x = margin;
+      y += bh + gap;
+    }
+    if (y + bh > rows - 3) break; // keep ≥3 bottom rows as walkable plaza/street
+    out.push({ id: s.id, type: s.type, rect: { x, y, w: bw, h: bh }, door: 'south', ...(s.name ? { name: s.name } : {}) });
+    x += bw + gap;
+  }
+  return out;
+}
+
 // ---------------------------------------------------------------------------
 // FakeSceneComposer — deterministic
 // ---------------------------------------------------------------------------
@@ -365,15 +414,37 @@ function buildComposition(req: CompositionRequest, hints: CompositionHints): Sce
   const hintById = new Map<string, { zone?: unknown; anchor?: unknown }>();
   for (const p of hints.placements ?? []) if (typeof p?.id === 'string') hintById.set(p.id, p);
 
+  // The Director paints EVERY scene kind now; the Cartographer renders FROM the blockout when usable,
+  // else falls back to the deterministic zone layout. Parsed up-front so the building layout + the
+  // returned grid agree on dimensions.
+  const blockout = parseBlockout(hints.blockout, knownIds);
+  const gridCols = blockout ? blockout.cols : cols;
+  const gridRows = blockout ? blockout.rows : rows;
+
+  // BUILDINGS: in a settlement, a fixture whose tag names a STRUCTURE (smithy/tavern/cottage/…)
+  // becomes a walled ROOM the Cartographer carves + furnishes — NOT a facade sprite (which top-down
+  // reads as a tower). A PLURAL structure ("reed huts", "cottages") expands to a few rooms. The
+  // composer lays them out as non-overlapping plots; the consumed fixture is skipped from point
+  // placement, and any field the model folded that fixture into is dropped (the rooms win).
+  const buildingFixtures = grammar === 'town-square' ? e.fixtures.filter((f) => buildingTypeOf(f.tag)) : [];
+  const consumed = new Set(buildingFixtures.map((f) => f.id));
+  const buildingSpecs = buildingFixtures.flatMap((f) => {
+    const type = buildingTypeOf(f.tag)!;
+    const plural = /s\s*$/i.test(f.tag.trim()); // "huts"/"cottages"/"houses" → several rooms
+    const n = plural ? 3 : 1;
+    return Array.from({ length: n }, (_, i) => ({ id: n > 1 ? `${f.id}#${i + 1}` : f.id, type, name: f.tag }));
+  });
+  const buildings = layoutBuildings(buildingSpecs, gridCols, gridRows);
+
   // Object fields the Director authored — expanded by the Cartographer into many children. A declared
   // entity whose id is used as a field idBase is REPRESENTED by that field, so it's not also placed
-  // as a single object (the field replaces it; everything else is an additive Director-made group).
-  const fields = parseFields(hints.fields);
+  // as a single object. Fields for a CONSUMED building fixture are dropped (the building replaces it).
+  const fields = parseFields(hints.fields).filter((f) => !consumed.has(f.idBase));
   const fieldBases = new Set(fields.map((f) => f.idBase));
 
   const placements: Placement[] = [];
   const push = (id: string, kind: Placement['kind'], role: Placement['role'], tag: string, name: string | undefined, visible: boolean, declaredAnchor: string | undefined) => {
-    if (fieldBases.has(id)) return; // absorbed by a field
+    if (fieldBases.has(id) || consumed.has(id)) return; // absorbed by a field or carved as a building
     const hint = hintById.get(id);
     const explicitZone = hint && typeof hint.zone === 'string' && zones.includes(hint.zone) ? hint.zone : undefined;
     const hintAnchor = hint && typeof hint.anchor === 'string' && isValidAnchor(hint.anchor, { grammar, knownIds }) ? hint.anchor : undefined;
@@ -404,18 +475,13 @@ function buildComposition(req: CompositionRequest, hints: CompositionHints): Sce
   // Ambiance is scattered outdoor DECOR (trees dotting the edges). NONE indoors — trees in a
   // crypt is nonsense — and sparse outdoors, or a village reads as a forest. The Cartographer
   // further caps the absolute count.
-  // Blockout: the Director paints EVERY scene kind now (interior rooms, settlements, wild). When a
-  // usable grid comes back the Cartographer renders FROM it; otherwise we fall back to the
-  // deterministic zone layout below (so a parse failure still yields a valid, sensible map).
-  const blockout = parseBlockout(hints.blockout, knownIds);
-
   const isInterior = grammar === 'enclosed-interior';
   const density = isInterior ? 0 : typeof hints.ambiance?.density === 'number' ? Math.min(0.12, Math.max(0, hints.ambiance.density)) : biome === 'forest' ? 0.1 : 0.05;
   const hintTags = Array.isArray(hints.ambiance?.tags) ? (hints.ambiance!.tags as unknown[]).filter((t): t is string => typeof t === 'string' && isProp(t)) : [];
   const tags = isInterior ? [] : hintTags.length ? hintTags : ['tree', 'bush'];
 
-  const grid = blockout ? { cols: blockout.cols, rows: blockout.rows } : { cols, rows };
-  return { locationId: e.locationId, seed: req.seed, grammar, biome, lighting, grid, terrain: { base, regions }, placements, ambiance: { density, tags }, ...(blockout ? { blockout } : {}), ...(fields.length ? { fields } : {}) };
+  const grid = { cols: gridCols, rows: gridRows };
+  return { locationId: e.locationId, seed: req.seed, grammar, biome, lighting, grid, terrain: { base, regions }, placements, ambiance: { density, tags }, ...(blockout ? { blockout } : {}), ...(fields.length ? { fields } : {}), ...(buildings.length ? { buildings } : {}) };
 }
 
 function composerPrompt(req: CompositionRequest): string {
@@ -441,17 +507,19 @@ const KIND_GUIDE: Record<SceneKind, { guidance: string; example: string }> = {
 "cells":[{"id":"pc:a","col":1,"row":6},{"id":"pc:b","col":2,"row":6},{"id":"npc:foe","col":10,"row":6}]}}`,
   },
   settlement: {
-    guidance: `This is a SETTLEMENT (a built-up place) — paint the GROUND, then place structures:
-- S (stone) for the plaza / market square; G (grass) around the edges; P (dirt) for streets; W (water) ONLY if waterside.
-- Keep the MIDDLE open for movement. Put the main landmark (fountain/well) CENTRALLY.
-- Place BUILDINGS along the top/back or sides (NOT the centre); scatter stalls and NPCs around the square.`,
-    example: `Example — "a village square with a central fountain, houses lining the back, a market stall, by the sea":
+    guidance: `This is a SETTLEMENT (a built-up place) — paint the GROUND only; the engine BUILDS the structures.
+- Paint a big walkable ground: S (stone) plaza in the centre/lower area, G (grass) edges, P (dirt) streets, W (water) ONLY if waterside.
+- The BUILDINGS (tavern, smithy, cottages, …) are auto-carved as walled rooms along the TOP — do NOT paint # walls or place building cells yourself. Just leave the upper area as ground; the engine drops the rooms there.
+- Put the landmark (fountain/well) CENTRALLY. Give cells to the NPCs + the party only, out in the OPEN plaza/streets (lower-middle), NOT in the top building band.
+- Use a ROOMY grid (24-28 cols, 14-16 rows) so the rooms + plaza both fit.`,
+    example: `Example — "a market village by the sea: a fountain, a tavern, a smithy, two cottages, an elder in the square":
 {"blockout":{"grid":[
-"GGGGGGGGGGGGGGGGGGGG","GGSSSSSSSSSSSSSSSSGG","GGSSSSSSSSSSSSSSSSGG",
-"GGSSSSSSSSSSSSSSSSGG","GGSSSSSSSSSSSSSSSSGG","GGSSSSSSSSSSSSSSSSGG",
-"GGSSSSSSSSSSSSSSSSGG","GGSSSSSSSSSSSSSSSSGG","GGSSSSSSSSSSSSSSSSGG",
-"GGSSSSSSSSSSSSSSSSGG","GGGGGGGGGGGGGGGGGGGG","WWWWWWWWWWWWWWWWWWWW"],
-"cells":[{"id":"prop:fountain","col":10,"row":6},{"id":"bldg:h1","col":5,"row":2},{"id":"bldg:h2","col":14,"row":2},{"id":"npc:elder","col":8,"row":7}]}}`,
+"GGGGGGGGGGGGGGGGGGGGGGGG","GGGGGGGGGGGGGGGGGGGGGGGG","GGGGGGGGGGGGGGGGGGGGGGGG",
+"GGSSSSSSSSSSSSSSSSSSSSGG","GGSSSSSSSSSSSSSSSSSSSSGG","GGSSSSSSSSSSSSSSSSSSSSGG",
+"GGSSSSSSSSSSSSSSSSSSSSGG","GGSSSSSSSSSSSSSSSSSSSSGG","GGSSSSSSSSSSSSSSSSSSSSGG",
+"GGSSSSSSSSSSSSSSSSSSSSGG","GGGGGGGGGGGGGGGGGGGGGGGG","WWWWWWWWWWWWWWWWWWWWWWWW"],
+"cells":[{"id":"prop:fountain","col":11,"row":7},{"id":"npc:elder","col":9,"row":8}]}}
+(Note: NO building cells — the tavern/smithy/cottages are auto-built as rooms along the top. Only the fountain + NPCs get cells.)`,
   },
   interior: {
     guidance: `This is an INTERIOR (a roofed room) — paint a CLOSED room:

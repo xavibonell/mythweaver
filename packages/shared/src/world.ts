@@ -205,6 +205,30 @@ export interface ObjectField {
   /** Carve a clear central lane through a row/grid (a pew-hall aisle). */
   aisle?: 'vertical' | 'horizontal';
 }
+/**
+ * A BUILDING — a structure the Cartographer renders as a ROOFLESS WALLED ROOM (a wall ring around a
+ * floor, with ONE walkable door and a furniture set) instead of a flat facade sprite. This is what
+ * makes a settlement read like a real top-down town (rooms you can see into) rather than a plaza
+ * dotted with house-shaped towers. The Director/composer assigns each a non-overlapping `rect` + a
+ * `door` side; the Cartographer carves the ring, punches the door (guaranteeing it connects inside↔
+ * out), furnishes the interior from a per-type template, and seats an occupant. One per declared
+ * building fixture (tavern/smithy/shop/temple/cottage…).
+ */
+export const BUILDING_TYPES = ['house', 'shop', 'tavern', 'temple', 'smithy'] as const;
+export type BuildingType = (typeof BUILDING_TYPES)[number];
+export interface Building {
+  id: EntityId;
+  type: BuildingType;
+  /** Wall-inclusive footprint on the grid: the outer ring is wall, the inside is floor. */
+  rect: { x: number; y: number; w: number; h: number };
+  /** Which wall holds the (single) door — faces the open ground/plaza side. */
+  door: 'north' | 'south' | 'east' | 'west';
+  name?: string;
+}
+/** Building footprint bounds (wall-inclusive). Min 4×4 = a 2×2 interior; capped so a sloppy
+ *  layout can't swallow the map. */
+export const BUILDING_LIMITS = { minW: 4, minH: 4, maxW: 12, maxH: 9, maxBuildings: 8 } as const;
+
 export interface SceneComposition {
   locationId: LocationId;
   seed: number;
@@ -219,6 +243,8 @@ export interface SceneComposition {
   blockout?: SceneBlockout;
   /** Repeated-object groups the Cartographer expands into many id-addressed children. */
   fields?: ObjectField[];
+  /** Walled-room structures the Cartographer carves + furnishes (settlements). */
+  buildings?: Building[];
 }
 
 /** Grid bounds the Director must stay within (also enforced by validation). */

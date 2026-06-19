@@ -289,4 +289,44 @@ describe('buildSceneMap (Cartographer)', () => {
     const cells = new Set(m.objects.map((o) => `${o.col},${o.row}`));
     expect(cells.size).toBe(m.objects.length);
   });
+
+  it('carves a settlement building into a reachable, furnished walled room', () => {
+    const comp: SceneComposition = {
+      locationId: 'loc:town',
+      seed: 7,
+      grammar: 'town-square',
+      biome: 'village',
+      lighting: 'day',
+      grid: { cols: 24, rows: 16 },
+      terrain: { base: 'grass', regions: [{ tag: 'stone', zone: 'plaza' }] },
+      placements: [{ id: 'pc:hero', kind: 'actor', role: 'pc', tag: 'knight', visible: true, zone: 'plaza' }],
+      ambiance: { density: 0, tags: [] },
+      buildings: [{ id: 'bldg:shop', type: 'shop', rect: { x: 2, y: 1, w: 7, h: 6 }, door: 'south' }],
+    };
+    const m = buildSceneMap(comp);
+    expect(validateSceneMap(m)).toEqual({ ok: true, violations: [] });
+    // A wall ring: the footprint border is wall, the interior has walkable floor.
+    expect(m.tiles[1]![2]).toBe('wall');
+    expect(m.tiles[3]![5]).toBe('stone');
+    // A door Entrance links the building.
+    const door = m.entrances.find((e) => e.fixtureId === 'bldg:shop');
+    expect(door).toBeTruthy();
+    // Furniture + a keeper were placed inside, grouped under the building.
+    const inside = m.objects.filter((o) => o.group === 'bldg:shop');
+    expect(inside.some((o) => o.kind === 'actor')).toBe(true); // keeper
+    expect(inside.filter((o) => o.kind === 'prop').length).toBeGreaterThan(0); // furniture
+    // CONNECTIVITY: every actor (incl. the shop keeper) is reachable from the hero via walkable tiles.
+    const { cols, rows } = m.grid;
+    const start = m.objects.find((o) => o.role === 'pc')!;
+    const seen = new Set<number>([start.row * cols + start.col]);
+    const q = [{ c: start.col, r: start.row }];
+    while (q.length) {
+      const { c, r } = q.shift()!;
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
+        const cc = c + dx, rr = r + dy;
+        if (cc >= 0 && rr >= 0 && cc < cols && rr < rows && m.walkable[rr]![cc] && !seen.has(rr * cols + cc)) { seen.add(rr * cols + cc); q.push({ c: cc, r: rr }); }
+      }
+    }
+    for (const a of m.objects.filter((o) => o.kind === 'actor')) expect(seen.has(a.row * cols + a.col)).toBe(true);
+  });
 });
