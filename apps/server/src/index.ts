@@ -14,7 +14,7 @@ import { buildRetriever } from './corpus.js';
 import { buildTracer } from './tracing.js';
 import { runTurn, type TurnInput } from './orchestrator.js';
 import { labBuildScene, labComposeScene } from './scene-lab.js';
-import { runDmLab, createDmLabSession, dmLabSubmit, autoRollTotal, DM_LAB_TRANSCRIPTS, type LabTurn, type DmLabSession } from './dm-lab.js';
+import { runDmLab, createDmLabSession, dmLabSubmit, arcView, autoRollTotal, DM_LAB_TRANSCRIPTS, type LabTurn, type DmLabSession } from './dm-lab.js';
 import { renderDmLabPage } from './dm-lab-page.js';
 import { distillStyle, DISTILL_MAX_INPUT } from './distill.js';
 import { buildArcPlanner } from './arc-planner.js';
@@ -300,9 +300,26 @@ app.post('/dm/lab/session', async (req, reply) => {
     const oldest = dmLabSessions.keys().next().value;
     if (oldest) dmLabSessions.delete(oldest);
   }
+  // Architect the campaign arc up front (the north star) so the Arc tab shows it before any turn.
+  if (session.arcPlanner) {
+    try {
+      const st = session.engine.getState();
+      const { blueprint, costUsd } = await session.arcPlanner.architect({
+        adventure: st.adventure!,
+        currentSceneId: st.currentSceneId,
+        flags: st.flags,
+        recentTranscript: [],
+        party: session.party.map((p) => ({ name: p.name })),
+      });
+      st.arc = { ...(st.arc ?? {}), blueprint };
+      session.totalCostUsd += costUsd;
+    } catch (err) {
+      app.log.error(err, 'arc architect (session create) failed');
+    }
+  }
   const sessionId = randomUUID();
   dmLabSessions.set(sessionId, session);
-  return { sessionId, scenarioId: session.scenarioId, scene: session.scene, party: session.party };
+  return { sessionId, scenarioId: session.scenarioId, scene: session.scene, party: session.party, arc: arcView(session) };
 });
 
 app.post('/dm/lab/session/:id/turn', async (req, reply) => {
@@ -330,7 +347,7 @@ app.post('/dm/lab/session/:id/turn', async (req, reply) => {
   }
   try {
     const turn = await dmLabSubmit(session, input);
-    return { turn, totalCostUsd: session.totalCostUsd, totalLatencyMs: session.totalLatencyMs, pendingRoll: session.pendingRoll ?? null };
+    return { turn, totalCostUsd: session.totalCostUsd, totalLatencyMs: session.totalLatencyMs, pendingRoll: session.pendingRoll ?? null, arc: arcView(session) };
   } catch (err) {
     app.log.error(err, 'dm lab session turn failed');
     reply.code(502);

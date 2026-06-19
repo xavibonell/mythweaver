@@ -549,6 +549,20 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
     // resume isn't reflected until the next message turn (roll turns emit no STEERING; harmless).
     if (deps.arcPlanner && adv) {
       const arc = (state.arc ??= {});
+      const pcs = Object.values(state.combatants).filter((c) => c.kind === 'pc').map((c) => ({ name: c.name }));
+      const planInput = { adventure: adv, currentSceneId: state.currentSceneId, flags: state.flags, recentTranscript: deps.recentTranscript ?? [], party: pcs };
+      // Architect the campaign arc once (the north star); all steering anchors to its intended ending.
+      if (!arc.blueprint) {
+        try {
+          const { blueprint, costUsd: bpCost } = await deps.arcPlanner.architect(planInput);
+          arc.blueprint = blueprint;
+          costUsd += bpCost;
+          toolCallLog.push('arcArchitect');
+          span.event('arcArchitect');
+        } catch (err) {
+          span.event('arcArchitect.error', { message: String(err) });
+        }
+      }
       const decisionCount = Object.keys(state.flags).filter((k) => k.startsWith('decision:')).length;
       const npcCount = Object.keys(state.flags).filter((k) => k.startsWith('npc:')).length;
       const due =
@@ -558,13 +572,7 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
         arc.plannedNpcCount !== npcCount;
       if (due) {
         try {
-          const { brief, costUsd: planCost } = await deps.arcPlanner.plan({
-            adventure: adv,
-            currentSceneId: state.currentSceneId,
-            flags: state.flags,
-            recentTranscript: deps.recentTranscript ?? [],
-            party: Object.values(state.combatants).filter((c) => c.kind === 'pc').map((c) => ({ name: c.name })),
-          });
+          const { brief, costUsd: planCost } = await deps.arcPlanner.plan({ ...planInput, ...(arc.blueprint ? { blueprint: arc.blueprint } : {}) });
           arc.brief = brief;
           arc.plannedForScene = state.currentSceneId;
           arc.plannedDecisionCount = decisionCount;

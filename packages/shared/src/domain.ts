@@ -293,6 +293,21 @@ export interface EncounterDef {
 }
 
 /**
+ * The campaign arc the Game Director architects up front (the "north star"): what the whole thing is
+ * about, the problem the party must address, where they start, the envisioned ENDING it steers toward,
+ * and the interim spine of milestones leading there. The ending vision anchors all steering; the spine
+ * flexes as players move (it is a route, not a rigid script).
+ */
+export interface CampaignBlueprint {
+  premise: string; // what the whole campaign is about (theme)
+  centralProblem: string; // the problem the characters must address
+  intendedEnding: string; // the envisioned resolution — the destination the Director steers toward
+  opening: string; // where the party starts
+  /** Envisioned interim steps from opening to ending; sceneId links a milestone to an authored beat. */
+  spine: { milestone: string; sceneId?: string; intent: string }[];
+}
+
+/**
  * The Game Director's steering brief (Phase D / D2): non-canonical, regenerated guidance the turn DM
  * reads. OFFERS ONLY — there is deliberately no imperative "do X" field (player agency is sacred).
  */
@@ -332,6 +347,8 @@ export interface GameState {
   /** Game Director state (Phase D): the cached steering brief + when it was last (re)planned.
    *  Canonical decisions live in `flags` (decision:/beat:/npc:); this holds the volatile guidance. */
   arc?: {
+    /** The architected campaign arc (north star) — generated once, anchors all steering. */
+    blueprint?: CampaignBlueprint;
     brief?: ArcBrief;
     plannedForScene?: string;
     plannedDecisionCount?: number;

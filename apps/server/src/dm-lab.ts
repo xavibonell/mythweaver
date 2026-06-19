@@ -322,6 +322,26 @@ export async function dmLabSubmit(session: DmLabSession, input: { say: string; a
   };
 }
 
+/** Assemble the Game Director view for the lab's Arc tab: blueprint + brief + per-beat status. */
+export function arcView(session: DmLabSession) {
+  const st = session.engine.getState();
+  const adv = st.adventure;
+  const arc = st.arc ?? {};
+  const reachable = new Set((arc.brief?.reachable ?? []).map((r) => r.sceneId));
+  const beats = adv
+    ? Object.entries(adv.scenes).map(([id, s]) => ({
+        id,
+        title: s.title,
+        current: id === st.currentSceneId,
+        done: st.flags[`beat:${id}`] === 'done',
+        reachable: reachable.has(id),
+      }))
+    : [];
+  const decisions = Object.entries(st.flags).filter(([k]) => k.startsWith('decision:')).map(([k, v]) => ({ key: k.slice(9), value: String(v) }));
+  const npcs = Object.entries(st.flags).filter(([k]) => k.startsWith('npc:')).map(([k, v]) => ({ key: k.slice(4), value: String(v) }));
+  return { blueprint: arc.blueprint ?? null, brief: arc.brief ?? null, currentScene: st.currentSceneId, beats, decisions, npcs };
+}
+
 /**
  * Run a scripted session through the real DM and return a full per-turn trace (the batch path,
  * used by the CLI). Built on createDmLabSession + dmLabSubmit. Costs money: one model call per turn.

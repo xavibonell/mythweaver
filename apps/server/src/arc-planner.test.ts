@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { AdventureContext } from '@mythweaver/shared';
-import { buildArcBrief, FakeArcPlanner } from './arc-planner.js';
+import { buildArcBrief, buildBlueprint, FakeArcPlanner } from './arc-planner.js';
 
 const adv: AdventureContext = {
   pitch: 'A drowned bell and a missing fisher.',
@@ -48,5 +48,36 @@ describe('arc-planner', () => {
     expect(b.activeBeatIntent).toBe('');
     expect(b.reachable).toEqual([]);
     expect(b.bridgeNpcs).toBeUndefined();
+  });
+
+  it('FakeArcPlanner.architect derives a blueprint (premise / ending / spine) from the authored arc', async () => {
+    const r = await new FakeArcPlanner().architect({ adventure: adv, currentSceneId: 'a', flags: {}, recentTranscript: [], party: [{ name: 'Aldric' }] });
+    expect(r.costUsd).toBe(0);
+    expect(r.blueprint.premise).toBe(adv.pitch);
+    expect(r.blueprint.opening).toBe('Green');
+    expect(r.blueprint.intendedEnding).toContain('Tower');
+    expect(r.blueprint.spine.map((s) => s.sceneId)).toEqual(['a', 'b']);
+  });
+
+  it('buildBlueprint coerces junk + filters spine sceneIds to real beats', () => {
+    const bp = buildBlueprint(
+      {
+        premise: 'p',
+        centralProblem: 'c',
+        intendedEnding: 'e',
+        opening: 'o',
+        spine: [
+          { milestone: 'M1', sceneId: 'a', intent: 'i' },
+          { milestone: 'M2', sceneId: 'ghost', intent: 'i2' }, // sceneId not real -> dropped (kept, no sceneId)
+          { intent: '' }, // empty -> removed
+        ],
+      },
+      new Set(['a']),
+    );
+    expect(bp.intendedEnding).toBe('e');
+    expect(bp.spine).toEqual([
+      { milestone: 'M1', intent: 'i', sceneId: 'a' },
+      { milestone: 'M2', intent: 'i2' },
+    ]);
   });
 });

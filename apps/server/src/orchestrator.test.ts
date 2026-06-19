@@ -326,7 +326,10 @@ describe('orchestrator turn-loop', () => {
     });
     const engine = new Engine(state, () => 0.5);
     let planCalls = 0;
-    const counting = { plan: async () => { planCalls += 1; return { brief: { activeBeatIntent: 'x', reachable: [] }, costUsd: 0 }; } };
+    const counting = {
+      architect: async () => ({ blueprint: { premise: '', centralProblem: '', intendedEnding: '', opening: '', spine: [] }, costUsd: 0 }),
+      plan: async () => { planCalls += 1; return { brief: { activeBeatIntent: 'x', reachable: [] }, costUsd: 0 }; },
+    };
     const llm = new FakeLlmProvider([fakeText('a'), fakeText('b'), fakeText('c')]);
     const run = (text: string) => runTurn({ engine, llm, arcPlanner: counting, now: frozenClock }, { kind: 'message', speakerId: 'Aldric', text });
 

@@ -82,6 +82,25 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
   .ed-wrap { flex: 1; padding: 0; display: flex; }
   .ed-wrap textarea { flex: 1; border: 0; border-radius: 0; resize: none; padding: 16px 20px; background: #0e1014; font-size: 13px; }
   .ed-wrap textarea:focus { outline: none; }
+  /* arc tab */
+  .arc-body { flex: 1; overflow: auto; padding: 18px 24px; max-width: 940px; }
+  .arc-sec { margin-bottom: 18px; }
+  .arc-sec h3 { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: #8b90a0; margin: 0 0 6px; font-weight: 700; }
+  .arc-ending { background: #11351e; border: 1px solid #2a6b40; border-radius: 8px; padding: 10px 12px; color: #cdebd6; }
+  .arc-problem { color: #e8c98a; }
+  .kv { font-size: 13px; color: #c7ccda; line-height: 1.55; }
+  .kv b { color: #8b90a0; font-weight: 600; }
+  ul.spine { list-style: none; padding: 0; margin: 0; }
+  ul.spine li { border-left: 2px solid #2b2f3a; padding: 2px 0 10px 14px; margin-left: 6px; }
+  ul.spine li.done { border-color: #3a6b48; } ul.spine li.current { border-color: #4c6ef5; }
+  ul.spine .ms { font-weight: 600; font-size: 13px; }
+  ul.spine .mi { color: #9aa0b0; font-size: 12px; }
+  .beatmap { display: flex; flex-wrap: wrap; gap: 8px; }
+  .beat { border: 1px solid #2b2f3a; border-radius: 8px; padding: 6px 10px; font-size: 13px; color: #b7bccb; }
+  .beat.done { border-color: #3a6b48; color: #8fd6a2; }
+  .beat.current { border-color: #4c6ef5; color: #fff; background: #1b2340; }
+  .beat.reach { border-color: #7b6a2e; color: #e8c98a; }
+  .bubble .brief { color: #8fa0c8; font-size: 12px; margin-top: 5px; }
   /* distill tab */
   .view.distill.active { display: flex; flex-direction: column; }
   .distill-grid { flex: 1; display: grid; grid-template-columns: 1fr 1fr; min-height: 0; }
@@ -130,6 +149,7 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
   <button class="tab" data-tab="playbook">Playbook</button>
   <button class="tab" data-tab="scenario">Scenario</button>
   <button class="tab" data-tab="distill">Distill</button>
+  <button class="tab" data-tab="arc">Arc</button>
   <span class="gstatus" id="gstatus"></span>
 </nav>
 <main>
@@ -219,6 +239,15 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
       </div>
     </div>
   </section>
+
+  <section class="view editor" id="view-arc">
+    <div class="ed-toolbar">
+      <span class="name">Campaign arc — the Game Director's plan</span>
+      <button class="ghost" id="arc-refresh">Refresh</button>
+      <span class="status" id="arc-status"></span>
+    </div>
+    <div class="arc-body" id="arc-body"><div class="empty-state">Start a session — the Director architects the campaign arc (premise → ending → spine) up front, then adapts it as you play.</div></div>
+  </section>
 </main>
 <script>
   var TRANSCRIPTS = ${transcriptsJson};
@@ -251,7 +280,7 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
 
   // --- tabs ---
   function showTab(name) {
-    ['run', 'playbook', 'scenario', 'distill'].forEach(function (n) {
+    ['run', 'playbook', 'scenario', 'distill', 'arc'].forEach(function (n) {
       $('view-' + n).classList.toggle('active', n === name);
     });
     document.querySelectorAll('nav.tabs .tab').forEach(function (b) {
@@ -273,7 +302,7 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
     d.innerHTML = '<div class="who">' + esc(speaker) + '</div><div class="line">' + esc(text) + '</div>';
     convo().appendChild(d); scrollConvo();
   }
-  function addDm(t) {
+  function addDm(t, brief) {
     var tools = (t.tools || []).map(function (c) {
       var res = c.result ? '<span class="res">→ ' + esc(c.result) + '</span>' : '';
       return '<div class="tool"><span class="name">' + esc(c.name) + '</span><span class="inp">(' + esc(JSON.stringify(c.input)) + ')</span>' + res + '</div>';
@@ -281,11 +310,59 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
     var diff = (t.diff && t.diff.length) ? '<div class="diff"><b>state Δ</b> ' + t.diff.map(esc).join('  |  ') + '</div>' : '';
     var details = (tools || diff) ? ('<details><summary>tools + state Δ</summary>' + tools + diff + '</details>') : '';
     var roll = t.rollRequest ? '<div class="roll-pending">⏸ needs a roll: ' + esc(t.rollRequest.expr) + ' — ' + esc(t.rollRequest.reason) + '</div>' : '';
+    var bf = (brief && brief.activeBeatIntent) ? '<div class="brief">🎬 steering: ' + esc(brief.activeBeatIntent) + (brief.reachable && brief.reachable.length ? '  ·  → ' + brief.reachable.map(function (r) { return esc(r.sceneId); }).join(', ') : '') + '</div>' : '';
     var narr = t.narration ? '<div class="narr">' + esc(t.narration) + '</div>' : '<div class="narr" style="color:#6b7080;font-style:italic">(no narration — awaiting your roll)</div>';
     var meta = esc(t.model || '?') + ' · ' + t.steps + ' step(s) · ' + fmtTime(t.latencyMs) + ' · ' + fmtCost(t.costUsd);
     var d = document.createElement('div'); d.className = 'bubble dm';
-    d.innerHTML = '<div class="who">Dungeon Master</div>' + narr + roll + '<div class="meta">' + meta + '</div>' + details;
+    d.innerHTML = '<div class="who">Dungeon Master</div>' + narr + roll + bf + '<div class="meta">' + meta + '</div>' + details;
     convo().appendChild(d); scrollConvo();
+  }
+
+  // --- Arc tab (Game Director plan) ---
+  var latestArc = null;
+  function renderArc() {
+    var el = $('arc-body');
+    var a = latestArc;
+    if (!a || (!a.blueprint && (!a.beats || !a.beats.length))) { el.innerHTML = '<div class="empty-state">No arc yet — start a session and the Director will architect it.</div>'; return; }
+    var bp = a.blueprint;
+    var h = '';
+    if (bp) {
+      h += '<div class="arc-sec"><h3>Premise</h3><div class="kv">' + esc(bp.premise || '—') + '</div></div>';
+      h += '<div class="arc-sec"><h3>Central problem</h3><div class="kv arc-problem">' + esc(bp.centralProblem || '—') + '</div></div>';
+      h += '<div class="arc-sec"><h3>Intended ending — north star</h3><div class="arc-ending">' + esc(bp.intendedEnding || '—') + '</div></div>';
+      h += '<div class="arc-sec"><h3>Opening</h3><div class="kv">' + esc(bp.opening || '—') + '</div></div>';
+      if (bp.spine && bp.spine.length) {
+        h += '<div class="arc-sec"><h3>Spine — route to the ending</h3><ul class="spine">' + bp.spine.map(function (s) {
+          var done = s.sceneId && a.beats.some(function (b) { return b.id === s.sceneId && b.done; });
+          var cur = s.sceneId && s.sceneId === a.currentScene;
+          return '<li class="' + (done ? 'done' : cur ? 'current' : '') + '"><div class="ms">' + esc(s.milestone || s.sceneId || '') + (s.sceneId ? ' <span style="color:#6b7080">[' + esc(s.sceneId) + ']</span>' : '') + (cur ? ' <span style="color:#6ab0ff">● here</span>' : done ? ' <span style="color:#8fd6a2">✓</span>' : '') + '</div><div class="mi">' + esc(s.intent || '') + '</div></li>';
+        }).join('') + '</ul></div>';
+      }
+    }
+    if (a.beats && a.beats.length) {
+      h += '<div class="arc-sec"><h3>Beats</h3><div class="beatmap">' + a.beats.map(function (b) {
+        var cls = b.current ? 'current' : b.done ? 'done' : b.reachable ? 'reach' : '';
+        var tag = b.current ? '● here' : b.done ? '✓ done' : b.reachable ? '→ reachable' : '';
+        return '<span class="beat ' + cls + '">' + esc(b.title) + (tag ? ' <span style="color:#6b7080">' + tag + '</span>' : '') + '</span>';
+      }).join('') + '</div></div>';
+    }
+    if (a.brief) {
+      var br = a.brief;
+      h += '<div class="arc-sec"><h3>Current steering brief</h3>';
+      h += '<div class="kv"><b>Now:</b> ' + esc(br.activeBeatIntent || '—') + '</div>';
+      if (br.reachable && br.reachable.length) h += '<div class="kv"><b>Reachable:</b> ' + br.reachable.map(function (r) { return esc(r.sceneId + ' — ' + r.hook); }).join('  ·  ') + '</div>';
+      if (br.bridgeNpcs && br.bridgeNpcs.length) h += '<div class="kv"><b>Bridge NPCs:</b> ' + br.bridgeNpcs.map(function (n) { return esc(n.name + ' (' + n.role + ')'); }).join('; ') + '</div>';
+      if (br.clocks && br.clocks.length) h += '<div class="kv"><b>Pressure:</b> ' + br.clocks.map(esc).join('; ') + '</div>';
+      if (br.notes) h += '<div class="kv"><b>Note:</b> ' + esc(br.notes) + '</div>';
+      h += '</div>';
+    }
+    if ((a.decisions && a.decisions.length) || (a.npcs && a.npcs.length)) {
+      h += '<div class="arc-sec"><h3>Tracked</h3>';
+      if (a.decisions && a.decisions.length) h += '<div class="kv"><b>Decisions:</b> ' + a.decisions.map(function (d) { return esc(d.key + '=' + d.value); }).join(', ') + '</div>';
+      if (a.npcs && a.npcs.length) h += '<div class="kv"><b>NPCs:</b> ' + a.npcs.map(function (n) { return esc(n.key + '=' + n.value); }).join(', ') + '</div>';
+      h += '</div>';
+    }
+    el.innerHTML = h;
   }
   function setPending(rr) {
     pendingRoll = rr || null;
@@ -316,8 +393,9 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
       var sp = $('speaker'); sp.innerHTML = '';
       var grp = document.createElement('option'); grp.value = 'The party'; grp.textContent = 'The party'; sp.appendChild(grp);
       (x.body.party || []).forEach(function (p) { var o = document.createElement('option'); o.value = p.name; o.textContent = p.name; sp.appendChild(o); });
+      latestArc = x.body.arc || null; renderArc(); // the Director architected the arc at session start
       setPending(null); setBusy(false);
-      $('status').textContent = 'session live — talk to the DM';
+      $('status').textContent = 'session live — talk to the DM (the Arc tab shows the plan)';
       return true;
     }).catch(function (e) { $('status').textContent = 'error: ' + (e.message || e); return false; });
   }
@@ -331,8 +409,9 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
       .then(function (x) {
         if (!x.ok) { addSys('error: ' + (x.body.error || 'failed')); setBusy(false); $('status').textContent = ''; return; }
         var t = x.body.turn;
+        if (x.body.arc) { latestArc = x.body.arc; renderArc(); } // Director may have re-planned this turn
         if (t.kind !== 'message') addPlayer('roll', t.input); // show the actual declared/auto total
-        addDm(t);
+        addDm(t, latestArc && latestArc.brief);
         setPending(x.body.pendingRoll);
         setBusy(false);
         $('status').textContent = 'turn ' + t.index + ' · total ' + fmtCost(x.body.totalCostUsd) + ' · ' + fmtTime(x.body.totalLatencyMs);
@@ -424,6 +503,7 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
   $('declare').onclick = declareRoll;
   $('autoroll').onclick = autoRoll;
   $('rollval').addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); declareRoll(); } });
+  $('arc-refresh').onclick = renderArc;
 
   // --- distill: source (transcript|guide) -> block -> diff/apply into the (temp) playbook ---
   var distillMode = 'transcript'; // the mode the CURRENT output belongs to (set on Distill)
