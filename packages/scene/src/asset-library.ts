@@ -51,6 +51,10 @@ export interface AssetEntry {
   platform?: boolean;
   /** Renderable + resolvable, but NOT advertised to the LLM (e.g. the no-art placeholder fallback). */
   internal?: boolean;
+  /** Provenance for license hygiene. CC0 sources (Kenney) need none; CC-BY sources (DawnLike) require
+   *  attribution — surfaced via GET /assets/library so a future build can render a credits screen. */
+  license?: string;
+  attribution?: string;
   // character
   idleFrames?: number;
   anchorY?: number;
