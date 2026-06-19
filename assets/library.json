@@ -836,105 +836,161 @@
       "kind": "character",
       "tag": "knight",
       "desc": "armored fighter / guard",
-      "art": "/assets/tiny/char/knight.png",
+      "art": "/assets/dawnlike/char/knight.png",
       "frameW": 16,
       "frameH": 16,
       "idleFrames": 1,
       "fps": 1,
       "from": {
-        "pack": "kenney-tiny-dungeon",
-        "copy": "Tiles/tile_0096.png"
-      }
+        "pack": "DawnLike",
+        "crop": "Characters/Humanoid0.png",
+        "rect": [
+          0,
+          64,
+          16,
+          16
+        ]
+      },
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
     },
     {
       "kind": "character",
       "tag": "wizard",
       "desc": "robed spellcaster / mage",
-      "art": "/assets/tiny/char/wizard.png",
+      "art": "/assets/dawnlike/char/wizard.png",
       "frameW": 16,
       "frameH": 16,
       "idleFrames": 1,
       "fps": 1,
       "from": {
-        "pack": "kenney-tiny-dungeon",
-        "copy": "Tiles/tile_0084.png"
-      }
+        "pack": "DawnLike",
+        "crop": "Characters/Humanoid0.png",
+        "rect": [
+          0,
+          80,
+          16,
+          16
+        ]
+      },
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
     },
     {
       "kind": "character",
       "tag": "rogue",
       "desc": "hooded rogue / scout",
-      "art": "/assets/tiny/char/rogue.png",
+      "art": "/assets/dawnlike/char/rogue.png",
       "frameW": 16,
       "frameH": 16,
       "idleFrames": 1,
       "fps": 1,
       "from": {
-        "pack": "kenney-tiny-dungeon",
-        "copy": "Tiles/tile_0100.png"
-      }
+        "pack": "DawnLike",
+        "crop": "Characters/Humanoid0.png",
+        "rect": [
+          0,
+          32,
+          16,
+          16
+        ]
+      },
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
     },
     {
       "kind": "character",
       "tag": "ranger",
       "desc": "green-clad ranger / hunter",
-      "art": "/assets/tiny/char/ranger.png",
+      "art": "/assets/dawnlike/char/ranger.png",
       "frameW": 16,
       "frameH": 16,
       "idleFrames": 1,
       "fps": 1,
       "from": {
-        "pack": "kenney-tiny-dungeon",
-        "copy": "Tiles/tile_0112.png"
-      }
+        "pack": "DawnLike",
+        "crop": "Characters/Humanoid0.png",
+        "rect": [
+          0,
+          96,
+          16,
+          16
+        ]
+      },
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
     },
     {
       "kind": "character",
       "tag": "dwarf",
       "desc": "stout bearded dwarf",
-      "art": "/assets/tiny/char/dwarf.png",
+      "art": "/assets/dawnlike/char/dwarf.png",
       "frameW": 16,
       "frameH": 16,
       "idleFrames": 1,
       "fps": 1,
       "from": {
-        "pack": "kenney-tiny-dungeon",
-        "copy": "Tiles/tile_0087.png"
-      }
+        "pack": "DawnLike",
+        "crop": "Characters/Humanoid0.png",
+        "rect": [
+          0,
+          224,
+          16,
+          16
+        ]
+      },
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
     },
     {
       "kind": "character",
       "tag": "villager",
       "desc": "ordinary townsperson / commoner (fishers, farmers, the woman, etc.)",
-      "art": "/assets/tiny/char/villager.png",
+      "art": "/assets/dawnlike/char/villager.png",
       "frameW": 16,
       "frameH": 16,
       "idleFrames": 1,
       "fps": 1,
       "from": {
-        "pack": "kenney-tiny-dungeon",
-        "copy": "Tiles/tile_0085.png"
-      }
+        "pack": "DawnLike",
+        "crop": "Characters/Humanoid0.png",
+        "rect": [
+          0,
+          144,
+          16,
+          16
+        ]
+      },
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
     },
     {
       "kind": "character",
       "tag": "villager_woman",
       "desc": "a townswoman",
-      "art": "/assets/tiny/char/villager_woman.png",
+      "art": "/assets/dawnlike/char/villager_woman.png",
       "frameW": 16,
       "frameH": 16,
       "idleFrames": 1,
       "fps": 1,
       "from": {
-        "pack": "kenney-tiny-dungeon",
-        "copy": "Tiles/tile_0098.png"
-      }
+        "pack": "DawnLike",
+        "crop": "Characters/Humanoid0.png",
+        "rect": [
+          0,
+          176,
+          16,
+          16
+        ]
+      },
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
     },
     {
       "kind": "character",
       "tag": "orc",
       "desc": "green orc — a monstrous foe",
-      "art": "/assets/tiny/char/orc.png",
+      "art": "/assets/dawnlike/char/orc.png",
       "frameW": 16,
       "frameH": 16,
       "idleFrames": 1,
@@ -945,15 +1001,23 @@
         "wild"
       ],
       "from": {
-        "pack": "tiny-creatures",
-        "copy": "Tiles/tile_0011.png"
-      }
+        "pack": "DawnLike",
+        "crop": "Characters/Humanoid0.png",
+        "rect": [
+          0,
+          0,
+          16,
+          16
+        ]
+      },
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
     },
     {
       "kind": "character",
       "tag": "goblin",
       "desc": "a small goblin foe",
-      "art": "/assets/tiny/char/goblin.png",
+      "art": "/assets/dawnlike/char/goblin.png",
       "frameW": 16,
       "frameH": 16,
       "idleFrames": 1,
@@ -964,15 +1028,23 @@
         "wild"
       ],
       "from": {
-        "pack": "tiny-creatures",
-        "copy": "Tiles/tile_0026.png"
-      }
+        "pack": "DawnLike",
+        "crop": "Characters/Humanoid0.png",
+        "rect": [
+          0,
+          16,
+          16,
+          16
+        ]
+      },
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
     },
     {
       "kind": "character",
       "tag": "skeleton",
       "desc": "undead skeleton — a monstrous foe",
-      "art": "/assets/tiny/char/skeleton.png",
+      "art": "/assets/dawnlike/char/skeleton.png",
       "frameW": 16,
       "frameH": 16,
       "idleFrames": 1,
@@ -983,15 +1055,23 @@
         "cave"
       ],
       "from": {
-        "pack": "kenney-tiny-dungeon",
-        "copy": "Tiles/tile_0109.png"
-      }
+        "pack": "DawnLike",
+        "crop": "Characters/Undead0.png",
+        "rect": [
+          0,
+          32,
+          16,
+          16
+        ]
+      },
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
     },
     {
       "kind": "character",
       "tag": "zombie",
       "desc": "a shambling zombie",
-      "art": "/assets/tiny/char/zombie.png",
+      "art": "/assets/dawnlike/char/zombie.png",
       "frameW": 16,
       "frameH": 16,
       "idleFrames": 1,
@@ -1002,15 +1082,23 @@
         "fen"
       ],
       "from": {
-        "pack": "tiny-creatures",
-        "copy": "Tiles/tile_0001.png"
-      }
+        "pack": "DawnLike",
+        "crop": "Characters/Undead0.png",
+        "rect": [
+          0,
+          0,
+          16,
+          16
+        ]
+      },
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
     },
     {
       "kind": "character",
       "tag": "slime",
       "desc": "a green slime",
-      "art": "/assets/tiny/char/slime.png",
+      "art": "/assets/dawnlike/char/slime.png",
       "frameW": 16,
       "frameH": 16,
       "idleFrames": 1,
@@ -1020,9 +1108,17 @@
         "cave"
       ],
       "from": {
-        "pack": "kenney-tiny-dungeon",
-        "copy": "Tiles/tile_0108.png"
-      }
+        "pack": "DawnLike",
+        "crop": "Characters/Slime0.png",
+        "rect": [
+          16,
+          16,
+          16,
+          16
+        ]
+      },
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
     },
     {
       "kind": "character",
@@ -1064,7 +1160,7 @@
       "kind": "character",
       "tag": "dragon",
       "desc": "a fearsome dragon",
-      "art": "/assets/tiny/char/dragon.png",
+      "art": "/assets/dawnlike/char/dragon.png",
       "frameW": 16,
       "frameH": 16,
       "idleFrames": 1,
@@ -1074,9 +1170,17 @@
         "wild"
       ],
       "from": {
-        "pack": "tiny-creatures",
-        "copy": "Tiles/tile_0031.png"
-      }
+        "pack": "DawnLike",
+        "crop": "Characters/Reptile0.png",
+        "rect": [
+          0,
+          80,
+          16,
+          16
+        ]
+      },
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
     },
     {
       "kind": "character",
@@ -1247,7 +1351,7 @@
       "kind": "character",
       "tag": "frog",
       "desc": "a frog",
-      "art": "/assets/tiny/char/frog.png",
+      "art": "/assets/dawnlike/char/frog.png",
       "frameW": 16,
       "frameH": 16,
       "idleFrames": 1,
@@ -1257,9 +1361,17 @@
         "coast"
       ],
       "from": {
-        "pack": "tiny-creatures",
-        "copy": "Tiles/tile_0147.png"
-      }
+        "pack": "DawnLike",
+        "crop": "Characters/Reptile0.png",
+        "rect": [
+          0,
+          176,
+          16,
+          16
+        ]
+      },
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
     },
     {
       "kind": "character",
@@ -1295,6 +1407,31 @@
       "from": {
         "pack": "tiny-creatures",
         "copy": "Tiles/tile_0138.png"
+      }
+    },
+    {
+      "kind": "prop",
+      "tag": "platino",
+      "desc": "(bundled DawnLike Platino sprite — license requires it ships)",
+      "art": "/assets/dawnlike/char/platino.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false,
+      "internal": true,
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite",
+      "from": {
+        "pack": "DawnLike",
+        "crop": "Characters/Reptile0.png",
+        "rect": [
+          64,
+          192,
+          16,
+          16
+        ]
       }
     }
   ]
