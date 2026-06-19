@@ -540,7 +540,7 @@
       "art": "/assets/dawnlike/props/brazier.png",
       "frameW": 16,
       "frameH": 16,
-      "frames": 1,
+      "frames": 2,
       "footW": 1,
       "footH": 1,
       "blocks": true,
@@ -558,10 +558,12 @@
           128,
           16,
           16
-        ]
+        ],
+        "frame2": "Objects/Decor1.png"
       },
       "license": "CC-BY-4.0",
-      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite",
+      "fps": 3
     },
     {
       "kind": "prop",
@@ -839,8 +841,8 @@
       "art": "/assets/dawnlike/char/knight.png",
       "frameW": 16,
       "frameH": 16,
-      "idleFrames": 1,
-      "fps": 1,
+      "idleFrames": 2,
+      "fps": 3,
       "from": {
         "pack": "DawnLike",
         "crop": "Characters/Humanoid0.png",
@@ -849,7 +851,8 @@
           64,
           16,
           16
-        ]
+        ],
+        "frame2": "Characters/Humanoid1.png"
       },
       "license": "CC-BY-4.0",
       "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
@@ -861,8 +864,8 @@
       "art": "/assets/dawnlike/char/wizard.png",
       "frameW": 16,
       "frameH": 16,
-      "idleFrames": 1,
-      "fps": 1,
+      "idleFrames": 2,
+      "fps": 3,
       "from": {
         "pack": "DawnLike",
         "crop": "Characters/Humanoid0.png",
@@ -871,7 +874,8 @@
           80,
           16,
           16
-        ]
+        ],
+        "frame2": "Characters/Humanoid1.png"
       },
       "license": "CC-BY-4.0",
       "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
@@ -883,8 +887,8 @@
       "art": "/assets/dawnlike/char/rogue.png",
       "frameW": 16,
       "frameH": 16,
-      "idleFrames": 1,
-      "fps": 1,
+      "idleFrames": 2,
+      "fps": 3,
       "from": {
         "pack": "DawnLike",
         "crop": "Characters/Humanoid0.png",
@@ -893,7 +897,8 @@
           32,
           16,
           16
-        ]
+        ],
+        "frame2": "Characters/Humanoid1.png"
       },
       "license": "CC-BY-4.0",
       "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
@@ -905,8 +910,8 @@
       "art": "/assets/dawnlike/char/ranger.png",
       "frameW": 16,
       "frameH": 16,
-      "idleFrames": 1,
-      "fps": 1,
+      "idleFrames": 2,
+      "fps": 3,
       "from": {
         "pack": "DawnLike",
         "crop": "Characters/Humanoid0.png",
@@ -915,7 +920,8 @@
           96,
           16,
           16
-        ]
+        ],
+        "frame2": "Characters/Humanoid1.png"
       },
       "license": "CC-BY-4.0",
       "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
@@ -927,8 +933,8 @@
       "art": "/assets/dawnlike/char/dwarf.png",
       "frameW": 16,
       "frameH": 16,
-      "idleFrames": 1,
-      "fps": 1,
+      "idleFrames": 2,
+      "fps": 3,
       "from": {
         "pack": "DawnLike",
         "crop": "Characters/Humanoid0.png",
@@ -937,7 +943,8 @@
           224,
           16,
           16
-        ]
+        ],
+        "frame2": "Characters/Humanoid1.png"
       },
       "license": "CC-BY-4.0",
       "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
@@ -949,8 +956,8 @@
       "art": "/assets/dawnlike/char/villager.png",
       "frameW": 16,
       "frameH": 16,
-      "idleFrames": 1,
-      "fps": 1,
+      "idleFrames": 2,
+      "fps": 3,
       "from": {
         "pack": "DawnLike",
         "crop": "Characters/Humanoid0.png",
@@ -959,7 +966,8 @@
           144,
           16,
           16
-        ]
+        ],
+        "frame2": "Characters/Humanoid1.png"
       },
       "license": "CC-BY-4.0",
       "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
@@ -971,8 +979,8 @@
       "art": "/assets/dawnlike/char/villager_woman.png",
       "frameW": 16,
       "frameH": 16,
-      "idleFrames": 1,
-      "fps": 1,
+      "idleFrames": 2,
+      "fps": 3,
       "from": {
         "pack": "DawnLike",
         "crop": "Characters/Humanoid0.png",
@@ -981,7 +989,8 @@
           176,
           16,
           16
-        ]
+        ],
+        "frame2": "Characters/Humanoid1.png"
       },
       "license": "CC-BY-4.0",
       "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
@@ -993,8 +1002,8 @@
       "art": "/assets/dawnlike/char/orc.png",
       "frameW": 16,
       "frameH": 16,
-      "idleFrames": 1,
-      "fps": 1,
+      "idleFrames": 2,
+      "fps": 3,
       "biomes": [
         "dungeon",
         "cave",
@@ -1008,7 +1017,8 @@
           0,
           16,
           16
-        ]
+        ],
+        "frame2": "Characters/Humanoid1.png"
       },
       "license": "CC-BY-4.0",
       "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
@@ -1020,8 +1030,8 @@
       "art": "/assets/dawnlike/char/goblin.png",
       "frameW": 16,
       "frameH": 16,
-      "idleFrames": 1,
-      "fps": 1,
+      "idleFrames": 2,
+      "fps": 3,
       "biomes": [
         "dungeon",
         "cave",
@@ -1035,7 +1045,8 @@
           16,
           16,
           16
-        ]
+        ],
+        "frame2": "Characters/Humanoid1.png"
       },
       "license": "CC-BY-4.0",
       "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
@@ -1047,8 +1058,8 @@
       "art": "/assets/dawnlike/char/skeleton.png",
       "frameW": 16,
       "frameH": 16,
-      "idleFrames": 1,
-      "fps": 1,
+      "idleFrames": 2,
+      "fps": 3,
       "biomes": [
         "dungeon",
         "crypt",
@@ -1062,7 +1073,8 @@
           32,
           16,
           16
-        ]
+        ],
+        "frame2": "Characters/Undead1.png"
       },
       "license": "CC-BY-4.0",
       "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
@@ -1074,8 +1086,8 @@
       "art": "/assets/dawnlike/char/zombie.png",
       "frameW": 16,
       "frameH": 16,
-      "idleFrames": 1,
-      "fps": 1,
+      "idleFrames": 2,
+      "fps": 3,
       "biomes": [
         "dungeon",
         "crypt",
@@ -1089,7 +1101,8 @@
           0,
           16,
           16
-        ]
+        ],
+        "frame2": "Characters/Undead1.png"
       },
       "license": "CC-BY-4.0",
       "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
@@ -1101,8 +1114,8 @@
       "art": "/assets/dawnlike/char/slime.png",
       "frameW": 16,
       "frameH": 16,
-      "idleFrames": 1,
-      "fps": 1,
+      "idleFrames": 2,
+      "fps": 3,
       "biomes": [
         "dungeon",
         "cave"
@@ -1115,7 +1128,8 @@
           16,
           16,
           16
-        ]
+        ],
+        "frame2": "Characters/Slime1.png"
       },
       "license": "CC-BY-4.0",
       "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
@@ -1163,8 +1177,8 @@
       "art": "/assets/dawnlike/char/dragon.png",
       "frameW": 16,
       "frameH": 16,
-      "idleFrames": 1,
-      "fps": 1,
+      "idleFrames": 2,
+      "fps": 3,
       "biomes": [
         "cave",
         "wild"
@@ -1177,7 +1191,8 @@
           80,
           16,
           16
-        ]
+        ],
+        "frame2": "Characters/Reptile1.png"
       },
       "license": "CC-BY-4.0",
       "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
@@ -1354,8 +1369,8 @@
       "art": "/assets/dawnlike/char/frog.png",
       "frameW": 16,
       "frameH": 16,
-      "idleFrames": 1,
-      "fps": 1,
+      "idleFrames": 2,
+      "fps": 3,
       "biomes": [
         "fen",
         "coast"
@@ -1368,7 +1383,8 @@
           176,
           16,
           16
-        ]
+        ],
+        "frame2": "Characters/Reptile1.png"
       },
       "license": "CC-BY-4.0",
       "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"

@@ -144,7 +144,21 @@ def extract_one(art: str, frm: dict) -> tuple[bool, str]:
         w, h = Image.open(dst).size
         return True, f"{w}x{h}"
     x, y, cw, ch = frm["rect"]
-    Image.open(src).convert("RGBA").crop((x, y, x + cw, y + ch)).save(dst)
+    f0 = Image.open(src).convert("RGBA").crop((x, y, x + cw, y + ch))
+    # `frame2`: a second sheet (DawnLike's *1.png) holding the next animation frame at the SAME rect.
+    # Emit a horizontal 2-frame strip the renderer plays as a looping idle anim.
+    f2rel = frm.get("frame2")
+    if f2rel:
+        src2 = os.path.join(PACKS, frm.get("pack", ""), f2rel)
+        if not os.path.exists(src2):
+            return False, f"missing frame2 {frm.get('pack')}/{f2rel}"
+        f1 = Image.open(src2).convert("RGBA").crop((x, y, x + cw, y + ch))
+        strip = Image.new("RGBA", (cw * 2, ch), (0, 0, 0, 0))
+        strip.alpha_composite(f0, (0, 0))
+        strip.alpha_composite(f1, (cw, 0))
+        strip.save(dst)
+        return True, f"{cw}x{ch} 2-frame anim @{x},{y}"
+    f0.save(dst)
     return True, f"{cw}x{ch} crop@{x},{y}"
 
 

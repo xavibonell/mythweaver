@@ -59,20 +59,26 @@ interface LibAsset {
 
 let loaded = false;
 
+// Cache-bust for served art. Browsers cache PNGs by URL; when we re-extract a tile in place the
+// URL is unchanged, so the stale cached image is served and asset swaps appear to do nothing.
+// Bump this whenever the extracted art changes to force a fresh fetch.
+const ASSET_VER = '4-dawnlike-anim';
+const bust = (u: string): string => `${u}?v=${ASSET_VER}`;
+
 /** Fetch assets/library.json from the server and fill the art tables. Idempotent. */
 export async function loadAssetLibrary(serverUrl: string): Promise<void> {
   if (loaded) return;
-  const res = await fetch(`${serverUrl}/assets/library`);
+  const res = await fetch(`${serverUrl}/assets/library?v=${ASSET_VER}`);
   if (!res.ok) throw new Error(`asset library fetch failed: ${res.status}`);
   const lib = (await res.json()) as { assets: LibAsset[] };
   for (const a of lib.assets) {
     if (a.kind === 'terrain') {
-      const srcs = (a.variants ?? []).map((v) => v.art).filter(Boolean);
+      const srcs = (a.variants ?? []).map((v) => v.art).filter(Boolean).map(bust);
       if (srcs.length) TERRAIN_SRCS[a.tag] = srcs;
     } else if (a.kind === 'prop' && a.art) {
-      PROP_ART[a.tag] = { src: a.art, frameW: a.frameW ?? 16, frameH: a.frameH ?? 16, frames: a.frames ?? 1, fps: a.fps ?? 0, ...(a.footW ? { footW: a.footW } : {}), ...(a.light ? { light: true } : {}) };
+      PROP_ART[a.tag] = { src: bust(a.art), frameW: a.frameW ?? 16, frameH: a.frameH ?? 16, frames: a.frames ?? 1, fps: a.fps ?? 0, ...(a.footW ? { footW: a.footW } : {}), ...(a.light ? { light: true } : {}) };
     } else if (a.kind === 'character' && a.art) {
-      SPRITES[a.tag] = { src: a.art, frameW: a.frameW ?? 16, frameH: a.frameH ?? 16, idleFrames: a.idleFrames ?? 1, fps: a.fps ?? 1, ...(a.anchorY ? { anchorY: a.anchorY } : {}) };
+      SPRITES[a.tag] = { src: bust(a.art), frameW: a.frameW ?? 16, frameH: a.frameH ?? 16, idleFrames: a.idleFrames ?? 1, fps: a.fps ?? 1, ...(a.anchorY ? { anchorY: a.anchorY } : {}) };
     }
   }
   loaded = true;

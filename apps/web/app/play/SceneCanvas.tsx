@@ -84,6 +84,7 @@ function drawProp(scene: any, tag: string, col: number, row: number, footW: numb
 
 /** Full rebuild: terrain + props + actors + lighting + camera. */
 function renderFullImpl(scene: any, data: any): void {
+  if (typeof window !== 'undefined' && process.env.NODE_ENV !== 'production') (window as any).__mwScene = scene; // dev hook: inspect the live scene (anims/objects) from the console
   for (const o of scene.sceneObjs ?? []) o.destroy();
   scene.sceneObjs = [];
   scene.actorObjs = new Map();
