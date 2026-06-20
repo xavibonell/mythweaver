@@ -27,7 +27,7 @@ import { runDmLab, createDmLabSession, dmLabSubmit, arcView, autoRollTotal, DM_L
 import { renderDmLabPage } from './dm-lab-page.js';
 import { distillStyle, DISTILL_MAX_INPUT } from './distill.js';
 import { buildArcPlanner } from './arc-planner.js';
-import { buildArcComposer, type ArcSeed, type GeneratedArc } from './arc-composer.js';
+import { buildArcComposer, validateGeneratedArc, type ArcSeed, type GeneratedArc } from './arc-composer.js';
 
 const PORT = Number(process.env.PORT ?? 8080);
 // Bind to localhost by default; containers set HOST=0.0.0.0 (and should set a token).
@@ -309,6 +309,10 @@ function arcMarkdown(arc: GeneratedArc): string {
   const lines: string[] = [];
   lines.push(`# ${bp.premise || 'Generated arc'}`);
   lines.push('');
+  if (arc.party && arc.party.length) {
+    lines.push(`**Party:** ${arc.party.map((p) => `${p.name} (L${p.level} ${p.className}, ${p.maxHitPoints} HP, AC ${p.armorClass})`).join(' · ')}`);
+    lines.push('');
+  }
   lines.push(`**Central problem:** ${bp.centralProblem || '—'}`);
   lines.push('');
   lines.push(`**Intended ending (north star):** ${bp.intendedEnding || '—'}`);
@@ -350,6 +354,7 @@ app.post('/dm/lab/generate-arc', async (req, reply) => {
   }
   try {
     const { arc, costUsd } = await arcComposer.compose(seed, { ...(temperature !== undefined ? { temperature } : {}), library: loadSharedBestiary() });
+    arc.party = resolveParty(parsePartyPicks((req.body as Record<string, unknown>)?.party)); // resolved sheets, editable in the bundle
     return { arc, costUsd, markdown: arcMarkdown(arc) };
   } catch (err) {
     app.log.error(err, 'arc generation failed');
@@ -439,8 +444,15 @@ app.post('/dm/lab/session', async (req, reply) => {
   const playbook = typeof body.playbook === 'string' && body.playbook.trim() ? body.playbook : undefined;
   const scenarioJson = typeof body.scenarioJson === 'string' && body.scenarioJson.trim() ? body.scenarioJson : undefined;
   const startSceneId = typeof body.startScene === 'string' && body.startScene.trim() ? body.startScene.trim() : undefined;
-  // A previously-previewed generated arc (from /dm/lab/generate-arc). Re-validated by createDmLabSession.
-  const generatedArc = body.generatedArc && typeof body.generatedArc === 'object' ? (body.generatedArc as GeneratedArc) : undefined;
+  // A previously-previewed (and possibly hand-edited) generated arc. Validate before it drives a session.
+  let generatedArc: GeneratedArc | undefined;
+  if (body.generatedArc && typeof body.generatedArc === 'object') {
+    try {
+      generatedArc = validateGeneratedArc(body.generatedArc);
+    } catch (err) {
+      return badRequest(reply, `generated arc is invalid: ${(err as Error).message}`);
+    }
+  }
   // The hand-built party (role picks) → resolved character sheets. Used for generated sessions.
   const partyPicks = parsePartyPicks(body.party);
   const party = partyPicks.length ? resolveParty(partyPicks) : undefined;

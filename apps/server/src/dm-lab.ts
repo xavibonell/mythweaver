@@ -257,7 +257,8 @@ export function createDmLabSession(deps: DmLabDeps, scenarioId: string): DmLabSe
     startSceneId = gen.startSceneId;
     encounters = gen.encounters;
     bestiary = gen.bestiary;
-    party = deps.party && deps.party.length ? deps.party : resolveParty([]); // fallback: a default fighter
+    // The (possibly hand-edited) party rides on the bundle; fall back to deps, then a default fighter.
+    party = gen.party && gen.party.length ? gen.party : deps.party && deps.party.length ? deps.party : resolveParty([]);
     stateScenarioId = 'generated';
   } else {
     const bundle = loadScenario(scenarioId);

@@ -110,6 +110,9 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
   .nowplaying .np-row { font-size: 12px; color: #b7bccb; margin-top: 2px; }
   .nowplaying .np-row b { color: #8b90a0; font-weight: 600; }
   .np-sep { text-align: center; color: #4b5060; font-size: 11px; margin: 4px 0 8px; }
+  .director-wrap { border: 1px solid #2b2f3a; border-radius: 10px; margin-bottom: 10px; background: #0c0e12; }
+  .director-wrap summary { cursor: pointer; padding: 8px 11px; font-size: 12px; color: #8fa0c8; user-select: none; }
+  .director-wrap .arc-body { padding: 4px 12px 12px; max-height: 320px; overflow: auto; }
   .run-empty { border: 1px dashed #2b2f3a; border-radius: 10px; padding: 14px 12px; color: #8b90a0; font-size: 13px; margin-bottom: 10px; }
   .run-empty a { color: #6ab0ff; text-decoration: none; }
   .run-empty a:hover { text-decoration: underline; }
@@ -190,7 +193,6 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
   <button class="tab" data-tab="arc">Arc</button>
   <button class="tab" data-tab="playbook">Playbook</button>
   <button class="tab" data-tab="director">Director</button>
-  <button class="tab" data-tab="scenario">Scenario</button>
   <button class="tab" data-tab="distill">Distill</button>
   <span class="gstatus" id="gstatus"></span>
 </nav>
@@ -201,6 +203,10 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
       <input id="scenario" type="hidden" value="the-sunken-bell" />
       <select id="startScene" style="display:none"></select>
       <div id="nowplaying" class="nowplaying" style="display:none"></div>
+      <details id="director-wrap" class="director-wrap" style="display:none">
+        <summary>🎬 Director (live) — what the Showrunner is steering this turn</summary>
+        <div class="arc-body" id="director-panel"></div>
+      </details>
       <div id="run-empty" class="run-empty">No live campaign yet. <a href="#" id="goGenerate">Generate one in the Generate tab →</a></div>
       <label for="temp">DM temperature <span style="color:#6b7080">— narration creativity (0 = deterministic, 1 = creative)</span></label>
       <div class="temp">
@@ -240,14 +246,14 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
     <div class="ed-wrap"><textarea id="ed-playbook" spellcheck="false" placeholder="loading…"></textarea></div>
   </section>
 
-  <section class="view editor" id="view-scenario">
+  <section class="view editor" id="view-arc">
     <div class="ed-toolbar">
-      <span class="name" id="scenario-name">content/scenarios/&hellip;/scenario.json</span>
-      <button class="ghost" data-reload="scenario">Reload from disk</button>
-      <button data-save="scenario">Save</button>
-      <span class="status" id="status-scenario"></span>
+      <span class="name">Generated arc <span style="color:#6b7080">— the editable campaign object; tweak party levels, monster stats, beats — then Start to test how the DM reads it</span></span>
+      <button class="ghost" id="arc-revert" title="discard edits, restore the last generated arc">Revert</button>
+      <button id="arc-start">Start session →</button>
+      <span class="status" id="status-arc"></span>
     </div>
-    <div class="ed-wrap"><textarea id="ed-scenario" spellcheck="false" placeholder="loading…"></textarea></div>
+    <div class="ed-wrap"><textarea id="ed-arc" spellcheck="false" placeholder="Generate an arc (Generate tab) — the full campaign object appears here, editable: party (level/HP/abilities), bestiary (CR/HP/AC), encounters, beats. Edit, then Start session to see the DM react to the new numbers."></textarea></div>
   </section>
 
   <section class="view director" id="view-director">
@@ -369,14 +375,6 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
     </div>
   </section>
 
-  <section class="view editor" id="view-arc">
-    <div class="ed-toolbar">
-      <span class="name">Live Director state <span style="color:#6b7080">— the plan as it ADAPTS during play (Generate shows the frozen seed; this updates every turn)</span></span>
-      <button class="ghost" id="arc-refresh">Refresh</button>
-      <span class="status" id="arc-status"></span>
-    </div>
-    <div class="arc-body" id="arc-body"><div class="empty-state">Start a campaign — this tracks the Director live: the current beat, the per-turn steering brief, decisions taken, and how the arc re-routes as the party plays. (The Generate tab shows the frozen arc you created; this shows what the Director is doing right now.)</div></div>
-  </section>
 </main>
 <script>
   var TRANSCRIPTS = ${transcriptsJson};
@@ -409,7 +407,7 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
 
   // --- tabs ---
   function showTab(name) {
-    ['run', 'playbook', 'scenario', 'director', 'generate', 'distill', 'arc'].forEach(function (n) {
+    ['generate', 'run', 'arc', 'playbook', 'director', 'distill'].forEach(function (n) {
       $('view-' + n).classList.toggle('active', n === name);
     });
     document.querySelectorAll('nav.tabs .tab').forEach(function (b) {
@@ -470,26 +468,14 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
     return pill + '<span class="det">' + bits.join(' · ') + '</span>';
   }
 
-  function renderArc() {
-    var el = $('arc-body');
+  // The LIVE Director state on the Run tab (the frozen blueprint lives in the Arc/Generate tabs).
+  function renderDirectorPanel() {
+    var wrap = $('director-wrap'); var el = $('director-panel');
+    if (!el) return;
     var a = latestArc;
-    if (!a || (!a.blueprint && (!a.beats || !a.beats.length))) { el.innerHTML = '<div class="empty-state">No arc yet — start a session and the Director will architect it.</div>'; return; }
-    var bp = a.blueprint;
+    if (!a || (!a.brief && (!a.beats || !a.beats.length))) { wrap.style.display = 'none'; return; }
+    wrap.style.display = '';
     var h = '';
-    if (a.genMeta) h += '<div class="gen-badge" style="padding:0 0 14px;border:0;">' + genBadgeHtml(a.genMeta, a.stale) + '</div>';
-    if (bp) {
-      h += '<div class="arc-sec"><h3>Premise</h3><div class="kv">' + esc(bp.premise || '—') + '</div></div>';
-      h += '<div class="arc-sec"><h3>Central problem</h3><div class="kv arc-problem">' + esc(bp.centralProblem || '—') + '</div></div>';
-      h += '<div class="arc-sec"><h3>Intended ending — north star</h3><div class="arc-ending">' + esc(bp.intendedEnding || '—') + '</div></div>';
-      h += '<div class="arc-sec"><h3>Opening</h3><div class="kv">' + esc(bp.opening || '—') + '</div></div>';
-      if (bp.spine && bp.spine.length) {
-        h += '<div class="arc-sec"><h3>Spine — route to the ending</h3><ul class="spine">' + bp.spine.map(function (s) {
-          var done = s.sceneId && a.beats.some(function (b) { return b.id === s.sceneId && b.done; });
-          var cur = s.sceneId && s.sceneId === a.currentScene;
-          return '<li class="' + (done ? 'done' : cur ? 'current' : '') + '"><div class="ms">' + esc(s.milestone || s.sceneId || '') + (s.sceneId ? ' <span style="color:#6b7080">[' + esc(s.sceneId) + ']</span>' : '') + (cur ? ' <span style="color:#6ab0ff">● here</span>' : done ? ' <span style="color:#8fd6a2">✓</span>' : '') + '</div><div class="mi">' + esc(s.intent || '') + '</div></li>';
-        }).join('') + '</ul></div>';
-      }
-    }
     if (a.beats && a.beats.length) {
       h += '<div class="arc-sec"><h3>Beats</h3><div class="beatmap">' + a.beats.map(function (b) {
         var cls = b.current ? 'current' : b.done ? 'done' : b.reachable ? 'reach' : '';
@@ -499,7 +485,7 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
     }
     if (a.brief) {
       var br = a.brief;
-      h += '<div class="arc-sec"><h3>Current steering brief</h3>';
+      h += '<div class="arc-sec"><h3>Steering this turn</h3>';
       h += '<div class="kv"><b>Now:</b> ' + esc(br.activeBeatIntent || '—') + '</div>';
       if (br.reachable && br.reachable.length) h += '<div class="kv"><b>Reachable:</b> ' + br.reachable.map(function (r) { return esc(r.sceneId + ' — ' + r.hook); }).join('  ·  ') + '</div>';
       if (br.bridgeNpcs && br.bridgeNpcs.length) h += '<div class="kv"><b>Bridge NPCs:</b> ' + br.bridgeNpcs.map(function (n) { return esc(n.name + ' (' + n.role + ')'); }).join('; ') + '</div>';
@@ -535,7 +521,7 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
     var sp = $('speaker'); sp.innerHTML = '';
     var grp = document.createElement('option'); grp.value = 'The party'; grp.textContent = 'The party'; sp.appendChild(grp);
     (b.party || []).forEach(function (p) { var o = document.createElement('option'); o.value = p.name; o.textContent = p.name; sp.appendChild(o); });
-    latestArc = b.arc || null; renderArc();
+    latestArc = b.arc || null; renderDirectorPanel();
     renderNowPlaying(b);
     renderSuggestions();
     $('run-empty').style.display = 'none';
@@ -602,7 +588,7 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
       .then(function (x) {
         if (!x.ok) { addSys('(opening narration skipped: ' + (x.body.error || 'failed') + ')'); setBusy(false); $('status').textContent = 'session live — what do you do?'; return; }
         var t = x.body.turn;
-        if (x.body.arc) { latestArc = x.body.arc; renderArc(); }
+        if (x.body.arc) { latestArc = x.body.arc; renderDirectorPanel(); }
         addDm(t, latestArc && latestArc.brief);
         setPending(x.body.pendingRoll);
         renderSuggestions();
@@ -621,7 +607,7 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
       .then(function (x) {
         if (!x.ok) { addSys('error: ' + (x.body.error || 'failed')); setBusy(false); $('status').textContent = ''; return; }
         var t = x.body.turn;
-        if (x.body.arc) { latestArc = x.body.arc; renderArc(); } // Director may have re-planned this turn
+        if (x.body.arc) { latestArc = x.body.arc; renderDirectorPanel(); } // Director may have re-planned this turn
         if (t.kind !== 'message') addPlayer('roll', t.input); // show the actual declared/auto total
         addDm(t, latestArc && latestArc.brief);
         setPending(x.body.pendingRoll);
@@ -649,22 +635,14 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
     gstatus('loading files…');
     fetch('/dm/lab/files?scenario=' + encodeURIComponent(slug)).then(function (r) { return r.json(); }).then(function (b) {
       if (b.error) { gstatus('load error: ' + b.error); return; }
+      // Loads the GLOBAL, hot-reloaded prompts (playbook + Director). The authored scenario.json is no
+      // longer edited here — it's the eval / real-game fixture; the lab plays generated arcs.
       $('ed-playbook').value = b.playbook || '';
-      $('ed-scenario').value = b.scenarioJson || '';
       $('ed-director-architect').value = b.directorArchitect || '';
       $('ed-director-planner').value = b.directorPlanner || '';
       $('ed-director-composer').value = b.directorComposer || '';
       composerOn = b.composerOn !== false;
       if (!composerOn) $('gen-status').textContent = 'arc generation is OFF — set MYTHWEAVER_ARC_COMPOSER=llm and restart the server';
-      $('scenario-name').textContent = 'content/scenarios/' + (b.scenario || slug) + '/scenario.json';
-      var sel = $('startScene');
-      sel.innerHTML = '';
-      (b.scenes || []).forEach(function (s, i) {
-        var o = document.createElement('option');
-        o.value = s.id;
-        o.textContent = s.title + (i === 0 ? ' (start)' : '');
-        sel.appendChild(o);
-      });
       gstatus('files loaded');
       setTimeout(function () { gstatus(''); }, 1500);
     }).catch(function (e) { gstatus('load error: ' + (e.message || e)); });
@@ -673,7 +651,6 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
     var st = $('status-' + kind);
     var payload;
     if (kind === 'playbook') payload = { playbook: $('ed-playbook').value };
-    else if (kind === 'scenario') payload = { scenario: $('scenario').value.trim() || 'the-sunken-bell', scenarioJson: $('ed-scenario').value };
     else if (kind === 'director-architect') payload = { directorArchitect: $('ed-director-architect').value };
     else if (kind === 'director-planner') payload = { directorPlanner: $('ed-director-planner').value };
     else if (kind === 'director-composer') payload = { directorComposer: $('ed-director-composer').value };
@@ -695,7 +672,6 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
   $('declare').onclick = declareRoll;
   $('autoroll').onclick = autoRoll;
   $('rollval').addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); declareRoll(); } });
-  $('arc-refresh').onclick = renderArc;
 
   // --- Generate tab (build a party → compose a fresh arc from a seed → start a session) ---
   var libraryRoles = [];   // [{id,name,className,...}]
@@ -799,43 +775,59 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
       .then(function (x) {
         if (!x.ok) { $('gen-status').textContent = 'error: ' + (x.body.error || 'failed'); return; }
         lastGeneratedArc = x.body.arc;
+        $('ed-arc').value = JSON.stringify(x.body.arc, null, 2); // editable bundle (party levels, monster stats, beats)
         $('gen-badge').style.display = 'flex';
         $('gen-badge').innerHTML = genBadgeHtml(x.body.arc.genMeta, false) + '<span class="det">· ' + fmtCost(x.body.costUsd) + '</span>';
         renderGenPreview(x.body.arc);
         $('gen-start').disabled = false;
-        $('gen-status').textContent = 'arc ready — review it, then Start session (or Reroll for a different one)';
+        $('gen-status').textContent = 'arc ready — review/edit it on the Arc tab, then Start session (or Reroll)';
       })
       .catch(function (e) { $('gen-status').textContent = 'error: ' + (e.message || e); })
       .finally(function () { $('gen-run').disabled = false; });
   }
-  function startGeneratedSession() {
-    if (!lastGeneratedArc) { $('gen-status').textContent = 'generate an arc first'; return; }
-    $('gen-start').disabled = true; $('gen-run').disabled = true;
-    $('gen-status').innerHTML = '<span class="spin"></span>starting generated session…';
+  // The arc to start with = the (possibly hand-edited) JSON on the Arc tab, else the last generated one.
+  function currentArc() {
+    var raw = $('ed-arc') ? $('ed-arc').value.trim() : '';
+    if (!raw) return lastGeneratedArc;
+    try { return JSON.parse(raw); } catch (e) { return { __parseError: String(e) }; }
+  }
+  function startGeneratedSession(statusEl) {
+    var setStatus = function (t, spin) { var el = statusEl || $('gen-status'); el.innerHTML = spin ? ('<span class="spin"></span>' + t) : ''; if (!spin) el.textContent = t; };
+    var arc = currentArc();
+    if (!arc) { setStatus('generate an arc first'); return; }
+    if (arc.__parseError) { setStatus('arc JSON is invalid — fix it on the Arc tab (' + arc.__parseError + ')'); return; }
+    $('gen-start').disabled = true; $('gen-run').disabled = true; $('arc-start').disabled = true;
+    setStatus('starting session…', true);
     fetch('/dm/lab/session', {
       method: 'POST', headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
-        generatedArc: lastGeneratedArc,
-        party: collectParty(), // resolved to character sheets server-side
+        generatedArc: arc, // party + bestiary + beats ride on the bundle (with any hand-edits)
         temperature: Number($('temp').value), // DM narration temp (Run tab)
-        arcTemperature: Number($('gen-temp').value), // Director temp (this tab)
+        arcTemperature: Number($('gen-temp').value), // Director temp (Generate tab)
         playbook: $('ed-playbook').value,
       }),
     }).then(function (r) { return r.json().then(function (b) { return { ok: r.ok, body: b }; }); }).then(function (x) {
-      $('gen-start').disabled = false; $('gen-run').disabled = false;
-      if (!x.ok) { $('gen-status').textContent = 'error: ' + (x.body.error || 'failed'); return; }
+      $('gen-start').disabled = false; $('gen-run').disabled = false; $('arc-start').disabled = false;
+      if (!x.ok) { setStatus('error: ' + (x.body.error || 'failed')); return; }
       sessionStarted(x.body);
       showTab('run');
       $('gen-status').textContent = '✓ session started — switched to the Run tab';
+      $('status-arc').textContent = '';
       autoOpen(); // DM sets the opening scene on the Run tab
       try { $('msg').focus(); } catch (e) {}
-    }).catch(function (e) { $('gen-start').disabled = false; $('gen-run').disabled = false; $('gen-status').textContent = 'error: ' + (e.message || e); });
+    }).catch(function (e) { $('gen-start').disabled = false; $('gen-run').disabled = false; $('arc-start').disabled = false; setStatus('error: ' + (e.message || e)); });
   }
   var REROLL = ['ember', 'hollow', 'tide', 'lantern', 'thornwood', 'saltmarsh', 'ravenfall', 'gravemoor', 'witchlight', 'ironvale', 'mistral', 'cinder'];
   $('gen-temp').oninput = function () { $('gen-tempVal').textContent = Number($('gen-temp').value).toFixed(2); };
   $('gen-reroll').onclick = function () { $('gen-seedphrase').value = REROLL[Math.floor(Math.random() * REROLL.length)] + '-' + Math.floor(Math.random() * 1000); };
   $('gen-run').onclick = generateArc;
-  $('gen-start').onclick = startGeneratedSession;
+  $('gen-start').onclick = function () { startGeneratedSession(); };
+  $('arc-start').onclick = function () { startGeneratedSession($('status-arc')); };
+  $('arc-revert').onclick = function () {
+    if (!lastGeneratedArc) { $('status-arc').textContent = 'nothing generated yet'; return; }
+    $('ed-arc').value = JSON.stringify(lastGeneratedArc, null, 2);
+    $('status-arc').textContent = 'reverted to the last generated arc';
+  };
   $('party-add').onclick = function () { addPlayer('fighter'); };
   document.querySelectorAll('input[name="mmode"]').forEach(function (r) {
     r.onchange = function () {

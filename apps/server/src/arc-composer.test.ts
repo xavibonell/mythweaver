@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { generateStatBlock } from '@mythweaver/engine';
 import type { LlmProvider, LlmRequest, LlmResponse } from '@mythweaver/llm';
 import type { StatBlock } from '@mythweaver/shared';
-import { FakeArcComposer, LlmArcComposer, buildGeneratedArc, type ArcSeed, type MonsterResources } from './arc-composer.js';
+import { FakeArcComposer, LlmArcComposer, buildGeneratedArc, validateGeneratedArc, type ArcSeed, type MonsterResources } from './arc-composer.js';
 
 const seed: ArcSeed = { theme: 'a haunted lighthouse', tone: 'horror', lengthBeats: 4, party: [{ name: 'Aldric' }] };
 // StampCtx is internal; this matches its shape (used to drive buildGeneratedArc directly).
@@ -160,6 +160,52 @@ describe('arc-composer', () => {
       const arc = buildGeneratedArc(beats([{ from: 'goblin', count: 2 }]), seed, ctx0)!;
       expect(arc.encounters).toEqual([]);
       expect(arc.bestiary).toEqual({});
+    });
+  });
+
+  describe('validateGeneratedArc (guards hand-edited bundles before a session)', () => {
+    const valid = () => ({
+      adventure: { pitch: 'p', scenes: { 'scene:b1': { title: 'Start', summary: 's', exits: ['scene:b2'] }, 'scene:b2': { title: 'End', summary: 's', exits: [] } } },
+      startSceneId: 'scene:b1',
+      encounters: [{ id: 'e1', sceneId: 'scene:b2', monsters: [{ statBlockId: 'goblin', count: 2 }] }],
+      bestiary: { goblin: { id: 'goblin', name: 'Goblin', armorClass: 15, hitPoints: { average: 7, formula: '2d6' } } },
+      party: [{ id: 'pc1', name: 'Aldric', maxHitPoints: 12, armorClass: 18, level: 1, className: 'Fighter' }],
+      blueprint: { premise: 'p', centralProblem: 'c', intendedEnding: 'e', opening: 'o', spine: [] },
+      genMeta: { seedHash: 'x', model: 'fake', timestampMs: 0, inputTokens: 0, outputTokens: 0, composerPromptHash: 'y', fallback: false },
+    });
+
+    it('accepts a well-formed bundle', () => {
+      expect(() => validateGeneratedArc(valid())).not.toThrow();
+    });
+
+    it('rejects empty/absent scenes', () => {
+      const b = valid(); b.adventure.scenes = {} as never;
+      expect(() => validateGeneratedArc(b)).toThrow(/scenes/);
+    });
+
+    it('rejects a startSceneId that is not a real scene', () => {
+      const b = valid(); b.startSceneId = 'scene:nope';
+      expect(() => validateGeneratedArc(b)).toThrow(/startSceneId/);
+    });
+
+    it('rejects a party member missing numeric HP/AC (a bad hand-edit)', () => {
+      const b = valid(); (b.party[0] as Record<string, unknown>).maxHitPoints = 'lots';
+      expect(() => validateGeneratedArc(b)).toThrow(/party member/);
+    });
+
+    it('rejects a monster missing numeric AC / hitPoints.average', () => {
+      const b = valid(); delete (b.bestiary.goblin as Record<string, unknown>).armorClass;
+      expect(() => validateGeneratedArc(b)).toThrow(/monster/);
+    });
+
+    it('rejects an encounter referencing an unknown monster', () => {
+      const b = valid(); b.encounters[0]!.monsters[0]!.statBlockId = 'dragon';
+      expect(() => validateGeneratedArc(b)).toThrow(/unknown monster/);
+    });
+
+    it('rejects an empty party', () => {
+      const b = valid(); b.party = [];
+      expect(() => validateGeneratedArc(b)).toThrow(/party/);
     });
   });
 

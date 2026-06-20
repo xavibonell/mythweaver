@@ -18,7 +18,7 @@
 import { createHash } from 'node:crypto';
 import { generateStatBlock, type MonsterSpec } from '@mythweaver/engine';
 import { estimateCostUsd, type LlmProvider } from '@mythweaver/llm';
-import type { AdventureContext, ArcGenMeta, CampaignBlueprint, EncounterDef, StatBlock } from '@mythweaver/shared';
+import type { AdventureContext, ArcGenMeta, CampaignBlueprint, CharacterSheet, EncounterDef, StatBlock } from '@mythweaver/shared';
 import { buildBlueprint, extractJson, str } from './arc-planner.js';
 import { validateScenario, type Scenario } from './content.js';
 
@@ -49,6 +49,8 @@ export interface GeneratedArc {
   encounters: EncounterDef[];
   /** The stat blocks those encounters reference (library picks + commissioned creatures). */
   bestiary: Record<string, StatBlock>;
+  /** The resolved party sheets (attached by the endpoint) — editable in the lab to tweak levels/HP. */
+  party?: CharacterSheet[];
   blueprint: CampaignBlueprint;
   genMeta: ArcGenMeta;
 }
@@ -307,6 +309,67 @@ export function buildGeneratedArc(raw: unknown, seed: ArcSeed, ctx: StampCtx, re
     fallback: ctx.fallback,
   };
   return { adventure, startSceneId: ids[0]!, encounters, bestiary, blueprint, genMeta };
+}
+
+/**
+ * Validate a (possibly HAND-EDITED) generated bundle before it starts a session — the lab lets the
+ * tester tweak the JSON (party levels, monster stats, beats), so a bad edit must fail loudly here
+ * rather than crash a turn. Throws a clear message; returns the bundle typed on success.
+ */
+export function validateGeneratedArc(raw: unknown): GeneratedArc {
+  const o = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {};
+  const adv = o.adventure as { pitch?: unknown; scenes?: Record<string, unknown> } | undefined;
+  if (!adv || typeof adv !== 'object' || !adv.scenes || typeof adv.scenes !== 'object' || !Object.keys(adv.scenes).length) {
+    throw new Error('adventure.scenes is missing or empty');
+  }
+  const sceneIds = new Set(Object.keys(adv.scenes));
+  const startSceneId = typeof o.startSceneId === 'string' ? o.startSceneId : '';
+  if (!sceneIds.has(startSceneId)) throw new Error('startSceneId must name one of adventure.scenes');
+  for (const [id, s] of Object.entries(adv.scenes)) {
+    const sc = (s ?? {}) as Record<string, unknown>;
+    if (typeof sc.title !== 'string' || !sc.title) throw new Error(`scene "${id}" needs a title`);
+    if (sc.exits !== undefined && !Array.isArray(sc.exits)) throw new Error(`scene "${id}" exits must be an array`);
+  }
+  const party = Array.isArray(o.party) ? o.party : [];
+  if (!party.length) throw new Error('party must have at least one character');
+  for (const p of party) {
+    const pc = (p ?? {}) as Record<string, unknown>;
+    if (!pc.id || !pc.name || typeof pc.maxHitPoints !== 'number' || typeof pc.armorClass !== 'number') {
+      throw new Error('each party member needs id, name, numeric maxHitPoints and armorClass');
+    }
+  }
+  const bestiary = o.bestiary && typeof o.bestiary === 'object' ? (o.bestiary as Record<string, unknown>) : {};
+  for (const [id, b] of Object.entries(bestiary)) {
+    const sb = (b ?? {}) as Record<string, unknown>;
+    const hp = (sb.hitPoints ?? {}) as Record<string, unknown>;
+    if (!sb.id || !sb.name || typeof sb.armorClass !== 'number' || typeof hp.average !== 'number') {
+      throw new Error(`monster "${id}" needs id, name, numeric armorClass and hitPoints.average`);
+    }
+  }
+  for (const e of Array.isArray(o.encounters) ? o.encounters : []) {
+    const en = (e ?? {}) as Record<string, unknown>;
+    if (!sceneIds.has(en.sceneId as string)) throw new Error(`an encounter references unknown scene "${String(en.sceneId)}"`);
+    for (const m of Array.isArray(en.monsters) ? en.monsters : []) {
+      const id = (m as Record<string, unknown>)?.statBlockId as string;
+      if (!(bestiary as Record<string, unknown>)[id]) throw new Error(`an encounter references unknown monster "${String(id)}"`);
+    }
+  }
+  // Reuse the authored-scenario validator for the beat graph (parity with the on-disk path).
+  validateScenario(
+    {
+      id: 'generated',
+      title: 'edited',
+      pitch: typeof adv.pitch === 'string' ? adv.pitch : '',
+      startSceneId,
+      scenes: Object.entries(adv.scenes).map(([id, s]) => {
+        const sc = (s ?? {}) as Record<string, unknown>;
+        return { id, title: String(sc.title ?? ''), summary: String(sc.summary ?? ''), exits: Array.isArray(sc.exits) ? (sc.exits as string[]) : [] };
+      }),
+      encounters: [],
+    },
+    'generated',
+  );
+  return o as unknown as GeneratedArc;
 }
 
 /** Build the monster resources for a compose call from the seed's config + the shared library. */
