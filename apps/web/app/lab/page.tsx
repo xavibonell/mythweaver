@@ -48,6 +48,8 @@ export default function LabPage() {
   // Editable EstablishScene for Director-isolation mode: tweak the DM's output (or paste your own)
   // and re-run ONLY the Director + Cartographer, with no DM in the loop.
   const [establishEdit, setEstablishEdit] = useState('');
+  const [large, setLarge] = useState(false); // build a LARGE scene (perf/zoom test for the city-scope work)
+  const [fitNonce, setFitNonce] = useState(0); // bump to re-frame the whole scene in the free camera
 
   async function build(text?: string) {
     const b = (text ?? brief).trim();
@@ -56,7 +58,7 @@ export default function LabPage() {
     setBusy(true);
     setError('');
     try {
-      const res = await fetch(`${SERVER}/scene/lab`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ brief: b }) });
+      const res = await fetch(`${SERVER}/scene/lab`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ brief: b, large }) });
       const data = await res.json();
       if (!res.ok) {
         setError(data.error ?? `error ${res.status}`);
@@ -117,7 +119,15 @@ export default function LabPage() {
       </div>
 
       <div style={{ flex: 1, minHeight: 0, background: '#0d0b0a', position: 'relative' }}>
-        <SceneCanvas data={m ?? null} />
+        <SceneCanvas data={m ?? null} freeCamera fitNonce={fitNonce} />
+        {m && (
+          <div style={{ position: 'absolute', top: 8, right: 8, display: 'flex', gap: 8, alignItems: 'center', background: 'rgba(13,11,10,0.7)', padding: '4px 8px', borderRadius: 6, fontSize: '0.78rem', color: '#b8ad99' }}>
+            <span style={{ opacity: 0.7 }}>drag = pan · wheel = zoom</span>
+            <button onClick={() => setFitNonce((n) => n + 1)} style={{ fontSize: '0.78rem', padding: '2px 8px', background: '#241f1a', color: '#c9a227', border: '1px solid #2a241f', borderRadius: 4, cursor: 'pointer' }}>
+              Fit
+            </button>
+          </div>
+        )}
         {!m && (
           <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#5c544a', pointerEvents: 'none' }}>
             {busy ? 'The DM is imagining the scene…' : 'Describe a place below and build it.'}
@@ -137,9 +147,14 @@ export default function LabPage() {
             rows={3}
             style={{ flex: 1, resize: 'vertical', background: '#15120f', color: '#e8dfce', border: '1px solid #2a241f', borderRadius: 4, padding: 8, fontFamily: 'inherit' }}
           />
-          <button onClick={() => build()} disabled={busy || !brief.trim()} style={{ alignSelf: 'stretch', minWidth: 120 }}>
-            {busy ? 'Building…' : 'Build scene'}
-          </button>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignSelf: 'stretch' }}>
+            <button onClick={() => build()} disabled={busy || !brief.trim()} style={{ flex: 1, minWidth: 120 }}>
+              {busy ? 'Building…' : 'Build scene'}
+            </button>
+            <label style={{ fontSize: '0.72rem', color: '#b8ad99', display: 'flex', gap: 4, alignItems: 'center', cursor: 'pointer' }} title="Floor the grid to a large size to test big-scene render + pan/zoom">
+              <input type="checkbox" checked={large} onChange={(e) => setLarge(e.target.checked)} /> Large scene
+            </label>
+          </div>
         </div>
 
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>

@@ -113,14 +113,15 @@ app.get('/scene/demo', async () => {
 // Scene Lab — drive the full setup pipeline (DM → Director → Cartographer) from a freeform
 // brief, no session needed, returning every intermediate artifact for inspection. Powers /lab.
 app.post('/scene/lab', async (req, reply) => {
-  const body = (req.body ?? {}) as { brief?: unknown };
+  const body = (req.body ?? {}) as { brief?: unknown; large?: unknown };
   const brief = typeof body.brief === 'string' ? body.brief.trim() : '';
+  const large = body.large === true;
   if (!brief) return badRequest(reply, 'brief is required');
   if (brief.length > 1000) return badRequest(reply, 'brief too long (max 1000 chars)');
   try {
     // No injected party — the brief's OWN characters (declared by the DM as npcs) are the cast.
     // Injecting a default scenario's pregens contaminated arbitrary scenes with extra heroes.
-    return await labBuildScene({ llm, composer, model: dmModel }, brief, []);
+    return await labBuildScene({ llm, composer, model: dmModel }, brief, [], { large });
   } catch (err) {
     app.log.error(err, 'scene lab failed');
     reply.code(502);

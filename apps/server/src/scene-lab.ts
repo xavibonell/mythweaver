@@ -42,6 +42,7 @@ export async function labBuildScene(
   deps: { llm: LlmProvider; composer: SceneComposer; model?: string },
   brief: string,
   party: PartyMemberRef[],
+  opts: { large?: boolean } = {},
 ): Promise<LabResult> {
   const res = await deps.llm.complete({
     system: LAB_SYSTEM,
@@ -54,7 +55,7 @@ export async function labBuildScene(
   if (!tc) throw new Error('the DM did not call setScene for that brief — try a more concrete place');
   const stub = { world: { currentLocationId: null, locations: {}, links: [] } } as unknown as GameState;
   const establish = parseEstablish(tc.input as Record<string, unknown>, stub);
-  const composition = await deps.composer.compose({ establish, party, seed: seedFor(establish.locationId), directive: brief });
+  const composition = await deps.composer.compose({ establish, party, seed: seedFor(establish.locationId), directive: brief, ...(opts.large ? { large: true } : {}) });
   const sceneMap = buildSceneMap(composition);
   return { brief, establish, composition, sceneMap, narration: res.text ?? '', model: res.model };
 }

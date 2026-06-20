@@ -135,6 +135,10 @@ export interface CompositionRequest {
    * straight to the Director so it can honor composition the DM couldn't encode. Optional.
    */
   directive?: string;
+  /** Lab/perf flag: floor the grid to a LARGE size (a big single settlement) so the renderer +
+   *  pan/zoom camera can be exercised at scale. The Director still paints small; the extra margin
+   *  fills with base terrain + spread buildings/greenery. (Stepping-stone toward district cities.) */
+  large?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -248,7 +252,11 @@ export interface SceneComposition {
 }
 
 /** Grid bounds the Director must stay within (also enforced by validation). */
-export const GRID_LIMITS = { minCols: 12, maxCols: 40, minRows: 8, maxRows: 28 } as const;
+// Cap raised for the city-scope work (V1): allows LARGE single settlements (and headroom toward the
+// district city later). The Director still PAINTS small (~24×28 per its prompt) and parseBlockout
+// clamps to the painted grid, so normal scenes are unaffected — only an explicit `large` request
+// floors the grid bigger (buildComposition). The eventual full city will add a separate CITY limit.
+export const GRID_LIMITS = { minCols: 12, maxCols: 96, minRows: 8, maxRows: 64 } as const;
 /** Bounds on object fields (expansion caps — keeps a sloppy model from flooding the map). */
 export const FIELD_LIMITS = { maxFields: 12, maxCount: 40, minSpacing: 1, maxSpacing: 6 } as const;
 

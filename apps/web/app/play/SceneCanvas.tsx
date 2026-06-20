@@ -107,16 +107,20 @@ function renderFullImpl(scene: any, data: any): void {
         : null;
 
   const { rows, cols } = data.grid;
-  for (let r = 0; r < rows; r++) {
+  // Terrain is baked into ONE RenderTexture (a single Game Object / draw call) instead of cols×rows
+  // individual Images — so a city-scale grid (10k+ tiles) renders without thousands of objects. The
+  // per-scene tint multiplies the whole texture (cheap per-tile retint isn't needed; lighting is
+  // fixed per scene). batchDraw stamps each 16×16 tile at its grid position.
+  const terrainRT = scene.add.renderTexture(0, 0, cols * TILE, rows * TILE).setOrigin(0, 0).setDepth(-10000);
+  terrainRT.beginDraw();
+  for (let r = 0; r < rows; r++)
     for (let c = 0; c < cols; c++) {
-      const tag = data.tiles?.[r]?.[c] ?? 'grass';
-      const key = terrainTileVariant(tag, c, r, data.seed ?? 0); // texture key = art src path
-      if (!key) continue;
-      const img = scene.add.image(c * TILE, r * TILE, key).setOrigin(0, 0).setDepth(-10000);
-      if (tint) img.setTint(tint);
-      scene.sceneObjs.push(img);
+      const key = terrainTileVariant(data.tiles?.[r]?.[c] ?? 'grass', c, r, data.seed ?? 0); // texture key = art src path
+      if (key) terrainRT.batchDraw(key, c * TILE, r * TILE);
     }
-  }
+  terrainRT.endDraw();
+  if (tint) terrainRT.setTint(tint);
+  scene.sceneObjs.push(terrainRT);
 
   // Seed-scattered ambiance (decor) sits just behind the placed objects on its row.
   for (const a of data.ambiance ?? []) drawProp(scene, a.tag, a.col, a.row, 1, 1, a.row - 0.1, tint);
@@ -166,7 +170,9 @@ function fitCamera(scene: any, data: any): void {
   // without a black band, and tall/wide sprites stay inside the frame instead of clipping.
   const zoom = Math.min(cw / box.w, ch / box.h, MAX_ZOOM);
   const cam = scene.cameras.main;
-  cam.setZoom(zoom > 0 ? zoom : 1);
+  scene.fitZoom = zoom > 0 ? zoom : 1; // floor for the free-camera wheel-out (can't shrink past the whole scene)
+  cam.setBounds(box.x, box.y, box.w, box.h); // clamp panning to the world bounds
+  cam.setZoom(scene.fitZoom);
   cam.centerOn(box.x + box.w / 2, box.y + box.h / 2);
 }
 
@@ -176,8 +182,9 @@ interface Bridge {
   game: any;
 }
 
-/** A self-contained Phaser surface that renders the SceneMap passed as `data` (null = nothing yet). */
-export default function SceneCanvas({ data }: { data: any }) {
+/** A self-contained Phaser surface that renders the SceneMap passed as `data` (null = nothing yet).
+ *  `freeCamera` (Lab) enables drag-pan + wheel-zoom; bumping `fitNonce` re-frames the whole scene. */
+export default function SceneCanvas({ data, freeCamera = false, fitNonce = 0 }: { data: any; freeCamera?: boolean; fitNonce?: number }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const bridgeRef = useRef<Bridge>({ scene: null, pending: null, game: null });
 
@@ -208,9 +215,27 @@ export default function SceneCanvas({ data }: { data: any }) {
             scene.actorObjs = new Map();
             ensureAnims(scene);
             scene.renderFull = (d: any) => renderFullImpl(scene, d);
-            scene.scale.on('resize', () => {
-              if (scene.lastData) fitCamera(scene, scene.lastData);
-            });
+            scene.fit = () => { if (scene.lastData) fitCamera(scene, scene.lastData); };
+            // /play keeps auto-fit on resize; the Lab free-camera leaves the tester's view alone.
+            scene.scale.on('resize', () => { if (!freeCamera && scene.lastData) fitCamera(scene, scene.lastData); });
+            if (freeCamera) {
+              // LAB-ONLY: drag to pan, wheel to zoom toward the cursor (clamped to [fit .. 8], pan
+              // clamped to world bounds via fitCamera's setBounds). Lets the tester inspect a big scene.
+              const cam = scene.cameras.main;
+              scene.input.on('pointermove', (p: any) => {
+                if (!p.isDown) return;
+                cam.scrollX -= (p.x - p.prevPosition.x) / cam.zoom;
+                cam.scrollY -= (p.y - p.prevPosition.y) / cam.zoom;
+              });
+              scene.input.on('wheel', (p: any, _over: any, _dx: number, dy: number) => {
+                const before = cam.getWorldPoint(p.x, p.y);
+                const factor = dy > 0 ? 0.85 : 1.18;
+                cam.setZoom(Math.min(8, Math.max(scene.fitZoom ?? 0.2, cam.zoom * factor)));
+                const after = cam.getWorldPoint(p.x, p.y);
+                cam.scrollX += before.x - after.x;
+                cam.scrollY += before.y - after.y;
+              });
+            }
             bridge.scene = scene;
             if (bridge.pending) {
               scene.renderFull(bridge.pending);
@@ -235,6 +260,11 @@ export default function SceneCanvas({ data }: { data: any }) {
     if (b.scene) b.scene.renderFull(data);
     else b.pending = data;
   }, [data]);
+
+  // "Fit/Reset" — the Lab bumps fitNonce to re-frame the whole scene after free-panning/zooming.
+  useEffect(() => {
+    if (fitNonce) bridgeRef.current.scene?.fit?.();
+  }, [fitNonce]);
 
   return <div ref={containerRef} style={{ width: '100%', height: '100%', background: '#0d0b0a' }} />;
 }

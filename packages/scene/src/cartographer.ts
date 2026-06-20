@@ -808,14 +808,14 @@ export function buildSceneMap(comp: SceneComposition): SceneMap {
     for (let i = grass.length - 1; i > 0; i--) { const j = Math.floor(rand() * (i + 1)); const t = grass[i]!; grass[i] = grass[j]!; grass[j] = t; }
     const TREES = ['tree', 'tree', 'tree_pine', 'bush'] as const;
     let gi = 0;
-    const trees = Math.min(grass.length, Math.max(6, Math.floor(grass.length * 0.2)));
+    const trees = Math.min(grass.length, 70, Math.max(6, Math.floor(grass.length * 0.2))); // abs cap so big maps don't explode the prop count
     for (let n = 0; n < trees && gi < grass.length; n++, gi++) {
       const cell = grass[gi]!;
       occ[cell.r]![cell.c] = true;
       walkable[cell.r]![cell.c] = false; // trees block
       ambiance.push({ tag: TREES[Math.floor(rand() * TREES.length)]!, col: cell.c, row: cell.r });
     }
-    const flowers = Math.min(grass.length - gi, Math.max(4, Math.floor(grass.length * 0.15)));
+    const flowers = Math.min(grass.length - gi, 50, Math.max(4, Math.floor(grass.length * 0.15)));
     for (let n = 0; n < flowers && gi < grass.length; n++, gi++) {
       const cell = grass[gi]!;
       occ[cell.r]![cell.c] = true; // a walkable decal — DON'T clear walkable
@@ -832,7 +832,7 @@ export function buildSceneMap(comp: SceneComposition): SceneMap {
     for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) if (free(c, r) && /^(grass|dirt|sand)$/.test(tiles[r]![c]!)) open.push({ c, r });
     for (let i = open.length - 1; i > 0; i--) { const j = Math.floor(rand() * (i + 1)); const t = open[i]!; open[i] = open[j]!; open[j] = t; }
     const DECALS = ['pebble', 'pebble', 'grass_tuft'] as const;
-    const cap = Math.min(open.length, Math.max(4, Math.floor(open.length * 0.08)));
+    const cap = Math.min(open.length, 60, Math.max(4, Math.floor(open.length * 0.08)));
     for (let i = 0; i < cap; i++) {
       const cell = open[i]!;
       occ[cell.r]![cell.c] = true; // reserve; decals are walkable (blocks:false) so DON'T clear walkable

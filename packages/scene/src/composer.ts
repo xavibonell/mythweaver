@@ -441,6 +441,13 @@ function buildComposition(req: CompositionRequest, hints: CompositionHints): Sce
     gridCols = Math.min(GRID_LIMITS.maxCols, Math.max(24, gridCols));
     gridRows = Math.min(GRID_LIMITS.maxRows, Math.max(16, gridRows));
   }
+  // LARGE (Lab/perf): floor to a big grid so the renderer + pan/zoom camera exercise at scale. The
+  // Director's small painted blockout fills the top-left; the Cartographer fills the rest with base
+  // terrain + spreads buildings/greenery across it. (Stepping-stone toward the district city.)
+  if (req.large) {
+    gridCols = Math.min(GRID_LIMITS.maxCols, Math.max(gridCols, 60));
+    gridRows = Math.min(GRID_LIMITS.maxRows, Math.max(gridRows, 40));
+  }
 
   // BUILDINGS: in a settlement, a fixture whose tag names a STRUCTURE (smithy/tavern/cottage/…)
   // becomes a walled ROOM the Cartographer carves + furnishes — NOT a facade sprite (which top-down
