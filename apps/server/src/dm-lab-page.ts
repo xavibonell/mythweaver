@@ -191,7 +191,7 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
   <button class="tab active" data-tab="generate">Generate</button>
   <button class="tab" data-tab="run">Run</button>
   <button class="tab" data-tab="arc">Arc</button>
-  <button class="tab" data-tab="playbook">Playbook</button>
+  <button class="tab" data-tab="playbook">DM</button>
   <button class="tab" data-tab="director">Director</button>
   <button class="tab" data-tab="distill">Distill</button>
   <span class="gstatus" id="gstatus"></span>
