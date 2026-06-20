@@ -110,6 +110,11 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
   .nowplaying .np-row { font-size: 12px; color: #b7bccb; margin-top: 2px; }
   .nowplaying .np-row b { color: #8b90a0; font-weight: 600; }
   .np-sep { text-align: center; color: #4b5060; font-size: 11px; margin: 4px 0 8px; }
+  .run-empty { border: 1px dashed #2b2f3a; border-radius: 10px; padding: 14px 12px; color: #8b90a0; font-size: 13px; margin-bottom: 10px; }
+  .run-empty a { color: #6ab0ff; text-decoration: none; }
+  .run-empty a:hover { text-decoration: underline; }
+  #presets .sugg { background: #1b1f29; color: #c7ccda; border: 1px solid #2b2f3a; font-weight: 500; padding: 6px 11px; border-radius: 8px; cursor: pointer; font: inherit; font-size: 12px; }
+  #presets .sugg:hover { background: #232735; }
   /* distill tab */
   .view.distill.active { display: flex; flex-direction: column; }
   .distill-grid { flex: 1; display: grid; grid-template-columns: 1fr 1fr; min-height: 0; }
@@ -180,39 +185,35 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
   <span class="sub">tune the DM live · edit the playbook &amp; scenario, set a temperature, Run the same prompts &amp; compare</span>
 </header>
 <nav class="tabs">
-  <button class="tab active" data-tab="run">Run</button>
-  <button class="tab" data-tab="playbook">Playbook</button>
-  <button class="tab" data-tab="scenario">Scenario</button>
-  <button class="tab" data-tab="director">Director</button>
-  <button class="tab" data-tab="generate">Generate</button>
-  <button class="tab" data-tab="distill">Distill</button>
+  <button class="tab active" data-tab="generate">Generate</button>
+  <button class="tab" data-tab="run">Run</button>
   <button class="tab" data-tab="arc">Arc</button>
+  <button class="tab" data-tab="playbook">Playbook</button>
+  <button class="tab" data-tab="director">Director</button>
+  <button class="tab" data-tab="scenario">Scenario</button>
+  <button class="tab" data-tab="distill">Distill</button>
   <span class="gstatus" id="gstatus"></span>
 </nav>
 <main>
-  <section class="view run active" id="view-run">
+  <section class="view run" id="view-run">
     <div class="panel left">
+      <!-- Authored-scenario selectors kept hidden (still drive the Playbook/Scenario/Director editor tabs). -->
+      <input id="scenario" type="hidden" value="the-sunken-bell" />
+      <select id="startScene" style="display:none"></select>
       <div id="nowplaying" class="nowplaying" style="display:none"></div>
-      <div class="np-sep" id="np-sep" style="display:none">— or start a new session —</div>
-      <label for="scenario">Scenario</label>
-      <input id="scenario" type="text" value="the-sunken-bell" />
-      <label for="startScene">Start scene <span style="color:#6b7080">— drop the party here (pick the fight to test combat)</span></label>
-      <select id="startScene" class="seg" style="width:100%"></select>
-      <label for="temp">Temperature <span style="color:#6b7080">— 0 = deterministic, 1 = creative</span></label>
+      <div id="run-empty" class="run-empty">No live campaign yet. <a href="#" id="goGenerate">Generate one in the Generate tab →</a></div>
+      <label for="temp">DM temperature <span style="color:#6b7080">— narration creativity (0 = deterministic, 1 = creative)</span></label>
       <div class="temp">
         <input id="temp" type="range" min="0" max="1" step="0.05" value="1" />
         <span class="val" id="tempVal">1.00</span>
       </div>
-      <div class="row" style="margin-top:12px;">
-        <button id="newSession">New session</button>
-      </div>
-      <div class="hint">A session captures the current Playbook + Scenario tabs + temperature. Edit them, then start a new session to apply.</div>
-      <label>Quick-start a situation</label>
-      <div class="row" id="presets"></div>
-      <div class="hint" id="status">Start a session, then play turn by turn.</div>
+      <div class="hint" style="margin-bottom:10px">Captured when you start a session from the Generate tab.</div>
+      <label>Suggested actions <span style="color:#6b7080">— arc-aware; click to prefill, then tweak &amp; send</span></label>
+      <div class="row" id="presets"><span class="hint">start a campaign to see suggestions</span></div>
+      <div class="hint" id="status" style="margin-top:10px">Generate a campaign to begin.</div>
     </div>
     <div class="right-wrap">
-      <div class="convo" id="convo"><div class="empty-state">Start a session, then play turn by turn — the DM keeps the growing context.</div></div>
+      <div class="convo" id="convo"><div class="empty-state">No live campaign yet — head to the <b>Generate</b> tab, build your party, and generate an arc. Play begins here.</div></div>
       <div class="inputbar">
         <div class="row" id="msgbar">
           <select id="speaker" class="seg" style="width:160px" title="who is speaking"></select>
@@ -282,7 +283,7 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
     </div>
   </section>
 
-  <section class="view generate" id="view-generate">
+  <section class="view generate active" id="view-generate">
     <div class="panel left gen-form">
       <label>1 · Your party <span style="color:#6b7080">— add players, pick a role</span></label>
       <div id="party-list"></div>
@@ -370,11 +371,11 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
 
   <section class="view editor" id="view-arc">
     <div class="ed-toolbar">
-      <span class="name">Campaign arc — the Game Director's plan</span>
+      <span class="name">Live Director state <span style="color:#6b7080">— the plan as it ADAPTS during play (Generate shows the frozen seed; this updates every turn)</span></span>
       <button class="ghost" id="arc-refresh">Refresh</button>
       <span class="status" id="arc-status"></span>
     </div>
-    <div class="arc-body" id="arc-body"><div class="empty-state">Start a session — the Director architects the campaign arc (premise → ending → spine) up front, then adapts it as you play.</div></div>
+    <div class="arc-body" id="arc-body"><div class="empty-state">Start a campaign — this tracks the Director live: the current beat, the per-turn steering brief, decisions taken, and how the arc re-routes as the party plays. (The Generate tab shows the frozen arc you created; this shows what the Director is doing right now.)</div></div>
   </section>
 </main>
 <script>
@@ -521,36 +522,23 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
     if (pendingRoll) { $('rollask').textContent = '🎲 ' + pendingRoll.expr + ' — ' + pendingRoll.reason; $('rollval').value = ''; $('rollval').focus(); }
     else if (sessionId) { $('msg').focus(); }
   }
-  function setBusy(b) { $('send').disabled = b || !sessionId; $('declare').disabled = b; $('autoroll').disabled = b; }
+  function setBusy(b) { $('send').disabled = b || !sessionId; $('msg').disabled = b || !sessionId; $('declare').disabled = b; $('autoroll').disabled = b; }
 
-  function newSession() {
-    $('status').innerHTML = '<span class="spin"></span>starting session…';
-    return fetch('/dm/lab/session', {
-      method: 'POST', headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        scenario: $('scenario').value.trim() || 'the-sunken-bell',
-        startScene: $('startScene').value,
-        temperature: Number($('temp').value),
-        playbook: $('ed-playbook').value,
-        scenarioJson: $('ed-scenario').value,
-      }),
-    }).then(function (r) { return r.json().then(function (b) { return { ok: r.ok, body: b }; }); }).then(function (x) {
-      if (!x.ok) { $('status').textContent = 'error: ' + (x.body.error || 'failed'); return false; }
-      sessionStarted(x.body);
-      return autoOpen().then(function () { return true; }); // DM sets the scene before play (serialized)
-    }).catch(function (e) { $('status').textContent = 'error: ' + (e.message || e); return false; });
-  }
+  var partyNames = []; // party of the live session (for arc-aware suggestions)
 
-  // Shared success handler for both authored and generated session starts.
+  // Shared success handler for a session start (campaigns now always start from the Generate tab).
   function sessionStarted(b) {
     sessionId = b.sessionId; pendingRoll = null;
+    partyNames = (b.party || []).map(function (p) { return p.name; });
     convo().innerHTML = '';
-    addSys('Session started · scene "' + b.scene + '" · party: ' + (b.party || []).map(function (p) { return p.name; }).join(', '));
+    addSys('Session started · scene "' + b.scene + '" · party: ' + partyNames.join(', '));
     var sp = $('speaker'); sp.innerHTML = '';
     var grp = document.createElement('option'); grp.value = 'The party'; grp.textContent = 'The party'; sp.appendChild(grp);
     (b.party || []).forEach(function (p) { var o = document.createElement('option'); o.value = p.name; o.textContent = p.name; sp.appendChild(o); });
     latestArc = b.arc || null; renderArc();
     renderNowPlaying(b);
+    renderSuggestions();
+    $('run-empty').style.display = 'none';
     setPending(null); setBusy(false);
   }
 
@@ -568,7 +556,40 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
       '<div class="np-row"><b>Scene:</b> ' + esc(sceneTitle) + '</div>' +
       '<div class="np-row"><b>Party:</b> ' + esc((b.party || []).map(function (p) { return p.name; }).join(', ')) + '</div>';
     el.style.display = '';
-    $('np-sep').style.display = '';
+  }
+
+  // Arc-aware quick-starts: derive a few suggested player actions from the LIVE arc (current scene +
+  // steering brief + party), prefill the input on click so the tester can tweak & send.
+  function renderSuggestions() {
+    var box = $('presets');
+    if (!sessionId) { box.innerHTML = '<span class="hint">start a campaign to see suggestions</span>'; return; }
+    var a = latestArc || {};
+    var brief = a.brief || {};
+    var sceneTitle = (a.beats || []).filter(function (x) { return x.current; }).map(function (x) { return x.title; })[0] || 'the scene';
+    var p0 = partyNames[0] || null;
+    var sugg = [];
+    sugg.push({ label: 'Investigate', who: 'The party', text: 'We examine ' + sceneTitle + ' carefully — what stands out?' });
+    if (brief.bridgeNpcs && brief.bridgeNpcs.length) {
+      sugg.push({ label: 'Talk to ' + brief.bridgeNpcs[0].name, who: p0 || 'The party', text: (p0 ? 'I' : 'We') + ' approach ' + brief.bridgeNpcs[0].name + ' and ask what is really going on.' });
+    } else {
+      sugg.push({ label: 'Question someone', who: p0 || 'The party', text: (p0 ? 'I' : 'We') + ' find someone here and press them for what they know.' });
+    }
+    if (brief.reachable && brief.reachable.length) {
+      var r = brief.reachable[0];
+      sugg.push({ label: 'Move on', who: 'The party', text: 'We move on — ' + (r.hook || ('toward ' + r.sceneId)) + '.' });
+    }
+    sugg.push({ label: 'Ready for trouble', who: p0 || 'The party', text: (p0 ? 'I ready my weapon' : 'We ready weapons') + ' and watch for any threat.' });
+    box.innerHTML = '';
+    sugg.forEach(function (s) {
+      var b = document.createElement('button');
+      b.className = 'sugg'; b.textContent = s.label; b.title = s.text;
+      b.onclick = function () {
+        if (pendingRoll) return;
+        var sp = $('speaker'); if (sp) sp.value = s.who;
+        $('msg').value = s.text; $('msg').focus();
+      };
+      box.appendChild(b);
+    });
   }
 
   // Auto-deliver the DM's opening narration so a fresh session sets the scene before the players act.
@@ -584,6 +605,7 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
         if (x.body.arc) { latestArc = x.body.arc; renderArc(); }
         addDm(t, latestArc && latestArc.brief);
         setPending(x.body.pendingRoll);
+        renderSuggestions();
         setBusy(false);
         $('status').textContent = 'the scene is set — what do you do?';
       })
@@ -603,6 +625,7 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
         if (t.kind !== 'message') addPlayer('roll', t.input); // show the actual declared/auto total
         addDm(t, latestArc && latestArc.brief);
         setPending(x.body.pendingRoll);
+        renderSuggestions(); // keep quick-starts arc-aware as the scene advances
         setBusy(false);
         $('status').textContent = 'turn ' + t.index + ' · total ' + fmtCost(x.body.totalCostUsd) + ' · ' + fmtTime(x.body.totalLatencyMs);
       }).catch(function (e) { addSys('error: ' + (e.message || e)); setBusy(false); $('status').textContent = ''; });
@@ -619,28 +642,6 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
   }
   function declareRoll() { if (!pendingRoll) return; var n = Number($('rollval').value); if (!isFinite(n)) return; submitTurn({ roll: n }); }
   function autoRoll() { if (!pendingRoll) return; submitTurn({ auto: true }); }
-
-  // Quick-start: new session, then auto-play a preset transcript to seed context, then continue manually.
-  function playPreset(turns) {
-    newSession().then(function (ok) {
-      if (!ok) return;
-      var i = 0;
-      function next() {
-        if (i >= turns.length) { $('status').textContent = 'preset seeded — continue the conversation'; return; }
-        var e = turns[i++];
-        if ('roll' in e) { if (pendingRoll) { submitTurn({ roll: e.roll }).then(next); } else { next(); } return; }
-        addPlayer(e.as || 'player', e.say);
-        var payload = { say: e.say }; if (e.as) payload.as = e.as;
-        submitTurn(payload).then(function resolveRolls() {
-          if (!pendingRoll) { next(); return; }
-          var nxt = turns[i];
-          if (nxt && ('roll' in nxt)) { i++; submitTurn({ roll: nxt.roll }).then(resolveRolls); }
-          else { submitTurn({ auto: true }).then(resolveRolls); }
-        });
-      }
-      next();
-    });
-  }
 
   // --- load / save editable files ---
   function loadFiles() {
@@ -686,17 +687,9 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
   document.querySelectorAll('[data-save]').forEach(function (b) { b.onclick = function () { save(b.getAttribute('data-save')); }; });
   document.querySelectorAll('[data-reload]').forEach(function (b) { b.onclick = function () { loadFiles(); }; });
 
-  // --- presets + session controls + temp ---
-  Object.keys(TRANSCRIPTS).forEach(function (name) {
-    var b = document.createElement('button');
-    b.className = 'ghost';
-    b.textContent = name;
-    b.title = 'start a new session and auto-play the "' + name + '" transcript, then continue manually';
-    b.onclick = function () { playPreset(TRANSCRIPTS[name]); };
-    $('presets').appendChild(b);
-  });
+  // --- session controls + temp ---
   $('temp').oninput = function () { $('tempVal').textContent = Number($('temp').value).toFixed(2); };
-  $('newSession').onclick = newSession;
+  $('goGenerate').onclick = function (e) { e.preventDefault(); showTab('generate'); };
   $('send').onclick = sendMsg;
   $('msg').addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); sendMsg(); } });
   $('declare').onclick = declareRoll;
@@ -967,6 +960,7 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
   $('view-block').onclick = function () { setDiffView(false); };
   $('view-diff').onclick = function () { setDiffView(true); };
   loadFiles();
+  setBusy(false); // gates the Run input off until a session is started from Generate
 </script>
 </body>
 </html>`;
