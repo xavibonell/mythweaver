@@ -74,6 +74,21 @@ function wallTagFor(top: boolean, bot: boolean, left: boolean, right: boolean, m
   return b;
 }
 
+/** C1 terrain auto-tile: the faithful DawnLike 9-tile OUTER set, keyed by which sides are EXPOSED
+ *  (border a different terrain). One exposed side → that edge; two ADJACENT → that corner; surrounded,
+ *  an opposite-pair strip, or 3+ exposed → '' (centre fill — DawnLike ships no inner-corner tiles). */
+function grassEdgeSuffix(eN: boolean, eE: boolean, eS: boolean, eW: boolean): string {
+  const n = (eN ? 1 : 0) + (eE ? 1 : 0) + (eS ? 1 : 0) + (eW ? 1 : 0);
+  if (n === 1) return eN ? '_t' : eS ? '_b' : eW ? '_l' : '_r';
+  if (n === 2) {
+    if (eN && eW) return '_tl';
+    if (eN && eE) return '_tr';
+    if (eS && eW) return '_bl';
+    if (eS && eE) return '_br';
+  }
+  return '';
+}
+
 /** Deterministic PRNG (mulberry32) — reproducible from the scene seed. */
 function makeRng(seed: number): () => number {
   let s = seed >>> 0;
@@ -806,6 +821,23 @@ export function buildSceneMap(comp: SceneComposition): SceneMap {
       occ[cell.r]![cell.c] = true; // a walkable decal — DON'T clear walkable
       ambiance.push({ tag: 'flowers', col: cell.c, row: cell.r });
     }
+  }
+
+  // TERRAIN AUTO-TILING (C1): edge every grass cell so grass→dirt/path/plaza/wall/sand/building reads
+  // with real DawnLike edge tiles instead of a hard rectangular seam. Baked LAST — it reads the FINAL
+  // tiles grid (after building-carve, reachability dirt-carving, the shoreline sand strip), so it edges
+  // against whatever ended up adjacent. Off-grid neighbours count as same-grass (the screen border
+  // doesn't fringe, matching the forest-feather rule). `walkable` was computed from the base 'grass'
+  // (walkable) and the grass_* edges are walkable too, so it stays consistent — no other change needed.
+  if (!isInterior) {
+    const orig = tiles.map((row) => row.slice());
+    const sameGrass = (c: number, r: number) => c < 0 || r < 0 || c >= cols || r >= rows || orig[r]![c] === 'grass';
+    for (let r = 0; r < rows; r++)
+      for (let c = 0; c < cols; c++) {
+        if (orig[r]![c] !== 'grass') continue;
+        const suf = grassEdgeSuffix(!sameGrass(c, r - 1), !sameGrass(c + 1, r), !sameGrass(c, r + 1), !sameGrass(c - 1, r));
+        if (suf) tiles[r]![c] = `grass${suf}`;
+      }
   }
 
   return {

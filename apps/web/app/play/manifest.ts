@@ -62,7 +62,7 @@ let loaded = false;
 // Cache-bust for served art. Browsers cache PNGs by URL; when we re-extract a tile in place the
 // URL is unchanged, so the stale cached image is served and asset swaps appear to do nothing.
 // Bump this whenever the extracted art changes to force a fresh fetch.
-const ASSET_VER = '10-streets-greenery';
+const ASSET_VER = '11-terrain-autotile';
 const bust = (u: string): string => `${u}?v=${ASSET_VER}`;
 
 /** Fetch assets/library.json from the server and fill the art tables. Idempotent. */
@@ -91,9 +91,11 @@ function cellHash(c: number, r: number, seed: number): number {
   return h >>> 0;
 }
 
-/** All tile-image keys for a terrain tag (falls back to grass, then anything). */
+/** All tile-image keys for a terrain tag. An auto-tile edge tag (e.g. grass_tl) degrades to its base
+ *  terrain if its art is missing, then to grass, then anything — so a baked edge never renders blank. */
 export function terrainSrcs(tag: string): string[] {
-  return TERRAIN_SRCS[tag] ?? TERRAIN_SRCS['grass'] ?? Object.values(TERRAIN_SRCS)[0] ?? [];
+  const base = tag.replace(/_(tl|tr|bl|br|t|b|l|r)$/, '');
+  return TERRAIN_SRCS[tag] ?? TERRAIN_SRCS[base] ?? TERRAIN_SRCS['grass'] ?? Object.values(TERRAIN_SRCS)[0] ?? [];
 }
 
 /** The terrain tile image (texture key) for a cell, chosen among VARIANTS by seeded noise so a

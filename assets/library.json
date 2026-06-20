@@ -22,7 +22,7 @@
             "crop": "Objects/Floor.png",
             "rect": [
               128,
-              64,
+              112,
               16,
               16
             ]
@@ -31,6 +31,198 @@
       ],
       "license": "CC-BY-4.0",
       "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
+    },
+    {
+      "kind": "terrain",
+      "tag": "grass_t",
+      "desc": "grass edge",
+      "walkable": true,
+      "internal": true,
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite",
+      "variants": [
+        {
+          "art": "/assets/dawnlike/terrain/grass_t.png",
+          "from": {
+            "pack": "DawnLike",
+            "crop": "Objects/Floor.png",
+            "rect": [
+              128,
+              96,
+              16,
+              16
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "kind": "terrain",
+      "tag": "grass_b",
+      "desc": "grass edge",
+      "walkable": true,
+      "internal": true,
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite",
+      "variants": [
+        {
+          "art": "/assets/dawnlike/terrain/grass_b.png",
+          "from": {
+            "pack": "DawnLike",
+            "crop": "Objects/Floor.png",
+            "rect": [
+              128,
+              128,
+              16,
+              16
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "kind": "terrain",
+      "tag": "grass_l",
+      "desc": "grass edge",
+      "walkable": true,
+      "internal": true,
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite",
+      "variants": [
+        {
+          "art": "/assets/dawnlike/terrain/grass_l.png",
+          "from": {
+            "pack": "DawnLike",
+            "crop": "Objects/Floor.png",
+            "rect": [
+              112,
+              112,
+              16,
+              16
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "kind": "terrain",
+      "tag": "grass_r",
+      "desc": "grass edge",
+      "walkable": true,
+      "internal": true,
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite",
+      "variants": [
+        {
+          "art": "/assets/dawnlike/terrain/grass_r.png",
+          "from": {
+            "pack": "DawnLike",
+            "crop": "Objects/Floor.png",
+            "rect": [
+              144,
+              112,
+              16,
+              16
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "kind": "terrain",
+      "tag": "grass_tl",
+      "desc": "grass edge",
+      "walkable": true,
+      "internal": true,
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite",
+      "variants": [
+        {
+          "art": "/assets/dawnlike/terrain/grass_tl.png",
+          "from": {
+            "pack": "DawnLike",
+            "crop": "Objects/Floor.png",
+            "rect": [
+              112,
+              96,
+              16,
+              16
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "kind": "terrain",
+      "tag": "grass_tr",
+      "desc": "grass edge",
+      "walkable": true,
+      "internal": true,
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite",
+      "variants": [
+        {
+          "art": "/assets/dawnlike/terrain/grass_tr.png",
+          "from": {
+            "pack": "DawnLike",
+            "crop": "Objects/Floor.png",
+            "rect": [
+              144,
+              96,
+              16,
+              16
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "kind": "terrain",
+      "tag": "grass_bl",
+      "desc": "grass edge",
+      "walkable": true,
+      "internal": true,
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite",
+      "variants": [
+        {
+          "art": "/assets/dawnlike/terrain/grass_bl.png",
+          "from": {
+            "pack": "DawnLike",
+            "crop": "Objects/Floor.png",
+            "rect": [
+              112,
+              128,
+              16,
+              16
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "kind": "terrain",
+      "tag": "grass_br",
+      "desc": "grass edge",
+      "walkable": true,
+      "internal": true,
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite",
+      "variants": [
+        {
+          "art": "/assets/dawnlike/terrain/grass_br.png",
+          "from": {
+            "pack": "DawnLike",
+            "crop": "Objects/Floor.png",
+            "rect": [
+              144,
+              128,
+              16,
+              16
+            ]
+          }
+        }
+      ]
     },
     {
       "kind": "terrain",

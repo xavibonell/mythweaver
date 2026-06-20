@@ -353,4 +353,35 @@ describe('buildSceneMap (Cartographer)', () => {
     const adj = chairs.some((ch) => tables.some((t) => Math.abs(ch.col - t.col) + Math.abs(ch.row - t.row) === 1));
     expect(adj).toBe(true);
   });
+
+  it('C1: auto-tiles grass edges against other terrain, keeps surrounded grass plain, deterministic', () => {
+    const m1 = buildSceneMap(composition(7));
+    const m2 = buildSceneMap(composition(7));
+    expect(m1.tiles).toEqual(m2.tiles); // seed-stable bake
+    expect(validateSceneMap(m1)).toEqual({ ok: true, violations: [] });
+    const flat = m1.tiles.flat();
+    expect(flat).toContain('grass'); // centre fill survives (surrounded cells)
+    const edges = flat.filter((t) => /^grass_(t|b|l|r|tl|tr|bl|br)$/.test(t));
+    expect(edges.length).toBeGreaterThan(0); // edges baked where grass meets dirt/water/sand
+    // every baked edge cell actually borders a non-grass tile (not edging mid-field)
+    const { cols, rows } = m1.grid;
+    const isGrass = (c: number, r: number) => c < 0 || r < 0 || c >= cols || r >= rows || m1.tiles[r]![c] === 'grass' || /^grass_/.test(m1.tiles[r]![c]!);
+    for (let r = 0; r < rows; r++)
+      for (let c = 0; c < cols; c++)
+        if (/^grass_/.test(m1.tiles[r]![c]!)) {
+          const borders = !isGrass(c, r - 1) || !isGrass(c + 1, r) || !isGrass(c, r + 1) || !isGrass(c - 1, r);
+          expect(borders).toBe(true);
+        }
+  });
+
+  it('C1: interiors get no grass auto-tiles (grass is outdoor-only)', () => {
+    const comp: SceneComposition = {
+      locationId: 'loc:crypt', seed: 3, grammar: 'enclosed-interior', biome: 'dungeon', lighting: 'night',
+      grid: { cols: 18, rows: 12 }, terrain: { base: 'stone', regions: [{ tag: 'stone', zone: 'floor' }, { tag: 'wall', zone: 'wall' }] },
+      placements: [{ id: 'pc:a', kind: 'actor', role: 'pc', tag: 'knight', visible: true, zone: 'floor' }],
+      ambiance: { density: 0, tags: [] },
+    };
+    const m = buildSceneMap(comp);
+    expect(m.tiles.flat().some((t) => t.startsWith('grass'))).toBe(false);
+  });
 });
