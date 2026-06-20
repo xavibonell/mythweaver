@@ -212,6 +212,32 @@ def gen_wall(dst: str, frm: dict) -> None:
     im.save(dst)
 
 
+def gen_pebble(dst: str, frm: dict) -> None:
+    """A few small grey pebbles (non-blocking ground decal) for lived-in dirt/sand detail."""
+    from PIL import ImageDraw
+
+    im = Image.new("RGBA", (16, 16), (0, 0, 0, 0))
+    d = ImageDraw.Draw(im)
+    g, dg = _db("grey"), _db("dgrey")
+    for x, y in [(4, 8), (9, 5), (11, 11), (6, 12)]:
+        d.rectangle([x, y, x + 1, y + 1], fill=g)
+        d.point([(x, y + 2)], fill=dg)
+    im.save(dst)
+
+
+def gen_tuft(dst: str, frm: dict) -> None:
+    """A small tuft of grass blades (non-blocking decal) breaking up flat grass."""
+    from PIL import ImageDraw
+
+    im = Image.new("RGBA", (16, 16), (0, 0, 0, 0))
+    d = ImageDraw.Draw(im)
+    g, lg = _db("dgreen"), _db("lgreen")
+    for x in (5, 8, 11):
+        d.line([(x, 13), (x, 8)], fill=g)
+        d.point([(x, 7)], fill=lg)
+    im.save(dst)
+
+
 def gen_flowers(dst: str, frm: dict) -> None:
     """A small wild-flower tuft decal (non-blocking) scattered on settlement grass for colour."""
     from PIL import ImageDraw
@@ -256,6 +282,7 @@ def gen_stall(dst: str, frm: dict) -> None:
 GENERATORS = {
     "water": gen_water, "water_deep": gen_water_deep, "sand": gen_sand, "boat": gen_boat,
     "house": gen_house, "fountain": gen_fountain, "dlhouse": gen_dlhouse, "stall": gen_stall, "wall": gen_wall, "flowers": gen_flowers,
+    "pebble": gen_pebble, "tuft": gen_tuft,
 }
 
 

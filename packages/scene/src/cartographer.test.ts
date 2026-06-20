@@ -235,7 +235,7 @@ describe('buildSceneMap (Cartographer)', () => {
     expect(crates.length).toBeGreaterThanOrEqual(4);
     // every crate sits on a shore (sand) tile — i.e. land orthogonally adjacent to water
     for (const cr of crates) {
-      const adjWater = ([[1, 0], [-1, 0], [0, 1], [0, -1]] as const).some(([dx, dy]) => m.tiles[cr.row + dy]?.[cr.col + dx] === 'water');
+      const adjWater = ([[1, 0], [-1, 0], [0, 1], [0, -1]] as const).some(([dx, dy]) => /^water/.test(m.tiles[cr.row + dy]?.[cr.col + dx] ?? '')); // water or a baked water_* shore edge
       expect(adjWater).toBe(true);
     }
   });

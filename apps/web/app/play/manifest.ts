@@ -62,7 +62,7 @@ let loaded = false;
 // Cache-bust for served art. Browsers cache PNGs by URL; when we re-extract a tile in place the
 // URL is unchanged, so the stale cached image is served and asset swaps appear to do nothing.
 // Bump this whenever the extracted art changes to force a fresh fetch.
-const ASSET_VER = '11-terrain-autotile';
+const ASSET_VER = '12-shore-decals';
 const bust = (u: string): string => `${u}?v=${ASSET_VER}`;
 
 /** Fetch assets/library.json from the server and fill the art tables. Idempotent. */

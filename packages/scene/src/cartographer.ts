@@ -75,9 +75,9 @@ function wallTagFor(top: boolean, bot: boolean, left: boolean, right: boolean, m
 }
 
 /** C1 terrain auto-tile: the faithful DawnLike 9-tile OUTER set, keyed by which sides are EXPOSED
- *  (border a different terrain). One exposed side → that edge; two ADJACENT → that corner; surrounded,
- *  an opposite-pair strip, or 3+ exposed → '' (centre fill — DawnLike ships no inner-corner tiles). */
-function grassEdgeSuffix(eN: boolean, eE: boolean, eS: boolean, eW: boolean): string {
+ *  (border a different terrain family). One exposed side → that edge; two ADJACENT → that corner;
+ *  surrounded, an opposite-pair strip, or 3+ exposed → '' (centre — DawnLike ships no inner corners). */
+function edgeSuffix(eN: boolean, eE: boolean, eS: boolean, eW: boolean): string {
   const n = (eN ? 1 : 0) + (eE ? 1 : 0) + (eS ? 1 : 0) + (eW ? 1 : 0);
   if (n === 1) return eN ? '_t' : eS ? '_b' : eW ? '_l' : '_r';
   if (n === 2) {
@@ -823,20 +823,45 @@ export function buildSceneMap(comp: SceneComposition): SceneMap {
     }
   }
 
-  // TERRAIN AUTO-TILING (C1): edge every grass cell so grass→dirt/path/plaza/wall/sand/building reads
-  // with real DawnLike edge tiles instead of a hard rectangular seam. Baked LAST — it reads the FINAL
-  // tiles grid (after building-carve, reachability dirt-carving, the shoreline sand strip), so it edges
-  // against whatever ended up adjacent. Off-grid neighbours count as same-grass (the screen border
-  // doesn't fringe, matching the forest-feather rule). `walkable` was computed from the base 'grass'
-  // (walkable) and the grass_* edges are walkable too, so it stays consistent — no other change needed.
+  // C2 GROUND DECALS: a light, NON-BLOCKING scatter of pebbles + grass tufts on open natural ground
+  // (grass/dirt/sand — not stone plaza/interiors/water) for lived-in floor detail. Walkable decals —
+  // occ-reserved so nothing stacks on them, but pathing is untouched. Seed-stable; runs before the
+  // auto-tile bake (decals are objects, not tiles, so the bake is unaffected).
   if (!isInterior) {
+    const open: { c: number; r: number }[] = [];
+    for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) if (free(c, r) && /^(grass|dirt|sand)$/.test(tiles[r]![c]!)) open.push({ c, r });
+    for (let i = open.length - 1; i > 0; i--) { const j = Math.floor(rand() * (i + 1)); const t = open[i]!; open[i] = open[j]!; open[j] = t; }
+    const DECALS = ['pebble', 'pebble', 'grass_tuft'] as const;
+    const cap = Math.min(open.length, Math.max(4, Math.floor(open.length * 0.08)));
+    for (let i = 0; i < cap; i++) {
+      const cell = open[i]!;
+      occ[cell.r]![cell.c] = true; // reserve; decals are walkable (blocks:false) so DON'T clear walkable
+      ambiance.push({ tag: DECALS[Math.floor(rand() * DECALS.length)]!, col: cell.c, row: cell.r });
+    }
+  }
+
+  // TERRAIN AUTO-TILING (C1): edge cells of an EDGED terrain so boundaries read with real DawnLike
+  // edge tiles instead of a hard rectangular seam. Baked LAST — reads the FINAL tiles grid (after
+  // building-carve, reachability dirt-carving, the shoreline sand strip), so it edges against whatever
+  // ended up adjacent. Off-grid neighbours count as same (the screen border doesn't fringe, matching
+  // the forest-feather rule). GRASS owns its boundaries (grass-on-dirt fade — looks right vs dirt/
+  // sand/stone/wall); WATER (incl. water_deep, same family) owns the SHORELINE (a brown shore rim,
+  // which the sand-strip puts against sand). dirt/sand need no own edge set — grass+water already own
+  // every boundary they touch (a standalone set would just double-edge). `walkable` was computed from
+  // the base terrain and each *_edge shares its base's walkability, so it stays consistent.
+  if (!isInterior) {
+    const FAMILY: Record<string, string> = { grass: 'grass', water: 'water', water_deep: 'water' };
+    const EDGED = new Set(['grass', 'water', 'water_deep']);
     const orig = tiles.map((row) => row.slice());
-    const sameGrass = (c: number, r: number) => c < 0 || r < 0 || c >= cols || r >= rows || orig[r]![c] === 'grass';
+    const famOf = (t: string) => FAMILY[t] ?? t;
+    const sameFam = (c: number, r: number, f: string) => c < 0 || r < 0 || c >= cols || r >= rows || famOf(orig[r]![c]!) === f;
     for (let r = 0; r < rows; r++)
       for (let c = 0; c < cols; c++) {
-        if (orig[r]![c] !== 'grass') continue;
-        const suf = grassEdgeSuffix(!sameGrass(c, r - 1), !sameGrass(c + 1, r), !sameGrass(c, r + 1), !sameGrass(c - 1, r));
-        if (suf) tiles[r]![c] = `grass${suf}`;
+        const base = orig[r]![c]!;
+        if (!EDGED.has(base)) continue;
+        const f = famOf(base);
+        const suf = edgeSuffix(!sameFam(c, r - 1, f), !sameFam(c + 1, r, f), !sameFam(c, r + 1, f), !sameFam(c - 1, r, f));
+        if (suf) tiles[r]![c] = `${base}${suf}`;
       }
   }
 

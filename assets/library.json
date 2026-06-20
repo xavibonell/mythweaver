@@ -339,6 +339,390 @@
     },
     {
       "kind": "terrain",
+      "tag": "water_t",
+      "desc": "water edge",
+      "walkable": false,
+      "internal": true,
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite",
+      "variants": [
+        {
+          "art": "/assets/dawnlike/terrain/water_t.png",
+          "from": {
+            "pack": "DawnLike",
+            "crop": "Objects/Floor.png",
+            "rect": [
+              240,
+              336,
+              16,
+              16
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "kind": "terrain",
+      "tag": "water_b",
+      "desc": "water edge",
+      "walkable": false,
+      "internal": true,
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite",
+      "variants": [
+        {
+          "art": "/assets/dawnlike/terrain/water_b.png",
+          "from": {
+            "pack": "DawnLike",
+            "crop": "Objects/Floor.png",
+            "rect": [
+              240,
+              368,
+              16,
+              16
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "kind": "terrain",
+      "tag": "water_l",
+      "desc": "water edge",
+      "walkable": false,
+      "internal": true,
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite",
+      "variants": [
+        {
+          "art": "/assets/dawnlike/terrain/water_l.png",
+          "from": {
+            "pack": "DawnLike",
+            "crop": "Objects/Floor.png",
+            "rect": [
+              224,
+              352,
+              16,
+              16
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "kind": "terrain",
+      "tag": "water_r",
+      "desc": "water edge",
+      "walkable": false,
+      "internal": true,
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite",
+      "variants": [
+        {
+          "art": "/assets/dawnlike/terrain/water_r.png",
+          "from": {
+            "pack": "DawnLike",
+            "crop": "Objects/Floor.png",
+            "rect": [
+              256,
+              352,
+              16,
+              16
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "kind": "terrain",
+      "tag": "water_tl",
+      "desc": "water edge",
+      "walkable": false,
+      "internal": true,
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite",
+      "variants": [
+        {
+          "art": "/assets/dawnlike/terrain/water_tl.png",
+          "from": {
+            "pack": "DawnLike",
+            "crop": "Objects/Floor.png",
+            "rect": [
+              224,
+              336,
+              16,
+              16
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "kind": "terrain",
+      "tag": "water_tr",
+      "desc": "water edge",
+      "walkable": false,
+      "internal": true,
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite",
+      "variants": [
+        {
+          "art": "/assets/dawnlike/terrain/water_tr.png",
+          "from": {
+            "pack": "DawnLike",
+            "crop": "Objects/Floor.png",
+            "rect": [
+              256,
+              336,
+              16,
+              16
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "kind": "terrain",
+      "tag": "water_bl",
+      "desc": "water edge",
+      "walkable": false,
+      "internal": true,
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite",
+      "variants": [
+        {
+          "art": "/assets/dawnlike/terrain/water_bl.png",
+          "from": {
+            "pack": "DawnLike",
+            "crop": "Objects/Floor.png",
+            "rect": [
+              224,
+              368,
+              16,
+              16
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "kind": "terrain",
+      "tag": "water_br",
+      "desc": "water edge",
+      "walkable": false,
+      "internal": true,
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite",
+      "variants": [
+        {
+          "art": "/assets/dawnlike/terrain/water_br.png",
+          "from": {
+            "pack": "DawnLike",
+            "crop": "Objects/Floor.png",
+            "rect": [
+              256,
+              368,
+              16,
+              16
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "kind": "terrain",
+      "tag": "water_deep_t",
+      "desc": "water edge",
+      "walkable": false,
+      "internal": true,
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite",
+      "variants": [
+        {
+          "art": "/assets/dawnlike/terrain/water_deep_t.png",
+          "from": {
+            "pack": "DawnLike",
+            "crop": "Objects/Floor.png",
+            "rect": [
+              240,
+              384,
+              16,
+              16
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "kind": "terrain",
+      "tag": "water_deep_b",
+      "desc": "water edge",
+      "walkable": false,
+      "internal": true,
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite",
+      "variants": [
+        {
+          "art": "/assets/dawnlike/terrain/water_deep_b.png",
+          "from": {
+            "pack": "DawnLike",
+            "crop": "Objects/Floor.png",
+            "rect": [
+              240,
+              416,
+              16,
+              16
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "kind": "terrain",
+      "tag": "water_deep_l",
+      "desc": "water edge",
+      "walkable": false,
+      "internal": true,
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite",
+      "variants": [
+        {
+          "art": "/assets/dawnlike/terrain/water_deep_l.png",
+          "from": {
+            "pack": "DawnLike",
+            "crop": "Objects/Floor.png",
+            "rect": [
+              224,
+              400,
+              16,
+              16
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "kind": "terrain",
+      "tag": "water_deep_r",
+      "desc": "water edge",
+      "walkable": false,
+      "internal": true,
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite",
+      "variants": [
+        {
+          "art": "/assets/dawnlike/terrain/water_deep_r.png",
+          "from": {
+            "pack": "DawnLike",
+            "crop": "Objects/Floor.png",
+            "rect": [
+              256,
+              400,
+              16,
+              16
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "kind": "terrain",
+      "tag": "water_deep_tl",
+      "desc": "water edge",
+      "walkable": false,
+      "internal": true,
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite",
+      "variants": [
+        {
+          "art": "/assets/dawnlike/terrain/water_deep_tl.png",
+          "from": {
+            "pack": "DawnLike",
+            "crop": "Objects/Floor.png",
+            "rect": [
+              224,
+              384,
+              16,
+              16
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "kind": "terrain",
+      "tag": "water_deep_tr",
+      "desc": "water edge",
+      "walkable": false,
+      "internal": true,
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite",
+      "variants": [
+        {
+          "art": "/assets/dawnlike/terrain/water_deep_tr.png",
+          "from": {
+            "pack": "DawnLike",
+            "crop": "Objects/Floor.png",
+            "rect": [
+              256,
+              384,
+              16,
+              16
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "kind": "terrain",
+      "tag": "water_deep_bl",
+      "desc": "water edge",
+      "walkable": false,
+      "internal": true,
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite",
+      "variants": [
+        {
+          "art": "/assets/dawnlike/terrain/water_deep_bl.png",
+          "from": {
+            "pack": "DawnLike",
+            "crop": "Objects/Floor.png",
+            "rect": [
+              224,
+              416,
+              16,
+              16
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "kind": "terrain",
+      "tag": "water_deep_br",
+      "desc": "water edge",
+      "walkable": false,
+      "internal": true,
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite",
+      "variants": [
+        {
+          "art": "/assets/dawnlike/terrain/water_deep_br.png",
+          "from": {
+            "pack": "DawnLike",
+            "crop": "Objects/Floor.png",
+            "rect": [
+              256,
+              416,
+              16,
+              16
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "kind": "terrain",
       "tag": "sand",
       "desc": "sandy beach / dune ground",
       "walkable": true,
@@ -1036,6 +1420,46 @@
       ],
       "from": {
         "gen": "flowers"
+      }
+    },
+    {
+      "kind": "prop",
+      "tag": "pebble",
+      "desc": "scattered pebbles",
+      "art": "/assets/dawnlike/props/pebble.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false,
+      "biomes": [
+        "village",
+        "town",
+        "forest"
+      ],
+      "from": {
+        "gen": "pebble"
+      }
+    },
+    {
+      "kind": "prop",
+      "tag": "grass_tuft",
+      "desc": "a tuft of grass",
+      "art": "/assets/dawnlike/props/grass_tuft.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false,
+      "biomes": [
+        "village",
+        "town",
+        "forest"
+      ],
+      "from": {
+        "gen": "tuft"
       }
     },
     {
