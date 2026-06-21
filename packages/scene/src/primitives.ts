@@ -497,10 +497,6 @@ export function compound(cv: Canvas, region: Rect, type: BuildingType, opts: { d
     let bestA = 41;
     for (let i = 1; i < leaves.length; i++) { if (notchSet.has(i)) continue; const lf = leaves[i]!; const a = lf.w * lf.h; if (a > bestA && Math.min(lf.w, lf.h) >= 6) { bestA = a; courtyardIdx = i; } }
   }
-  // DOORS — a wooden door at the EXTERIOR entrance; interior doorways get a wooden ARCH connector (never
-  // a door, never on outer walls). Both decorative + walkable.
-  cv.ambiance.push({ tag: 'door_house', col: ed.dC, row: ed.dR });
-  for (const dd of doors) cv.ambiance.push({ tag: 'arch', col: dd.c, row: dd.r });
   const GARDEN = ['flowers', 'flowers_blue', 'flowers_yellow', 'flowers_red', 'bush', 'grass_tuft', 'mushroom', 'tree_oak', 'tree_autumn']; // varied garden planting
   leaves.forEach((lf, i) => {
     if (i === courtyardIdx) {
@@ -531,6 +527,17 @@ export function compound(cv: Canvas, region: Rect, type: BuildingType, opts: { d
     const d = doors.find((dd) => onBorder(lf, dd)) ?? (i === 0 ? { c: ed.dC, r: ed.dR } : { c: lf.x, r: lf.y });
     furnishRoom(cv.tiles, cv.walkable, cv.occ, cv.objects, lf, tmpl, d, cv.rng, cv.cols, `${safe}-r${i}`, `bldg:${safe}-r${i}`, 0, i === 0 ? opts.name : undefined);
   });
+
+  // DOORS — placed AFTER notch/garden clearing so the checks are accurate. The EXTERIOR entrance gets a
+  // door. Interior doorways get a wooden ARCH, but ONLY where BOTH sides are interior floor (a real
+  // room↔room connector) — never where a door now opens onto a cleared yard/exterior (the "door to a
+  // wall" bug). A door onto a yard/exterior stays an open gap (no sprite).
+  const interiorFloor = (c: number, r: number) => { const t = cv.tileAt(c, r) ?? ''; return t === floor || t === 'wood_floor' || t === 'stone' || t === 'flagstone' || t === 'stone_brick' || t.startsWith('carpet'); };
+  cv.ambiance.push({ tag: 'door_house', col: ed.dC, row: ed.dR });
+  for (const dd of doors) {
+    const connectsRooms = dd.horiz ? interiorFloor(dd.c - 1, dd.r) && interiorFloor(dd.c + 1, dd.r) : interiorFloor(dd.c, dd.r - 1) && interiorFloor(dd.c, dd.r + 1);
+    if (connectsRooms) cv.ambiance.push({ tag: 'arch', col: dd.c, row: dd.r });
+  }
 
   // WINDOWS — periodic windows set into the REMAINING outer walls (skip cleared notch/garden cells +
   // the door + corners). Decorative ambiance drawn over the wall tile, non-blocking.
