@@ -687,13 +687,13 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
         return '<label><input type="checkbox" value="' + esc(m.id) + '" /> ' + esc(m.name) + ' <span class="cr">CR ' + esc(m.cr) + '</span></label>';
       }).join('');
       // Seed a default party once the roles are known.
-      if (!$('party-list').children.length) ['fighter', 'cleric', 'rogue'].forEach(function (role) { addPlayer(role); });
+      if (!$('party-list').children.length) ['fighter', 'cleric', 'rogue'].forEach(function (role) { addPartyMember(role); });
     }).catch(function (e) { $('gen-status').textContent = 'library error: ' + (e.message || e); });
   }
   function roleOptions(sel) {
     return libraryRoles.map(function (r) { return '<option value="' + esc(r.id) + '"' + (r.id === sel ? ' selected' : '') + '>' + esc(r.name) + '</option>'; }).join('');
   }
-  function addPlayer(role, name) {
+  function addPartyMember(role, name) {
     var row = document.createElement('div'); row.className = 'prow';
     row.innerHTML = '<select class="seg prole">' + roleOptions(role) + '</select>' +
       '<input class="pname" type="text" placeholder="name (optional)" value="' + esc(name || '') + '" />' +
@@ -828,7 +828,7 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
     $('ed-arc').value = JSON.stringify(lastGeneratedArc, null, 2);
     $('status-arc').textContent = 'reverted to the last generated adventure';
   };
-  $('party-add').onclick = function () { addPlayer('fighter'); };
+  $('party-add').onclick = function () { addPartyMember('fighter'); };
   document.querySelectorAll('input[name="mmode"]').forEach(function (r) {
     r.onchange = function () {
       var manual = (document.querySelector('input[name="mmode"]:checked') || {}).value === 'manual';
