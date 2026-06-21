@@ -519,8 +519,10 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
     convo().innerHTML = '';
     addSys('Session started · scene "' + b.scene + '" · party: ' + partyNames.join(', '));
     var sp = $('speaker'); sp.innerHTML = '';
-    var grp = document.createElement('option'); grp.value = 'The party'; grp.textContent = 'The party'; sp.appendChild(grp);
-    (b.party || []).forEach(function (p) { var o = document.createElement('option'); o.value = p.name; o.textContent = p.name; sp.appendChild(o); });
+    var party = b.party || [];
+    // "The party" only makes sense with 2+ PCs; a solo party auto-selects its lone character.
+    if (party.length > 1) { var grp = document.createElement('option'); grp.value = 'The party'; grp.textContent = 'The party'; sp.appendChild(grp); }
+    party.forEach(function (p) { var o = document.createElement('option'); o.value = p.name; o.textContent = p.name; sp.appendChild(o); });
     latestArc = b.arc || null; renderDirectorPanel();
     renderNowPlaying(b);
     renderSuggestions();
