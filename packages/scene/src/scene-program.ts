@@ -445,6 +445,19 @@ const BRIEF_CREATURES: [RegExp, string, 'mob' | 'npc'][] = [
   [/villager|peasant|townsfolk|hermit|fisher|merchant|elder|woman|man\b/, 'villager', 'npc'],
 ];
 
+/** Brief keyword → a single notable PROP tag (the landmark net injects these if the LLM forgot them). */
+const BRIEF_PROPS: [RegExp, string][] = [
+  [/sarcophag|coffin|casket/, 'sarcophagus'],
+  [/\baltar|shrine|reliquary/, 'altar'],
+  [/throne/, 'throne'],
+  [/fountain|\bwell\b|cistern/, 'fountain'],
+  [/statue|\bidol\b/, 'statue'],
+  [/chest|treasure|\bloot\b|hoard|coffer/, 'chest'],
+  [/bonfire|campfire|fire-?pit|brazier|\bpyre\b/, 'brazier'],
+  [/sign-?post|\bsignpost\b/, 'signpost'],
+  [/gravestone|tombstone|headstone/, 'gravestone'],
+];
+
 function progSeed(s: string): number {
   let h = 2166136261 >>> 0;
   for (let i = 0; i < s.length; i++) {
@@ -461,6 +474,20 @@ export function normalizeProgram(raw: unknown, brief: string): SceneProgram {
   const seen = new Set<string>();
   const ops = (Array.isArray(r.ops) ? r.ops : []).map((o) => normalizeOp(o, seen)).filter((o): o is SceneOp => o !== null).slice(0, 24);
   if (!ops.length) ops.push({ op: 'scatter', idBase: 'prop:rock', tags: ['bush', 'tree'], kind: 'prop', region: 'all', count: 8 });
+  // STRUCTURE-COMPLETENESS NET: an interior/dungeon/cave/maze brief MUST have a structural backbone —
+  // if the LLM emitted none (e.g. a "dungeon" as flat fill + scattered monsters), inject the right one
+  // so it can never come out a flat field. Inserted BEFORE the first object op (so terrain fills stay
+  // the base and objects land in the carved structure). Deterministic, no extra LLM call.
+  const lcb = brief.toLowerCase();
+  const STRUCT = new Set(['building', 'rooms', 'cave', 'maze']);
+  const interiorish = grammar === 'enclosed-interior' || /dungeon|crypt|cave|cavern|grotto|temple|vault|lair|tomb|catacomb|fortress|prison|sewer|\bmine\b|warren|labyrinth|maze/.test(lcb);
+  if (interiorish && !ops.some((o) => STRUCT.has(o.op))) {
+    const inject: SceneOp = /labyrinth|maze/.test(lcb) ? { op: 'maze', region: 'all', wall: 'wall', floor: 'grass' }
+      : /cave|cavern|grotto|\bmine\b|lair|warren|burrow/.test(lcb) ? { op: 'cave', region: 'all', wall: 'wall', floor: 'stone' }
+      : { op: 'rooms', region: 'all', count: 6, wall: 'wall', floor: 'stone' };
+    const objIdx = ops.findIndex((o) => o.op === 'place' || o.op === 'scatter' || o.op === 'vignette' || o.op === 'entrance');
+    if (objIdx < 0) ops.push(inject); else ops.splice(objIdx, 0, inject);
+  }
   // COMPLETENESS NET: the LLM sometimes forgets to emit ops for creatures the brief names. Scan the
   // brief; for any creature word whose tag isn't already an actor in the program, INJECT a scatter so
   // the brief's cast always appears (the recurring "0 actors" failure). Deterministic, no extra call.
@@ -475,6 +502,21 @@ export function normalizeProgram(raw: unknown, brief: string): SceneProgram {
     if (re.test(lc) && !actorTags.has(tag)) {
       ops.push({ op: 'scatter', idBase: uniqueId(`${role}:${tag}`, seen), tags: [tag], kind: 'actor', role, region: 'all', count: role === 'mob' ? 6 : 2 });
       actorTags.add(tag);
+    }
+  }
+  // LANDMARK NET: ensure a single notable prop the brief names (sarcophagus, altar, throne, chest…)
+  // appears even if the LLM's program omitted it. Placed near centre; place() snaps to a free cell.
+  const propTags = new Set<string>();
+  for (const o of ops) {
+    if (o.op === 'place' && o.kind !== 'actor') propTags.add(o.tag);
+    if (o.op === 'building') propTags.add('__building__'); // a building furnishes itself — don't also drop a loose altar/throne
+  }
+  const hasBuilding = propTags.has('__building__');
+  for (const [re, tag] of BRIEF_PROPS) {
+    if (ops.length >= 28) break;
+    if (re.test(lc) && !propTags.has(tag) && !(hasBuilding && (tag === 'altar' || tag === 'throne'))) {
+      ops.push({ op: 'place', id: uniqueId(`prop:${tag}`, seen), tag, kind: 'prop', at: 'center' });
+      propTags.add(tag);
     }
   }
   return {

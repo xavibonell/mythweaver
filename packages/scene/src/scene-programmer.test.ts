@@ -125,6 +125,31 @@ describe('LLM scene programmer (G1b) — normalize + compose', () => {
     expect(validateSceneMap(m)).toEqual({ ok: true, violations: [] }); // actors land on walkable, connected
   });
 
+  it('injects a structural backbone when an interior brief has none (the flat-dungeon fix)', () => {
+    // the failure mode: LLM emits a flat dungeon (fill + scatter, no structure)
+    const dungeon = normalizeProgram({ ops: [{ op: 'fill', region: 'all', tag: 'stone' }, { op: 'scatter', idBase: 'mob:goblin', tags: ['goblin'], kind: 'actor', role: 'mob', region: 'all', count: 6 }] }, 'a stone dungeon of chambers full of goblins');
+    expect(dungeon.ops.some((o) => o.op === 'rooms' || o.op === 'cave' || o.op === 'building')).toBe(true);
+    const cavern = normalizeProgram({ ops: [{ op: 'fill', region: 'all', tag: 'dirt' }] }, 'a goblin cavern lair');
+    expect(cavern.ops.some((o) => o.op === 'cave')).toBe(true);
+    // outdoor briefs are NOT forced to have structure
+    const meadow = normalizeProgram({ ops: [{ op: 'fill', region: 'all', tag: 'grass' }] }, 'a peaceful flower meadow');
+    expect(meadow.ops.some((o) => o.op === 'rooms' || o.op === 'cave' || o.op === 'maze')).toBe(false);
+  });
+
+  it('injects brief-named landmark props the LLM omitted (sarcophagus/chest)', () => {
+    const p = normalizeProgram({ ops: [{ op: 'rooms', region: 'all', count: 6 }] }, 'a crypt with a sarcophagus, an altar, and a treasure chest');
+    const placed = new Set(p.ops.filter((o) => o.op === 'place').map((o) => (o.op === 'place' ? o.tag : '')));
+    expect(placed.has('sarcophagus')).toBe(true);
+    expect(placed.has('chest')).toBe(true);
+    expect(placed.has('altar')).toBe(true);
+  });
+
+  it('does NOT drop a loose altar/throne when a building already furnishes the scene', () => {
+    const p = normalizeProgram({ ops: [{ op: 'building', type: 'temple', region: { x: 2, y: 2, w: 9, h: 9 } }] }, 'a grand temple with an altar and a throne');
+    const loose = p.ops.filter((o) => o.op === 'place' && (o.tag === 'altar' || o.tag === 'throne')).length;
+    expect(loose).toBe(0); // the temple building furnishes its own altar
+  });
+
   it('falls back to a runnable program when ops are empty/garbage', () => {
     const p = normalizeProgram({ ops: 'nope' }, 'x');
     expect(p.ops.length).toBeGreaterThan(0);
