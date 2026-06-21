@@ -84,6 +84,26 @@ prompt + per-turn state/adventure block → tools `getState`/`requestRoll`/`look
 narration. Physical dice **suspend** the turn (`pendingTurn`) and **resume** when the player declares
 the total; the engine validates plausibility and decides success vs DC/AC.
 
+## Nomenclature — display (taxonomy) vs internal (code)
+The **UI shows canonical D&D 5e taxonomy** terms; the **code/data model keeps its internal
+vocabulary**. They are the same things — the UI label is a presentation veneer, while the wire keys,
+types, API routes, and env vars are unchanged (the frontend still *sends* the internal keys). When
+editing, match the layer you're in.
+
+| User-facing (UI text, narration) | Internal (code, data keys, API, prompts) |
+|---|---|
+| **Adventure** | `arc` — `GeneratedArc`/`ArcSeed`/`Arc*` types, route `POST /dm/lab/generate-arc`, keys `generatedArc`/`arcTemperature`, env `MYTHWEAVER_ARC_COMPOSER` |
+| **Scene** | `beat` at generation (`beats[]`, `lengthBeats`, composer JSON) → compiled into `scenes`/`sceneId` for play (the playable graph is already `scenes`) |
+| **Encounter** | `encounters` (a scene that has monsters) |
+| **Class** | `role` (the party-pick request key; the underlying sheet field is `className`) |
+| **Player Character (PC)** | a `party` entry (`className`, `ancestry`) |
+
+Rule of thumb: **narration + UI text → taxonomy terms** (Adventure, Scene, Class); **JSON contracts,
+data keys, types, routes, env vars → leave internal** (`arc`, `beats`, `role`). The Director prompts
+(`prompts/director-*.md`) emit the internal JSON contract, so they intentionally keep `beats`/
+`sceneId`/`role` and bridge in prose ("BEATS (scenes)"). A full backend rename is a deliberate
+breaking change (route + env var + types) — not worth it until the project goes multi-dev/public.
+
 ## Conventions / guardrails for agents working here
 - **The engine owns every number.** The LLM never invents a mechanical outcome; it requests rolls and
   narrates the engine's verdict. Don't move mechanics into prompts.
