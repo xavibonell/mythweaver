@@ -51,12 +51,19 @@ export default function LabPage() {
   // The build MODE (one selector, mutually exclusive — replaces the old look-alike checkboxes):
   //  primitives = G1b LLM-composes-a-program (the new path, default) · classic = old DM→Director→3-grammar
   //  pipeline · city = district stitcher · large = classic but floored to a big grid (perf/zoom test).
-  const [mode, setMode] = useState<'primitives' | 'classic' | 'city' | 'large'>('primitives');
+  const [mode, setMode] = useState<'primitives' | 'classic' | 'city' | 'large' | 'component'>('primitives');
   const [cityCount, setCityCount] = useState(6); // number of districts to stitch (city mode)
   const [fitNonce, setFitNonce] = useState(0); // bump to re-frame the whole scene in the free camera
+  // Component mode — a contact sheet of N seed-varied instances of ONE micro-generator, for isolated
+  // iteration. Mirrors COMPONENT_KINDS on the server (packages/scene/src/component-lab.ts).
+  const COMPONENT_KINDS = ['building:tavern', 'building:temple', 'building:smithy', 'building:shop', 'building:house', 'vignette:market', 'vignette:forge', 'vignette:shrine', 'vignette:well', 'vignette:camp', 'vignette:graveyard', 'plaza', 'streets', 'density:trees', 'density:flowers', 'density:furniture', 'clearing', 'cave', 'rooms', 'maze'];
+  const [componentKind, setComponentKind] = useState('building:tavern');
+  const [componentCount, setComponentCount] = useState(6);
+  const [componentSeed, setComponentSeed] = useState(1);
   const prog = mode === 'primitives';
   const city = mode === 'city';
   const large = mode === 'large';
+  const component = mode === 'component';
 
   // City build — district stitcher. Empty brief → deterministic roster ($0). A brief in the box →
   // the V3 macro planner designs the districts (one LLM call), then the same deterministic stitcher.
@@ -123,9 +130,31 @@ export default function LabPage() {
     }
   }
 
+  // Component contact sheet — N seed-varied instances of one micro-generator, tiled. Deterministic ($0).
+  async function buildComponent(seedOverride?: number) {
+    if (busy) return;
+    const seed = seedOverride ?? componentSeed;
+    setBusy(true);
+    setError('');
+    try {
+      const res = await fetch(`${SERVER}/scene/component`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ kind: componentKind, count: componentCount, seed }) });
+      const data = await res.json();
+      if (!res.ok) setError(data.error ?? `error ${res.status}`);
+      else {
+        setResult(data);
+        setEstablishEdit(JSON.stringify(data.establish, null, 2));
+      }
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function build(text?: string) {
     if (prog) return buildProgram(text);
     if (city) return buildCity();
+    if (component) return buildComponent();
     const b = (text ?? brief).trim();
     if (!b || busy) return;
     if (text) setBrief(text);
@@ -222,8 +251,8 @@ export default function LabPage() {
             style={{ flex: 1, resize: 'vertical', background: '#15120f', color: '#e8dfce', border: '1px solid #2a241f', borderRadius: 4, padding: 8, fontFamily: 'inherit' }}
           />
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignSelf: 'stretch', minWidth: 150 }}>
-            <button onClick={() => build()} disabled={busy || (!city && !brief.trim())} style={{ flex: 1, minWidth: 140 }}>
-              {busy ? 'Building…' : prog ? 'Compose scene' : city ? 'Build city' : 'Build scene'}
+            <button onClick={() => build()} disabled={busy || (!city && !component && !brief.trim())} style={{ flex: 1, minWidth: 140 }}>
+              {busy ? 'Building…' : prog ? 'Compose scene' : city ? 'Build city' : component ? 'Build sheet' : 'Build scene'}
             </button>
             <div style={{ fontSize: '0.66rem', color: '#7c7464', marginTop: 2 }}>Mode:</div>
             {([
@@ -231,6 +260,7 @@ export default function LabPage() {
               ['classic', 'Classic', 'OLD — DM → Director → the 3 fixed grammars (town/interior/outdoor). Being replaced.'],
               ['city', 'City', 'District stitcher. Empty box = sample roster ($0); a brief = the planner designs districts.'],
               ['large', 'Large (classic)', 'Classic pipeline floored to a big grid — a perf/zoom test, not a new layout.'],
+              ['component', 'Component', 'Contact sheet of N seed-varied instances of ONE micro-generator (a building, vignette, density, street, plaza…) — iterate a component in isolation. $0.'],
             ] as const).map(([val, label, tip]) => (
               <label key={val} title={tip} style={{ fontSize: '0.72rem', color: mode === val ? '#e8dfce' : '#9a8f7d', display: 'flex', gap: 5, alignItems: 'center', cursor: 'pointer' }}>
                 <input type="radio" name="lab-mode" checked={mode === val} onChange={() => setMode(val)} />
@@ -248,12 +278,28 @@ export default function LabPage() {
                 )}
               </label>
             ))}
+            {component && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 3, marginTop: 4, borderTop: '1px solid #2a241f', paddingTop: 4 }}>
+                <select value={componentKind} onChange={(e) => setComponentKind(e.target.value)} style={{ fontSize: '0.72rem', background: '#15120f', color: '#e8dfce', border: '1px solid #2a241f', borderRadius: 3, padding: '2px 4px' }}>
+                  {COMPONENT_KINDS.map((k) => (
+                    <option key={k} value={k}>{k}</option>
+                  ))}
+                </select>
+                <div style={{ display: 'flex', gap: 4, alignItems: 'center', fontSize: '0.7rem', color: '#9a8f7d' }}>
+                  <span>×</span>
+                  <input type="number" min={1} max={12} value={componentCount} onChange={(e) => setComponentCount(Math.max(1, Math.min(12, Number(e.target.value) || 1)))} style={{ width: 40, background: '#15120f', color: '#e8dfce', border: '1px solid #2a241f', borderRadius: 3, padding: '1px 4px' }} title="instances" />
+                  <button onClick={() => { const s = componentSeed + 1; setComponentSeed(s); buildComponent(s); }} disabled={busy} style={{ fontSize: '0.7rem', padding: '1px 8px', background: '#241f1a', color: '#c9a227', border: '1px solid #2a241f', borderRadius: 3, cursor: 'pointer' }} title="reshuffle (new seed)">
+                    ↻ reshuffle
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8, alignItems: 'center' }}>
           <span style={{ fontSize: '0.72rem', color: '#7c7464' }}>G1 spike (primitive vocab):</span>
-          {['labyrinth', 'lake', 'city', 'crypt'].map((n) => (
+          {['labyrinth', 'lake', 'city', 'town', 'crypt'].map((n) => (
             <button key={n} onClick={() => buildSpike(n)} disabled={busy} style={{ fontSize: '0.72rem', padding: '3px 10px', background: '#1f2a1a', color: '#a9c98a', border: '1px solid #2a341f', borderRadius: 4, cursor: 'pointer' }}>
               ▣ {n}
             </button>

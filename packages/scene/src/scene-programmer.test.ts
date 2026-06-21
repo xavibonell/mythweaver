@@ -91,8 +91,9 @@ describe('LLM scene programmer (G1b) — normalize + compose', () => {
   });
 
   it('theme enforces ONE ground palette — the LLM per-op floor tag is ignored (no noise)', () => {
-    const p = normalizeProgram({ theme: 'village', ops: [{ op: 'fill', region: 'all', tag: 'cobblestone' }, { op: 'plaza', region: { x: 5, y: 5, w: 6, h: 6 }, tag: 'stone_brick' }] }, 'a village');
-    expect(p.theme).toBe('village');
+    // A non-settlement brief stays on the loose-op path (a settlement would route to the town generator).
+    const p = normalizeProgram({ theme: 'forest', ops: [{ op: 'fill', region: 'all', tag: 'cobblestone' }, { op: 'plaza', region: { x: 5, y: 5, w: 6, h: 6 }, tag: 'stone_brick' }] }, 'a quiet woodland glade');
+    expect(p.theme).toBe('forest');
     const m = runProgram(p);
     const tiles = m.tiles.flat();
     expect(tiles.some((t) => t === 'cobblestone' || t === 'stone_brick')).toBe(false); // clashing per-op tags overridden by the theme

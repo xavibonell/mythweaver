@@ -22,7 +22,7 @@ import {
 import { buildRetriever } from './corpus.js';
 import { buildTracer } from './tracing.js';
 import { runTurn, type TurnInput } from './orchestrator.js';
-import { labBuildCity, labBuildProgram, labBuildScene, labBuildSpike, labComposeScene } from './scene-lab.js';
+import { labBuildCity, labBuildComponent, labBuildProgram, labBuildScene, labBuildSpike, labComposeScene } from './scene-lab.js';
 import { runDmLab, createDmLabSession, dmLabSubmit, arcView, autoRollTotal, DM_LAB_TRANSCRIPTS, type LabTurn, type DmLabSession } from './dm-lab.js';
 import { renderDmLabPage } from './dm-lab-page.js';
 import { distillStyle, DISTILL_MAX_INPUT } from './distill.js';
@@ -192,6 +192,22 @@ app.post('/scene/program', async (req, reply) => {
     return await labBuildProgram({ llm, model: dmModel }, brief);
   } catch (err) {
     app.log.error(err, 'scene program failed');
+    reply.code(502);
+    return { error: (err as Error).message };
+  }
+});
+
+// Scene Lab — COMPONENT contact sheet: N seed-varied instances of ONE micro-generator (building type /
+// vignette / density / street / plaza …) tiled in a grid, for iterating a component in isolation. $0.
+app.post('/scene/component', async (req, reply) => {
+  const body = (req.body ?? {}) as { kind?: unknown; count?: unknown; seed?: unknown };
+  const kind = typeof body.kind === 'string' ? body.kind : 'building:tavern';
+  const count = typeof body.count === 'number' && Number.isFinite(body.count) ? body.count : 6;
+  const seed = typeof body.seed === 'number' && Number.isFinite(body.seed) ? body.seed : 1;
+  try {
+    return labBuildComponent(kind, count, seed);
+  } catch (err) {
+    app.log.error(err, 'scene component build failed');
     reply.code(502);
     return { error: (err as Error).message };
   }

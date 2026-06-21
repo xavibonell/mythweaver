@@ -1,0 +1,259 @@
+/**
+ * ARCHETYPE GENERATORS — the layout fix. The LLM is DEMOTED from layout artist (placing building
+ * rectangles, which it does in a boring even grid) to an archetype + CONTENTS picker; a deterministic
+ * generator owns the organic spatial composition. This is the lever the reference tools (Watabou's
+ * Medieval Fantasy City Generator, Parish-Müller) actually use: the magic is a layout ALGORITHM, not a
+ * smarter prompt.
+ *
+ * A generator MUTATES a Canvas exactly like a primitive (it calls fill/plaza/building/scatter/…), so
+ * finalize() and everything below it (renderer, validators, combat) are unchanged. Five archetypes sit
+ * behind one registry; the program selects ONE via the `{op:'archetype'}` op.
+ *
+ * The TOWN generator is the centrepiece — recursive-bisection street network (irregular blocks) → OBB
+ * recursive parcel subdivision with a soft random stop (varied footprints) → buildings that ADDRESS the
+ * nearest street, a central plaza + landmark, and two-texture density (blue-noise spread + noise clumps).
+ * The other four are thin wrappers over existing topology primitives (bspRooms/cave/clearing/island),
+ * proving the seam generalizes. Honest ceiling: this reaches Watabou "Toy-Town" / Zelda-roguelike-SCREEN
+ * quality (organic streets, varied lots, density) — NOT a hand-authored artist map's bespoke set-pieces.
+ */
+
+import type { BuildingType } from '@mythweaver/shared';
+import {
+  building, bspRooms, Canvas, cave, clumpScatter, compound, entrance, fill, island, place, plaza, poissonScatter, scatter, vignette, wallRing,
+  type Pt, type Rect,
+} from './primitives.js';
+import type { Theme } from './themes.js';
+
+/** The semantic cast the LLM (or a completeness net) supplies — names + which things exist, NO geometry. */
+export interface Contents {
+  buildings: { type: BuildingType; name?: string }[];
+  landmarks: { tag: string; name?: string }[];
+  npcs: { tag: string; name?: string }[];
+  mobs: { tag: string; count: number }[];
+  wall?: boolean;
+  entranceSide?: 'north' | 'south' | 'east' | 'west';
+}
+export interface GenContext {
+  theme: Theme;
+  contents: Contents;
+  bounds: Rect;
+  locationId: string;
+}
+export type ArchetypeGenerator = (cv: Canvas, ctx: GenContext) => void;
+export type ArchetypeKind = 'town' | 'dungeon' | 'cave' | 'wilderness' | 'coast';
+
+const slug = (s: string, i: number) => (s || 'x').replace(/[^a-z0-9]+/gi, '-').toLowerCase().replace(/^-+|-+$/g, '') + (i ? `-${i}` : '');
+const wmatOf = (t: Theme): 'wall' | 'wall_wood' => (t.wallMat === 'wood' ? 'wall_wood' : 'wall');
+const edgePt = (B: Rect, side: 'north' | 'south' | 'east' | 'west'): Pt => {
+  const mc = B.x + Math.floor(B.w / 2), mr = B.y + Math.floor(B.h / 2);
+  return side === 'north' ? { c: mc, r: B.y } : side === 'south' ? { c: mc, r: B.y + B.h - 1 } : side === 'west' ? { c: B.x, r: mr } : { c: B.x + B.w - 1, r: mr };
+};
+const rectCenter = (r: Rect): Pt => ({ c: r.x + Math.floor(r.w / 2), r: r.y + Math.floor(r.h / 2) });
+
+// ---------------------------------------------------------------------------
+// TOWN — the real procedural-settlement algorithm.
+// ---------------------------------------------------------------------------
+
+const TOWN_VIGNETTES = new Set(['well', 'market', 'shrine', 'graveyard', 'forge']);
+
+function townGen(cv: Canvas, ctx: GenContext): void {
+  const { theme, contents, locationId } = ctx;
+  const B = ctx.bounds;
+  const path = theme.path, ground = theme.ground;
+  const ARTERY = 'cobblestone'; // main streets are paved cobble; narrow alleys stay dirt (theme.path)
+
+  // STAGE 0 — BOUNDARY. Ground the whole bounds, then work inside an IRREGULARLY inset interior (a
+  // per-edge jittered margin) so the town is not a full rectangle. A wall ring (if asked) takes the rim.
+  fill(cv, B, ground, true);
+  const jm = () => 2 + Math.floor(cv.rng() * 3);
+  let inset = contents.wall ? 1 : 0;
+  if (contents.wall) wallRing(cv, theme.wallMat, locationId);
+  const ix = B.x + inset + jm(), iy = B.y + inset + jm();
+  const interior: Rect = { x: ix, y: iy, w: B.x + B.w - inset - jm() - ix, h: B.y + B.h - inset - jm() - iy };
+  if (interior.w < 12 || interior.h < 12) { interior.x = B.x + 1; interior.y = B.y + 1; interior.w = B.w - 2; interior.h = B.h - 2; }
+
+  // STAGE 1 — ORGANIC STREET NETWORK via recursive bisection. Pop the largest open block, cut its LONGER
+  // axis at a jittered position with a street (wide arteries near the start, alleys deeper in), recurse.
+  // Streets touch their parent's edges → the network is connected BY CONSTRUCTION (reachabilityCarve
+  // rarely fires). Jittered positions + varied widths give irregular, non-uniform blocks.
+  const MIN_BLOCK = 15;
+  const GRID_CHAOS = 0.42;
+  const totalArea = interior.w * interior.h;
+  const open: { r: Rect; d: number }[] = [{ r: interior, d: 0 }];
+  const blocks: Rect[] = [];
+  let guard = 0;
+  while (open.length && guard++ < 600) {
+    open.sort((a, b) => b.r.w * b.r.h - a.r.w * a.r.h);
+    const { r: R, d } = open.shift()!;
+    if (Math.min(R.w, R.h) <= MIN_BLOCK || d >= 5) { blocks.push(R); continue; }
+    const horiz = R.w >= R.h;
+    const len = horiz ? R.w : R.h;
+    // Keep lanes NARROW (only the first couple of arteries are 2-wide) — wide streets flood the map
+    // with dirt and read as a muddy field instead of a village threaded by paths.
+    const streetW = R.w * R.h > totalArea / 4 ? 2 : 1;
+    const streetMat = streetW >= 2 ? ARTERY : path; // wide arteries = cobblestone, narrow alleys = dirt
+    const lo = Math.floor(MIN_BLOCK / 2), hi = len - Math.floor(MIN_BLOCK / 2) - streetW;
+    if (hi <= lo) { blocks.push(R); continue; }
+    const cut = Math.max(lo, Math.min(hi, Math.floor(len * (0.5 + (cv.rng() - 0.5) * GRID_CHAOS))));
+    if (horiz) {
+      fill(cv, { x: R.x + cut, y: R.y, w: streetW, h: R.h }, streetMat, true);
+      open.push({ r: { x: R.x, y: R.y, w: cut, h: R.h }, d: d + 1 }, { r: { x: R.x + cut + streetW, y: R.y, w: R.w - cut - streetW, h: R.h }, d: d + 1 });
+    } else {
+      fill(cv, { x: R.x, y: R.y + cut, w: R.w, h: streetW }, streetMat, true);
+      open.push({ r: { x: R.x, y: R.y, w: R.w, h: cut }, d: d + 1 }, { r: { x: R.x, y: R.y + cut + streetW, w: R.w, h: R.h - cut - streetW }, d: d + 1 });
+    }
+  }
+
+  // STAGE 2 — PLAZA. The block nearest the centroid becomes the town square (capped to a centred sub-rect
+  // so a big block doesn't swallow the map), with the main landmark at its centre.
+  const cen = rectCenter(interior);
+  let pIdx = 0, pBest = Infinity;
+  blocks.forEach((b, i) => { const c = rectCenter(b); const dd = (c.c - cen.c) ** 2 + (c.r - cen.r) ** 2; if (dd < pBest) { pBest = dd; pIdx = i; } });
+  const pBlock = blocks.splice(pIdx, 1)[0]!;
+  const pw = Math.min(pBlock.w, 12), ph = Math.min(pBlock.h, 9);
+  const pRect: Rect = { x: pBlock.x + Math.floor((pBlock.w - pw) / 2), y: pBlock.y + Math.floor((pBlock.h - ph) / 2), w: pw, h: ph };
+  plaza(cv, pRect, theme.plaza);
+  const plazaCtr = rectCenter(pRect);
+  const vig = contents.landmarks.map((l) => l.tag).find((t) => TOWN_VIGNETTES.has(t)) ?? (contents.landmarks.some((l) => /well|fountain/.test(l.tag)) ? 'well' : 'well');
+  vignette(cv, plazaCtr, vig, `plaza-${slug(locationId, 0)}`);
+
+  // STAGE 3 — PARCEL SUBDIVISION (OBB recursive split, soft probabilistic stop). Each block is inset off
+  // its streets, then split along the SHORTER axis at a jittered ratio (1-tile alley between halves) until
+  // lots are house-sized — with a depth-rising random early stop so footprints VARY (no two identical).
+  const minLot = 6, maxLot = 18, SIZE_CHAOS = 0.5;
+  const lots: Rect[] = [];
+  const subdivide = (rect: Rect, depth: number): void => {
+    const fits = rect.w <= maxLot && rect.h <= maxLot;
+    const splitH = rect.w >= rect.h; // split the longer axis
+    const len = splitH ? rect.w : rect.h;
+    const canSplit = len >= minLot * 2 + 1;
+    if (depth >= 4 || !canSplit || (fits && cv.rng() < 0.45 + 0.18 * depth)) { lots.push(rect); return; }
+    let cut = Math.floor(len * (0.5 + (cv.rng() - 0.5) * SIZE_CHAOS));
+    cut = Math.max(minLot, Math.min(len - minLot - 1, cut));
+    if (cut < minLot || len - cut - 1 < minLot) { lots.push(rect); return; }
+    if (splitH) { subdivide({ x: rect.x, y: rect.y, w: cut, h: rect.h }, depth + 1); subdivide({ x: rect.x + cut + 1, y: rect.y, w: rect.w - cut - 1, h: rect.h }, depth + 1); }
+    else { subdivide({ x: rect.x, y: rect.y, w: rect.w, h: cut }, depth + 1); subdivide({ x: rect.x, y: rect.y + cut + 1, w: rect.w, h: rect.h - cut - 1 }, depth + 1); }
+  };
+  for (const b of blocks) {
+    const inb: Rect = { x: b.x + 1, y: b.y + 1, w: b.w - 2, h: b.h - 2 };
+    if (inb.w >= minLot && inb.h >= minLot) subdivide(inb, 0);
+  }
+
+  // STAGE 4 — FOOTPRINTS that ADDRESS the street. Sort lots by distance from the plaza so named/commerce
+  // buildings land in the inner ring (ward zoning). Inset each lot by a JITTERED, asymmetric setback (a
+  // front yard at a varied offset — this breaks the even-grid tell), face the door at the nearest street.
+  const isStreet = (c: number, r: number) => { const t = cv.tileAt(c, r); return t === path || t === ARTERY; };
+  const doorToward = (fp: Rect): 'north' | 'south' | 'east' | 'west' => {
+    const score = (cells: Pt[]) => cells.reduce((n, p) => n + (cv.inB(p.c, p.r) && isStreet(p.c, p.r) ? 1 : 0), 0);
+    const sides: Record<'north' | 'south' | 'east' | 'west', Pt[]> = {
+      north: Array.from({ length: fp.w }, (_, i) => ({ c: fp.x + i, r: fp.y - 1 })),
+      south: Array.from({ length: fp.w }, (_, i) => ({ c: fp.x + i, r: fp.y + fp.h })),
+      west: Array.from({ length: fp.h }, (_, i) => ({ c: fp.x - 1, r: fp.y + i })),
+      east: Array.from({ length: fp.h }, (_, i) => ({ c: fp.x + fp.w, r: fp.y + i })),
+    };
+    let best: 'north' | 'south' | 'east' | 'west' = 'south', bestN = -1;
+    for (const s of ['south', 'north', 'east', 'west'] as const) { const n = score(sides[s]); if (n > bestN) { bestN = n; best = s; } }
+    return best;
+  };
+  const named = [...contents.buildings];
+  const lotD = (l: Rect) => Math.hypot(rectCenter(l).c - plazaCtr.c, rectCenter(l).r - plazaCtr.r);
+  lots.sort((a, b) => lotD(a) - lotD(b));
+  let bi = 0, ni = 0;
+  for (const lot of lots) {
+    const sb = (dim: number) => (dim >= 8 ? Math.floor(cv.rng() * 2) : 0);
+    const ox = sb(lot.w), oy = sb(lot.h);
+    const fp: Rect = { x: lot.x + ox, y: lot.y + oy, w: lot.w - ox - sb(lot.w), h: lot.h - oy - sb(lot.h) };
+    if (fp.w < 4 || fp.h < 4) continue;
+    let type: BuildingType, name: string | undefined;
+    if (ni < named.length) { type = named[ni]!.type; name = named[ni]!.name; ni++; }
+    else { const big = fp.w * fp.h >= 72; type = big ? (cv.rng() < 0.3 ? 'shop' : 'house') : 'house'; } // procedural fill = mostly homes (big lots → manors/shops)
+    compound(cv, fp, type, { door: doorToward(fp), locationId, ...(name ? { name } : {}), id: `bldg:b${bi++}` });
+  }
+
+  // STAGE 5 — DENSITY (two deliberate textures, region-masked, depth-ordered). Trees/bushes spread by
+  // BLUE noise on grass margins; flower beds + groundcover CLUMP via noise-threshold; street furniture
+  // lines the lanes; flower beds hug building walls. All on theme.ground only (so streets/plaza/floors
+  // stay clear), all seeded → deterministic. This replaces the old white-noise scatter.
+  const onGround = (c: number, r: number) => cv.tileAt(c, r) === ground;
+  const nearTile = (c: number, r: number, pred: (c: number, r: number) => boolean) =>
+    pred(c, r - 1) || pred(c, r + 1) || pred(c - 1, r) || pred(c + 1, r);
+  const isWall = (c: number, r: number) => (cv.tileAt(c, r) ?? '').startsWith('wall');
+  // structural trees — blue-noise spread across grass margins
+  poissonScatter(cv, interior, { tags: ['tree_oak', 'tree_oak', 'tree', 'tree_pine', 'tree_dark', 'bush'], r: 3, blocks: true, max: 90, filter: onGround });
+  // tree GROVES — noise clumps for leafy copses (denser than the spread)
+  clumpScatter(cv, interior, { tags: ['tree_oak', 'tree_dark', 'tree_autumn', 'tree_pine'], freq: 0.2, threshold: 0.68, seedOffset: 0x51ed, blocks: true, max: 40, filter: onGround });
+  // groundcover — flower beds (varied colours) + tufts clump (lusher: lower threshold, higher cap)
+  clumpScatter(cv, interior, { tags: ['flowers', 'flowers_blue', 'flowers_yellow', 'flowers_red', 'grass_tuft', 'mushroom'], freq: 0.14, threshold: 0.52, seedOffset: 0x9e37, blocks: false, max: 170, filter: onGround });
+  // street furniture lining the lanes
+  poissonScatter(cv, interior, { tags: ['signpost', 'fence', 'woodpile', 'barrel', 'crate', 'market_stall'], r: 6, blocks: true, max: 16, filter: (c, r) => onGround(c, r) && nearTile(c, r, isStreet) });
+  // flower beds hugging building walls
+  clumpScatter(cv, interior, { tags: ['flowers', 'flowers_red', 'flowers_yellow', 'bush'], freq: 0.32, threshold: 0.4, seedOffset: 0x85eb, blocks: false, max: 80, filter: (c, r) => onGround(c, r) && nearTile(c, r, isWall) });
+
+  // STAGE 6 — CAST. NPCs along the streets/plaza; mobs scattered through the interior.
+  const streetCells = cv.shuffle((() => { const out: Pt[] = []; for (let r = interior.y; r < interior.y + interior.h; r++) for (let c = interior.x; c < interior.x + interior.w; c++) if (cv.isFree(c, r) && (isStreet(c, r) || cv.tileAt(c, r) === theme.plaza)) out.push({ c, r }); return out; })());
+  contents.npcs.forEach((npc, i) => place(cv, { id: `npc:${slug(npc.tag, i)}`, tag: npc.tag, kind: 'actor', role: 'npc', at: streetCells[i % Math.max(1, streetCells.length)] ?? plazaCtr, ...(npc.name ? { name: npc.name } : {}) }));
+  contents.mobs.forEach((mob, i) => scatter(cv, { idBase: `mob:${slug(mob.tag, i)}`, tags: [mob.tag], kind: 'actor', role: 'mob', region: interior, count: Math.max(1, Math.min(20, mob.count)) }));
+  if (!contents.wall) entrance(cv, edgePt(B, contents.entranceSide ?? 'south'), locationId);
+}
+
+// ---------------------------------------------------------------------------
+// The other four — thin wrappers over existing topology primitives (the seam generalizes).
+// ---------------------------------------------------------------------------
+
+function placeCast(cv: Canvas, ctx: GenContext, spots: Pt[], region: Rect): void {
+  ctx.contents.landmarks.forEach((l, i) => place(cv, { id: `prop:${slug(l.tag, i)}`, tag: l.tag, kind: 'prop', at: spots[i % Math.max(1, spots.length)] ?? rectCenter(region), ...(l.name ? { name: l.name } : {}) }));
+  ctx.contents.npcs.forEach((n, i) => place(cv, { id: `npc:${slug(n.tag, i)}`, tag: n.tag, kind: 'actor', role: 'npc', at: spots[(i + 1) % Math.max(1, spots.length)] ?? rectCenter(region), ...(n.name ? { name: n.name } : {}) }));
+  ctx.contents.mobs.forEach((m, i) => scatter(cv, { idBase: `mob:${slug(m.tag, i)}`, tags: [m.tag], kind: 'actor', role: 'mob', region, count: Math.max(1, Math.min(20, m.count)) }));
+}
+
+const dungeonGen: ArchetypeGenerator = (cv, ctx) => {
+  const count = Math.max(4, Math.min(10, ctx.contents.buildings.length || 6));
+  const centres = bspRooms(cv, ctx.bounds, count, wmatOf(ctx.theme), ctx.theme.plaza);
+  placeCast(cv, ctx, centres, ctx.bounds);
+  entrance(cv, edgePt(ctx.bounds, ctx.contents.entranceSide ?? 'south'), ctx.locationId);
+};
+
+const caveGen: ArchetypeGenerator = (cv, ctx) => {
+  cave(cv, ctx.bounds, wmatOf(ctx.theme), ctx.theme.plaza);
+  clumpScatter(cv, ctx.bounds, { tags: ['rubble', 'bones', 'mushroom'], freq: 0.22, threshold: 0.6, seedOffset: 0x1234, blocks: false, max: 50 });
+  placeCast(cv, ctx, [rectCenter(ctx.bounds)], ctx.bounds);
+  entrance(cv, edgePt(ctx.bounds, ctx.contents.entranceSide ?? 'south'), ctx.locationId);
+};
+
+const wildernessGen: ArchetypeGenerator = (cv, ctx) => {
+  const B = ctx.bounds;
+  fill(cv, B, ctx.theme.ground, true);
+  const ctr = rectCenter(B);
+  const gladeR = Math.max(4, Math.min(B.w, B.h) / 4);
+  // a forest with an OPEN central glade: dense trees everywhere EXCEPT a clearing around the centre.
+  poissonScatter(cv, B, { tags: ['tree', 'tree', 'tree_pine', 'tree_autumn'], r: 3, blocks: true, filter: (c, r) => Math.hypot(c - ctr.c, r - ctr.r) > gladeR });
+  clumpScatter(cv, B, { tags: ['bush', 'flowers', 'mushroom', 'grass_tuft'], freq: 0.16, threshold: 0.55, seedOffset: 0x77, blocks: false, max: 90, filter: (c, r) => Math.hypot(c - ctr.c, r - ctr.r) > gladeR * 0.7 });
+  if (ctx.contents.landmarks.length || ctx.contents.npcs.length) vignette(cv, ctr, 'camp', `camp-${slug(ctx.locationId, 0)}`);
+  placeCast(cv, ctx, [ctr, { c: ctr.c + 2, r: ctr.r }, { c: ctr.c - 2, r: ctr.r }], B);
+  entrance(cv, edgePt(B, ctx.contents.entranceSide ?? 'south'), ctx.locationId);
+};
+
+const coastGen: ArchetypeGenerator = (cv, ctx) => {
+  // PLACEHOLDER coast (P3 will replace with an fBm domain-warped shoreline + beach bands). For now: a
+  // water expanse with an organic land blob + a couple of huts, so the seam is complete and valid.
+  const B = ctx.bounds;
+  fill(cv, B, 'water', false);
+  island(cv, { x: B.x + 2, y: B.y + 2, w: Math.floor(B.w * 0.66), h: Math.floor(B.h * 0.66) }, ctx.theme.ground);
+  island(cv, { x: B.x + Math.floor(B.w * 0.45), y: B.y + Math.floor(B.h * 0.4), w: Math.floor(B.w * 0.5), h: Math.floor(B.h * 0.55) }, ctx.theme.ground);
+  const land: Pt[] = [];
+  for (let r = B.y; r < B.y + B.h; r++) for (let c = B.x; c < B.x + B.w; c++) if (cv.isFree(c, r) && cv.tileAt(c, r) === ctx.theme.ground) land.push({ c, r });
+  const spots = cv.shuffle(land);
+  ctx.contents.buildings.slice(0, 3).forEach((b, i) => { const s = spots[i * 7]; if (s) building(cv, { x: s.c - 2, y: s.r - 2, w: 6, h: 6 }, b.type, { locationId: ctx.locationId, ...(b.name ? { name: b.name } : {}), id: `bldg:c${i}` }); });
+  poissonScatter(cv, B, { tags: ['bush', 'tree', 'flowers'], r: 3, blocks: false, max: 40, filter: (c, r) => cv.tileAt(c, r) === ctx.theme.ground });
+  placeCast(cv, ctx, spots.slice(0, 6), B);
+  entrance(cv, edgePt(B, ctx.contents.entranceSide ?? 'north'), ctx.locationId);
+};
+
+export const GENERATORS: Record<ArchetypeKind, ArchetypeGenerator> = {
+  town: townGen,
+  dungeon: dungeonGen,
+  cave: caveGen,
+  wilderness: wildernessGen,
+  coast: coastGen,
+};
+export const ARCHETYPE_KINDS = Object.keys(GENERATORS) as ArchetypeKind[];

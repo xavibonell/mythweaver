@@ -10,7 +10,7 @@
  */
 
 import type { LlmProvider } from '@mythweaver/llm';
-import { buildCityScene, buildSceneMap, buildSpikeScene, GOLD_PROGRAMS, LlmCityPlanner, LlmSceneProgrammer, runProgram, type CityDistrictSpec, type CityRequest, type SceneComposer, type SceneProgram } from '@mythweaver/scene';
+import { buildCityScene, buildComponentSheet, buildSceneMap, buildSpikeScene, GOLD_PROGRAMS, LlmCityPlanner, LlmSceneProgrammer, runProgram, type CityDistrictSpec, type CityRequest, type SceneComposer, type SceneProgram } from '@mythweaver/scene';
 import type { EstablishScene, GameState, Lighting, PartyMemberRef, SceneComposition, SceneMap } from '@mythweaver/shared';
 import { buildToolDefs, parseEstablish, seedFor } from './orchestrator.js';
 
@@ -148,6 +148,22 @@ export function labBuildSpike(name: string): LabResult {
 
 /** The names of the available G1 gold scenes (for the Lab UI). */
 export const SPIKE_SCENE_NAMES = Object.keys(GOLD_PROGRAMS);
+
+/**
+ * Component LAB — render a CONTACT SHEET of N seed-varied instances of ONE micro-generator (a building
+ * type, a vignette, a density texture, a street/plaza sample…) so a single component can be iterated in
+ * isolation. Deterministic, no LLM. `seed` lets the user reshuffle the whole sheet.
+ */
+export function labBuildComponent(kind: string, count: number, seed: number): LabResult {
+  const sceneMap = buildComponentSheet(kind, count, seed);
+  const establish: EstablishScene = {
+    locationId: sceneMap.locationId,
+    brief: { setting: `component sheet: ${kind} ×${count}`, biome: sceneMap.biome, timeOfDay: sceneMap.lighting },
+    fixtures: [],
+    npcs: [],
+  };
+  return { brief: '', establish, sceneMap, narration: '', model: `component:${kind}` };
+}
 
 /**
  * G1b — the CREATIVITY test: one LLM call composes a PRIMITIVE PROGRAM from a freeform brief (the LLM

@@ -79,13 +79,23 @@ describe('scene program (G1 spike) — diverse scenes from ONE primitive vocabul
     expect(m.objects.some((o) => o.tag === 'sarcophagus')).toBe(true);
   });
 
-  it('the four scenes are genuinely different (tile composition + object mix)', () => {
+  it('the gold scenes are genuinely different (tile composition + object/ambiance mix)', () => {
+    // grammar + terrain flags + wall density distinguish most; town vs city share "walled village" on
+    // those, so also bucket OBJECT + AMBIANCE counts — the organic furnished town (many furniture +
+    // dense two-texture greenery) is a different beast from the bare-room grid city even when both walled.
     const sig = (name: string) => {
       const m = buildSpikeScene(name);
-      return `${m.grammar}|water:${tileCount(m, (t) => t.startsWith('water')) > 0}|grass:${tileCount(m, (t) => t.startsWith('grass')) > 0}|wallpct:${Math.round((tileCount(m, (t) => t.startsWith('wall')) / (m.grid.cols * m.grid.rows)) * 10)}`;
+      return [
+        m.grammar,
+        `water:${tileCount(m, (t) => t.startsWith('water')) > 0}`,
+        `grass:${tileCount(m, (t) => t.startsWith('grass')) > 0}`,
+        `wallpct:${Math.round((tileCount(m, (t) => t.startsWith('wall')) / (m.grid.cols * m.grid.rows)) * 10)}`,
+        `obj:${Math.round(m.objects.length / 12)}`,
+        `amb:${Math.round(m.ambiance.length / 20)}`,
+      ].join('|');
     };
     const sigs = Object.keys(GOLD_PROGRAMS).map(sig);
-    expect(new Set(sigs).size).toBe(sigs.length); // all four distinct
+    expect(new Set(sigs).size).toBe(sigs.length); // all distinct
   });
 
   it('exposes the program as plain data (the shape an LLM will emit)', () => {

@@ -13,7 +13,7 @@
  */
 
 import { FEET_PER_TILE, type AmbianceItem, type BuildingType, type Entrance, type LayoutGrammar, type Lighting, type MapObject, type SceneMap } from '@mythweaver/shared';
-import { bakeAutoTiles, BUILDING_TEMPLATES, furnishRoom, makeRng, reachabilityCarve, scatterGroundDecals, wallTagFor } from './cartographer.js';
+import { bakeAutoTiles, BUILDING_TEMPLATES, furnishRoom, makeRng, reachabilityCarve, ROOM_PROGRAMS, ROOM_TEMPLATES, scatterGroundDecals, wallTagFor, type RoomTemplate } from './cartographer.js';
 import { isCharacter, propDef, terrainWalkable } from './catalog.js';
 
 export interface Pt {
@@ -392,6 +392,133 @@ export function building(cv: Canvas, region: Rect, type: BuildingType, opts: { d
   furnishRoom(cv.tiles, cv.walkable, cv.occ, cv.objects, R, tmpl, { c: door.dC, r: door.dR }, cv.rng, cv.cols, safe, `bldg:${safe}`, 0, opts.name);
 }
 
+/**
+ * A COMPOUND building — the multi-room upgrade over `building()`. The footprint is subdivided into
+ * several rooms (recursive bisection with shared partition walls), each FURNISHED BY FUNCTION from the
+ * type's ROOM_PROGRAM (tavern → bar + dining + kitchen + bedroom; temple → nave + vestry + bedroom),
+ * connected by interior doors (a spanning tree BY CONSTRUCTION — each split carves a door joining its
+ * two halves) with ONE keeper in the primary room and one faced exterior door. Small footprints fall
+ * back to a single furnished room. This is what makes interiors read as real homes/shops (separate
+ * rooms with the right furniture each) instead of one open box.
+ */
+export function compound(cv: Canvas, region: Rect, type: BuildingType, opts: { door?: 'north' | 'south' | 'east' | 'west'; locationId?: string; name?: string; id?: string } = {}): void {
+  const R = clampRect(cv, region);
+  if (R.w < 7 || R.h < 7) { building(cv, R, type, opts); return; } // too small to partition → single room
+  const base = BUILDING_TEMPLATES[type] ?? BUILDING_TEMPLATES.house;
+  const mat = base.wall;
+  const wallBase = mat === 'wood' ? 'wall_wood' : 'wall';
+  const floor = base.floor;
+  const { x: rx, y: ry, w: rw, h: rh } = R;
+
+  // 1. OUTER faced wall ring + floor interior.
+  for (let y = ry; y < ry + rh; y++)
+    for (let x = rx; x < rx + rw; x++) {
+      const top = y === ry, bot = y === ry + rh - 1, left = x === rx, right = x === rx + rw - 1;
+      if (top || bot || left || right) { cv.set(x, y, wallTagFor(top, bot, left, right, mat), false); cv.occ[y]![x] = true; }
+      else cv.set(x, y, floor, true);
+    }
+
+  // 2. SUBDIVIDE the interior into rooms — recursive bisection; each split records a connecting DOOR
+  //    (with its passage orientation) so the room graph is a connected spanning tree by construction.
+  const minRoom = 5;
+  const target = Math.max(1, Math.min(ROOM_PROGRAMS[type]?.length ?? 3, Math.floor(((rw - 2) * (rh - 2)) / 20)));
+  const leaves: Rect[] = [];
+  const doors: { c: number; r: number; horiz: boolean }[] = [];
+  const q: Rect[] = [R];
+  let guard = 0;
+  while (q.length && leaves.length + q.length < target && guard++ < 40) {
+    q.sort((a, b) => b.w * b.h - a.w * a.h);
+    const cur = q.shift()!;
+    const canH = cur.w >= 2 * minRoom - 1, canV = cur.h >= 2 * minRoom - 1;
+    if (!canH && !canV) { leaves.push(cur); continue; }
+    const horiz = canH && (!canV || cur.w >= cur.h);
+    if (horiz) {
+      const cut = cur.x + minRoom - 1 + Math.floor(cv.rng() * (cur.w - 2 * minRoom + 2));
+      doors.push({ c: cut, r: cur.y + 1 + Math.floor(cv.rng() * Math.max(1, cur.h - 2)), horiz: true });
+      q.push({ x: cur.x, y: cur.y, w: cut - cur.x + 1, h: cur.h }, { x: cut, y: cur.y, w: cur.x + cur.w - cut, h: cur.h });
+    } else {
+      const cut = cur.y + minRoom - 1 + Math.floor(cv.rng() * (cur.h - 2 * minRoom + 2));
+      doors.push({ c: cur.x + 1 + Math.floor(cv.rng() * Math.max(1, cur.w - 2)), r: cut, horiz: false });
+      q.push({ x: cur.x, y: cur.y, w: cur.w, h: cut - cur.y + 1 }, { x: cur.x, y: cut, w: cur.w, h: cur.y + cur.h - cut });
+    }
+  }
+  leaves.push(...q);
+
+  // 3. PARTITION walls (interior leaf borders only — the outer ring is already faced), then carve the
+  //    doors + RESERVE each doorway (cell + its two passage neighbours) so furniture never blocks it.
+  const isOuter = (c: number, r: number) => c === rx || c === rx + rw - 1 || r === ry || r === ry + rh - 1;
+  for (const lf of leaves) {
+    for (let x = lf.x; x < lf.x + lf.w; x++) for (const yy of [lf.y, lf.y + lf.h - 1]) if (!isOuter(x, yy)) { cv.set(x, yy, wallBase, false); cv.occ[yy]![x] = true; }
+    for (let y = lf.y; y < lf.y + lf.h; y++) for (const xx of [lf.x, lf.x + lf.w - 1]) if (!isOuter(xx, y)) { cv.set(xx, y, wallBase, false); cv.occ[y]![xx] = true; }
+  }
+  for (const d of doors) {
+    const pass = d.horiz ? [{ c: d.c, r: d.r }, { c: d.c - 1, r: d.r }, { c: d.c + 1, r: d.r }] : [{ c: d.c, r: d.r }, { c: d.c, r: d.r - 1 }, { c: d.c, r: d.r + 1 }];
+    for (const p of pass) if (cv.inB(p.c, p.r) && !isOuter(p.c, p.r)) { cv.set(p.c, p.r, floor, true); cv.occ[p.r]![p.c] = true; } // reserved-but-walkable: keeps the passage clear
+  }
+
+  // 4. EXTERIOR door on the requested side (faced ring → floor gap + outside walkable + Entrance).
+  const midX = rx + Math.floor(rw / 2), midY = ry + Math.floor(rh / 2);
+  const doorFor = (side: string) => side === 'north' ? { dC: midX, dR: ry, oC: midX, oR: ry - 1 } : side === 'east' ? { dC: rx + rw - 1, dR: midY, oC: rx + rw, oR: midY } : side === 'west' ? { dC: rx, dR: midY, oC: rx - 1, oR: midY } : { dC: midX, dR: ry + rh - 1, oC: midX, oR: ry + rh };
+  let ed = doorFor(opts.door ?? 'south');
+  if (!cv.inB(ed.oC, ed.oR)) ed = [opts.door ?? 'south', 'south', 'north', 'east', 'west'].map(doorFor).find((d) => cv.inB(d.oC, d.oR)) ?? ed;
+  cv.set(ed.dC, ed.dR, floor, true); cv.occ[ed.dR]![ed.dC] = true; // reserve so furniture can't seal the entrance
+  const inC = 2 * ed.dC - ed.oC, inR = 2 * ed.dR - ed.oR; // the cell one step INSIDE the entrance — reserve it too so furniture never blocks the doorway
+  if (cv.inB(inC, inR)) { cv.set(inC, inR, floor, true); cv.occ[inR]![inC] = true; }
+  if (cv.inB(ed.oC, ed.oR)) { if ((cv.tileAt(ed.oC, ed.oR) ?? '').startsWith('wall')) cv.set(ed.oC, ed.oR, 'dirt', true); else cv.walkable[ed.oR]![ed.oC] = true; cv.occ[ed.oR]![ed.oC] = false; }
+
+  // 5. FURNISH each room BY FUNCTION. The leaf holding the exterior door is the PRIMARY (front) room →
+  //    keeper + name + entrance; the rest get furniture only (occupant '' → furnishRoom skips a keeper).
+  const inLeaf = (lf: Rect, c: number, r: number) => c >= lf.x && c < lf.x + lf.w && r >= lf.y && r < lf.y + lf.h;
+  leaves.sort((a, b) => (inLeaf(b, ed.dC, ed.dR) ? 1 : 0) - (inLeaf(a, ed.dC, ed.dR) ? 1 : 0));
+  const program = ROOM_PROGRAMS[type] ?? ROOM_PROGRAMS.house;
+  const safe = (opts.id && opts.id.includes(':') ? opts.id.slice(opts.id.indexOf(':') + 1) : opts.id ?? type).replace(/[^a-z0-9_-]/gi, '-').toLowerCase() || type;
+  if (opts.locationId) cv.entrances.push({ toLocationId: opts.locationId, col: ed.dC, row: ed.dR, ...(opts.id ? { fixtureId: opts.id } : {}) });
+  const onBorder = (lf: Rect, p: { c: number; r: number }) => p.c >= lf.x && p.c <= lf.x + lf.w - 1 && p.r >= lf.y && p.r <= lf.y + lf.h - 1 && (p.c === lf.x || p.c === lf.x + lf.w - 1 || p.r === lf.y || p.r === lf.y + lf.h - 1);
+  // COURTYARD: only a big TAVERN/TEMPLE turns its biggest back room into an open inner garden (grass +
+  // fountain + varied flowers). Houses/shops NEVER get a fountain-in-a-room (the "fountain in the
+  // livingroom" complaint).
+  let courtyardIdx = -1;
+  if (leaves.length >= 3 && rw * rh >= 130 && cv.rng() < 0.6 && (type === 'temple' || type === 'tavern')) {
+    let bestA = 29;
+    for (let i = 1; i < leaves.length; i++) { const a = leaves[i]!.w * leaves[i]!.h; if (a > bestA) { bestA = a; courtyardIdx = i; } }
+  }
+  // L-SHAPE: otherwise a big compound sometimes cuts a NON-front CORNER room out to the exterior (a side
+  // yard) → an L/T silhouette instead of a plain rectangle (the "buildings are only squares" complaint).
+  // Reuses the room leaves; the cut corner opens to the street and gets planted by the town greenery pass.
+  let notchIdx = -1;
+  if (courtyardIdx < 0 && leaves.length >= 3 && rw * rh >= 110 && cv.rng() < 0.5) {
+    const atCorner = (lf: Rect) => (lf.x === rx || lf.x + lf.w - 1 === rx + rw - 1) && (lf.y === ry || lf.y + lf.h - 1 === ry + rh - 1);
+    let best = rw * rh * 0.36; // a modest corner cut, not the whole building
+    for (let i = 1; i < leaves.length; i++) { const lf = leaves[i]!; const a = lf.w * lf.h; if (atCorner(lf) && a <= best) { best = a; notchIdx = i; } }
+  }
+  // DOORS — a wooden door sprite at the exterior entrance + every interior doorway (decorative, walkable).
+  cv.ambiance.push({ tag: 'door_house', col: ed.dC, row: ed.dR });
+  for (const dd of doors) cv.ambiance.push({ tag: 'door_house', col: dd.c, row: dd.r });
+  const GARDEN = ['flowers', 'flowers_blue', 'flowers_yellow', 'flowers_red', 'bush', 'grass_tuft', 'mushroom', 'tree_oak', 'tree_autumn']; // varied garden planting
+  leaves.forEach((lf, i) => {
+    if (i === courtyardIdx) {
+      for (let y = lf.y + 1; y < lf.y + lf.h - 1; y++) for (let x = lf.x + 1; x < lf.x + lf.w - 1; x++) { cv.set(x, y, 'grass', true); cv.occ[y]![x] = false; }
+      place(cv, { id: `prop:${safe}-garden`, tag: 'fountain', kind: 'prop', at: { c: lf.x + Math.floor(lf.w / 2), r: lf.y + Math.floor(lf.h / 2) } });
+      for (let y = lf.y + 1; y < lf.y + lf.h - 1; y++) for (let x = lf.x + 1; x < lf.x + lf.w - 1; x++) if (cv.isFree(x, y) && cv.rng() < 0.5) { const tag = GARDEN[Math.floor(cv.rng() * GARDEN.length)]!; cv.reserve(x, y); if (tag.startsWith('tree')) cv.walkable[y]![x] = false; cv.ambiance.push({ tag, col: x, row: y }); }
+      return;
+    }
+    if (i === notchIdx) {
+      // open this corner room to the exterior: remove its outer-ring walls + clear to grass (the interior
+      // partition walls stay, so the neighbouring rooms remain enclosed) → an L footprint + a side yard.
+      for (let y = lf.y; y < lf.y + lf.h; y++) for (let x = lf.x; x < lf.x + lf.w; x++) {
+        const onOuter = x === rx || x === rx + rw - 1 || y === ry || y === ry + rh - 1;
+        const strictInner = x > lf.x && x < lf.x + lf.w - 1 && y > lf.y && y < lf.y + lf.h - 1;
+        if (onOuter || strictInner) { cv.set(x, y, 'grass', true); cv.occ[y]![x] = false; }
+      }
+      return;
+    }
+    const fn = program[Math.min(i, program.length - 1)]!;
+    const tmpl: RoomTemplate = { ...ROOM_TEMPLATES[fn], floor, wall: mat, occupant: i === 0 ? base.occupant : '' };
+    const d = doors.find((dd) => onBorder(lf, dd)) ?? (i === 0 ? { c: ed.dC, r: ed.dR } : { c: lf.x, r: lf.y });
+    furnishRoom(cv.tiles, cv.walkable, cv.occ, cv.objects, lf, tmpl, d, cv.rng, cv.cols, `${safe}-r${i}`, `bldg:${safe}-r${i}`, 0, i === 0 ? opts.name : undefined);
+  });
+}
+
 // --- object primitives ------------------------------------------------------
 
 const footprintOf = (tag: string, kind: string): { w: number; h: number } => {
@@ -467,6 +594,130 @@ export function scatter(cv: Canvas, o: { idBase: string; tags: string[]; kind: '
   }
 }
 
+// --- distribution primitives (the "lived-in" density layer) -----------------
+// Hand-crafted maps read as designed because decoration uses TWO deliberate textures, not one uniform
+// percentage: BLUE noise (even-but-not-grid spread — trees, lamps) and CLUMPS (cohesive beds/thickets).
+// Our old scatter() is WHITE noise (independent per-cell %), which accidentally clumps AND voids and
+// reads as litter. These two primitives are that missing density layer.
+
+/**
+ * A seeded value-noise field over the whole grid, 0..1, SPATIALLY CORRELATED so a threshold cut carves
+ * cohesive blobs (flower beds, thickets) — the inverse of white noise. `freq` sets clump SIZE (higher =
+ * smaller patches; ~0.13 ≈ 8-tile blobs). Own RNG from `seed` so the field is independent of how many
+ * cv.rng draws preceded it (determinism doesn't depend on call order). Bilinear-interpolated lattice.
+ */
+export function noiseField(cols: number, rows: number, freq: number, seed: number): number[][] {
+  const rng = makeRng(seed);
+  const gw = Math.max(2, Math.ceil(cols * freq) + 2);
+  const gh = Math.max(2, Math.ceil(rows * freq) + 2);
+  const lat: number[][] = Array.from({ length: gh }, () => Array.from({ length: gw }, () => rng()));
+  const smooth = (t: number) => t * t * (3 - 2 * t); // smoothstep → no lattice creases
+  const out: number[][] = [];
+  for (let r = 0; r < rows; r++) {
+    const row: number[] = [];
+    for (let c = 0; c < cols; c++) {
+      const fx = c * freq, fy = r * freq;
+      const x0 = Math.floor(fx), y0 = Math.floor(fy);
+      const tx = smooth(fx - x0), ty = smooth(fy - y0);
+      const a = lat[y0]![x0]!, b = lat[y0]![x0 + 1]!, cc = lat[y0 + 1]![x0]!, d = lat[y0 + 1]![x0 + 1]!;
+      const top = a + (b - a) * tx, bot = cc + (d - cc) * tx;
+      row.push(top + (bot - top) * ty);
+    }
+    out.push(row);
+  }
+  return out;
+}
+
+/**
+ * BLUE-NOISE scatter (Bridson fast Poisson-disk): place props with a guaranteed MIN SPACING `r` so they
+ * spread evenly without a grid and without clumps/voids — how a person spaces trees/lamps/signposts.
+ * Float dart-throwing, then snap to tile + reject non-free / filtered cells. `blocks` clears walkable
+ * under each (trees block; flowers don't). Pushes AmbianceItems. Returns how many landed.
+ */
+export function poissonScatter(
+  cv: Canvas,
+  region: Rect,
+  o: { tags: string[]; r: number; k?: number; max?: number; blocks?: boolean; filter?: (c: number, r: number) => boolean },
+): number {
+  const R = clampRect(cv, region);
+  if (!o.tags.length || R.w < 1 || R.h < 1) return 0;
+  const rad = Math.max(1, o.r);
+  const k = o.k ?? 30;
+  const cell = rad / Math.SQRT2;
+  const gw = Math.max(1, Math.ceil(R.w / cell)), gh = Math.max(1, Math.ceil(R.h / cell));
+  const grid: ({ x: number; y: number } | null)[] = new Array(gw * gh).fill(null);
+  const gi = (x: number, y: number) => Math.min(gh - 1, Math.floor(y / cell)) * gw + Math.min(gw - 1, Math.floor(x / cell));
+  const far = (x: number, y: number): boolean => {
+    const gx = Math.floor(x / cell), gy = Math.floor(y / cell);
+    for (let yy = Math.max(0, gy - 2); yy <= Math.min(gh - 1, gy + 2); yy++)
+      for (let xx = Math.max(0, gx - 2); xx <= Math.min(gw - 1, gx + 2); xx++) {
+        const p = grid[yy * gw + xx];
+        if (p) { const dx = p.x - x, dy = p.y - y; if (dx * dx + dy * dy < rad * rad) return false; }
+      }
+    return true;
+  };
+  const samples: { x: number; y: number }[] = [];
+  const seed = { x: cv.rng() * R.w, y: cv.rng() * R.h };
+  const active = [seed];
+  grid[gi(seed.x, seed.y)] = seed;
+  samples.push(seed);
+  let guard = 0;
+  while (active.length && guard++ < 20000) {
+    const i = Math.floor(cv.rng() * active.length);
+    const a = active[i]!;
+    let found = false;
+    for (let t = 0; t < k; t++) {
+      const ang = cv.rng() * Math.PI * 2;
+      const dist = rad * (1 + cv.rng()); // annulus [r, 2r]
+      const x = a.x + Math.cos(ang) * dist, y = a.y + Math.sin(ang) * dist;
+      if (x < 0 || y < 0 || x >= R.w || y >= R.h || !far(x, y)) continue;
+      const p = { x, y };
+      active.push(p); grid[gi(x, y)] = p; samples.push(p); found = true; break;
+    }
+    if (!found) { active[i] = active[active.length - 1]!; active.pop(); }
+  }
+  let n = 0;
+  for (const s of cv.shuffle(samples)) {
+    if (o.max != null && n >= o.max) break;
+    const c = R.x + Math.floor(s.x), r = R.y + Math.floor(s.y);
+    if (!cv.isFree(c, r) || (o.filter && !o.filter(c, r))) continue;
+    const tag = o.tags[Math.floor(cv.rng() * o.tags.length)]!;
+    cv.reserve(c, r);
+    if (o.blocks) cv.walkable[r]![c] = false;
+    cv.ambiance.push({ tag, col: c, row: r });
+    n++;
+  }
+  return n;
+}
+
+/**
+ * CLUMP scatter (noise-threshold): place props on every free cell where a low-frequency noise field
+ * exceeds `threshold` → cohesive patches (flower beds, bush thickets, undergrowth) that uniform scatter
+ * never produces. `seedOffset` gives each element class its OWN field so beds/thickets don't coincide.
+ * Pushes AmbianceItems; `blocks` clears walkable. Returns how many landed.
+ */
+export function clumpScatter(
+  cv: Canvas,
+  region: Rect,
+  o: { tags: string[]; freq?: number; threshold?: number; seedOffset?: number; max?: number; blocks?: boolean; filter?: (c: number, r: number) => boolean },
+): number {
+  if (!o.tags.length) return 0;
+  const field = noiseField(cv.cols, cv.rows, o.freq ?? 0.13, (cv.seed ^ (o.seedOffset ?? 0)) >>> 0);
+  const th = o.threshold ?? 0.62;
+  const cells = cv.shuffle(
+    cellsOf(clampRect(cv, region)).filter((p) => cv.isFree(p.c, p.r) && field[p.r]![p.c]! > th && (!o.filter || o.filter(p.c, p.r))),
+  );
+  const n = o.max != null ? Math.min(o.max, cells.length) : cells.length;
+  for (let i = 0; i < n; i++) {
+    const { c, r } = cells[i]!;
+    const tag = o.tags[Math.floor(cv.rng() * o.tags.length)]!;
+    cv.reserve(c, r);
+    if (o.blocks) cv.walkable[r]![c] = false;
+    cv.ambiance.push({ tag, col: c, row: r });
+  }
+  return n;
+}
+
 /**
  * A VIGNETTE — an authored SET-PIECE cluster placed as ONE unit around an anchor (the fix for "piled
  * assets" in open areas): a small list of props/actors at relative offsets that read as a coherent
@@ -507,9 +758,11 @@ export function entrance(cv: Canvas, at: Pt, toLocationId: string): void {
  *  decal scatter (interiors skip them). reachabilityCarve is the LAST-RESORT safety net only. */
 export function finalize(
   cv: Canvas,
-  meta: { locationId: string; biome: string; lighting: Lighting; grammar: LayoutGrammar; outdoor: boolean },
+  meta: { locationId: string; biome: string; lighting: Lighting; grammar: LayoutGrammar; outdoor: boolean; skipReachability?: boolean },
 ): SceneMap {
-  reachabilityCarve(cv.tiles, cv.walkable, cv.cols, cv.rows, cv.objects, cv.entrances); // safety net; primitives are connectivity-correct so this rarely fires
+  // skipReachability: the component contact-sheet packs intentionally DISCONNECTED cells — carving
+  // corridors between them would mangle the gallery. Real scenes leave it on (the rare safety net).
+  if (!meta.skipReachability) reachabilityCarve(cv.tiles, cv.walkable, cv.cols, cv.rows, cv.objects, cv.entrances); // safety net; primitives are connectivity-correct so this rarely fires
   if (meta.outdoor) {
     scatterGroundDecals(cv.tiles, cv.walkable, cv.occ, cv.cols, cv.rows, cv.ambiance, cv.rng);
     bakeAutoTiles(cv.tiles, cv.cols, cv.rows);

@@ -51,6 +51,40 @@ export const BUILDING_TEMPLATES: Record<BuildingType, RoomTemplate> = {
   house: { floor: 'wood_floor', wall: 'wood', occupant: 'villager', items: [{ tag: 'bed', where: 'corner' }, { tag: 'table', where: 'center' }, { tag: 'chair', where: 'around', count: 2 }, { tag: 'pot', where: 'wall' }] },
 };
 
+/**
+ * Per-ROOM-FUNCTION furniture recipes — the unit a multi-room building (`compound`) is composed from.
+ * A building is no longer ONE open furnished box; its footprint is subdivided into rooms, each FURNISHED
+ * BY FUNCTION so the interior reads as a real home/shop: a bedroom has beds, a kitchen has shelves +
+ * barrels, a tavern bar has a back-wall counter, a temple nave has an altar + pews. floor/wall/occupant
+ * are OVERRIDDEN per-building by `compound` (one material for the whole building, one keeper in the
+ * primary room); only `carpet` + `items` are function-specific. Reuses the same FurnSpec selectors as
+ * BUILDING_TEMPLATES (back = counter/altar along the back wall, around = seating ringing the centre).
+ */
+export type RoomFunction = 'bar' | 'dining' | 'kitchen' | 'bedroom' | 'storeroom' | 'shopfront' | 'parlor' | 'nave' | 'vestry' | 'forge';
+export const ROOM_TEMPLATES: Record<RoomFunction, RoomTemplate> = {
+  bar: { floor: 'wood_floor', wall: 'wood', occupant: 'villager_woman', items: [{ tag: 'table', where: 'back', count: 4 }, { tag: 'shelf_wares', where: 'back' }, { tag: 'barrel', where: 'corner', count: 2 }, { tag: 'crate', where: 'corner' }, { tag: 'candelabra', where: 'wall' }, { tag: 'chair', where: 'around', count: 2 }] },
+  dining: { floor: 'wood_floor', wall: 'wood', occupant: '', carpet: true, items: [{ tag: 'table', where: 'center' }, { tag: 'chair', where: 'around', count: 4 }, { tag: 'candelabra', where: 'wall' }, { tag: 'barrel', where: 'corner' }] },
+  kitchen: { floor: 'wood_floor', wall: 'wood', occupant: '', items: [{ tag: 'shelf_food', where: 'wall', count: 2 }, { tag: 'barrel', where: 'corner' }, { tag: 'sack', where: 'corner' }, { tag: 'pot', where: 'wall' }, { tag: 'woodpile', where: 'corner' }, { tag: 'table', where: 'center' }] },
+  bedroom: { floor: 'wood_floor', wall: 'wood', occupant: '', items: [{ tag: 'bed', where: 'corner' }, { tag: 'bed_blue', where: 'corner' }, { tag: 'chair', where: 'around' }, { tag: 'shelf', where: 'wall' }, { tag: 'pot', where: 'wall' }] },
+  storeroom: { floor: 'wood_floor', wall: 'wood', occupant: '', items: [{ tag: 'crate', where: 'corner', count: 2 }, { tag: 'barrel', where: 'corner', count: 2 }, { tag: 'sack', where: 'wall', count: 2 }, { tag: 'shelf', where: 'wall' }, { tag: 'woodpile', where: 'corner' }] },
+  shopfront: { floor: 'wood_floor', wall: 'wood', occupant: 'villager', items: [{ tag: 'table', where: 'back', count: 2 }, { tag: 'shelf_wares', where: 'wall', count: 2 }, { tag: 'shelf_food', where: 'wall' }, { tag: 'crate', where: 'corner' }, { tag: 'pot', where: 'wall' }] },
+  parlor: { floor: 'wood_floor', wall: 'wood', occupant: 'villager', carpet: true, items: [{ tag: 'table', where: 'center' }, { tag: 'chair', where: 'around', count: 2 }, { tag: 'bookshelf', where: 'wall' }, { tag: 'pot', where: 'wall' }, { tag: 'candelabra', where: 'wall' }] },
+  nave: { floor: 'stone', wall: 'stone', occupant: 'wizard', carpet: true, items: [{ tag: 'altar', where: 'back' }, { tag: 'candelabra', where: 'back', count: 2 }, { tag: 'stone_bench', where: 'around', count: 4 }, { tag: 'bookshelf', where: 'wall' }] },
+  vestry: { floor: 'stone', wall: 'stone', occupant: '', items: [{ tag: 'bookshelf', where: 'wall', count: 2 }, { tag: 'desk', where: 'center' }, { tag: 'chair', where: 'around' }, { tag: 'candle', where: 'wall' }] },
+  forge: { floor: 'stone', wall: 'stone', occupant: 'dwarf', items: [{ tag: 'brazier', where: 'back' }, { tag: 'table', where: 'center' }, { tag: 'weapon_rack', where: 'wall' }, { tag: 'barrel', where: 'corner' }, { tag: 'crate', where: 'corner' }, { tag: 'woodpile', where: 'corner' }] },
+};
+
+/** Per-building-type ROOM PROGRAM: the ordered room functions a compound contains. Index 0 is the
+ *  PRIMARY (front) room — it gets the keeper + the entrance. Truncated to however many rooms the
+ *  footprint subdivides into (a small cottage = just its primary room). */
+export const ROOM_PROGRAMS: Record<BuildingType, RoomFunction[]> = {
+  tavern: ['bar', 'dining', 'kitchen', 'bedroom'],
+  shop: ['shopfront', 'storeroom', 'kitchen'],
+  temple: ['nave', 'vestry', 'bedroom'],
+  smithy: ['forge', 'storeroom', 'kitchen'],
+  house: ['parlor', 'bedroom', 'kitchen'],
+};
+
 interface Rect {
   x: number;
   y: number;
@@ -249,12 +283,25 @@ export function furnishRoom(
     }
     return null;
   };
+  // Placement FALLBACK CHAINS — a wall-hugging item that can't get its preferred slot falls back to
+  // OTHER WALL cells, never to the middle of the room (that was the "beds in the middle of nowhere" /
+  // "bookshelf anywhere" bug). Only center/around/scatter items may sit out in the floor.
+  const CHAINS: Record<string, ((cells: { c: number; r: number }[]) => { c: number; r: number }[])[]> = {
+    back: [byBack, byWall],
+    corner: [byCorner, byWall],
+    wall: [byWall],
+    around: [around, byCenter],
+    center: [byCenter],
+    scatter: [],
+  };
+  const freeFloor = (item: FurnSpec): boolean => item.where === 'center' || item.where === 'around' || item.where === 'scatter';
   let placedFurn = 0;
   for (const item of tmpl.items) {
     for (let k = 0; k < (item.count ?? 1); k++) {
       if (placedFurn >= budget) break;
-      const pref = item.where === 'back' ? byBack : item.where === 'corner' ? byCorner : item.where === 'center' ? byCenter : item.where === 'wall' ? byWall : item.where === 'around' ? around : undefined;
-      const cell = takeCell(pref) ?? takeCell();
+      let cell: { c: number; r: number } | null = null;
+      for (const sel of CHAINS[item.where] ?? []) { cell = takeCell(sel); if (cell) break; }
+      if (!cell && freeFloor(item)) cell = takeCell(); // tables/chairs/clutter may use open floor; wall items may NOT
       if (!cell) break;
       occ[cell.r]![cell.c] = true; // reserve so nothing else lands here
       if (propDef(item.tag)?.blocks ?? true) walkable[cell.r]![cell.c] = false; // only blocking furniture blocks pathing
@@ -262,7 +309,7 @@ export function furnishRoom(
       placedFurn++;
     }
   }
-  const occCell = takeCell(byCenter);
+  const occCell = tmpl.occupant ? takeCell(byCenter) : null; // empty occupant → no keeper (multi-room compounds put ONE keeper in the primary room only)
   if (occCell) {
     occ[occCell.r]![occCell.c] = true; // reserve (actor doesn't block walkable)
     // The keeper is an individually-addressable NPC (NOT grouped) so the DM digest keeps its id/name/position.

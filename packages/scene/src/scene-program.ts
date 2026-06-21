@@ -11,8 +11,10 @@
 
 import type { LlmProvider } from '@mythweaver/llm';
 import { BIOMES, BUILDING_TYPES, LAYOUT_GRAMMARS, type BuildingType, type LayoutGrammar, type Lighting, type SceneMap } from '@mythweaver/shared';
+import { ARCHETYPE_KINDS, GENERATORS, type ArchetypeKind, type Contents } from './archetypes.js';
 import { isCharacter, isProp, isTerrain } from './catalog.js';
 import { bridge, building, Canvas, bspRooms, cave, clearing, entrance, fill, finalize, island, maze, path, place, plaza, scatter, vignette, VIGNETTE_NAMES, wallRing, type Pt, type Rect } from './primitives.js';
+import { THEMES, themeNameFor, type Theme } from './themes.js';
 
 type RegionSpec = 'all' | Rect;
 type PtSpec = Pt | 'center' | 'north' | 'south' | 'east' | 'west';
@@ -32,7 +34,10 @@ export type SceneOp =
   | { op: 'vignette'; type: string; at: PtSpec; id: string }
   | { op: 'place'; id: string; tag: string; kind: 'fixture' | 'prop' | 'actor'; role?: 'pc' | 'npc' | 'mob'; at: PtSpec; name?: string; visible?: boolean }
   | { op: 'scatter'; idBase: string; tags: string[]; kind: 'prop' | 'actor'; role?: 'pc' | 'npc' | 'mob'; region: RegionSpec; count: number }
-  | { op: 'entrance'; at: PtSpec };
+  | { op: 'entrance'; at: PtSpec }
+  /** Run a whole ARCHETYPE GENERATOR over the canvas (the LLM picks the kind + semantic Contents; the
+   *  deterministic generator owns the organic layout). Replaces LLM-placed building rects for these. */
+  | { op: 'archetype'; kind: ArchetypeKind; contents: Contents };
 
 export interface SceneProgram {
   locationId: string;
@@ -85,6 +90,7 @@ function runOp(cv: Canvas, op: SceneOp, locationId: string, theme?: Theme): void
     case 'place': place(cv, { id: op.id, tag: op.tag, kind: op.kind, ...(op.role ? { role: op.role } : {}), at: resolvePt(cv, op.at), ...(op.name ? { name: op.name } : {}), ...(op.visible !== undefined ? { visible: op.visible } : {}) }); break;
     case 'scatter': scatter(cv, { idBase: op.idBase, tags: op.tags, kind: op.kind, ...(op.role ? { role: op.role } : {}), region: resolveRegion(cv, op.region), count: op.count }); break;
     case 'entrance': entrance(cv, resolvePt(cv, op.at), locationId); break;
+    case 'archetype': GENERATORS[op.kind](cv, { theme: theme ?? THEMES.village!, contents: op.contents, bounds: { x: 0, y: 0, w: cv.cols, h: cv.rows }, locationId }); break;
   }
 }
 
@@ -168,10 +174,36 @@ const CRYPT: SceneProgram = {
   ],
 };
 
+/** "A small walled town" — the ARCHETYPE-GENERATOR path. ONE op: the LLM (here, hand-written) supplies
+ *  only the semantic cast; the deterministic townGen owns the organic streets, parcels, varied
+ *  footprints, plaza and density. This is the A/B against MARKET_CITY's grid-of-boxes. */
+const TOWN: SceneProgram = {
+  locationId: 'loc:gold-town', cols: 60, rows: 44, seed: 717, biome: 'village', lighting: 'day', grammar: 'town-square', outdoor: true, theme: 'village',
+  ops: [
+    {
+      op: 'archetype', kind: 'town', contents: {
+        buildings: [
+          { type: 'tavern', name: 'the Gilded Stag' },
+          { type: 'temple', name: 'a shrine to the Dawnfather' },
+          { type: 'smithy', name: 'the smithy' },
+          { type: 'shop', name: 'the general store' },
+          { type: 'house' }, { type: 'house' }, { type: 'house' }, { type: 'house' },
+        ],
+        landmarks: [{ tag: 'fountain', name: 'the town well' }],
+        npcs: [{ tag: 'villager' }, { tag: 'villager_woman' }, { tag: 'knight', name: 'a town guard' }, { tag: 'villager' }],
+        mobs: [],
+        wall: true,
+        entranceSide: 'south',
+      },
+    },
+  ],
+};
+
 export const GOLD_PROGRAMS: Record<string, SceneProgram> = {
   labyrinth: LABYRINTH,
   lake: WATERFALL_LAKE,
   city: MARKET_CITY,
+  town: TOWN,
   crypt: CRYPT,
 };
 
@@ -276,46 +308,6 @@ const num = (v: unknown, d: number): number => (typeof v === 'number' && Number.
 const terrainOr = (v: unknown, d: string): string => (typeof v === 'string' && isTerrain(v) ? v : d);
 const propOr = (v: unknown): string => (typeof v === 'string' && isProp(v) ? v : isProp('placeholder') ? 'placeholder' : 'crate');
 const charOr = (v: unknown): string => (typeof v === 'string' && isCharacter(v) ? v : 'villager');
-/**
- * A THEME = one coherent material palette for a whole scene (the "one tileset per level" rule that
- * kills floor noise). The scene picks ONE theme; every open-ground op (fill/plaza/path/maze/rooms
- * floor) draws from it, so materials never clash cell-to-cell. Hazards (water/lava/sand) + per-building
- * materials are the only terrain NOT themed.
- */
-export interface Theme {
-  ground: string;
-  path: string;
-  plaza: string;
-  wallMat: 'wood' | 'stone';
-}
-const THEMES: Record<string, Theme> = {
-  village: { ground: 'grass', path: 'dirt', plaza: 'stone', wallMat: 'wood' },
-  forest: { ground: 'grass', path: 'dirt', plaza: 'grass', wallMat: 'wood' },
-  swamp: { ground: 'grass', path: 'dirt', plaza: 'dirt', wallMat: 'wood' },
-  dungeon: { ground: 'stone', path: 'stone', plaza: 'flagstone', wallMat: 'stone' },
-  crypt: { ground: 'stone_brick', path: 'stone', plaza: 'flagstone', wallMat: 'stone' },
-  cave: { ground: 'dirt', path: 'dirt', plaza: 'stone', wallMat: 'stone' },
-  desert: { ground: 'sand', path: 'dirt', plaza: 'sand', wallMat: 'stone' },
-  lava: { ground: 'stone_brick', path: 'stone', plaza: 'flagstone', wallMat: 'stone' },
-};
-export const THEME_NAMES = Object.keys(THEMES);
-const THEME_ALIASES: [RegExp, string][] = [
-  [/crypt|tomb|catacomb|grave|undead|necro|ossuary/, 'crypt'],
-  [/lava|volcano|magma|infernal|molten|brimstone/, 'lava'],
-  [/cave|cavern|grotto|warren|\bmine\b|tunnel/, 'cave'],
-  [/desert|dune|\bsand|waste|oasis/, 'desert'],
-  [/swamp|\bfen\b|marsh|bog|mire|moor/, 'swamp'],
-  [/dungeon|vault|prison|jail|fort|castle|keep|citadel|temple|shrine|stone/, 'dungeon'],
-  [/forest|wood|grove|glade|jungle|wild|thicket/, 'forest'],
-  [/village|town|city|market|hamlet|settlement|square|plaza/, 'village'],
-];
-/** Resolve a theme name (or infer from the brief) to a Theme key. */
-function themeNameFor(name: unknown, brief: string, grammar: LayoutGrammar): string {
-  if (typeof name === 'string' && THEMES[name.toLowerCase()]) return name.toLowerCase();
-  const lc = `${typeof name === 'string' ? name : ''} ${brief}`.toLowerCase();
-  for (const [re, t] of THEME_ALIASES) if (re.test(lc)) return t;
-  return grammar === 'enclosed-interior' ? 'dungeon' : 'village';
-}
 
 /** Map any structure word → a BuildingType the furnishing engine has a template for. */
 function buildingTypeFor(v: unknown): BuildingType {
@@ -326,6 +318,23 @@ function buildingTypeFor(v: unknown): BuildingType {
   if (/shop|store|market|emporium|apothecary|bakery|guildhall|stall/.test(s)) return 'shop';
   if ((BUILDING_TYPES as readonly string[]).includes(s)) return s as BuildingType;
   return 'house';
+}
+
+/** Coerce the (untrusted) Contents of an archetype op: building types, landmark/creature tags clamped
+ *  to the catalog, counts bounded. The generator owns geometry, so there is nothing spatial to repair. */
+function normContents(v: unknown): Contents {
+  const r = asRec(v);
+  const arr = (x: unknown): unknown[] => (Array.isArray(x) ? x : []);
+  const name = (o: Record<string, unknown>) => (typeof o.name === 'string' ? { name: o.name.slice(0, 60) } : {});
+  const side = r.entranceSide;
+  return {
+    buildings: arr(r.buildings).slice(0, 24).map((b) => { const o = asRec(b); return { type: buildingTypeFor(o.type ?? o.tag ?? o.kind), ...name(o) }; }),
+    landmarks: arr(r.landmarks).slice(0, 12).map((l) => { const o = asRec(l); return { tag: propOr(o.tag ?? o.type), ...name(o) }; }),
+    npcs: arr(r.npcs).slice(0, 20).map((n) => { const o = asRec(n); return { tag: charOr(o.tag ?? o.type), ...name(o) }; }),
+    mobs: arr(r.mobs).slice(0, 12).map((m) => { const o = asRec(m); return { tag: charOr(o.tag ?? o.type), count: Math.max(1, Math.min(20, num(o.count, 4))) }; }),
+    ...(typeof r.wall === 'boolean' ? { wall: r.wall } : {}),
+    ...(side === 'north' || side === 'south' || side === 'east' || side === 'west' ? { entranceSide: side } : {}),
+  };
 }
 
 const EDGE_PTS = ['center', 'north', 'south', 'east', 'west'];
@@ -420,6 +429,10 @@ function normalizeOp(raw: unknown, seen: Set<string>): SceneOp | null {
     }
     case 'entrance':
       return { op: 'entrance', at: normPt(o.at) };
+    case 'archetype': {
+      const kind = typeof o.kind === 'string' && (ARCHETYPE_KINDS as string[]).includes(o.kind) ? (o.kind as ArchetypeKind) : 'town';
+      return { op: 'archetype', kind, contents: normContents(o.contents) };
+    }
     default:
       return null;
   }
@@ -458,6 +471,33 @@ const BRIEF_PROPS: [RegExp, string][] = [
   [/gravestone|tombstone|headstone/, 'gravestone'],
 ];
 
+/** Harvest the SEMANTIC CAST from a settlement program — building types/names, npcs, mobs, landmark
+ *  hints, wall + entrance — discarding all geometry. This is the LLM-as-contents-picker step: the town
+ *  generator owns the organic layout; this just collects WHAT exists from whatever ops the model emitted
+ *  (plus the brief's named creatures/props, via the same nets), guaranteeing a populated town. */
+function harvestTownContents(ops: SceneOp[], lcb: string): Contents {
+  const buildings: Contents['buildings'] = [];
+  const npcs: Contents['npcs'] = [];
+  const mobs: Contents['mobs'] = [];
+  const landmarks: Contents['landmarks'] = [];
+  let wall = /\b(wall|walled|fortif\w*|palisade|stockade|gated|rampart|fortress|\bfort\b|keep|citadel)\b/.test(lcb);
+  let entranceSide: Contents['entranceSide'];
+  for (const o of ops) {
+    if (o.op === 'building') buildings.push({ type: o.type, ...(o.name ? { name: o.name } : {}) });
+    else if (o.op === 'wallRing') wall = true;
+    else if (o.op === 'entrance') { const a = o.at; if (a === 'north' || a === 'south' || a === 'east' || a === 'west') entranceSide = a; }
+    else if (o.op === 'place') { if (o.kind === 'actor') npcs.push({ tag: o.tag, ...(o.name ? { name: o.name } : {}) }); else landmarks.push({ tag: o.tag, ...(o.name ? { name: o.name } : {}) }); }
+    else if (o.op === 'scatter' && o.kind === 'actor') { if (o.role === 'mob') mobs.push({ tag: o.tags[0]!, count: o.count }); else for (const t of o.tags) npcs.push({ tag: t }); }
+    else if (o.op === 'vignette') landmarks.push({ tag: o.type === 'well' ? 'fountain' : o.type });
+  }
+  const haveActor = new Set<string>([...npcs.map((n) => n.tag), ...mobs.map((m) => m.tag)]);
+  for (const [re, tag, role] of BRIEF_CREATURES) if (re.test(lcb) && !haveActor.has(tag)) { if (role === 'mob') mobs.push({ tag, count: 6 }); else npcs.push({ tag }); haveActor.add(tag); }
+  if (!buildings.length) buildings.push({ type: 'tavern' }, { type: 'shop' }, { type: 'house' }, { type: 'house' }, { type: 'house' }, { type: 'house' });
+  const haveProp = new Set(landmarks.map((l) => l.tag));
+  for (const [re, tag] of BRIEF_PROPS) if (re.test(lcb) && !haveProp.has(tag)) { landmarks.push({ tag }); haveProp.add(tag); }
+  return { buildings, landmarks, npcs, mobs, ...(wall ? { wall: true } : {}), ...(entranceSide ? { entranceSide } : {}) };
+}
+
 function progSeed(s: string): number {
   let h = 2166136261 >>> 0;
   for (let i = 0; i < s.length; i++) {
@@ -479,50 +519,71 @@ export function normalizeProgram(raw: unknown, brief: string): SceneProgram {
   // so it can never come out a flat field. Inserted BEFORE the first object op (so terrain fills stay
   // the base and objects land in the carved structure). Deterministic, no extra LLM call.
   const lcb = brief.toLowerCase();
-  const STRUCT = new Set(['building', 'rooms', 'cave', 'maze']);
-  const interiorish = grammar === 'enclosed-interior' || /dungeon|crypt|cave|cavern|grotto|temple|vault|lair|tomb|catacomb|fortress|prison|sewer|\bmine\b|warren|labyrinth|maze/.test(lcb);
-  if (interiorish && !ops.some((o) => STRUCT.has(o.op))) {
-    const inject: SceneOp = /labyrinth|maze/.test(lcb) ? { op: 'maze', region: 'all', wall: 'wall', floor: 'grass' }
-      : /cave|cavern|grotto|\bmine\b|lair|warren|burrow/.test(lcb) ? { op: 'cave', region: 'all', wall: 'wall', floor: 'stone' }
-      : { op: 'rooms', region: 'all', count: 6, wall: 'wall', floor: 'stone' };
-    const objIdx = ops.findIndex((o) => o.op === 'place' || o.op === 'scatter' || o.op === 'vignette' || o.op === 'entrance');
-    if (objIdx < 0) ops.push(inject); else ops.splice(objIdx, 0, inject);
+  // TOWN ROUTING: a settlement is built by the deterministic TOWN GENERATOR (organic streets + parcels +
+  // varied footprints), NOT by LLM-placed building rects (which come out an even grid — the whole reason
+  // towns looked like a spreadsheet). Harvest the LLM's named CAST and hand it to the generator, dropping
+  // its coordinates. Skipped for water-dominant briefs (lake/coast villages, where geometry matters) and
+  // when the model already emitted an archetype op directly.
+  const settlement = grammar === 'town-square' || /\b(town|village|city|hamlet|township|settlement|market town|burgh?|outpost)\b/.test(lcb);
+  const hasArchetype = ops.some((o) => o.op === 'archetype');
+  const dominantWater = ops.some((o) => o.op === 'fill' && o.tag.startsWith('water') && o.region === 'all');
+  const routedTown = settlement && !hasArchetype && !dominantWater;
+  if (routedTown) {
+    const contents = harvestTownContents(ops, lcb);
+    ops.length = 0;
+    ops.push({ op: 'archetype', kind: 'town', contents });
   }
-  // COMPLETENESS NET: the LLM sometimes forgets to emit ops for creatures the brief names. Scan the
-  // brief; for any creature word whose tag isn't already an actor in the program, INJECT a scatter so
-  // the brief's cast always appears (the recurring "0 actors" failure). Deterministic, no extra call.
-  const actorTags = new Set<string>();
-  for (const o of ops) {
-    if (o.op === 'place' && o.kind === 'actor') actorTags.add(o.tag);
-    if (o.op === 'scatter' && o.kind === 'actor') for (const t of o.tags) actorTags.add(t);
-  }
-  const lc = brief.toLowerCase();
-  for (const [re, tag, role] of BRIEF_CREATURES) {
-    if (ops.length >= 26) break;
-    if (re.test(lc) && !actorTags.has(tag)) {
-      ops.push({ op: 'scatter', idBase: uniqueId(`${role}:${tag}`, seen), tags: [tag], kind: 'actor', role, region: 'all', count: role === 'mob' ? 6 : 2 });
-      actorTags.add(tag);
+  // The completeness nets below only matter for the loose-op path; the archetype op carries its own cast.
+  if (!routedTown && !hasArchetype) {
+    // STRUCTURE-COMPLETENESS NET: an interior/dungeon/cave/maze brief MUST have a structural backbone —
+    // if the LLM emitted none (e.g. a "dungeon" as flat fill + scattered monsters), inject the right one
+    // so it can never come out a flat field. Inserted BEFORE the first object op (so terrain fills stay
+    // the base and objects land in the carved structure). Deterministic, no extra LLM call.
+    const STRUCT = new Set(['building', 'rooms', 'cave', 'maze']);
+    const interiorish = grammar === 'enclosed-interior' || /dungeon|crypt|cave|cavern|grotto|temple|vault|lair|tomb|catacomb|fortress|prison|sewer|\bmine\b|warren|labyrinth|maze/.test(lcb);
+    if (interiorish && !ops.some((o) => STRUCT.has(o.op))) {
+      const inject: SceneOp = /labyrinth|maze/.test(lcb) ? { op: 'maze', region: 'all', wall: 'wall', floor: 'grass' }
+        : /cave|cavern|grotto|\bmine\b|lair|warren|burrow/.test(lcb) ? { op: 'cave', region: 'all', wall: 'wall', floor: 'stone' }
+        : { op: 'rooms', region: 'all', count: 6, wall: 'wall', floor: 'stone' };
+      const objIdx = ops.findIndex((o) => o.op === 'place' || o.op === 'scatter' || o.op === 'vignette' || o.op === 'entrance');
+      if (objIdx < 0) ops.push(inject); else ops.splice(objIdx, 0, inject);
     }
-  }
-  // LANDMARK NET: ensure a single notable prop the brief names (sarcophagus, altar, throne, chest…)
-  // appears even if the LLM's program omitted it. Placed near centre; place() snaps to a free cell.
-  const propTags = new Set<string>();
-  for (const o of ops) {
-    if (o.op === 'place' && o.kind !== 'actor') propTags.add(o.tag);
-    if (o.op === 'building') propTags.add('__building__'); // a building furnishes itself — don't also drop a loose altar/throne
-  }
-  const hasBuilding = propTags.has('__building__');
-  for (const [re, tag] of BRIEF_PROPS) {
-    if (ops.length >= 28) break;
-    if (re.test(lc) && !propTags.has(tag) && !(hasBuilding && (tag === 'altar' || tag === 'throne'))) {
-      ops.push({ op: 'place', id: uniqueId(`prop:${tag}`, seen), tag, kind: 'prop', at: 'center' });
-      propTags.add(tag);
+    // CREATURE NET: the LLM sometimes forgets to emit ops for creatures the brief names. Scan the brief;
+    // for any creature word whose tag isn't already an actor, INJECT a scatter so the cast always appears.
+    const actorTags = new Set<string>();
+    for (const o of ops) {
+      if (o.op === 'place' && o.kind === 'actor') actorTags.add(o.tag);
+      if (o.op === 'scatter' && o.kind === 'actor') for (const t of o.tags) actorTags.add(t);
+    }
+    for (const [re, tag, role] of BRIEF_CREATURES) {
+      if (ops.length >= 26) break;
+      if (re.test(lcb) && !actorTags.has(tag)) {
+        ops.push({ op: 'scatter', idBase: uniqueId(`${role}:${tag}`, seen), tags: [tag], kind: 'actor', role, region: 'all', count: role === 'mob' ? 6 : 2 });
+        actorTags.add(tag);
+      }
+    }
+    // LANDMARK NET: ensure a single notable prop the brief names (sarcophagus, altar, throne, chest…)
+    // appears even if the LLM's program omitted it. Placed near centre; place() snaps to a free cell.
+    const propTags = new Set<string>();
+    for (const o of ops) {
+      if (o.op === 'place' && o.kind !== 'actor') propTags.add(o.tag);
+      if (o.op === 'building') propTags.add('__building__'); // a building furnishes itself — don't also drop a loose altar/throne
+    }
+    const hasBuilding = propTags.has('__building__');
+    for (const [re, tag] of BRIEF_PROPS) {
+      if (ops.length >= 28) break;
+      if (re.test(lcb) && !propTags.has(tag) && !(hasBuilding && (tag === 'altar' || tag === 'throne'))) {
+        ops.push({ op: 'place', id: uniqueId(`prop:${tag}`, seen), tag, kind: 'prop', at: 'center' });
+        propTags.add(tag);
+      }
     }
   }
   return {
     locationId: 'loc:lab-program',
-    cols: Math.max(16, Math.min(96, num(r.cols, 40))),
-    rows: Math.max(12, Math.min(64, num(r.rows, 26))),
+    // A routed town needs room for the generator's streets+parcels → floor the grid larger than the LLM
+    // may have asked for (a 40×26 town subdivides into too few lots).
+    cols: Math.max(routedTown ? 54 : 16, Math.min(96, num(r.cols, routedTown ? 60 : 40))),
+    rows: Math.max(routedTown ? 40 : 12, Math.min(64, num(r.rows, routedTown ? 44 : 26))),
     seed: progSeed(brief),
     base: terrainOr(r.base, 'grass'),
     biome: (BIOMES as readonly string[]).includes(r.biome as string) ? (r.biome as string) : 'forest',

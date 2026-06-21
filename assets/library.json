@@ -1387,9 +1387,14 @@
         {
           "art": "/assets/dawnlike/terrain/wall_wood.png",
           "from": {
-            "gen": "wall",
-            "mat": "wood",
-            "edges": ""
+            "pack": "DawnLike",
+            "crop": "Objects/Wall.png",
+            "rect": [
+              128,
+              96,
+              16,
+              16
+            ]
           }
         }
       ]
@@ -1404,9 +1409,14 @@
         {
           "art": "/assets/dawnlike/terrain/wall_wood_tl.png",
           "from": {
-            "gen": "wall",
-            "mat": "wood",
-            "edges": "tl"
+            "pack": "DawnLike",
+            "crop": "Objects/Wall.png",
+            "rect": [
+              96,
+              96,
+              16,
+              16
+            ]
           }
         }
       ]
@@ -1421,9 +1431,14 @@
         {
           "art": "/assets/dawnlike/terrain/wall_wood_t.png",
           "from": {
-            "gen": "wall",
-            "mat": "wood",
-            "edges": "t"
+            "pack": "DawnLike",
+            "crop": "Objects/Wall.png",
+            "rect": [
+              112,
+              96,
+              16,
+              16
+            ]
           }
         }
       ]
@@ -1438,9 +1453,14 @@
         {
           "art": "/assets/dawnlike/terrain/wall_wood_tr.png",
           "from": {
-            "gen": "wall",
-            "mat": "wood",
-            "edges": "tr"
+            "pack": "DawnLike",
+            "crop": "Objects/Wall.png",
+            "rect": [
+              128,
+              96,
+              16,
+              16
+            ]
           }
         }
       ]
@@ -1455,9 +1475,14 @@
         {
           "art": "/assets/dawnlike/terrain/wall_wood_l.png",
           "from": {
-            "gen": "wall",
-            "mat": "wood",
-            "edges": "l"
+            "pack": "DawnLike",
+            "crop": "Objects/Wall.png",
+            "rect": [
+              96,
+              112,
+              16,
+              16
+            ]
           }
         }
       ]
@@ -1472,9 +1497,14 @@
         {
           "art": "/assets/dawnlike/terrain/wall_wood_r.png",
           "from": {
-            "gen": "wall",
-            "mat": "wood",
-            "edges": "r"
+            "pack": "DawnLike",
+            "crop": "Objects/Wall.png",
+            "rect": [
+              96,
+              112,
+              16,
+              16
+            ]
           }
         }
       ]
@@ -1489,9 +1519,14 @@
         {
           "art": "/assets/dawnlike/terrain/wall_wood_bl.png",
           "from": {
-            "gen": "wall",
-            "mat": "wood",
-            "edges": "bl"
+            "pack": "DawnLike",
+            "crop": "Objects/Wall.png",
+            "rect": [
+              96,
+              128,
+              16,
+              16
+            ]
           }
         }
       ]
@@ -1506,9 +1541,14 @@
         {
           "art": "/assets/dawnlike/terrain/wall_wood_b.png",
           "from": {
-            "gen": "wall",
-            "mat": "wood",
-            "edges": "b"
+            "pack": "DawnLike",
+            "crop": "Objects/Wall.png",
+            "rect": [
+              112,
+              96,
+              16,
+              16
+            ]
           }
         }
       ]
@@ -1523,9 +1563,14 @@
         {
           "art": "/assets/dawnlike/terrain/wall_wood_br.png",
           "from": {
-            "gen": "wall",
-            "mat": "wood",
-            "edges": "br"
+            "pack": "DawnLike",
+            "crop": "Objects/Wall.png",
+            "rect": [
+              128,
+              128,
+              16,
+              16
+            ]
           }
         }
       ]
@@ -1832,6 +1877,64 @@
     },
     {
       "kind": "prop",
+      "tag": "tree_dark",
+      "desc": "a dark green fir",
+      "art": "/assets/dawnlike/props/tree_dark.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": true,
+      "biomes": [
+        "village",
+        "forest",
+        "coast"
+      ],
+      "from": {
+        "pack": "DawnLike",
+        "crop": "Objects/Tree0.png",
+        "rect": [
+          80,
+          144,
+          16,
+          16
+        ]
+      },
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
+    },
+    {
+      "kind": "prop",
+      "tag": "tree_oak",
+      "desc": "a full leafy oak",
+      "art": "/assets/dawnlike/props/tree_oak.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": true,
+      "biomes": [
+        "village",
+        "forest",
+        "coast"
+      ],
+      "from": {
+        "pack": "DawnLike",
+        "crop": "Objects/Tree0.png",
+        "rect": [
+          80,
+          64,
+          16,
+          16
+        ]
+      },
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
+    },
+    {
+      "kind": "prop",
       "tag": "bush",
       "desc": "a small bush / shrub",
       "art": "/assets/dawnlike/props/bush.png",
@@ -1878,6 +1981,93 @@
       "from": {
         "gen": "flowers"
       }
+    },
+    {
+      "kind": "prop",
+      "tag": "flowers_red",
+      "desc": "red wildflowers",
+      "art": "/assets/dawnlike/props/flowers_red.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false,
+      "biomes": [
+        "village",
+        "forest",
+        "coast"
+      ],
+      "from": {
+        "pack": "DawnLike",
+        "crop": "Objects/Ground0.png",
+        "rect": [
+          96,
+          32,
+          16,
+          16
+        ]
+      },
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
+    },
+    {
+      "kind": "prop",
+      "tag": "flowers_yellow",
+      "desc": "yellow wildflowers",
+      "art": "/assets/dawnlike/props/flowers_yellow.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false,
+      "biomes": [
+        "village",
+        "forest",
+        "coast"
+      ],
+      "from": {
+        "pack": "DawnLike",
+        "crop": "Objects/Ground0.png",
+        "rect": [
+          64,
+          32,
+          16,
+          16
+        ]
+      },
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
+    },
+    {
+      "kind": "prop",
+      "tag": "flowers_blue",
+      "desc": "blue wildflowers",
+      "art": "/assets/dawnlike/props/flowers_blue.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false,
+      "biomes": [
+        "village",
+        "forest",
+        "coast"
+      ],
+      "from": {
+        "pack": "DawnLike",
+        "crop": "Objects/Ground0.png",
+        "rect": [
+          32,
+          32,
+          16,
+          16
+        ]
+      },
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
     },
     {
       "kind": "prop",
@@ -2989,6 +3179,36 @@
         "rect": [
           64,
           160,
+          16,
+          16
+        ]
+      },
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
+    },
+    {
+      "kind": "prop",
+      "tag": "door_house",
+      "desc": "a wooden house door",
+      "art": "/assets/dawnlike/props/door_house.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false,
+      "biomes": [
+        "village",
+        "town",
+        "coast",
+        "forest"
+      ],
+      "from": {
+        "pack": "DawnLike",
+        "crop": "Objects/Door0.png",
+        "rect": [
+          0,
+          0,
           16,
           16
         ]

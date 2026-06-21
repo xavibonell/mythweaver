@@ -138,6 +138,31 @@ Composition system is ~80-85% mature; the dominant ceiling on perceived quality 
 
 ---
 
+## ◐ Phase H — ARCHETYPE GENERATORS: stop letting the LLM lay out the map (THE CURRENT ARC, 2026-06-21)
+
+**Why:** even after the module engine, towns still rendered as a **spreadsheet of rectangular building boxes on a flat grass grid** (3 iterations, all the same failure) vs hand-crafted DawnLike refs (organic streets, varied footprints, a plaza, density). **Root cause (research workflow `wf_6323aed4-029`):** we made the **LLM the layout artist** — it places ~6 building rects and an LLM places them in an even grid. The reference tools (Watabou Medieval Fantasy City Generator, Parish-Müller) look good precisely *because* the magic is a deterministic layout **ALGORITHM**, not a brain. Plus our density was **white noise** (uniform %), which clumps+voids = litter.
+
+**The fix:** demote the LLM to an **archetype + semantic-CONTENTS picker**; a deterministic `generator(canvas, ctx)` owns the organic composition. Everything below `finalize()` (renderer, validators, combat) is unchanged.
+
+**SHIPPED 2026-06-21 (NOT committed) — town solved end-to-end, verified in /lab:**
+- [x] **Two distribution primitives** (`primitives.ts`): `poissonScatter` (Bridson blue-noise — even spread for trees/lamps) + `noiseField`/`clumpScatter` (noise-threshold — cohesive flower-beds/thickets). Replaces white-noise scatter.
+- [x] **`themes.ts`** — extracted Theme/THEMES/themeNameFor (no import cycle).
+- [x] **`archetypes.ts`** — `ArchetypeGenerator` + `Contents` + a `GENERATORS` registry of 5 (town/dungeon/cave/wilderness/coast) + the `{op:'archetype'}` SceneOp (runOp + normalizeOp coercion).
+- [x] **TOWN generator (the real algorithm):** irregular boundary → recursive-bisection **street network** (narrow lanes, jittered, connected by construction) → centroid **plaza** + well → OBB recursive **parcel subdivision** (soft random stop → varied lots) → **footprints** via existing `building()` (furnished + keeper), door faces nearest street, ward-zoned types, jittered setbacks → **two-texture density**.
+- [x] **Town routing** in `normalizeProgram`: a settlement brief (not water-dominant) → `harvestTownContents` pulls the LLM's named cast + drops its geometry → ONE town archetype op (grid floored ≥54×40). Gold `town` program + `/lab` "▣ town" button. **230 tests.**
+- [x] **Verified:** the gold town AND the user's own walled-town brief (Primitives mode) both render as a dense organic village — winding streets, ~16 varied-size buildings (big tavern + small huts + 2 stone civic), plaza+well, townsfolk, layered greenery. A decisive leap from the grid-of-boxes.
+
+**COMPOUND-BUILDING DEEP-REFINE (2026-06-21, NOT committed) — per the user's gap analysis; learnings in `TOWN-BUILDER-NOTES.md`.** Buildings went from single open boxes → **multi-room compounds**: `compound()` subdivides the footprint into rooms (shared partition walls, a door carved at every split → connected by construction), each **furnished BY FUNCTION** (`ROOM_TEMPLATES` + `ROOM_PROGRAMS`: tavern = bar+dining+kitchen+bedroom, temple = nave+vestry+bedroom, …) with one keeper in the front room; large compounds get an **inner courtyard** (grass + fountain + flowers). Streets are now **cobblestone arteries + dirt alleys** (was all mud); buildings are **fewer/bigger** (a mix of cottages + compounds); greenery is **lusher** (tree groves + denser flower beds). 230 tests (asserts roomCount > buildingCount = real multi-room). **The generalizable recipe** (see `TOWN-BUILDER-NOTES.md`): recursive bisection at two scales (town→blocks→lots, lot→rooms) + furnish-by-function; biome-agnostic — only palette + topology primitive + room program change per archetype. Remaining town polish: `wall_wood` still flat; rectangular (not L-shaped) footprints; courtyard grass autotiles a dirt rim; 1-cell entrances.
+
+**Honest ceiling (stated to the user):** reaches Watabou "Toy-Town" / Zelda-roguelike-**screen** quality (organic streets/lots/plaza/density), NOT a hand-authored artist map's bespoke set-pieces (~160 DawnLike sprites + rectangular furnished rooms). One screen tops ~20-40 buildings; a true city = stitch several organic screens (P4).
+
+**Remaining (awaiting user's visual sign-off on the town first):**
+- [ ] **P3 — route the other 4 archetypes.** dungeon/cave/wilderness/coast generators are built + registered + smoke-tested, but only TOWN is brief-routed + eyeballed; the others still render via the structure-net loose-op path. Route + eyeball them.
+- [ ] **P4 — depth.** COAST is a placeholder (water+island blobs) → needs fBm + domain-warp shoreline + multi-band beach (research has the recipe); dungeon graph-grammar (lock-and-key, Unexplored-style); multi-screen city (stitch organic town-screens, replacing `city.ts`'s box-blitter).
+- [ ] **Quality eval** (the standing "tests can't tell good from bad" gap) — a vision-model critic scoring rendered output (needs image support in the LLM seam).
+
+---
+
 ## ◻ Phase D — Manipulation (DEFERRED until setup is great — user's call: "no manipulation yet")
 
 The `SceneDelta` contract exists but is inert. When ready:
