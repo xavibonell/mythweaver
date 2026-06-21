@@ -163,6 +163,25 @@ export function bakeAutoTiles(tiles: string[][], cols: number, rows: number): vo
     }
 }
 
+/** WOOD-WALL autotile: re-tile every `wall_wood*` cell from its 4-neighbour wall mask (N=1,E=2,S=4,W=8)
+ *  using the VERIFIED DawnLike block — so edges, corners, interior partitions AND L-shaped footprints all
+ *  get the right faced tile by construction (not a rect-edge guess). Reads a snapshot; idempotent. */
+export function bakeWoodWalls(tiles: string[][], cols: number, rows: number): void {
+  const orig = tiles.map((row) => row.slice());
+  const wall = (c: number, r: number) => c >= 0 && r >= 0 && c < cols && r < rows && (orig[r]![c] ?? '').startsWith('wall_wood');
+  const TAG: Record<number, string> = {
+    6: 'wall_wood_tl', 12: 'wall_wood_tr', 3: 'wall_wood_bl', 9: 'wall_wood_br', // corners: E+S, S+W, N+E, N+W
+    5: 'wall_wood_l', 1: 'wall_wood_l', 4: 'wall_wood_l', 7: 'wall_wood_l', 13: 'wall_wood_l', // vertical runs
+    10: 'wall_wood_t', 2: 'wall_wood_t', 8: 'wall_wood_t', 11: 'wall_wood_t', 14: 'wall_wood_t', // horizontal runs
+  };
+  for (let r = 0; r < rows; r++)
+    for (let c = 0; c < cols; c++) {
+      if (!wall(c, r)) continue;
+      const mask = (wall(c, r - 1) ? 1 : 0) | (wall(c + 1, r) ? 2 : 0) | (wall(c, r + 1) ? 4 : 0) | (wall(c - 1, r) ? 8 : 0);
+      tiles[r]![c] = TAG[mask] ?? 'wall_wood'; // 0 (isolated) / 15 (surrounded) → solid fill
+    }
+}
+
 /** C2 ground decals: a light, NON-blocking scatter of pebbles + grass tufts on free open natural
  *  ground (grass/dirt/sand). Reserves each chosen cell in `occ`; leaves walkable untouched (decals
  *  are walkable). Pushes AmbianceItems. Seed via `rand` so it's reproducible. */

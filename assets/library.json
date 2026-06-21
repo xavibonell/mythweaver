@@ -1500,7 +1500,7 @@
             "pack": "DawnLike",
             "crop": "Objects/Wall.png",
             "rect": [
-              144,
+              112,
               112,
               16,
               16
@@ -1545,7 +1545,7 @@
             "crop": "Objects/Wall.png",
             "rect": [
               128,
-              128,
+              96,
               16,
               16
             ]
@@ -3209,6 +3209,36 @@
         "rect": [
           0,
           0,
+          16,
+          16
+        ]
+      },
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
+    },
+    {
+      "kind": "prop",
+      "tag": "window",
+      "desc": "a wall window",
+      "art": "/assets/dawnlike/props/window.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false,
+      "biomes": [
+        "village",
+        "town",
+        "coast",
+        "forest"
+      ],
+      "from": {
+        "pack": "DawnLike",
+        "crop": "Objects/Decor0.png",
+        "rect": [
+          16,
+          16,
           16,
           16
         ]

@@ -221,7 +221,7 @@ export default function SceneCanvas({ data, freeCamera = false, fitNonce = 0 }: 
             if (freeCamera) {
               // LAB-ONLY: drag to pan, wheel to zoom toward the cursor (clamped to [fit .. LAB_MAX_ZOOM],
               // pan clamped to world bounds via fitCamera's setBounds). Lets the tester inspect a big scene.
-              const LAB_MAX_ZOOM = 6; // cap — close enough to read one building, not pixel-peeping
+              const LAB_MAX_ZOOM = 3; // cap — one building fills the view; no pixel-peeping past this
               const cam = scene.cameras.main;
               scene.input.on('pointermove', (p: any) => {
                 if (!p.isDown) return;

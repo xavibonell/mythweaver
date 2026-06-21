@@ -13,7 +13,7 @@
  */
 
 import { FEET_PER_TILE, type AmbianceItem, type BuildingType, type Entrance, type LayoutGrammar, type Lighting, type MapObject, type SceneMap } from '@mythweaver/shared';
-import { bakeAutoTiles, BUILDING_TEMPLATES, furnishRoom, makeRng, reachabilityCarve, ROOM_PROGRAMS, ROOM_TEMPLATES, scatterGroundDecals, wallTagFor, type RoomTemplate } from './cartographer.js';
+import { bakeAutoTiles, bakeWoodWalls, BUILDING_TEMPLATES, furnishRoom, makeRng, reachabilityCarve, ROOM_PROGRAMS, ROOM_TEMPLATES, scatterGroundDecals, wallTagFor, type RoomTemplate } from './cartographer.js';
 import { isCharacter, propDef, terrainWalkable } from './catalog.js';
 
 export interface Pt {
@@ -498,9 +498,16 @@ export function compound(cv: Canvas, region: Rect, type: BuildingType, opts: { d
   const GARDEN = ['flowers', 'flowers_blue', 'flowers_yellow', 'flowers_red', 'bush', 'grass_tuft', 'mushroom', 'tree_oak', 'tree_autumn']; // varied garden planting
   leaves.forEach((lf, i) => {
     if (i === courtyardIdx) {
-      for (let y = lf.y + 1; y < lf.y + lf.h - 1; y++) for (let x = lf.x + 1; x < lf.x + lf.w - 1; x++) { cv.set(x, y, 'grass', true); cv.occ[y]![x] = false; }
+      // OPEN garden — clear the whole room (incl. its bounding walls) to grass and RING it with a low
+      // FENCE (not a solid wall), leaving the doorway as the gate, so it reads as an open garden.
+      const isGate = (x: number, y: number) => doors.some((d) => d.c === x && d.r === y) || (x === ed.dC && y === ed.dR);
+      for (let y = lf.y; y < lf.y + lf.h; y++) for (let x = lf.x; x < lf.x + lf.w; x++) { cv.set(x, y, 'grass', true); cv.occ[y]![x] = false; }
+      for (let y = lf.y; y < lf.y + lf.h; y++) for (let x = lf.x; x < lf.x + lf.w; x++) {
+        const border = x === lf.x || x === lf.x + lf.w - 1 || y === lf.y || y === lf.y + lf.h - 1;
+        if (border && !isGate(x, y)) { cv.reserve(x, y); cv.walkable[y]![x] = false; cv.ambiance.push({ tag: 'fence', col: x, row: y }); }
+      }
       place(cv, { id: `prop:${safe}-garden`, tag: 'fountain', kind: 'prop', at: { c: lf.x + Math.floor(lf.w / 2), r: lf.y + Math.floor(lf.h / 2) } });
-      for (let y = lf.y + 1; y < lf.y + lf.h - 1; y++) for (let x = lf.x + 1; x < lf.x + lf.w - 1; x++) if (cv.isFree(x, y) && cv.rng() < 0.5) { const tag = GARDEN[Math.floor(cv.rng() * GARDEN.length)]!; cv.reserve(x, y); if (tag.startsWith('tree')) cv.walkable[y]![x] = false; cv.ambiance.push({ tag, col: x, row: y }); }
+      for (let y = lf.y + 1; y < lf.y + lf.h - 1; y++) for (let x = lf.x + 1; x < lf.x + lf.w - 1; x++) if (cv.isFree(x, y) && cv.rng() < 0.45) { const tag = GARDEN[Math.floor(cv.rng() * GARDEN.length)]!; cv.reserve(x, y); if (tag.startsWith('tree')) cv.walkable[y]![x] = false; cv.ambiance.push({ tag, col: x, row: y }); }
       return;
     }
     if (i === notchIdx) {
@@ -518,6 +525,15 @@ export function compound(cv: Canvas, region: Rect, type: BuildingType, opts: { d
     const d = doors.find((dd) => onBorder(lf, dd)) ?? (i === 0 ? { c: ed.dC, r: ed.dR } : { c: lf.x, r: lf.y });
     furnishRoom(cv.tiles, cv.walkable, cv.occ, cv.objects, lf, tmpl, d, cv.rng, cv.cols, `${safe}-r${i}`, `bldg:${safe}-r${i}`, 0, i === 0 ? opts.name : undefined);
   });
+
+  // WINDOWS — periodic windows set into the REMAINING outer walls (skip cleared notch/garden cells +
+  // the door + corners). Decorative ambiance drawn over the wall tile, non-blocking.
+  const stillWall = (c: number, r: number) => (cv.tileAt(c, r) ?? '').startsWith('wall_wood');
+  for (let x = rx + 2; x < rx + rw - 2; x += 3) if (stillWall(x, ry) && !(x === ed.dC && ry === ed.dR)) cv.ambiance.push({ tag: 'window', col: x, row: ry });
+  for (let y = ry + 3; y < ry + rh - 2; y += 4) {
+    if (stillWall(rx, y) && !(rx === ed.dC && y === ed.dR)) cv.ambiance.push({ tag: 'window', col: rx, row: y });
+    if (stillWall(rx + rw - 1, y) && !(rx + rw - 1 === ed.dC && y === ed.dR)) cv.ambiance.push({ tag: 'window', col: rx + rw - 1, row: y });
+  }
 }
 
 // --- object primitives ------------------------------------------------------
@@ -764,6 +780,7 @@ export function finalize(
   // skipReachability: the component contact-sheet packs intentionally DISCONNECTED cells — carving
   // corridors between them would mangle the gallery. Real scenes leave it on (the rare safety net).
   if (!meta.skipReachability) reachabilityCarve(cv.tiles, cv.walkable, cv.cols, cv.rows, cv.objects, cv.entrances); // safety net; primitives are connectivity-correct so this rarely fires
+  bakeWoodWalls(cv.tiles, cv.cols, cv.rows); // neighbour-autotile wood walls → correct edges/corners on any shape (incl. L-footprints + partitions)
   if (meta.outdoor) {
     scatterGroundDecals(cv.tiles, cv.walkable, cv.occ, cv.cols, cv.rows, cv.ambiance, cv.rng);
     bakeAutoTiles(cv.tiles, cv.cols, cv.rows);
