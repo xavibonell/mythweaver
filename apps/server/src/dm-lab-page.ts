@@ -248,12 +248,12 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
 
   <section class="view editor" id="view-arc">
     <div class="ed-toolbar">
-      <span class="name">Generated adventure <span style="color:#6b7080">— the editable adventure object; tweak party levels, monster stats, beats — then Start to test how the DM reads it</span></span>
+      <span class="name">Generated adventure <span style="color:#6b7080">— the editable adventure object; tweak party levels, monster stats, scenes — then Start to test how the DM reads it</span></span>
       <button class="ghost" id="arc-revert" title="discard edits, restore the last generated adventure">Revert</button>
       <button id="arc-start">Start session →</button>
       <span class="status" id="status-arc"></span>
     </div>
-    <div class="ed-wrap"><textarea id="ed-arc" spellcheck="false" placeholder="Generate an adventure (Generate tab) — the full adventure object appears here, editable: party (level/HP/abilities), bestiary (CR/HP/AC), encounters, beats. Edit, then Start session to see the DM react to the new numbers."></textarea></div>
+    <div class="ed-wrap"><textarea id="ed-arc" spellcheck="false" placeholder="Generate an adventure (Generate tab) — the full adventure object appears here, editable: party (level/HP/abilities), bestiary (CR/HP/AC), encounters, scenes. Edit, then Start session to see the DM react to the new numbers."></textarea></div>
   </section>
 
   <section class="view director" id="view-director">
@@ -284,7 +284,7 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
           <button data-save="director-composer">Save</button>
           <span class="status" id="status-director-composer"></span>
         </div>
-        <div class="ed-wrap"><textarea id="ed-director-composer" spellcheck="false" placeholder="loading…" title="Generates a brand-new adventure (beats + blueprint) from a seed."></textarea></div>
+        <div class="ed-wrap"><textarea id="ed-director-composer" spellcheck="false" placeholder="loading…" title="Generates a brand-new adventure (scenes + blueprint) from a seed."></textarea></div>
       </div>
     </div>
   </section>
@@ -307,7 +307,7 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
         <option value="mystery">mystery</option>
         <option value="horror">horror</option>
       </select>
-      <label for="gen-len">Length <span style="color:#6b7080">— beats (3–8)</span></label>
+      <label for="gen-len">Length <span style="color:#6b7080">— scenes (3–8)</span></label>
       <input id="gen-len" type="number" min="3" max="8" value="5" />
       <label for="gen-constraints">Constraints <span style="color:#6b7080">— one per line, optional</span></label>
       <textarea id="gen-constraints" rows="2" placeholder="no undead&#10;must feature a betrayal"></textarea>
@@ -341,7 +341,7 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
     </div>
     <div class="right-wrap">
       <div class="gen-badge" id="gen-badge" style="display:none"></div>
-      <div class="arc-body" id="gen-preview"><div class="empty-state">Set a theme and click <b>Generate adventure</b> — the Director composes a brand-new adventure (premise → ending → beats) from your seed.</div></div>
+      <div class="arc-body" id="gen-preview"><div class="empty-state">Set a theme and click <b>Generate adventure</b> — the Director composes a brand-new adventure (premise → ending → scenes) from your seed.</div></div>
     </div>
   </section>
 
@@ -477,7 +477,7 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
     wrap.style.display = '';
     var h = '';
     if (a.beats && a.beats.length) {
-      h += '<div class="arc-sec"><h3>Beats</h3><div class="beatmap">' + a.beats.map(function (b) {
+      h += '<div class="arc-sec"><h3>Scenes</h3><div class="beatmap">' + a.beats.map(function (b) {
         var cls = b.current ? 'current' : b.done ? 'done' : b.reachable ? 'reach' : '';
         var tag = b.current ? '● here' : b.done ? '✓ done' : b.reachable ? '→ reachable' : '';
         return '<span class="beat ' + cls + '">' + esc(b.title) + (tag ? ' <span style="color:#6b7080">' + tag + '</span>' : '') + '</span>';
@@ -750,7 +750,7 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
     var scenes = (arc.adventure && arc.adventure.scenes) || {};
     var ids = Object.keys(scenes);
     if (ids.length) {
-      h += '<div class="arc-sec"><h3>Beats</h3><ul class="spine">' + ids.map(function (id) {
+      h += '<div class="arc-sec"><h3>Scenes</h3><ul class="spine">' + ids.map(function (id) {
         var s = scenes[id];
         var ex = (s.exits && s.exits.length) ? ' <span style="color:#6b7080">→ ' + s.exits.map(esc).join(', ') + '</span>' : '';
         return '<li><div class="ms">' + esc(s.title) + ' <span style="color:#6b7080">[' + esc(id) + ']</span>' + ex + monLine(encBySceneId[id]) + '</div><div class="mi">' + esc(s.summary || '') + '</div></li>';
