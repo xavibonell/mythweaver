@@ -1401,6 +1401,18 @@
     },
     {
       "kind": "terrain",
+      "tag": "wall_cap",
+      "desc": "shadowed wall-top cap",
+      "walkable": true,
+      "variants": [
+        {
+          "art": "/assets/dawnlike/terrain/wall_cap.png",
+          "from": {}
+        }
+      ]
+    },
+    {
+      "kind": "terrain",
       "tag": "wall_wood_tl",
       "desc": "wood plank wall",
       "walkable": false,
@@ -1585,17 +1597,7 @@
       "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite",
       "variants": [
         {
-          "art": "/assets/dawnlike/terrain/carpet_tl.png",
-          "from": {
-            "pack": "DawnLike",
-            "crop": "Objects/Decor0.png",
-            "rect": [
-              0,
-              224,
-              16,
-              16
-            ]
-          }
+          "art": "/assets/dawnlike/terrain/carpet_tl.png"
         }
       ]
     },
@@ -1609,17 +1611,7 @@
       "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite",
       "variants": [
         {
-          "art": "/assets/dawnlike/terrain/carpet_t.png",
-          "from": {
-            "pack": "DawnLike",
-            "crop": "Objects/Decor0.png",
-            "rect": [
-              16,
-              224,
-              16,
-              16
-            ]
-          }
+          "art": "/assets/dawnlike/terrain/carpet_t.png"
         }
       ]
     },
@@ -1633,17 +1625,7 @@
       "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite",
       "variants": [
         {
-          "art": "/assets/dawnlike/terrain/carpet_tr.png",
-          "from": {
-            "pack": "DawnLike",
-            "crop": "Objects/Decor0.png",
-            "rect": [
-              32,
-              224,
-              16,
-              16
-            ]
-          }
+          "art": "/assets/dawnlike/terrain/carpet_tr.png"
         }
       ]
     },
@@ -1657,17 +1639,7 @@
       "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite",
       "variants": [
         {
-          "art": "/assets/dawnlike/terrain/carpet_l.png",
-          "from": {
-            "pack": "DawnLike",
-            "crop": "Objects/Decor0.png",
-            "rect": [
-              0,
-              240,
-              16,
-              16
-            ]
-          }
+          "art": "/assets/dawnlike/terrain/carpet_l.png"
         }
       ]
     },
@@ -1681,17 +1653,7 @@
       "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite",
       "variants": [
         {
-          "art": "/assets/dawnlike/terrain/carpet_c.png",
-          "from": {
-            "pack": "DawnLike",
-            "crop": "Objects/Decor0.png",
-            "rect": [
-              16,
-              240,
-              16,
-              16
-            ]
-          }
+          "art": "/assets/dawnlike/terrain/carpet_c.png"
         }
       ]
     },
@@ -1705,17 +1667,7 @@
       "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite",
       "variants": [
         {
-          "art": "/assets/dawnlike/terrain/carpet_r.png",
-          "from": {
-            "pack": "DawnLike",
-            "crop": "Objects/Decor0.png",
-            "rect": [
-              32,
-              240,
-              16,
-              16
-            ]
-          }
+          "art": "/assets/dawnlike/terrain/carpet_r.png"
         }
       ]
     },
@@ -1729,17 +1681,7 @@
       "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite",
       "variants": [
         {
-          "art": "/assets/dawnlike/terrain/carpet_bl.png",
-          "from": {
-            "pack": "DawnLike",
-            "crop": "Objects/Decor0.png",
-            "rect": [
-              0,
-              256,
-              16,
-              16
-            ]
-          }
+          "art": "/assets/dawnlike/terrain/carpet_bl.png"
         }
       ]
     },
@@ -1753,17 +1695,7 @@
       "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite",
       "variants": [
         {
-          "art": "/assets/dawnlike/terrain/carpet_b.png",
-          "from": {
-            "pack": "DawnLike",
-            "crop": "Objects/Decor0.png",
-            "rect": [
-              16,
-              256,
-              16,
-              16
-            ]
-          }
+          "art": "/assets/dawnlike/terrain/carpet_b.png"
         }
       ]
     },
@@ -1777,17 +1709,7 @@
       "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite",
       "variants": [
         {
-          "art": "/assets/dawnlike/terrain/carpet_br.png",
-          "from": {
-            "pack": "DawnLike",
-            "crop": "Objects/Decor0.png",
-            "rect": [
-              32,
-              256,
-              16,
-              16
-            ]
-          }
+          "art": "/assets/dawnlike/terrain/carpet_br.png"
         }
       ]
     },

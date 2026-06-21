@@ -198,6 +198,19 @@ export function bakeWoodWalls(tiles: string[][], cols: number, rows: number): vo
     }
 }
 
+/** WALL CAP: DawnLike walls read as 2-tiles-tall — a shadowed top above the wall face. We render one
+ *  tile per cell, so a NORTH-facing wall's top edge/corners never visually "close". This bakes a
+ *  `wall_cap` tile into the exterior cell ABOVE each north-facing wood wall, giving the tall look +
+ *  closing the top corners. Kept walkable (purely visual) so it never affects pathing/reachability. */
+export function bakeWallCaps(tiles: string[][], cols: number, rows: number): void {
+  const orig = tiles.map((row) => row.slice());
+  const woodWall = (c: number, r: number) => c >= 0 && r >= 0 && c < cols && r < rows && (orig[r]![c] ?? '').startsWith('wall_wood');
+  const exterior = (c: number, r: number) => { const t = orig[r]?.[c] ?? ''; return t.startsWith('grass') || t === 'dirt' || t === 'cobblestone' || t === 'sand'; };
+  for (let r = 1; r < rows; r++)
+    for (let c = 0; c < cols; c++)
+      if (woodWall(c, r) && exterior(c, r - 1)) tiles[r - 1]![c] = 'wall_cap';
+}
+
 /** C2 ground decals: a light, NON-blocking scatter of pebbles + grass tufts on free open natural
  *  ground (grass/dirt/sand). Reserves each chosen cell in `occ`; leaves walkable untouched (decals
  *  are walkable). Pushes AmbianceItems. Seed via `rand` so it's reproducible. */
