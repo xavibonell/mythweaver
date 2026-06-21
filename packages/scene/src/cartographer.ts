@@ -346,7 +346,14 @@ export function furnishRoom(
     const wallFree = () => byWall(interior).filter((p) => free(p.c, p.r));
     const alongWall = (tag: string, n: number) => { let k = 0; for (const p of wallFree()) { if (k >= n) break; if (put(p.c, p.r, tag)) k++; } };
     const storage = () => { const cn = byCorner(interior).find((p) => free(p.c, p.r)); if (!cn) { alongWall('barrel', 1); return; } put(cn.c, cn.r, 'barrel'); for (const [dx, dy] of ORTH4) if (rand() < 0.6) put(cn.c + dx, cn.r + dy, rand() < 0.5 ? 'crate' : 'sack'); };
-    const dining = () => { const t = takeCell(byCenter); if (!t) return; put(t.c, t.r, 'table'); for (const [dx, dy] of ORTH4) put(t.c + dx, t.r + dy, 'chair'); }; // chairs AROUND the table
+    const dining = () => { // a table with a RANDOM 1-2 (rarely 3) chairs on its free sides — not a stiff ring of 4
+      const t = takeCell(byCenter); if (!t) return;
+      put(t.c, t.r, rand() < 0.4 ? 'table_round' : 'table');
+      const sides = ORTH4.filter(([dx, dy]) => free(t.c + dx, t.r + dy));
+      for (let s = sides.length - 1; s > 0; s--) { const j = Math.floor(rand() * (s + 1)); const tmp = sides[s]!; sides[s] = sides[j]!; sides[j] = tmp; }
+      const n = Math.min(sides.length, 1 + Math.floor(rand() * 2) + (rand() < 0.18 ? 1 : 0));
+      for (let i = 0; i < n; i++) { const [dx, dy] = sides[i]!; put(t.c + dx, t.r + dy, 'chair'); }
+    };
     const bed = () => { const w = wallFree()[0]; if (w) put(w.c, w.r, rand() < 0.5 ? 'bed' : 'bed_blue'); };
     const hearth = () => { const b = byBack(interior).find((p) => free(p.c, p.r)) ?? wallFree()[0]; if (b) put(b.c, b.r, 'brazier'); };
     const counter = () => { let k = 0; for (const p of byBack(interior)) { if (k >= 4) break; if (free(p.c, p.r) && put(p.c, p.r, 'table')) k++; } if (k < 2) alongWall('table', 2); };

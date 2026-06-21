@@ -434,11 +434,11 @@ export function compound(cv: Canvas, region: Rect, type: BuildingType, opts: { d
     const horiz = canH && (!canV || cur.w >= cur.h);
     if (horiz) {
       const cut = cur.x + minRoom - 1 + Math.floor(cv.rng() * (cur.w - 2 * minRoom + 2));
-      doors.push({ c: cut, r: cur.y + 1 + Math.floor(cv.rng() * Math.max(1, cur.h - 2)), horiz: true });
+      doors.push({ c: cut, r: Math.max(cur.y + 1, Math.min(cur.y + cur.h - 2, cur.y + Math.floor(cur.h / 2) + (Math.floor(cv.rng() * 3) - 1))), horiz: true }); // centred ±1, away from corners
       q.push({ x: cur.x, y: cur.y, w: cut - cur.x + 1, h: cur.h }, { x: cut, y: cur.y, w: cur.x + cur.w - cut, h: cur.h });
     } else {
       const cut = cur.y + minRoom - 1 + Math.floor(cv.rng() * (cur.h - 2 * minRoom + 2));
-      doors.push({ c: cur.x + 1 + Math.floor(cv.rng() * Math.max(1, cur.w - 2)), r: cut, horiz: false });
+      doors.push({ c: Math.max(cur.x + 1, Math.min(cur.x + cur.w - 2, cur.x + Math.floor(cur.w / 2) + (Math.floor(cv.rng() * 3) - 1))), r: cut, horiz: false });
       q.push({ x: cur.x, y: cur.y, w: cur.w, h: cut - cur.y + 1 }, { x: cur.x, y: cut, w: cur.w, h: cur.y + cur.h - cut });
     }
   }
@@ -529,10 +529,12 @@ export function compound(cv: Canvas, region: Rect, type: BuildingType, opts: { d
   // WINDOWS — periodic windows set into the REMAINING outer walls (skip cleared notch/garden cells +
   // the door + corners). Decorative ambiance drawn over the wall tile, non-blocking.
   const stillWall = (c: number, r: number) => (cv.tileAt(c, r) ?? '').startsWith('wall_wood');
-  for (let x = rx + 2; x < rx + rw - 2; x += 3) if (stillWall(x, ry) && !(x === ed.dC && ry === ed.dR)) cv.ambiance.push({ tag: 'window', col: x, row: ry });
+  const straightH = (c: number, r: number) => stillWall(c, r) && stillWall(c - 1, r) && stillWall(c + 1, r); // mid-run of a horizontal wall (not a corner/end)
+  const straightV = (c: number, r: number) => stillWall(c, r) && stillWall(c, r - 1) && stillWall(c, r + 1);
+  for (let x = rx + 2; x < rx + rw - 2; x += 3) if (straightH(x, ry) && !(x === ed.dC && ry === ed.dR)) cv.ambiance.push({ tag: 'window', col: x, row: ry });
   for (let y = ry + 3; y < ry + rh - 2; y += 4) {
-    if (stillWall(rx, y) && !(rx === ed.dC && y === ed.dR)) cv.ambiance.push({ tag: 'window', col: rx, row: y });
-    if (stillWall(rx + rw - 1, y) && !(rx + rw - 1 === ed.dC && y === ed.dR)) cv.ambiance.push({ tag: 'window', col: rx + rw - 1, row: y });
+    if (straightV(rx, y) && !(rx === ed.dC && y === ed.dR)) cv.ambiance.push({ tag: 'window', col: rx, row: y });
+    if (straightV(rx + rw - 1, y) && !(rx + rw - 1 === ed.dC && y === ed.dR)) cv.ambiance.push({ tag: 'window', col: rx + rw - 1, row: y });
   }
 }
 
