@@ -42,7 +42,7 @@ interface FurnSpec {
  * 'around' = chairs ringing the central table, 'center'/'corner'/'scatter' as before. Items are
  * placed in order, so a 'center' table is laid before the chairs that ring it.
  */
-export type RoomTemplate = { floor: string; wall: 'wood' | 'stone'; occupant: string; carpet?: boolean; items: FurnSpec[] };
+export type RoomTemplate = { floor: string; wall: 'wood' | 'stone'; occupant: string; carpet?: boolean; items: FurnSpec[]; groups?: string[] };
 export const BUILDING_TEMPLATES: Record<BuildingType, RoomTemplate> = {
   tavern: { floor: 'wood_floor', wall: 'wood', occupant: 'villager_woman', carpet: true, items: [{ tag: 'table', where: 'back', count: 3 }, { tag: 'table', where: 'center' }, { tag: 'chair', where: 'around', count: 3 }, { tag: 'barrel', where: 'corner', count: 2 }, { tag: 'candelabra', where: 'wall' }] },
   shop: { floor: 'wood_floor', wall: 'wood', occupant: 'villager', items: [{ tag: 'table', where: 'back', count: 2 }, { tag: 'shelf', where: 'wall', count: 3 }, { tag: 'crate', where: 'corner', count: 2 }, { tag: 'pot', where: 'wall' }] },
@@ -83,6 +83,23 @@ export const ROOM_PROGRAMS: Record<BuildingType, RoomFunction[]> = {
   temple: ['nave', 'vestry', 'bedroom'],
   smithy: ['forge', 'storeroom', 'kitchen'],
   house: ['parlor', 'bedroom', 'kitchen'],
+};
+
+/** Per-room-FUNCTION furniture RECIPE: a short list of relational GROUPS (see furnishRoom's group
+ *  engine — dining = a table with chairs around it, bed = against a wall, storage = a corner cluster,
+ *  counter = a back-wall bar, …). Groups are the reuse unit (~14, shared by every room/building/biome);
+ *  a recipe is just a list of them, so this scales without per-item grind. */
+export const ROOM_RECIPES: Record<RoomFunction, string[]> = {
+  bar: ['counter', 'dining', 'dining', 'hearth', 'storage'],
+  dining: ['dining', 'dining', 'hearth', 'shelf'],
+  kitchen: ['pantry', 'storage', 'hearth', 'dining'],
+  bedroom: ['bed', 'bed', 'shelf', 'dining'],
+  storeroom: ['storage', 'storage', 'storage', 'shelf'],
+  shopfront: ['counter', 'wares', 'wares', 'storage'],
+  parlor: ['dining', 'hearth', 'books'],
+  nave: ['altar', 'benches'],
+  vestry: ['study', 'books'],
+  forge: ['forge', 'weapons', 'storage'],
 };
 
 interface Rect {
@@ -315,17 +332,46 @@ export function furnishRoom(
   };
   const freeFloor = (item: FurnSpec): boolean => item.where === 'center' || item.where === 'around' || item.where === 'scatter';
   let placedFurn = 0;
-  for (const item of tmpl.items) {
-    for (let k = 0; k < (item.count ?? 1); k++) {
-      if (placedFurn >= budget) break;
-      let cell: { c: number; r: number } | null = null;
-      for (const sel of CHAINS[item.where] ?? []) { cell = takeCell(sel); if (cell) break; }
-      if (!cell && freeFloor(item)) cell = takeCell(); // tables/chairs/clutter may use open floor; wall items may NOT
-      if (!cell) break;
-      occ[cell.r]![cell.c] = true; // reserve so nothing else lands here
-      if (propDef(item.tag)?.blocks ?? true) walkable[cell.r]![cell.c] = false; // only blocking furniture blocks pathing
-      objects.push({ id: `prop:${safe}#${(furnSeq++).toString().padStart(2, '0')}`, kind: 'prop', tag: item.tag, col: cell.c, row: cell.r, footprint: { w: 1, h: 1 }, facing: 'down', visible: true, group: groupId });
-      placedFurn++;
+  if (tmpl.groups && tmpl.groups.length) {
+    // RELATIONAL FURNITURE GROUPS — place cohesive arrangements (a table WITH chairs around it, a bed
+    // against a wall, a corner of crates) instead of independent items, so rooms read as composed.
+    const ORTH4 = [[1, 0], [-1, 0], [0, 1], [0, -1]] as const;
+    const free = (c: number, r: number) => c >= ix && c < ix + iw && r >= iy && r < iy + ih && r * cols + c !== keepClear && !occ[r]![c] && walkable[r]![c];
+    const put = (c: number, r: number, tag: string): boolean => {
+      if (placedFurn >= budget || !free(c, r)) return false;
+      occ[r]![c] = true; if (propDef(tag)?.blocks ?? true) walkable[r]![c] = false;
+      objects.push({ id: `prop:${safe}#${(furnSeq++).toString().padStart(2, '0')}`, kind: 'prop', tag, col: c, row: r, footprint: { w: 1, h: 1 }, facing: 'down', visible: true, group: groupId });
+      placedFurn++; return true;
+    };
+    const wallFree = () => byWall(interior).filter((p) => free(p.c, p.r));
+    const alongWall = (tag: string, n: number) => { let k = 0; for (const p of wallFree()) { if (k >= n) break; if (put(p.c, p.r, tag)) k++; } };
+    const storage = () => { const cn = byCorner(interior).find((p) => free(p.c, p.r)); if (!cn) { alongWall('barrel', 1); return; } put(cn.c, cn.r, 'barrel'); for (const [dx, dy] of ORTH4) if (rand() < 0.6) put(cn.c + dx, cn.r + dy, rand() < 0.5 ? 'crate' : 'sack'); };
+    const dining = () => { const t = takeCell(byCenter); if (!t) return; put(t.c, t.r, 'table'); for (const [dx, dy] of ORTH4) put(t.c + dx, t.r + dy, 'chair'); }; // chairs AROUND the table
+    const bed = () => { const w = wallFree()[0]; if (w) put(w.c, w.r, rand() < 0.5 ? 'bed' : 'bed_blue'); };
+    const hearth = () => { const b = byBack(interior).find((p) => free(p.c, p.r)) ?? wallFree()[0]; if (b) put(b.c, b.r, 'brazier'); };
+    const counter = () => { let k = 0; for (const p of byBack(interior)) { if (k >= 4) break; if (free(p.c, p.r) && put(p.c, p.r, 'table')) k++; } if (k < 2) alongWall('table', 2); };
+    const study = () => { const d = wallFree()[0]; if (!d) return; put(d.c, d.r, 'desk'); for (const [dx, dy] of ORTH4) if (put(d.c + dx, d.r + dy, 'chair')) break; alongWall('bookshelf', 1); };
+    const altar = () => { const a = byBack(interior).find((p) => free(p.c, p.r)); if (!a) return; put(a.c, a.r, 'altar'); put(a.c - 1, a.r, 'candelabra'); put(a.c + 1, a.r, 'candelabra'); };
+    const benches = () => { let k = 0; for (let r = iy + 2; r < iy + ih && k < 6; r += 2) for (let c = ix + 1; c < ix + iw - 1 && k < 6; c += 2) if (put(c, r, 'stone_bench')) k++; };
+    const forge = () => { hearth(); const t = byBack(interior).find((p) => free(p.c, p.r)); if (t) put(t.c, t.r, 'table'); };
+    const GROUPS: Record<string, () => void> = {
+      dining, bed, hearth, counter, study, altar, benches, forge, storage,
+      shelf: () => alongWall('shelf', 2), books: () => alongWall('bookshelf', 3), pantry: () => { alongWall('shelf_food', 2); storage(); }, wares: () => alongWall('shelf_wares', 2), weapons: () => alongWall('weapon_rack', 1),
+    };
+    for (const g of tmpl.groups) { if (placedFurn >= budget) break; (GROUPS[g] ?? (() => {}))(); }
+  } else {
+    for (const item of tmpl.items) {
+      for (let k = 0; k < (item.count ?? 1); k++) {
+        if (placedFurn >= budget) break;
+        let cell: { c: number; r: number } | null = null;
+        for (const sel of CHAINS[item.where] ?? []) { cell = takeCell(sel); if (cell) break; }
+        if (!cell && freeFloor(item)) cell = takeCell(); // tables/chairs/clutter may use open floor; wall items may NOT
+        if (!cell) break;
+        occ[cell.r]![cell.c] = true; // reserve so nothing else lands here
+        if (propDef(item.tag)?.blocks ?? true) walkable[cell.r]![cell.c] = false; // only blocking furniture blocks pathing
+        objects.push({ id: `prop:${safe}#${(furnSeq++).toString().padStart(2, '0')}`, kind: 'prop', tag: item.tag, col: cell.c, row: cell.r, footprint: { w: 1, h: 1 }, facing: 'down', visible: true, group: groupId });
+        placedFurn++;
+      }
     }
   }
   const occCell = tmpl.occupant ? takeCell(byCenter) : null; // empty occupant → no keeper (multi-room compounds put ONE keeper in the primary room only)

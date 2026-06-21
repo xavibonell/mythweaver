@@ -13,7 +13,7 @@
  */
 
 import { FEET_PER_TILE, type AmbianceItem, type BuildingType, type Entrance, type LayoutGrammar, type Lighting, type MapObject, type SceneMap } from '@mythweaver/shared';
-import { bakeAutoTiles, bakeWoodWalls, BUILDING_TEMPLATES, furnishRoom, makeRng, reachabilityCarve, ROOM_PROGRAMS, ROOM_TEMPLATES, scatterGroundDecals, wallTagFor, type RoomTemplate } from './cartographer.js';
+import { bakeAutoTiles, bakeWoodWalls, BUILDING_TEMPLATES, furnishRoom, makeRng, reachabilityCarve, ROOM_PROGRAMS, ROOM_RECIPES, ROOM_TEMPLATES, scatterGroundDecals, wallTagFor, type RoomTemplate } from './cartographer.js';
 import { isCharacter, propDef, terrainWalkable } from './catalog.js';
 
 export interface Pt {
@@ -521,7 +521,7 @@ export function compound(cv: Canvas, region: Rect, type: BuildingType, opts: { d
       return;
     }
     const fn = program[Math.min(i, program.length - 1)]!;
-    const tmpl: RoomTemplate = { ...ROOM_TEMPLATES[fn], floor, wall: mat, occupant: i === 0 ? base.occupant : '' };
+    const tmpl: RoomTemplate = { ...ROOM_TEMPLATES[fn], floor, wall: mat, occupant: i === 0 ? base.occupant : '', groups: ROOM_RECIPES[fn] };
     const d = doors.find((dd) => onBorder(lf, dd)) ?? (i === 0 ? { c: ed.dC, r: ed.dR } : { c: lf.x, r: lf.y });
     furnishRoom(cv.tiles, cv.walkable, cv.occ, cv.objects, lf, tmpl, d, cv.rng, cv.cols, `${safe}-r${i}`, `bldg:${safe}-r${i}`, 0, i === 0 ? opts.name : undefined);
   });
