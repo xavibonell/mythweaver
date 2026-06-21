@@ -151,5 +151,179 @@
       { "name": "Unarmored Defense", "text": "AC = 10 + Dex mod + Con mod when not wearing armor (AC 15)." }
     ],
     "inventory": ["Greataxe", "Four javelins", "Explorer's pack"]
+  },
+  {
+    "id": "bard",
+    "name": "Bard",
+    "ancestry": "Half-Elf",
+    "className": "Bard",
+    "level": 1,
+    "abilities": { "str": 8, "dex": 14, "con": 14, "int": 10, "wis": 12, "cha": 16 },
+    "proficiencyBonus": 2,
+    "armorClass": 13,
+    "maxHitPoints": 10,
+    "speedFt": 30,
+    "skillProficiencies": ["persuasion", "deception", "performance", "insight", "acrobatics"],
+    "savingThrowProficiencies": ["dex", "cha"],
+    "attacks": [
+      { "name": "Rapier", "attackBonus": 4, "damage": "1d8+2", "damageType": "piercing", "reachOrRangeFt": 5, "notes": "Finesse." },
+      { "name": "Shortbow", "attackBonus": 4, "damage": "1d6+2", "damageType": "piercing", "reachOrRangeFt": 80 }
+    ],
+    "spellcasting": {
+      "ability": "cha",
+      "spellSaveDc": 13,
+      "spellAttackBonus": 5,
+      "slots": [0, 2],
+      "cantrips": ["Vicious Mockery", "Mage Hand", "Minor Illusion"],
+      "prepared": ["Healing Word", "Charm Person", "Faerie Fire", "Dissonant Whispers"]
+    },
+    "features": [
+      { "name": "Bardic Inspiration (d6)", "text": "Bonus action: give an ally a d6 to add to one ability check, attack roll, or save. Uses = Cha mod (3)/long rest." },
+      { "name": "Fey Ancestry", "text": "Advantage on saves vs. being charmed; magic can't put you to sleep." }
+    ],
+    "inventory": ["Leather armor", "Rapier", "Shortbow + 20 arrows", "Lute", "Dagger", "Entertainer's pack"]
+  },
+  {
+    "id": "druid",
+    "name": "Druid",
+    "ancestry": "Forest Gnome",
+    "className": "Druid",
+    "level": 1,
+    "abilities": { "str": 10, "dex": 14, "con": 14, "int": 12, "wis": 16, "cha": 10 },
+    "proficiencyBonus": 2,
+    "armorClass": 15,
+    "maxHitPoints": 10,
+    "speedFt": 25,
+    "skillProficiencies": ["nature", "perception", "medicine", "survival"],
+    "savingThrowProficiencies": ["int", "wis"],
+    "attacks": [
+      { "name": "Quarterstaff (Shillelagh)", "attackBonus": 5, "damage": "1d8+3", "damageType": "bludgeoning", "reachOrRangeFt": 5, "notes": "Shillelagh cantrip — uses Wisdom; magical." },
+      { "name": "Sling", "attackBonus": 4, "damage": "1d4+2", "damageType": "bludgeoning", "reachOrRangeFt": 30 }
+    ],
+    "spellcasting": {
+      "ability": "wis",
+      "spellSaveDc": 13,
+      "spellAttackBonus": 5,
+      "slots": [0, 2],
+      "cantrips": ["Druidcraft", "Shillelagh", "Produce Flame"],
+      "prepared": ["Cure Wounds", "Entangle", "Faerie Fire", "Thunderwave"]
+    },
+    "features": [
+      { "name": "Druidic", "text": "You know Druidic, the secret language of druids." },
+      { "name": "Gnome Cunning", "text": "Advantage on all Int, Wis, and Cha saving throws against magic." }
+    ],
+    "inventory": ["Leather armor", "Wooden shield", "Quarterstaff", "Sling + 20 bullets", "Druidic focus", "Herbalism kit", "Explorer's pack"]
+  },
+  {
+    "id": "monk",
+    "name": "Monk",
+    "ancestry": "Wood Elf",
+    "className": "Monk",
+    "level": 1,
+    "abilities": { "str": 12, "dex": 16, "con": 14, "int": 10, "wis": 15, "cha": 9 },
+    "proficiencyBonus": 2,
+    "armorClass": 15,
+    "maxHitPoints": 10,
+    "speedFt": 35,
+    "skillProficiencies": ["acrobatics", "stealth", "perception", "insight"],
+    "savingThrowProficiencies": ["str", "dex"],
+    "attacks": [
+      { "name": "Unarmed Strike (Martial Arts)", "attackBonus": 5, "damage": "1d4+3", "damageType": "bludgeoning", "reachOrRangeFt": 5, "notes": "Uses Dex; bonus-action unarmed strike after you take the Attack action." },
+      { "name": "Shortsword", "attackBonus": 5, "damage": "1d6+3", "damageType": "piercing", "reachOrRangeFt": 5, "notes": "Finesse; monk weapon." },
+      { "name": "Dart", "attackBonus": 5, "damage": "1d4+3", "damageType": "piercing", "reachOrRangeFt": 20, "notes": "Finesse, thrown." }
+    ],
+    "features": [
+      { "name": "Martial Arts", "text": "Use Dex for unarmed strikes and monk weapons; unarmed/monk-weapon damage die is 1d4; one bonus-action unarmed strike after the Attack action." },
+      { "name": "Unarmored Defense", "text": "While unarmored and unshielded, AC = 10 + Dex mod + Wis mod (15)." }
+    ],
+    "inventory": ["Shortsword", "10 darts", "Explorer's pack"]
+  },
+  {
+    "id": "paladin",
+    "name": "Paladin",
+    "ancestry": "Dragonborn",
+    "className": "Paladin",
+    "level": 1,
+    "abilities": { "str": 16, "dex": 10, "con": 14, "int": 8, "wis": 12, "cha": 14 },
+    "proficiencyBonus": 2,
+    "armorClass": 18,
+    "maxHitPoints": 12,
+    "speedFt": 30,
+    "skillProficiencies": ["athletics", "persuasion", "intimidation"],
+    "savingThrowProficiencies": ["wis", "cha"],
+    "attacks": [
+      { "name": "Longsword", "attackBonus": 5, "damage": "1d8+3", "damageType": "slashing", "reachOrRangeFt": 5, "notes": "Versatile (1d10) two-handed." },
+      { "name": "Javelin", "attackBonus": 5, "damage": "1d6+3", "damageType": "piercing", "reachOrRangeFt": 30 }
+    ],
+    "features": [
+      { "name": "Divine Sense", "text": "Action: until the end of your next turn, sense celestials, fiends, and undead within 60 ft. Uses = 1 + Cha mod (3)/long rest." },
+      { "name": "Lay on Hands", "text": "Pool of 5 HP/long rest spent by touch to heal; 5 HP instead cures one disease or neutralizes one poison." },
+      { "name": "Breath Weapon (Draconic)", "text": "Replace an attack: 2d6 damage of your draconic type in a 15-ft line/cone; DEX save DC 12 for half. 1/short or long rest." }
+    ],
+    "inventory": ["Chain mail", "Shield", "Longsword", "5 javelins", "Holy symbol", "Priest's pack"]
+  },
+  {
+    "id": "sorcerer",
+    "name": "Sorcerer",
+    "ancestry": "Tiefling",
+    "className": "Sorcerer (Draconic Bloodline)",
+    "level": 1,
+    "abilities": { "str": 8, "dex": 14, "con": 14, "int": 10, "wis": 11, "cha": 16 },
+    "proficiencyBonus": 2,
+    "armorClass": 15,
+    "maxHitPoints": 9,
+    "speedFt": 30,
+    "skillProficiencies": ["arcana", "persuasion", "deception"],
+    "savingThrowProficiencies": ["con", "cha"],
+    "attacks": [
+      { "name": "Fire Bolt", "attackBonus": 5, "damage": "1d10", "damageType": "fire", "reachOrRangeFt": 120, "notes": "Cantrip." },
+      { "name": "Dagger", "attackBonus": 4, "damage": "1d4+2", "damageType": "piercing", "reachOrRangeFt": 20, "notes": "Finesse, thrown." }
+    ],
+    "spellcasting": {
+      "ability": "cha",
+      "spellSaveDc": 13,
+      "spellAttackBonus": 5,
+      "slots": [0, 2],
+      "cantrips": ["Fire Bolt", "Prestidigitation", "Mage Hand", "Light"],
+      "prepared": ["Magic Missile", "Shield"]
+    },
+    "features": [
+      { "name": "Draconic Resilience", "text": "Max HP +1 per sorcerer level; while unarmored, AC = 13 + Dex mod (15)." },
+      { "name": "Hellish Resistance", "text": "Resistance to fire damage." }
+    ],
+    "inventory": ["Two daggers", "Arcane focus (crystal)", "Dungeoneer's pack", "Explorer's clothes"]
+  },
+  {
+    "id": "warlock",
+    "name": "Warlock",
+    "ancestry": "Half-Elf",
+    "className": "Warlock (The Fiend)",
+    "level": 1,
+    "abilities": { "str": 8, "dex": 14, "con": 14, "int": 11, "wis": 12, "cha": 16 },
+    "proficiencyBonus": 2,
+    "armorClass": 13,
+    "maxHitPoints": 10,
+    "speedFt": 30,
+    "skillProficiencies": ["deception", "persuasion", "arcana", "intimidation"],
+    "savingThrowProficiencies": ["wis", "cha"],
+    "attacks": [
+      { "name": "Eldritch Blast", "attackBonus": 5, "damage": "1d10", "damageType": "force", "reachOrRangeFt": 120, "notes": "Cantrip — one beam at level 1." },
+      { "name": "Light Crossbow", "attackBonus": 4, "damage": "1d8", "damageType": "piercing", "reachOrRangeFt": 80 },
+      { "name": "Dagger", "attackBonus": 4, "damage": "1d4+2", "damageType": "piercing", "reachOrRangeFt": 20, "notes": "Finesse, thrown." }
+    ],
+    "spellcasting": {
+      "ability": "cha",
+      "spellSaveDc": 13,
+      "spellAttackBonus": 5,
+      "slots": [0, 1],
+      "cantrips": ["Eldritch Blast", "Minor Illusion"],
+      "prepared": ["Hex", "Armor of Agathys"]
+    },
+    "features": [
+      { "name": "Dark One's Blessing", "text": "When you reduce a hostile creature to 0 HP, gain temp HP = Cha mod + warlock level (4)." },
+      { "name": "Pact Magic", "text": "Your single spell slot is 1st level and recharges on a short rest; you always cast at your highest slot level." },
+      { "name": "Fey Ancestry", "text": "Advantage on saves vs. being charmed; magic can't put you to sleep." }
+    ],
+    "inventory": ["Leather armor", "Light crossbow + 20 bolts", "Two daggers", "Arcane focus (rod)", "Scholar's pack"]
   }
 ]
