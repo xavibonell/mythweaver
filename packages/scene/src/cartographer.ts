@@ -186,16 +186,15 @@ export function bakeAutoTiles(tiles: string[][], cols: number, rows: number): vo
 export function bakeWoodWalls(tiles: string[][], cols: number, rows: number): void {
   const orig = tiles.map((row) => row.slice());
   const wall = (c: number, r: number) => c >= 0 && r >= 0 && c < cols && r < rows && (orig[r]![c] ?? '').startsWith('wall_wood');
-  const TAG: Record<number, string> = {
-    6: 'wall_wood_tl', 12: 'wall_wood_tr', 3: 'wall_wood_bl', 9: 'wall_wood_br', // corners: E+S, S+W, N+E, N+W
-    5: 'wall_wood_l', 1: 'wall_wood_l', 4: 'wall_wood_l', 7: 'wall_wood_l', 13: 'wall_wood_l', // vertical runs
-    10: 'wall_wood_t', 2: 'wall_wood_t', 8: 'wall_wood_t', 11: 'wall_wood_t', 14: 'wall_wood_t', // horizontal runs
-  };
+  const floorish = (c: number, r: number) => { const t = orig[r]?.[c] ?? ''; return t === 'wood_floor' || t === 'stone' || t === 'flagstone' || t === 'stone_brick' || t.startsWith('carpet'); };
+  const CORNER: Record<number, string> = { 6: 'wall_wood_tl', 12: 'wall_wood_tr', 3: 'wall_wood_bl', 9: 'wall_wood_br' }; // E+S, S+W, N+E, N+W
+  const HORIZ = new Set([10, 2, 8, 11, 14]); // E/W runs
+  const VERT = new Set([5, 1, 4, 7, 13]);    // N/S runs — pick l vs r by which side is the room interior
   for (let r = 0; r < rows; r++)
     for (let c = 0; c < cols; c++) {
       if (!wall(c, r)) continue;
       const mask = (wall(c, r - 1) ? 1 : 0) | (wall(c + 1, r) ? 2 : 0) | (wall(c, r + 1) ? 4 : 0) | (wall(c - 1, r) ? 8 : 0);
-      tiles[r]![c] = TAG[mask] ?? 'wall_wood'; // 0 (isolated) / 15 (surrounded) → solid fill
+      tiles[r]![c] = CORNER[mask] ?? (HORIZ.has(mask) ? 'wall_wood_t' : VERT.has(mask) ? (floorish(c + 1, r) ? 'wall_wood_l' : floorish(c - 1, r) ? 'wall_wood_r' : 'wall_wood_l') : 'wall_wood');
     }
 }
 
@@ -364,13 +363,13 @@ export function furnishRoom(
     const bed = () => { const w = wallFree()[0]; if (!w) return; put(w.c, w.r, rand() < 0.5 ? 'bed' : 'bed_blue'); for (const [dx, dy] of ORTH4) if (rand() < 0.5 && put(w.c + dx, w.r + dy, pick(['pot', 'jar', 'chest', 'candle']))) break; }; // a nightstand beside the bed
     const hearth = () => { const b = byBack(interior).find((p) => free(p.c, p.r)) ?? wallFree()[0]; if (b) put(b.c, b.r, rand() < 0.3 ? 'candelabra_large' : 'brazier'); };
     const counter = () => { let k = 0; for (const p of byBack(interior)) { if (k >= 4) break; if (free(p.c, p.r) && put(p.c, p.r, 'table')) k++; } if (k < 2) alongWall(['table'], 2); for (const p of byBack(interior)) if (rand() < 0.3 && put(p.c, p.r, pick(['jar', 'pot', 'urn', 'candle']))) break; };
-    const study = () => { const d = wallFree()[0]; if (!d) return; put(d.c, d.r, 'desk'); for (const [dx, dy] of ORTH4) if (put(d.c + dx, d.r + dy, 'chair')) break; alongWall(['bookshelf', 'bookshelf_full', 'books'], 2); };
+    const study = () => { const d = wallFree()[0]; if (!d) return; put(d.c, d.r, 'desk'); for (const [dx, dy] of ORTH4) if (put(d.c + dx, d.r + dy, 'chair')) break; alongWall(['bookshelf_full', 'books'], 2); };
     const altar = () => { const a = byBack(interior).find((p) => free(p.c, p.r)); if (!a) return; put(a.c, a.r, 'altar'); put(a.c - 1, a.r, 'candelabra'); put(a.c + 1, a.r, 'candelabra'); };
     const benches = () => { let k = 0; for (let r = iy + 2; r < iy + ih && k < 6; r += 2) for (let c = ix + 1; c < ix + iw - 1 && k < 6; c += 2) if (put(c, r, 'stone_bench')) k++; };
     const forge = () => { hearth(); const t = byBack(interior).find((p) => free(p.c, p.r)); if (t) put(t.c, t.r, 'table'); };
     const GROUPS: Record<string, () => void> = {
       dining, bed, hearth, counter, study, altar, benches, forge, storage,
-      shelf: () => alongWall(['shelf', 'shelf_food', 'bookshelf'], 2), books: () => alongWall(['bookshelf', 'bookshelf_full', 'books'], 3), pantry: () => { alongWall(['shelf_food', 'shelf'], 2); storage(); }, wares: () => alongWall(['shelf_wares', 'pot', 'jar'], 2), weapons: () => alongWall(['weapon_rack'], 1),
+      shelf: () => alongWall(['shelf', 'shelf_food'], 2), books: () => alongWall(['bookshelf_full', 'books'], 3), pantry: () => { alongWall(['shelf_food', 'shelf'], 2); storage(); }, wares: () => alongWall(['shelf_wares', 'pot', 'jar'], 2), weapons: () => alongWall(['weapon_rack'], 1),
     };
     for (const g of tmpl.groups) { if (placedFurn >= budget) break; (GROUPS[g] ?? (() => {}))(); }
     // CLUTTER — a couple of small props (tins/jars/chests/books) on free wall-adjacent cells for richness.

@@ -1500,7 +1500,7 @@
             "pack": "DawnLike",
             "crop": "Objects/Wall.png",
             "rect": [
-              112,
+              160,
               112,
               16,
               16
@@ -3206,6 +3206,37 @@
       "from": {
         "pack": "DawnLike",
         "crop": "Objects/Door0.png",
+        "rect": [
+          0,
+          0,
+          16,
+          16
+        ]
+      },
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
+    },
+    {
+      "kind": "prop",
+      "tag": "arch",
+      "desc": "a wooden interior archway",
+      "art": "/assets/dawnlike/props/arch.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false,
+      "biomes": [
+        "village",
+        "town",
+        "dungeon",
+        "crypt",
+        "castle"
+      ],
+      "from": {
+        "pack": "DawnLike",
+        "crop": "Objects/Decor0.png",
         "rect": [
           0,
           0,

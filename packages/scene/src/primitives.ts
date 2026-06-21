@@ -497,9 +497,10 @@ export function compound(cv: Canvas, region: Rect, type: BuildingType, opts: { d
     let bestA = 41;
     for (let i = 1; i < leaves.length; i++) { if (notchSet.has(i)) continue; const lf = leaves[i]!; const a = lf.w * lf.h; if (a > bestA && Math.min(lf.w, lf.h) >= 6) { bestA = a; courtyardIdx = i; } }
   }
-  // DOORS — a wooden door sprite at the exterior entrance + every interior doorway (decorative, walkable).
+  // DOORS — a wooden door at the EXTERIOR entrance; interior doorways get a wooden ARCH connector (never
+  // a door, never on outer walls). Both decorative + walkable.
   cv.ambiance.push({ tag: 'door_house', col: ed.dC, row: ed.dR });
-  for (const dd of doors) cv.ambiance.push({ tag: 'door_house', col: dd.c, row: dd.r });
+  for (const dd of doors) cv.ambiance.push({ tag: 'arch', col: dd.c, row: dd.r });
   const GARDEN = ['flowers', 'flowers_blue', 'flowers_yellow', 'flowers_red', 'bush', 'grass_tuft', 'mushroom', 'tree_oak', 'tree_autumn']; // varied garden planting
   leaves.forEach((lf, i) => {
     if (i === courtyardIdx) {
