@@ -190,7 +190,7 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
 <nav class="tabs">
   <button class="tab active" data-tab="generate">Generate</button>
   <button class="tab" data-tab="run">Run</button>
-  <button class="tab" data-tab="arc">Arc</button>
+  <button class="tab" data-tab="arc">Adventure</button>
   <button class="tab" data-tab="playbook">DM</button>
   <button class="tab" data-tab="director">Director</button>
   <button class="tab" data-tab="distill">Distill</button>
@@ -207,19 +207,19 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
         <summary>🎬 Director (live) — what the Showrunner is steering this turn</summary>
         <div class="arc-body" id="director-panel"></div>
       </details>
-      <div id="run-empty" class="run-empty">No live campaign yet. <a href="#" id="goGenerate">Generate one in the Generate tab →</a></div>
+      <div id="run-empty" class="run-empty">No live adventure yet. <a href="#" id="goGenerate">Generate one in the Generate tab →</a></div>
       <label for="temp">DM temperature <span style="color:#6b7080">— narration creativity (0 = deterministic, 1 = creative)</span></label>
       <div class="temp">
         <input id="temp" type="range" min="0" max="1" step="0.05" value="1" />
         <span class="val" id="tempVal">1.00</span>
       </div>
       <div class="hint" style="margin-bottom:10px">Captured when you start a session from the Generate tab.</div>
-      <label>Suggested actions <span style="color:#6b7080">— arc-aware; click to prefill, then tweak &amp; send</span></label>
-      <div class="row" id="presets"><span class="hint">start a campaign to see suggestions</span></div>
-      <div class="hint" id="status" style="margin-top:10px">Generate a campaign to begin.</div>
+      <label>Suggested actions <span style="color:#6b7080">— adventure-aware; click to prefill, then tweak &amp; send</span></label>
+      <div class="row" id="presets"><span class="hint">start an adventure to see suggestions</span></div>
+      <div class="hint" id="status" style="margin-top:10px">Generate an adventure to begin.</div>
     </div>
     <div class="right-wrap">
-      <div class="convo" id="convo"><div class="empty-state">No live campaign yet — head to the <b>Generate</b> tab, build your party, and generate an arc. Play begins here.</div></div>
+      <div class="convo" id="convo"><div class="empty-state">No live adventure yet — head to the <b>Generate</b> tab, build your party, and generate an adventure. Play begins here.</div></div>
       <div class="inputbar">
         <div class="row" id="msgbar">
           <select id="speaker" class="seg" style="width:160px" title="who is speaking"></select>
@@ -248,12 +248,12 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
 
   <section class="view editor" id="view-arc">
     <div class="ed-toolbar">
-      <span class="name">Generated arc <span style="color:#6b7080">— the editable campaign object; tweak party levels, monster stats, beats — then Start to test how the DM reads it</span></span>
-      <button class="ghost" id="arc-revert" title="discard edits, restore the last generated arc">Revert</button>
+      <span class="name">Generated adventure <span style="color:#6b7080">— the editable adventure object; tweak party levels, monster stats, beats — then Start to test how the DM reads it</span></span>
+      <button class="ghost" id="arc-revert" title="discard edits, restore the last generated adventure">Revert</button>
       <button id="arc-start">Start session →</button>
       <span class="status" id="status-arc"></span>
     </div>
-    <div class="ed-wrap"><textarea id="ed-arc" spellcheck="false" placeholder="Generate an arc (Generate tab) — the full campaign object appears here, editable: party (level/HP/abilities), bestiary (CR/HP/AC), encounters, beats. Edit, then Start session to see the DM react to the new numbers."></textarea></div>
+    <div class="ed-wrap"><textarea id="ed-arc" spellcheck="false" placeholder="Generate an adventure (Generate tab) — the full adventure object appears here, editable: party (level/HP/abilities), bestiary (CR/HP/AC), encounters, beats. Edit, then Start session to see the DM react to the new numbers."></textarea></div>
   </section>
 
   <section class="view director" id="view-director">
@@ -266,7 +266,7 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
           <button data-save="director-architect">Save</button>
           <span class="status" id="status-director-architect"></span>
         </div>
-        <div class="ed-wrap"><textarea id="ed-director-architect" spellcheck="false" placeholder="loading…" title="Builds the campaign blueprint (north star) from an authored scenario."></textarea></div>
+        <div class="ed-wrap"><textarea id="ed-director-architect" spellcheck="false" placeholder="loading…" title="Builds the adventure blueprint (north star) from an authored scenario."></textarea></div>
       </div>
       <div class="dir-col">
         <div class="ed-toolbar">
@@ -284,17 +284,17 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
           <button data-save="director-composer">Save</button>
           <span class="status" id="status-director-composer"></span>
         </div>
-        <div class="ed-wrap"><textarea id="ed-director-composer" spellcheck="false" placeholder="loading…" title="Generates a brand-new arc (beats + blueprint) from a seed."></textarea></div>
+        <div class="ed-wrap"><textarea id="ed-director-composer" spellcheck="false" placeholder="loading…" title="Generates a brand-new adventure (beats + blueprint) from a seed."></textarea></div>
       </div>
     </div>
   </section>
 
   <section class="view generate active" id="view-generate">
     <div class="panel left gen-form">
-      <label>1 · Your party <span style="color:#6b7080">— add players, pick a role</span></label>
+      <label>1 · Your party <span style="color:#6b7080">— add Player Characters, pick a class</span></label>
       <div id="party-list"></div>
-      <button class="ghost" id="party-add" style="margin-top:6px">+ Add player</button>
-      <div class="hint">The party pre-exists the campaign — the Director designs the adventure for them.</div>
+      <button class="ghost" id="party-add" style="margin-top:6px">+ Add Player Character</button>
+      <div class="hint">The party pre-exists the adventure — the Director designs the adventure for them.</div>
 
       <label for="gen-theme" style="margin-top:18px">2 · Theme <span style="color:#6b7080">— optional; blank = the Director invents it</span></label>
       <input id="gen-theme" type="text" placeholder="(optional) e.g. a haunted lighthouse hiding a smuggler's secret" />
@@ -323,25 +323,25 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
         <div id="mon-library" class="mon-lib"></div>
       </div>
 
-      <label for="gen-seedphrase" style="margin-top:18px">Seed phrase <span style="color:#6b7080">— vary for a different arc</span></label>
+      <label for="gen-seedphrase" style="margin-top:18px">Seed phrase <span style="color:#6b7080">— vary for a different adventure</span></label>
       <div class="row">
         <input id="gen-seedphrase" type="text" style="flex:1" placeholder="(blank = let the model choose)" />
         <button class="ghost" id="gen-reroll" title="new random seed phrase">Reroll</button>
       </div>
-      <label for="gen-temp">Director temperature <span style="color:#6b7080">— novelty of the arc</span></label>
+      <label for="gen-temp">Director temperature <span style="color:#6b7080">— novelty of the adventure</span></label>
       <div class="temp">
         <input id="gen-temp" type="range" min="0" max="1" step="0.05" value="0.9" />
         <span class="val" id="gen-tempVal">0.90</span>
       </div>
       <div class="row" style="margin-top:14px;">
-        <button id="gen-run">Generate arc</button>
+        <button id="gen-run">Generate adventure</button>
         <button class="ghost" id="gen-start" disabled>Start session →</button>
       </div>
-      <div class="hint" id="gen-status">Generation creates a fresh arc each time. Authored scenarios stay the default quality lane.</div>
+      <div class="hint" id="gen-status">Generation creates a fresh adventure each time. Authored scenarios stay the default quality lane.</div>
     </div>
     <div class="right-wrap">
       <div class="gen-badge" id="gen-badge" style="display:none"></div>
-      <div class="arc-body" id="gen-preview"><div class="empty-state">Set a theme and click <b>Generate arc</b> — the Director composes a brand-new campaign (premise → ending → beats) from your seed.</div></div>
+      <div class="arc-body" id="gen-preview"><div class="empty-state">Set a theme and click <b>Generate adventure</b> — the Director composes a brand-new adventure (premise → ending → beats) from your seed.</div></div>
     </div>
   </section>
 
@@ -510,7 +510,7 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
   }
   function setBusy(b) { $('send').disabled = b || !sessionId; $('msg').disabled = b || !sessionId; $('declare').disabled = b; $('autoroll').disabled = b; }
 
-  var partyNames = []; // party of the live session (for arc-aware suggestions)
+  var partyNames = []; // party of the live session (for adventure-aware suggestions)
 
   // Shared success handler for a session start (campaigns now always start from the Generate tab).
   function sessionStarted(b) {
@@ -537,7 +537,7 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
     var title = (bp && bp.premise) ? bp.premise : (b.scenarioId || 'session');
     var el = $('nowplaying');
     el.className = 'nowplaying' + (gen ? '' : ' authored');
-    el.innerHTML = '<div class="np-tag">' + (gen ? '✦ now playing — generated campaign' : 'now playing — authored scenario') + '</div>' +
+    el.innerHTML = '<div class="np-tag">' + (gen ? '✦ now playing — generated adventure' : 'now playing — authored scenario') + '</div>' +
       '<div class="np-title">' + esc(title) + '</div>' +
       '<div class="np-row"><b>Scene:</b> ' + esc(sceneTitle) + '</div>' +
       '<div class="np-row"><b>Party:</b> ' + esc((b.party || []).map(function (p) { return p.name; }).join(', ')) + '</div>';
@@ -548,7 +548,7 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
   // steering brief + party), prefill the input on click so the tester can tweak & send.
   function renderSuggestions() {
     var box = $('presets');
-    if (!sessionId) { box.innerHTML = '<span class="hint">start a campaign to see suggestions</span>'; return; }
+    if (!sessionId) { box.innerHTML = '<span class="hint">start an adventure to see suggestions</span>'; return; }
     var a = latestArc || {};
     var brief = a.brief || {};
     var sceneTitle = (a.beats || []).filter(function (x) { return x.current; }).map(function (x) { return x.title; })[0] || 'the scene';
@@ -611,7 +611,7 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
         if (t.kind !== 'message') addPlayer('roll', t.input); // show the actual declared/auto total
         addDm(t, latestArc && latestArc.brief);
         setPending(x.body.pendingRoll);
-        renderSuggestions(); // keep quick-starts arc-aware as the scene advances
+        renderSuggestions(); // keep quick-starts adventure-aware as the scene advances
         setBusy(false);
         $('status').textContent = 'turn ' + t.index + ' · total ' + fmtCost(x.body.totalCostUsd) + ' · ' + fmtTime(x.body.totalLatencyMs);
       }).catch(function (e) { addSys('error: ' + (e.message || e)); setBusy(false); $('status').textContent = ''; });
@@ -642,7 +642,7 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
       $('ed-director-planner').value = b.directorPlanner || '';
       $('ed-director-composer').value = b.directorComposer || '';
       composerOn = b.composerOn !== false;
-      if (!composerOn) $('gen-status').textContent = 'arc generation is OFF — set MYTHWEAVER_ARC_COMPOSER=llm and restart the server';
+      if (!composerOn) $('gen-status').textContent = 'adventure generation is OFF — set MYTHWEAVER_ARC_COMPOSER=llm and restart the server';
       gstatus('files loaded');
       setTimeout(function () { gstatus(''); }, 1500);
     }).catch(function (e) { gstatus('load error: ' + (e.message || e)); });
@@ -673,7 +673,7 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
   $('autoroll').onclick = autoRoll;
   $('rollval').addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); declareRoll(); } });
 
-  // --- Generate tab (build a party → compose a fresh arc from a seed → start a session) ---
+  // --- Generate tab (build a party → compose a fresh adventure from a seed → start a session) ---
   var libraryRoles = [];   // [{id,name,className,...}]
   var libraryBestiary = []; // [{id,name,cr,type}]
 
@@ -765,11 +765,11 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
     $('gen-preview').innerHTML = h;
   }
   function generateArc() {
-    if (!composerOn) { $('gen-status').textContent = 'arc generation is OFF — set MYTHWEAVER_ARC_COMPOSER=llm and restart'; return; }
+    if (!composerOn) { $('gen-status').textContent = 'adventure generation is OFF — set MYTHWEAVER_ARC_COMPOSER=llm and restart'; return; }
     var seed = collectSeed();
     if (!seed.party.length) { $('gen-status').textContent = 'add at least one player to the party first'; return; }
     $('gen-run').disabled = true; $('gen-start').disabled = true;
-    $('gen-status').innerHTML = '<span class="spin"></span>composing a fresh arc — real API call…';
+    $('gen-status').innerHTML = '<span class="spin"></span>composing a fresh adventure — real API call…';
     fetch('/dm/lab/generate-arc', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(seed) })
       .then(function (r) { return r.json().then(function (b) { return { ok: r.ok, body: b }; }); })
       .then(function (x) {
@@ -780,7 +780,7 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
         $('gen-badge').innerHTML = genBadgeHtml(x.body.arc.genMeta, false) + '<span class="det">· ' + fmtCost(x.body.costUsd) + '</span>';
         renderGenPreview(x.body.arc);
         $('gen-start').disabled = false;
-        $('gen-status').textContent = 'arc ready — review/edit it on the Arc tab, then Start session (or Reroll)';
+        $('gen-status').textContent = 'adventure ready — review/edit it on the Adventure tab, then Start session (or Reroll)';
       })
       .catch(function (e) { $('gen-status').textContent = 'error: ' + (e.message || e); })
       .finally(function () { $('gen-run').disabled = false; });
@@ -794,8 +794,8 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
   function startGeneratedSession(statusEl) {
     var setStatus = function (t, spin) { var el = statusEl || $('gen-status'); el.innerHTML = spin ? ('<span class="spin"></span>' + t) : ''; if (!spin) el.textContent = t; };
     var arc = currentArc();
-    if (!arc) { setStatus('generate an arc first'); return; }
-    if (arc.__parseError) { setStatus('arc JSON is invalid — fix it on the Arc tab (' + arc.__parseError + ')'); return; }
+    if (!arc) { setStatus('generate an adventure first'); return; }
+    if (arc.__parseError) { setStatus('adventure JSON is invalid — fix it on the Adventure tab (' + arc.__parseError + ')'); return; }
     $('gen-start').disabled = true; $('gen-run').disabled = true; $('arc-start').disabled = true;
     setStatus('starting session…', true);
     fetch('/dm/lab/session', {
@@ -826,7 +826,7 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
   $('arc-revert').onclick = function () {
     if (!lastGeneratedArc) { $('status-arc').textContent = 'nothing generated yet'; return; }
     $('ed-arc').value = JSON.stringify(lastGeneratedArc, null, 2);
-    $('status-arc').textContent = 'reverted to the last generated arc';
+    $('status-arc').textContent = 'reverted to the last generated adventure';
   };
   $('party-add').onclick = function () { addPlayer('fighter'); };
   document.querySelectorAll('input[name="mmode"]').forEach(function (r) {
