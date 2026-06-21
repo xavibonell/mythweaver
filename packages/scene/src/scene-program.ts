@@ -1,0 +1,515 @@
+/**
+ * Scene PROGRAM (city-scope Phase G1 spike) — a scene is an ordered, DATA-driven COMPOSITION of
+ * primitives (scene-program is the interpreter; primitives.ts is the vocabulary). This is the unit
+ * that replaces the 3 fixed grammars: a small primitive set + composition = unbounded scenes.
+ *
+ * The program is plain DATA (a list of ops) on purpose — the same shape an LLM will emit in G1's
+ * second half. Here we hand-write GOLD programs for 4 deliberately diverse briefs (labyrinth /
+ * waterfall-lake / market-city / crypt) to prove the vocabulary can EXPRESS them all from ONE system,
+ * with zero per-scene code. `buildSpikeScene(name)` runs one and returns a frozen SceneMap.
+ */
+
+import type { LlmProvider } from '@mythweaver/llm';
+import { BIOMES, BUILDING_TYPES, LAYOUT_GRAMMARS, type BuildingType, type LayoutGrammar, type Lighting, type SceneMap } from '@mythweaver/shared';
+import { isCharacter, isProp, isTerrain } from './catalog.js';
+import { bridge, building, Canvas, bspRooms, cave, clearing, entrance, fill, finalize, island, maze, path, place, plaza, scatter, vignette, VIGNETTE_NAMES, wallRing, type Pt, type Rect } from './primitives.js';
+
+type RegionSpec = 'all' | Rect;
+type PtSpec = Pt | 'center' | 'north' | 'south' | 'east' | 'west';
+
+export type SceneOp =
+  | { op: 'fill'; region: RegionSpec; tag: string; walkable?: boolean }
+  | { op: 'island'; region: RegionSpec; tag?: string }
+  | { op: 'bridge'; from: PtSpec; to: PtSpec; tag?: string }
+  | { op: 'path'; from: PtSpec; to: PtSpec; tag?: string }
+  | { op: 'plaza'; region: RegionSpec; tag?: string }
+  | { op: 'maze'; region: RegionSpec; wall?: string; floor?: string }
+  | { op: 'cave'; region: RegionSpec; wall?: string; floor?: string }
+  | { op: 'clearing'; region: RegionSpec }
+  | { op: 'rooms'; region: RegionSpec; count?: number; wall?: string; floor?: string }
+  | { op: 'wallRing'; mat?: 'wood' | 'stone' }
+  | { op: 'building'; type: BuildingType; region: RegionSpec; door?: 'north' | 'south' | 'east' | 'west'; name?: string; id: string }
+  | { op: 'vignette'; type: string; at: PtSpec; id: string }
+  | { op: 'place'; id: string; tag: string; kind: 'fixture' | 'prop' | 'actor'; role?: 'pc' | 'npc' | 'mob'; at: PtSpec; name?: string; visible?: boolean }
+  | { op: 'scatter'; idBase: string; tags: string[]; kind: 'prop' | 'actor'; role?: 'pc' | 'npc' | 'mob'; region: RegionSpec; count: number }
+  | { op: 'entrance'; at: PtSpec };
+
+export interface SceneProgram {
+  locationId: string;
+  cols: number;
+  rows: number;
+  seed: number;
+  base?: string;
+  biome: string;
+  lighting: Lighting;
+  grammar: LayoutGrammar; // cosmetic for the SceneMap (digest); geometry comes from the ops, not this
+  outdoor: boolean; // gates the terrain auto-tile bake + decal scatter
+  /** Theme key (one material palette for the whole scene). Set by normalizeProgram on the LLM path;
+   *  absent on the hand-written GOLD programs (which keep their explicit per-op tags). */
+  theme?: string;
+  ops: SceneOp[];
+}
+
+const resolveRegion = (cv: Canvas, spec: RegionSpec): Rect => (spec === 'all' ? { x: 0, y: 0, w: cv.cols, h: cv.rows } : spec);
+const resolvePt = (cv: Canvas, spec: PtSpec): Pt => {
+  if (typeof spec !== 'string') return spec;
+  const mc = Math.floor(cv.cols / 2);
+  const mr = Math.floor(cv.rows / 2);
+  switch (spec) {
+    case 'center': return { c: mc, r: mr };
+    case 'north': return { c: mc, r: 0 };
+    case 'south': return { c: mc, r: cv.rows - 1 };
+    case 'west': return { c: 0, r: mr };
+    case 'east': return { c: cv.cols - 1, r: mr };
+  }
+};
+
+/** Run one op against the canvas. When `theme` is set, OPEN-GROUND ops draw their material from it
+ *  (hazards water/lava/sand keep their own tag) — the per-scene material-consistency guarantee. */
+function runOp(cv: Canvas, op: SceneOp, locationId: string, theme?: Theme): void {
+  const haz = (t: string) => t === 'water' || t === 'water_deep' || t === 'lava' || t === 'sand';
+  const wmat = (): 'wall' | 'wall_wood' => (theme && theme.wallMat === 'wood' ? 'wall_wood' : 'wall');
+  switch (op.op) {
+    case 'fill': fill(cv, resolveRegion(cv, op.region), theme && !haz(op.tag) ? theme.ground : op.tag, op.walkable); break;
+    case 'island': island(cv, resolveRegion(cv, op.region), theme ? theme.ground : op.tag); break;
+    case 'bridge': bridge(cv, resolvePt(cv, op.from), resolvePt(cv, op.to), op.tag); break;
+    case 'path': path(cv, resolvePt(cv, op.from), resolvePt(cv, op.to), theme ? theme.path : op.tag); break;
+    case 'plaza': plaza(cv, resolveRegion(cv, op.region), theme ? theme.plaza : op.tag); break;
+    case 'maze': maze(cv, resolveRegion(cv, op.region), theme ? wmat() : op.wall, theme ? theme.ground : op.floor); break;
+    case 'cave': cave(cv, resolveRegion(cv, op.region), theme ? wmat() : op.wall, theme ? theme.plaza : op.floor); break;
+    case 'clearing': clearing(cv, resolveRegion(cv, op.region)); break;
+    case 'rooms': bspRooms(cv, resolveRegion(cv, op.region), op.count, theme ? wmat() : op.wall, theme ? theme.plaza : op.floor); break;
+    case 'wallRing': wallRing(cv, op.mat, locationId); break;
+    case 'building': building(cv, resolveRegion(cv, op.region), op.type, { ...(op.door ? { door: op.door } : {}), locationId, ...(op.name ? { name: op.name } : {}), id: op.id }); break;
+    case 'vignette': vignette(cv, resolvePt(cv, op.at), op.type, op.id.includes(':') ? op.id.slice(op.id.indexOf(':') + 1) : op.id); break;
+    case 'place': place(cv, { id: op.id, tag: op.tag, kind: op.kind, ...(op.role ? { role: op.role } : {}), at: resolvePt(cv, op.at), ...(op.name ? { name: op.name } : {}), ...(op.visible !== undefined ? { visible: op.visible } : {}) }); break;
+    case 'scatter': scatter(cv, { idBase: op.idBase, tags: op.tags, kind: op.kind, ...(op.role ? { role: op.role } : {}), region: resolveRegion(cv, op.region), count: op.count }); break;
+    case 'entrance': entrance(cv, resolvePt(cv, op.at), locationId); break;
+  }
+}
+
+/** Interpret a SceneProgram → a frozen, validated-by-construction SceneMap. */
+export function runProgram(prog: SceneProgram): SceneMap {
+  const theme = prog.theme ? THEMES[prog.theme] : undefined;
+  const cv = new Canvas(Math.max(1, prog.cols), Math.max(1, prog.rows), prog.seed, theme ? theme.ground : prog.base ?? 'grass');
+  for (const op of prog.ops) runOp(cv, op, prog.locationId, theme);
+  return finalize(cv, { locationId: prog.locationId, biome: prog.biome, lighting: prog.lighting, grammar: prog.grammar, outdoor: prog.outdoor });
+}
+
+// ---------------------------------------------------------------------------
+// GOLD programs — 4 deliberately diverse briefs, ALL from the same primitives, NO per-scene code.
+// ---------------------------------------------------------------------------
+
+/** "A tenebrous labyrinth of grass and stone, full of skeletons and goblins, entrance at the left,
+ *  a huge fountain with a chest at the centre." Maze (connectivity-correct) + a central chamber + a
+ *  main corridor from the west entrance + the landmark + monster scatter. */
+const LABYRINTH: SceneProgram = {
+  locationId: 'loc:gold-labyrinth', cols: 41, rows: 27, seed: 101, biome: 'forest', lighting: 'night', grammar: 'open-outdoor', outdoor: true,
+  ops: [
+    { op: 'maze', region: 'all', wall: 'wall', floor: 'grass' },
+    { op: 'plaza', region: { x: 17, y: 11, w: 7, h: 5 }, tag: 'grass' }, // the central chamber (room for the 2x2 fountain)
+    { op: 'path', from: 'west', to: 'center', tag: 'grass' }, // main corridor: entrance → centre (guarantees connectivity)
+    { op: 'entrance', at: 'west' },
+    { op: 'place', id: 'prop:fountain', tag: 'fountain', kind: 'prop', at: 'center', name: 'a huge fountain' },
+    { op: 'place', id: 'prop:hoard', tag: 'chest', kind: 'prop', at: { c: 22, r: 13 } },
+    { op: 'scatter', idBase: 'mob:skeleton', tags: ['skeleton'], kind: 'actor', role: 'mob', region: 'all', count: 7 },
+    { op: 'scatter', idBase: 'mob:goblin', tags: ['goblin'], kind: 'actor', role: 'mob', region: 'all', count: 6 },
+  ],
+};
+
+/** "A waterfall lake with islands and bridges." Water everywhere, a deep cascade band, 3 islands
+ *  linked by plank bridges, a fisher + a chest, reeds/trees on the islands. */
+const WATERFALL_LAKE: SceneProgram = {
+  locationId: 'loc:gold-lake', cols: 40, rows: 26, seed: 202, biome: 'forest', lighting: 'day', grammar: 'open-outdoor', outdoor: true,
+  ops: [
+    { op: 'fill', region: 'all', tag: 'water', walkable: false },
+    { op: 'fill', region: { x: 16, y: 0, w: 8, h: 3 }, tag: 'water_deep', walkable: false }, // the falls cascade at the top
+    { op: 'island', region: { x: 3, y: 6, w: 12, h: 10 }, tag: 'grass' },
+    { op: 'island', region: { x: 24, y: 4, w: 12, h: 9 }, tag: 'grass' },
+    { op: 'island', region: { x: 14, y: 15, w: 13, h: 9 }, tag: 'grass' },
+    { op: 'bridge', from: { c: 13, r: 11 }, to: { c: 27, r: 8 }, tag: 'wood_floor' }, // isle 1 → isle 2
+    { op: 'bridge', from: { c: 29, r: 11 }, to: { c: 21, r: 18 }, tag: 'wood_floor' }, // isle 2 → isle 3
+    { op: 'place', id: 'npc:fisher', tag: 'villager_woman', kind: 'actor', role: 'npc', at: { c: 8, r: 10 }, name: 'a lone fisher' },
+    { op: 'place', id: 'prop:cache', tag: 'chest', kind: 'prop', at: { c: 30, r: 8 } },
+    { op: 'scatter', idBase: 'prop:reeds', tags: ['bush', 'tree'], kind: 'prop', region: 'all', count: 16 },
+  ],
+};
+
+/** "A walled market city." Grass base, building clusters top + bottom, a central stone plaza with a
+ *  fountain, dirt streets to it, townsfolk, greenery, and an outer wall with gates. */
+const MARKET_CITY: SceneProgram = {
+  locationId: 'loc:gold-city', cols: 52, rows: 34, seed: 303, biome: 'village', lighting: 'day', grammar: 'town-square', outdoor: true,
+  ops: [
+    { op: 'rooms', region: { x: 4, y: 3, w: 44, h: 9 }, count: 4, wall: 'wall_wood', floor: 'wood_floor' }, // building row (top)
+    { op: 'rooms', region: { x: 4, y: 22, w: 44, h: 9 }, count: 4, wall: 'wall_wood', floor: 'wood_floor' }, // building row (bottom)
+    { op: 'plaza', region: { x: 20, y: 14, w: 12, h: 6 }, tag: 'stone' },
+    { op: 'place', id: 'prop:well', tag: 'fountain', kind: 'prop', at: 'center', name: 'the town fountain' },
+    { op: 'path', from: 'north', to: 'center', tag: 'dirt' },
+    { op: 'path', from: 'south', to: 'center', tag: 'dirt' },
+    { op: 'path', from: 'west', to: 'center', tag: 'dirt' },
+    { op: 'path', from: 'east', to: 'center', tag: 'dirt' },
+    { op: 'scatter', idBase: 'npc:folk', tags: ['villager', 'villager_woman', 'knight'], kind: 'actor', role: 'npc', region: { x: 18, y: 13, w: 16, h: 8 }, count: 6 },
+    { op: 'scatter', idBase: 'prop:tree', tags: ['tree', 'bush', 'flowers'], kind: 'prop', region: 'all', count: 24 },
+    { op: 'wallRing', mat: 'stone' },
+  ],
+};
+
+/** "A torchlit crypt: many chambers, a sarcophagus, an altar, skeletons; entrance at the south." BSP
+ *  rooms+corridors (connected), interior (no autotile), monsters + landmarks placed into rooms. */
+const CRYPT: SceneProgram = {
+  locationId: 'loc:gold-crypt', cols: 38, rows: 26, seed: 404, biome: 'cave', lighting: 'night', grammar: 'enclosed-interior', outdoor: false,
+  ops: [
+    { op: 'rooms', region: 'all', count: 6, wall: 'wall', floor: 'stone' },
+    { op: 'place', id: 'prop:tomb', tag: 'sarcophagus', kind: 'prop', at: 'center', name: 'a cracked sarcophagus' },
+    { op: 'place', id: 'prop:altar', tag: 'altar', kind: 'prop', at: 'north' },
+    { op: 'place', id: 'prop:hoard', tag: 'chest', kind: 'prop', at: 'east' },
+    { op: 'entrance', at: 'south' },
+    { op: 'scatter', idBase: 'mob:skeleton', tags: ['skeleton', 'zombie'], kind: 'actor', role: 'mob', region: 'all', count: 8 },
+  ],
+};
+
+export const GOLD_PROGRAMS: Record<string, SceneProgram> = {
+  labyrinth: LABYRINTH,
+  lake: WATERFALL_LAKE,
+  city: MARKET_CITY,
+  crypt: CRYPT,
+};
+
+/** Build one gold scene by name (the deterministic half of the G1 spike). */
+export function buildSpikeScene(name: string): SceneMap {
+  const prog = GOLD_PROGRAMS[name] ?? LABYRINTH;
+  return runProgram(prog);
+}
+
+// ---------------------------------------------------------------------------
+// G1b — the LLM SCENE PROGRAMMER. The LLM does NOT place cells; it COMPOSES a program over the
+// primitive vocabulary (the creativity test). Robust-by-construction: the model's JSON is UNTRUSTED;
+// normalizeProgram clamps the grid, validates/repairs every op (tags → catalog, ids → kind-correct +
+// unique, regions/points coerced), and guarantees a runnable program even from garbage. runProgram
+// then yields a valid SceneMap by construction.
+// ---------------------------------------------------------------------------
+
+export const SCENE_PROGRAMMER_SYSTEM = `You design a TOP-DOWN tactical RPG scene by writing a PROGRAM: an ordered list of spatial OPS over a tile grid. Deterministic code RUNS your ops — it guarantees connectivity and legal placement — so you NEVER draw pixels or worry about reachability. You compose the STRUCTURE. Output ONLY JSON:
+{"cols":40,"rows":26,"theme":"village","biome":"forest","lighting":"night","grammar":"open-outdoor","outdoor":true,"ops":[ ... ]}
+
+GRID: cols 28-60, rows 18-40. outdoor=true for nature/settlements (blends grass/water edges); false for indoor dungeons/crypts.
+THEME (REQUIRED): pick ONE that fits the mood — village | forest | swamp | dungeon | crypt | cave | desert | lava. It sets ONE coherent floor/wall palette for the WHOLE scene, so you do NOT pick ground/floor tags per op (the engine fills ground/path/plaza/room-floors from the theme). Only specify a tag for a HAZARD region (water / water_deep / lava) — everything else is themed automatically.
+
+OPS (compose 4-12; later ops draw OVER earlier ones):
+- {"op":"fill","region":R,"tag":TERRAIN} — flood a region with terrain (use tag "water" for a lake/moat).
+- {"op":"island","region":R,"tag":"grass"} — a rounded LAND blob inside water.
+- {"op":"bridge","from":P,"to":P} — a walkable plank span (link islands, cross water/a chasm).
+- {"op":"path","from":P,"to":P,"tag":"dirt"} — a walkable road/trail.
+- {"op":"plaza","region":R,"tag":"stone"} — a paved open square.
+- {"op":"maze","region":R,"wall":"wall","floor":"grass"} — a connected MAZE of twisting corridors.
+- {"op":"cave","region":R} — an ORGANIC cavern with irregular rock walls + open floor (cellular-automata). USE THIS for caves / caverns / grottos / mines / underground lairs instead of rooms — it gives natural rocky shapes, not rectangles.
+- {"op":"clearing","region":R} — a FOREST CLEARING: a dense feathered treeline ringing an OPEN centre (with a bushy fringe). USE THIS for forest clearings / glades / groves / camps in the woods — then put the bonfire/landmark + party in the open centre (NOT a uniform tree scatter). Pair with a "vignette":"camp" at the centre for a campfire.
+- {"op":"rooms","region":R,"count":6,"wall":"wall","floor":"stone"} — connected ROOMS + corridors (a dungeon / building interior).
+- {"op":"building","type":"tavern","region":{"x":,"y":,"w":,"h":},"door":"south"} — a FURNISHED walled building. type is one of: house, shop, tavern, temple, smithy. The engine fills it with the RIGHT furniture (tables/beds/shelves/altar/forge/carpet) + a seated keeper, all in ONE consistent material. USE THIS for ANY structure, home, shop, temple, forge, or distinct furnished chamber — give it a rect region (min ~6x6).
+- {"op":"vignette","type":"market","at":P} — an authored SET-PIECE cluster (type: market | forge | camp | shrine | well | graveyard): the engine drops a coherent mini-scene (market = stalls+crates+barrels+a vendor; forge = fire+workbench+weapon-rack+smith; camp = fire+bedrolls+supplies; shrine = altar+candles+statues; well = well+bench; graveyard = tombstones+bones). Use these for open-area focal points — do NOT hand-scatter loose props to fake them.
+- {"op":"wallRing","mat":"stone"} — an outer defensive wall with gates (a walled town/fort).
+- {"op":"place","id":"prop:NAME","tag":TAG,"kind":"prop","at":P,"name":"..."} — ONE landmark/object (or kind "actor","role":"npc"|"mob" for one creature).
+- {"op":"scatter","idBase":"mob:NAME","tags":[TAG,...],"kind":"actor","role":"mob","region":R,"count":8} — MANY of something (monsters, trees, rubble, crowds).
+- {"op":"entrance","at":P} — a walkable entrance/exit at the brief's stated edge.
+
+REGION R = "all" OR {"x":,"y":,"w":,"h":} in tiles. POINT P = {"c":,"r":} OR "center"/"north"/"south"/"east"/"west".
+TERRAIN tags: grass, dirt, stone, cobblestone, flagstone, stone_brick, sand, water, water_deep, lava, wall, wall_wood, wood_floor.
+PROP tags (kind prop) — pick the ones that FIT the scene's theme:
+  furniture: table, table_round, chair, stone_bench, desk, throne, bed, bed_blue, shelf, shelf_wares, shelf_food, bookshelf, bookshelf_full, books, rug, rug_ornate
+  containers/clutter: chest, barrel, crate, pot, jar, urn, sack, woodpile
+  light/shrine: brazier, candelabra, candelabra_large, candle, torch_wall, altar, fountain
+  dungeon/ruin: statue, statue_knight, weapon_rack, cage, door_wood, stairs, stairs_down, rubble, bones, skull, cobweb
+  graveyard: gravestone, tombstone, tombstone_skull, sarcophagus
+  outdoor: tree, tree_pine, tree_autumn, bush, flowers, mushroom, fence, signpost, market_stall
+CREATURE tags (kind actor): skeleton, zombie, goblin, orc, slime, spider, wolf, dragon, villager, villager_woman, knight, wizard, ranger, rogue, dwarf, cow, sheep, dog, cat, chicken, duck, horse, deer, frog, rabbit, crab, goat.
+
+RULES:
+- HONOR THE BRIEF literally: pick ONE dominant topology op for the GROUND (maze for labyrinths; fill water + island + bridge for lakes/coasts; grass/dirt + streets for towns; one big rooms op for a sprawling many-cell dungeon), THEN place FURNISHED structures with "building" ops, layer landmarks via place, creatures via scatter, paths, and the entrance where stated.
+- BUILDINGS/CHAMBERS — THIS IS HOW YOU GET FURNISHED INTERIORS: every named building, home, shop, temple, forge, hut, OR distinct furnished room/chamber MUST be a "building" op with a rect region (it comes furnished + a keeper). A settlement = 3-8 "building" ops (tavern/shop/house/temple/smithy) spread on a grass field with dirt streets between them, optionally a wallRing — NOT bare rooms/fills (those are empty boxes). A multi-chamber temple/crypt = several "building" ops (e.g. type temple/house as the chambers) connected by paths. Reserve the bare "rooms" op for a LARGE sprawling dungeon backbone only.
+- INCLUDE EVERY creature and landmark the brief names — never drop them. Each creature is an op with a "mob:"/"npc:" id (hostiles = mob:, friendlies = npc:); each landmark a "place" with a "prop:" id. If the brief says "crocodiles and a cultist", you MUST emit a scatter "mob:crocodile" AND a place "npc:cultist".
+- HAZARD terrain (water, lava) is IMPASSABLE. Keep the MAJORITY of the map WALKABLE — hazard should cover at most ~40% of the grid. For a "flooded"/"lake"/"swamp" scene, make the islands LARGE and MANY (land covers most of the map), with water only in the channels between them, and bridges across. Never strand the entrance, a landmark, or the creatures on hazard — they need walkable ground.
+- For an INTERIOR (crypt/dungeon/temple/cave/vault) set "outdoor":false and grammar "enclosed-interior". For "interconnected rooms/chambers" prefer SEVERAL "building" ops (furnished chambers, type temple/house/shop) connected by "path" ops — that gives furnished rooms with keepers. Only for a HUGE sprawling maze-dungeon use one big "rooms" op as the backbone. Do NOT fill big "plaza"/open areas over your rooms (that erases them into an empty hall).
+- ids: prop:xxx for objects, npc:xxx for friendly creatures, mob:xxx for hostile ones (the engine repairs prefixes if you slip).
+- Choose evocative cols/rows + biome + lighting that match the mood.
+
+EXAMPLE — "a tenebrous labyrinth of grass and stone, skeletons and goblins, entrance left, a fountain with a chest at the centre":
+{"cols":41,"rows":27,"theme":"forest","biome":"forest","lighting":"night","grammar":"open-outdoor","outdoor":true,"ops":[
+{"op":"maze","region":"all"},
+{"op":"plaza","region":{"x":17,"y":11,"w":7,"h":5}},
+{"op":"path","from":"west","to":"center"},
+{"op":"entrance","at":"west"},
+{"op":"place","id":"prop:fountain","tag":"fountain","kind":"prop","at":"center"},
+{"op":"place","id":"prop:hoard","tag":"chest","kind":"prop","at":{"c":22,"r":13}},
+{"op":"scatter","idBase":"mob:skeleton","tags":["skeleton"],"kind":"actor","role":"mob","region":"all","count":7},
+{"op":"scatter","idBase":"mob:goblin","tags":["goblin"],"kind":"actor","role":"mob","region":"all","count":6}]}
+
+EXAMPLE — "a market village: a tavern, a smithy, two cottages around a well, a merchant and a guard":
+{"cols":44,"rows":30,"theme":"village","biome":"village","lighting":"day","grammar":"town-square","outdoor":true,"ops":[
+{"op":"building","type":"tavern","region":{"x":4,"y":3,"w":11,"h":9},"door":"south","id":"bldg:tavern"},
+{"op":"building","type":"smithy","region":{"x":29,"y":3,"w":11,"h":9},"door":"south","id":"bldg:smithy"},
+{"op":"building","type":"house","region":{"x":5,"y":18,"w":9,"h":9},"door":"north","id":"bldg:cottage1"},
+{"op":"building","type":"house","region":{"x":30,"y":18,"w":9,"h":9},"door":"north","id":"bldg:cottage2"},
+{"op":"plaza","region":{"x":18,"y":12,"w":8,"h":7}},
+{"op":"place","id":"prop:well","tag":"fountain","kind":"prop","at":"center"},
+{"op":"vignette","type":"market","at":{"c":20,"r":20}},
+{"op":"path","from":"north","to":"center"},{"op":"path","from":"south","to":"center"},
+{"op":"place","id":"npc:merchant","tag":"villager","kind":"actor","role":"npc","at":{"c":19,"r":21}},
+{"op":"place","id":"npc:guard","tag":"knight","kind":"actor","role":"npc","at":{"c":24,"r":15}},
+{"op":"scatter","idBase":"prop:tree","tags":["tree","bush","flowers"],"kind":"prop","region":"all","count":16}]}
+
+EXAMPLE — "a flooded lake of grassy islands joined by plank bridges, a lone fisher, reeds":
+{"cols":40,"rows":26,"theme":"forest","biome":"forest","lighting":"day","grammar":"open-outdoor","outdoor":true,"ops":[
+{"op":"fill","region":"all","tag":"water"},
+{"op":"island","region":{"x":3,"y":6,"w":12,"h":10}},
+{"op":"island","region":{"x":24,"y":4,"w":12,"h":9}},
+{"op":"island","region":{"x":14,"y":15,"w":13,"h":9}},
+{"op":"bridge","from":{"c":13,"r":11},"to":{"c":27,"r":8}},
+{"op":"bridge","from":{"c":29,"r":11},"to":{"c":21,"r":18}},
+{"op":"place","id":"npc:fisher","tag":"villager_woman","kind":"actor","role":"npc","at":{"c":8,"r":10}},
+{"op":"scatter","idBase":"prop:reeds","tags":["bush","tree"],"kind":"prop","region":"all","count":14}]}
+
+Now design the scene for the player's brief. Output ONLY the JSON.`;
+
+const LIGHTINGS = new Set<Lighting>(['day', 'dusk', 'night']);
+const asRec = (v: unknown): Record<string, unknown> => (v && typeof v === 'object' ? (v as Record<string, unknown>) : {});
+const num = (v: unknown, d: number): number => (typeof v === 'number' && Number.isFinite(v) ? Math.round(v) : d);
+const terrainOr = (v: unknown, d: string): string => (typeof v === 'string' && isTerrain(v) ? v : d);
+const propOr = (v: unknown): string => (typeof v === 'string' && isProp(v) ? v : isProp('placeholder') ? 'placeholder' : 'crate');
+const charOr = (v: unknown): string => (typeof v === 'string' && isCharacter(v) ? v : 'villager');
+/**
+ * A THEME = one coherent material palette for a whole scene (the "one tileset per level" rule that
+ * kills floor noise). The scene picks ONE theme; every open-ground op (fill/plaza/path/maze/rooms
+ * floor) draws from it, so materials never clash cell-to-cell. Hazards (water/lava/sand) + per-building
+ * materials are the only terrain NOT themed.
+ */
+export interface Theme {
+  ground: string;
+  path: string;
+  plaza: string;
+  wallMat: 'wood' | 'stone';
+}
+const THEMES: Record<string, Theme> = {
+  village: { ground: 'grass', path: 'dirt', plaza: 'stone', wallMat: 'wood' },
+  forest: { ground: 'grass', path: 'dirt', plaza: 'grass', wallMat: 'wood' },
+  swamp: { ground: 'grass', path: 'dirt', plaza: 'dirt', wallMat: 'wood' },
+  dungeon: { ground: 'stone', path: 'stone', plaza: 'flagstone', wallMat: 'stone' },
+  crypt: { ground: 'stone_brick', path: 'stone', plaza: 'flagstone', wallMat: 'stone' },
+  cave: { ground: 'dirt', path: 'dirt', plaza: 'stone', wallMat: 'stone' },
+  desert: { ground: 'sand', path: 'dirt', plaza: 'sand', wallMat: 'stone' },
+  lava: { ground: 'stone_brick', path: 'stone', plaza: 'flagstone', wallMat: 'stone' },
+};
+export const THEME_NAMES = Object.keys(THEMES);
+const THEME_ALIASES: [RegExp, string][] = [
+  [/crypt|tomb|catacomb|grave|undead|necro|ossuary/, 'crypt'],
+  [/lava|volcano|magma|infernal|molten|brimstone/, 'lava'],
+  [/cave|cavern|grotto|warren|\bmine\b|tunnel/, 'cave'],
+  [/desert|dune|\bsand|waste|oasis/, 'desert'],
+  [/swamp|\bfen\b|marsh|bog|mire|moor/, 'swamp'],
+  [/dungeon|vault|prison|jail|fort|castle|keep|citadel|temple|shrine|stone/, 'dungeon'],
+  [/forest|wood|grove|glade|jungle|wild|thicket/, 'forest'],
+  [/village|town|city|market|hamlet|settlement|square|plaza/, 'village'],
+];
+/** Resolve a theme name (or infer from the brief) to a Theme key. */
+function themeNameFor(name: unknown, brief: string, grammar: LayoutGrammar): string {
+  if (typeof name === 'string' && THEMES[name.toLowerCase()]) return name.toLowerCase();
+  const lc = `${typeof name === 'string' ? name : ''} ${brief}`.toLowerCase();
+  for (const [re, t] of THEME_ALIASES) if (re.test(lc)) return t;
+  return grammar === 'enclosed-interior' ? 'dungeon' : 'village';
+}
+
+/** Map any structure word → a BuildingType the furnishing engine has a template for. */
+function buildingTypeFor(v: unknown): BuildingType {
+  const s = (typeof v === 'string' ? v : '').toLowerCase();
+  if (/tavern|inn|alehouse|pub|lodge/.test(s)) return 'tavern';
+  if (/smith|forge|foundry|workshop|anvil/.test(s)) return 'smithy';
+  if (/temple|shrine|chapel|church|cathedral|sanctuary|abbey|altar/.test(s)) return 'temple';
+  if (/shop|store|market|emporium|apothecary|bakery|guildhall|stall/.test(s)) return 'shop';
+  if ((BUILDING_TYPES as readonly string[]).includes(s)) return s as BuildingType;
+  return 'house';
+}
+
+const EDGE_PTS = ['center', 'north', 'south', 'east', 'west'];
+function normRegion(v: unknown): RegionSpec {
+  if (v === 'all') return 'all';
+  const r = asRec(v);
+  if (['x', 'y', 'w', 'h'].every((k) => typeof r[k] === 'number')) return { x: num(r.x, 0), y: num(r.y, 0), w: Math.max(1, num(r.w, 1)), h: Math.max(1, num(r.h, 1)) };
+  return 'all';
+}
+function normPt(v: unknown): PtSpec {
+  if (typeof v === 'string' && EDGE_PTS.includes(v)) return v as PtSpec;
+  const r = asRec(v);
+  if (typeof r.c === 'number' && typeof r.r === 'number') return { c: num(r.c, 0), r: num(r.r, 0) };
+  return 'center';
+}
+function fixId(raw: unknown, kind: string, role?: string): string {
+  const want = kind === 'actor' ? (role === 'mob' ? 'mob' : role === 'pc' ? 'pc' : 'npc') : kind === 'fixture' ? 'bldg' : 'prop';
+  let slug = typeof raw === 'string' ? (raw.includes(':') ? raw.slice(raw.indexOf(':') + 1) : raw) : 'x';
+  slug = slug.replace(/#.*/, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'x';
+  return `${want}:${slug}`;
+}
+function uniqueId(id: string, seen: Set<string>): string {
+  let x = id;
+  let n = 2;
+  while (seen.has(x)) x = `${id}-${n++}`;
+  seen.add(x);
+  return x;
+}
+
+/** Determine kind+role primarily from the id PREFIX (mob:/npc:/pc: → actor, bldg: → fixture, prop: →
+ *  prop) — the prompt teaches these prefixes reliably, so this catches creatures the model emitted
+ *  WITHOUT an explicit "kind":"actor" (which otherwise default to props and never appear as actors). */
+function kindRoleFrom(rawId: unknown, explicitKind: unknown, explicitRole: unknown): { kind: 'actor' | 'prop' | 'fixture'; role?: 'npc' | 'mob' | 'pc' } {
+  const id = typeof rawId === 'string' ? rawId : '';
+  const pref = id.includes(':') ? id.slice(0, id.indexOf(':')).toLowerCase() : '';
+  let kind: 'actor' | 'prop' | 'fixture';
+  if (pref === 'npc' || pref === 'mob' || pref === 'pc') kind = 'actor';
+  else if (pref === 'bldg') kind = 'fixture';
+  else if (pref === 'prop') kind = 'prop';
+  else kind = explicitKind === 'actor' ? 'actor' : explicitKind === 'fixture' ? 'fixture' : 'prop';
+  if (kind !== 'actor') return { kind };
+  const role = pref === 'mob' ? 'mob' : pref === 'pc' ? 'pc' : pref === 'npc' ? 'npc' : explicitRole === 'mob' ? 'mob' : explicitRole === 'pc' ? 'pc' : 'npc';
+  return { kind, role };
+}
+
+function normalizeOp(raw: unknown, seen: Set<string>): SceneOp | null {
+  const o = asRec(raw);
+  switch (o.op) {
+    case 'fill':
+      return { op: 'fill', region: normRegion(o.region), tag: terrainOr(o.tag, 'grass'), ...(typeof o.walkable === 'boolean' ? { walkable: o.walkable } : {}) };
+    case 'water':
+      return { op: 'fill', region: normRegion(o.region), tag: 'water', walkable: false };
+    case 'island':
+      return { op: 'island', region: normRegion(o.region), tag: terrainOr(o.tag, 'grass') };
+    case 'bridge':
+      return { op: 'bridge', from: normPt(o.from), to: normPt(o.to), tag: terrainOr(o.tag, 'wood_floor') };
+    case 'path':
+      return { op: 'path', from: normPt(o.from), to: normPt(o.to), tag: terrainOr(o.tag, 'dirt') };
+    case 'plaza':
+      return { op: 'plaza', region: normRegion(o.region), tag: terrainOr(o.tag, 'stone') };
+    case 'maze':
+      return { op: 'maze', region: normRegion(o.region), wall: terrainOr(o.wall, 'wall'), floor: terrainOr(o.floor, 'grass') };
+    case 'cave':
+      return { op: 'cave', region: normRegion(o.region), wall: terrainOr(o.wall, 'wall'), floor: terrainOr(o.floor, 'stone') };
+    case 'clearing':
+      return { op: 'clearing', region: normRegion(o.region) };
+    case 'rooms':
+      return { op: 'rooms', region: normRegion(o.region), count: Math.max(1, Math.min(12, num(o.count, 5))), wall: terrainOr(o.wall, 'wall'), floor: terrainOr(o.floor, 'stone') };
+    case 'wallRing':
+      return { op: 'wallRing', mat: o.mat === 'wood' ? 'wood' : 'stone' };
+    case 'building': {
+      const door = o.door === 'north' || o.door === 'south' || o.door === 'east' || o.door === 'west' ? o.door : undefined;
+      const type = buildingTypeFor(o.type);
+      return { op: 'building', type, region: normRegion(o.region), ...(door ? { door } : {}), ...(typeof o.name === 'string' ? { name: o.name.slice(0, 60) } : {}), id: uniqueId(fixId(o.id ?? `bldg:${type}`, 'fixture'), seen) };
+    }
+    case 'vignette': {
+      const type = typeof o.type === 'string' && VIGNETTE_NAMES.includes(o.type) ? o.type : 'market';
+      return { op: 'vignette', type, at: normPt(o.at), id: uniqueId(fixId(o.id ?? `prop:${type}`, 'prop'), seen) };
+    }
+    case 'place': {
+      const { kind, role } = kindRoleFrom(o.id, o.kind, o.role);
+      return { op: 'place', id: uniqueId(fixId(o.id, kind, role), seen), tag: kind === 'actor' ? charOr(o.tag) : propOr(o.tag), kind, ...(role ? { role } : {}), at: normPt(o.at), ...(typeof o.name === 'string' ? { name: o.name.slice(0, 60) } : {}) };
+    }
+    case 'scatter': {
+      const kr = kindRoleFrom(o.idBase ?? o.id, o.kind, o.role);
+      const kind: 'prop' | 'actor' = kr.kind === 'actor' ? 'actor' : 'prop'; // can't scatter fixtures
+      const role = kr.role;
+      const tagsRaw = Array.isArray(o.tags) ? o.tags : [o.tag];
+      const tags = tagsRaw.map((t) => (kind === 'actor' ? charOr(t) : propOr(t)));
+      if (!tags.length) tags.push(kind === 'actor' ? 'villager' : 'crate');
+      return { op: 'scatter', idBase: uniqueId(fixId(o.idBase ?? o.id, kind, role), seen), tags, kind, ...(role ? { role } : {}), region: normRegion(o.region), count: Math.max(1, Math.min(40, num(o.count, 6))) };
+    }
+    case 'entrance':
+      return { op: 'entrance', at: normPt(o.at) };
+    default:
+      return null;
+  }
+}
+
+/** Brief keyword → (catalog creature tag, hostility). Used by the completeness net: if the LLM names
+ *  creatures in the brief but forgets to emit ops for them, we inject them so they ALWAYS appear. */
+const BRIEF_CREATURES: [RegExp, string, 'mob' | 'npc'][] = [
+  [/skeleton|skeletal/, 'skeleton', 'mob'],
+  [/goblin/, 'goblin', 'mob'],
+  [/\borc/, 'orc', 'mob'],
+  [/zombie|ghoul|undead|wight|risen|drowned/, 'zombie', 'mob'],
+  [/spider|arachnid/, 'spider', 'mob'],
+  [/wolf|wolves|warg|jackal/, 'wolf', 'mob'],
+  [/slime|ooze|jelly|blob/, 'slime', 'mob'],
+  [/dragon|wyrm|drake|wyvern/, 'dragon', 'mob'],
+  [/crocodile|lizard|gator|reptile/, 'frog', 'mob'],
+  [/bandit|rogue|thief|assassin|brigand/, 'rogue', 'mob'],
+  [/cultist|priest|mage|wizard|sorcer|necromancer|witch|warlock/, 'wizard', 'npc'],
+  [/guard|soldier|knight|warrior|sentry|sentinel/, 'knight', 'npc'],
+  [/ranger|hunter|scout|archer|woodsman/, 'ranger', 'npc'],
+  [/dwarf|dwarves|dwarven/, 'dwarf', 'npc'],
+  [/villager|peasant|townsfolk|hermit|fisher|merchant|elder|woman|man\b/, 'villager', 'npc'],
+];
+
+function progSeed(s: string): number {
+  let h = 2166136261 >>> 0;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}
+
+/** Turn the model's (untrusted) JSON into a guaranteed-runnable SceneProgram. */
+export function normalizeProgram(raw: unknown, brief: string): SceneProgram {
+  const r = asRec(raw);
+  const grammar: LayoutGrammar = (LAYOUT_GRAMMARS as readonly string[]).includes(r.grammar as string) ? (r.grammar as LayoutGrammar) : 'open-outdoor';
+  const seen = new Set<string>();
+  const ops = (Array.isArray(r.ops) ? r.ops : []).map((o) => normalizeOp(o, seen)).filter((o): o is SceneOp => o !== null).slice(0, 24);
+  if (!ops.length) ops.push({ op: 'scatter', idBase: 'prop:rock', tags: ['bush', 'tree'], kind: 'prop', region: 'all', count: 8 });
+  // COMPLETENESS NET: the LLM sometimes forgets to emit ops for creatures the brief names. Scan the
+  // brief; for any creature word whose tag isn't already an actor in the program, INJECT a scatter so
+  // the brief's cast always appears (the recurring "0 actors" failure). Deterministic, no extra call.
+  const actorTags = new Set<string>();
+  for (const o of ops) {
+    if (o.op === 'place' && o.kind === 'actor') actorTags.add(o.tag);
+    if (o.op === 'scatter' && o.kind === 'actor') for (const t of o.tags) actorTags.add(t);
+  }
+  const lc = brief.toLowerCase();
+  for (const [re, tag, role] of BRIEF_CREATURES) {
+    if (ops.length >= 26) break;
+    if (re.test(lc) && !actorTags.has(tag)) {
+      ops.push({ op: 'scatter', idBase: uniqueId(`${role}:${tag}`, seen), tags: [tag], kind: 'actor', role, region: 'all', count: role === 'mob' ? 6 : 2 });
+      actorTags.add(tag);
+    }
+  }
+  return {
+    locationId: 'loc:lab-program',
+    cols: Math.max(16, Math.min(96, num(r.cols, 40))),
+    rows: Math.max(12, Math.min(64, num(r.rows, 26))),
+    seed: progSeed(brief),
+    base: terrainOr(r.base, 'grass'),
+    biome: (BIOMES as readonly string[]).includes(r.biome as string) ? (r.biome as string) : 'forest',
+    lighting: LIGHTINGS.has(r.lighting as Lighting) ? (r.lighting as Lighting) : 'day',
+    grammar,
+    theme: themeNameFor(r.theme, brief, grammar), // one palette for the whole scene
+    outdoor: typeof r.outdoor === 'boolean' ? r.outdoor : grammar !== 'enclosed-interior',
+    ops,
+  };
+}
+
+/** The macro creativity test: one LLM call composes a primitive program from a freeform brief. */
+export class LlmSceneProgrammer {
+  constructor(private readonly llm: LlmProvider, private readonly model?: string) {}
+
+  async compose(brief: string): Promise<SceneProgram> {
+    const res = await this.llm.complete({
+      system: SCENE_PROGRAMMER_SYSTEM,
+      messages: [{ role: 'user', content: brief }],
+      maxTokens: 1600,
+      ...(this.model ? { model: this.model } : {}),
+    });
+    let raw: unknown = {};
+    try {
+      const m = res.text.match(/\{[\s\S]*\}/);
+      if (m) raw = JSON.parse(m[0]);
+    } catch {
+      raw = {};
+    }
+    return normalizeProgram(raw, brief);
+  }
+}

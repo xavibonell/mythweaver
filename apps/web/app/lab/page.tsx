@@ -48,10 +48,84 @@ export default function LabPage() {
   // Editable EstablishScene for Director-isolation mode: tweak the DM's output (or paste your own)
   // and re-run ONLY the Director + Cartographer, with no DM in the loop.
   const [establishEdit, setEstablishEdit] = useState('');
-  const [large, setLarge] = useState(false); // build a LARGE scene (perf/zoom test for the city-scope work)
+  // The build MODE (one selector, mutually exclusive — replaces the old look-alike checkboxes):
+  //  primitives = G1b LLM-composes-a-program (the new path, default) · classic = old DM→Director→3-grammar
+  //  pipeline · city = district stitcher · large = classic but floored to a big grid (perf/zoom test).
+  const [mode, setMode] = useState<'primitives' | 'classic' | 'city' | 'large'>('primitives');
+  const [cityCount, setCityCount] = useState(6); // number of districts to stitch (city mode)
   const [fitNonce, setFitNonce] = useState(0); // bump to re-frame the whole scene in the free camera
+  const prog = mode === 'primitives';
+  const city = mode === 'city';
+  const large = mode === 'large';
+
+  // City build — district stitcher. Empty brief → deterministic roster ($0). A brief in the box →
+  // the V3 macro planner designs the districts (one LLM call), then the same deterministic stitcher.
+  async function buildCity() {
+    if (busy) return;
+    setBusy(true);
+    setError('');
+    try {
+      const b = brief.trim();
+      const res = await fetch(`${SERVER}/scene/city`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ count: cityCount, ...(b ? { brief: b } : {}) }) });
+      const data = await res.json();
+      if (!res.ok) setError(data.error ?? `error ${res.status}`);
+      else {
+        setResult(data);
+        setEstablishEdit(JSON.stringify(data.establish, null, 2));
+      }
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  // G1 spike — render a hand-written GOLD composition (deterministic, no DM/LLM) to prove the new
+  // primitive vocabulary expresses diverse scenes (maze / lake / city / crypt) from one system.
+  async function buildSpike(name: string) {
+    if (busy) return;
+    setBusy(true);
+    setError('');
+    try {
+      const res = await fetch(`${SERVER}/scene/spike`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name }) });
+      const data = await res.json();
+      if (!res.ok) setError(data.error ?? `error ${res.status}`);
+      else {
+        setResult(data);
+        setEstablishEdit(JSON.stringify(data.establish, null, 2));
+      }
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  // G1b — the creativity test: the LLM composes a primitive PROGRAM from the brief (no templates).
+  async function buildProgram(text?: string) {
+    const b = (text ?? brief).trim();
+    if (text) setBrief(text);
+    if (!b || busy) return;
+    setBusy(true);
+    setError('');
+    try {
+      const res = await fetch(`${SERVER}/scene/program`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ brief: b }) });
+      const data = await res.json();
+      if (!res.ok) setError(data.error ?? `error ${res.status}`);
+      else {
+        setResult(data);
+        setEstablishEdit(JSON.stringify(data.establish, null, 2));
+      }
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function build(text?: string) {
+    if (prog) return buildProgram(text);
+    if (city) return buildCity();
     const b = (text ?? brief).trim();
     if (!b || busy) return;
     if (text) setBrief(text);
@@ -147,14 +221,43 @@ export default function LabPage() {
             rows={3}
             style={{ flex: 1, resize: 'vertical', background: '#15120f', color: '#e8dfce', border: '1px solid #2a241f', borderRadius: 4, padding: 8, fontFamily: 'inherit' }}
           />
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignSelf: 'stretch' }}>
-            <button onClick={() => build()} disabled={busy || !brief.trim()} style={{ flex: 1, minWidth: 120 }}>
-              {busy ? 'Building…' : 'Build scene'}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignSelf: 'stretch', minWidth: 150 }}>
+            <button onClick={() => build()} disabled={busy || (!city && !brief.trim())} style={{ flex: 1, minWidth: 140 }}>
+              {busy ? 'Building…' : prog ? 'Compose scene' : city ? 'Build city' : 'Build scene'}
             </button>
-            <label style={{ fontSize: '0.72rem', color: '#b8ad99', display: 'flex', gap: 4, alignItems: 'center', cursor: 'pointer' }} title="Floor the grid to a large size to test big-scene render + pan/zoom">
-              <input type="checkbox" checked={large} onChange={(e) => setLarge(e.target.checked)} /> Large scene
-            </label>
+            <div style={{ fontSize: '0.66rem', color: '#7c7464', marginTop: 2 }}>Mode:</div>
+            {([
+              ['primitives', 'Primitives', 'NEW — the LLM composes a primitive program from your brief (no templates). The generation path we are building.'],
+              ['classic', 'Classic', 'OLD — DM → Director → the 3 fixed grammars (town/interior/outdoor). Being replaced.'],
+              ['city', 'City', 'District stitcher. Empty box = sample roster ($0); a brief = the planner designs districts.'],
+              ['large', 'Large (classic)', 'Classic pipeline floored to a big grid — a perf/zoom test, not a new layout.'],
+            ] as const).map(([val, label, tip]) => (
+              <label key={val} title={tip} style={{ fontSize: '0.72rem', color: mode === val ? '#e8dfce' : '#9a8f7d', display: 'flex', gap: 5, alignItems: 'center', cursor: 'pointer' }}>
+                <input type="radio" name="lab-mode" checked={mode === val} onChange={() => setMode(val)} />
+                {label}
+                {val === 'city' && mode === 'city' && (
+                  <input
+                    type="number"
+                    min={1}
+                    max={16}
+                    value={cityCount}
+                    onChange={(e) => setCityCount(Math.max(1, Math.min(16, Number(e.target.value) || 1)))}
+                    style={{ width: 44, marginLeft: 2, background: '#15120f', color: '#e8dfce', border: '1px solid #2a241f', borderRadius: 3, padding: '1px 4px' }}
+                    title="number of districts"
+                  />
+                )}
+              </label>
+            ))}
           </div>
+        </div>
+
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8, alignItems: 'center' }}>
+          <span style={{ fontSize: '0.72rem', color: '#7c7464' }}>G1 spike (primitive vocab):</span>
+          {['labyrinth', 'lake', 'city', 'crypt'].map((n) => (
+            <button key={n} onClick={() => buildSpike(n)} disabled={busy} style={{ fontSize: '0.72rem', padding: '3px 10px', background: '#1f2a1a', color: '#a9c98a', border: '1px solid #2a341f', borderRadius: 4, cursor: 'pointer' }}>
+              ▣ {n}
+            </button>
+          ))}
         </div>
 
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
@@ -193,6 +296,7 @@ export default function LabPage() {
                 </button>
               </div>
             </details>
+            {result.program && <Artifact title="0 · Scene program (the primitives the LLM composed)" value={result.program} />}
             <Artifact title="2 · SceneComposition (Director layout)" value={result.composition} />
             <Artifact title="3 · SceneMap.objects (frozen placement)" value={result.sceneMap?.objects} />
           </div>

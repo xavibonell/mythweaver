@@ -42,7 +42,8 @@ interface FurnSpec {
  * 'around' = chairs ringing the central table, 'center'/'corner'/'scatter' as before. Items are
  * placed in order, so a 'center' table is laid before the chairs that ring it.
  */
-const BUILDING_TEMPLATES: Record<BuildingType, { floor: string; wall: 'wood' | 'stone'; occupant: string; carpet?: boolean; items: FurnSpec[] }> = {
+export type RoomTemplate = { floor: string; wall: 'wood' | 'stone'; occupant: string; carpet?: boolean; items: FurnSpec[] };
+export const BUILDING_TEMPLATES: Record<BuildingType, RoomTemplate> = {
   tavern: { floor: 'wood_floor', wall: 'wood', occupant: 'villager_woman', carpet: true, items: [{ tag: 'table', where: 'back', count: 3 }, { tag: 'table', where: 'center' }, { tag: 'chair', where: 'around', count: 3 }, { tag: 'barrel', where: 'corner', count: 2 }, { tag: 'candelabra', where: 'wall' }] },
   shop: { floor: 'wood_floor', wall: 'wood', occupant: 'villager', items: [{ tag: 'table', where: 'back', count: 2 }, { tag: 'shelf', where: 'wall', count: 3 }, { tag: 'crate', where: 'corner', count: 2 }, { tag: 'pot', where: 'wall' }] },
   temple: { floor: 'stone', wall: 'stone', occupant: 'wizard', carpet: true, items: [{ tag: 'altar', where: 'back' }, { tag: 'candelabra', where: 'back', count: 2 }, { tag: 'chair', where: 'around', count: 4 }, { tag: 'bookshelf', where: 'wall' }] },
@@ -61,7 +62,7 @@ interface Rect {
  *  bottom/left/right). A 1-cell wall ring has floor on both sides, so neighbour-connectivity alone
  *  can't tell interior from exterior — but the Cartographer knows the rect, so it assigns the right
  *  faced tile directly. Falls back to the plain fill 'wall' for non-border / interior-pillar cells. */
-function wallTagFor(top: boolean, bot: boolean, left: boolean, right: boolean, mat: 'wood' | 'stone' = 'stone'): string {
+export function wallTagFor(top: boolean, bot: boolean, left: boolean, right: boolean, mat: 'wood' | 'stone' = 'stone'): string {
   const b = mat === 'wood' ? 'wall_wood' : 'wall';
   if (top && left) return `${b}_tl`;
   if (top && right) return `${b}_tr`;
@@ -90,7 +91,7 @@ function edgeSuffix(eN: boolean, eE: boolean, eS: boolean, eW: boolean): string 
 }
 
 /** Deterministic PRNG (mulberry32) — reproducible from the scene seed. */
-function makeRng(seed: number): () => number {
+export function makeRng(seed: number): () => number {
   let s = seed >>> 0;
   return () => {
     s = (s + 0x6d2b79f5) | 0;
@@ -98,6 +99,176 @@ function makeRng(seed: number): () => number {
     t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
+}
+
+// ---------------------------------------------------------------------------
+// Reusable post-processing passes — extracted from buildSceneMap (which still calls them, behavior
+// unchanged) so the city stitcher (city.ts) can run them ONCE on an ASSEMBLED multi-district grid.
+// Each MUTATES its array args in place.
+// ---------------------------------------------------------------------------
+
+/** C1 terrain auto-tile bake: give every EDGED-family cell (grass / water / water_deep) the right
+ *  DawnLike edge tile for which sides border a DIFFERENT family. Off-grid neighbours count as SAME
+ *  (the screen border doesn't fringe). Pure read of a snapshot → writes `${base}${suffix}`; never
+ *  touches walkable (an *_edge tile shares its base's walkability). Idempotent on already-baked tags
+ *  only insofar as *_edge tags aren't EDGED — so re-baking a stitched grid needs base tags (see
+ *  city.ts, which strips suffixes before calling this). */
+export function bakeAutoTiles(tiles: string[][], cols: number, rows: number): void {
+  const FAMILY: Record<string, string> = { grass: 'grass', water: 'water', water_deep: 'water', lava: 'lava' };
+  const EDGED = new Set(['grass', 'water', 'water_deep', 'lava']);
+  const orig = tiles.map((row) => row.slice());
+  const famOf = (t: string) => FAMILY[t] ?? t;
+  const sameFam = (c: number, r: number, f: string) => c < 0 || r < 0 || c >= cols || r >= rows || famOf(orig[r]![c]!) === f;
+  for (let r = 0; r < rows; r++)
+    for (let c = 0; c < cols; c++) {
+      const base = orig[r]![c]!;
+      if (!EDGED.has(base)) continue;
+      const f = famOf(base);
+      const suf = edgeSuffix(!sameFam(c, r - 1, f), !sameFam(c + 1, r, f), !sameFam(c, r + 1, f), !sameFam(c - 1, r, f));
+      if (suf) tiles[r]![c] = `${base}${suf}`;
+    }
+}
+
+/** C2 ground decals: a light, NON-blocking scatter of pebbles + grass tufts on free open natural
+ *  ground (grass/dirt/sand). Reserves each chosen cell in `occ`; leaves walkable untouched (decals
+ *  are walkable). Pushes AmbianceItems. Seed via `rand` so it's reproducible. */
+export function scatterGroundDecals(tiles: string[][], walkable: boolean[][], occ: boolean[][], cols: number, rows: number, ambiance: AmbianceItem[], rand: () => number): void {
+  const open: { c: number; r: number }[] = [];
+  for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) if (walkable[r]![c] === true && occ[r]![c] === false && /^(grass|dirt|sand)$/.test(tiles[r]![c]!)) open.push({ c, r });
+  for (let i = open.length - 1; i > 0; i--) { const j = Math.floor(rand() * (i + 1)); const t = open[i]!; open[i] = open[j]!; open[j] = t; }
+  const DECALS = ['pebble', 'pebble', 'grass_tuft'] as const;
+  const cap = Math.min(open.length, 60, Math.max(4, Math.floor(open.length * 0.08)));
+  for (let i = 0; i < cap; i++) {
+    const cell = open[i]!;
+    occ[cell.r]![cell.c] = true; // reserve; decals are walkable (blocks:false) so DON'T clear walkable
+    ambiance.push({ tag: DECALS[Math.floor(rand() * DECALS.length)]!, col: cell.c, row: cell.r });
+  }
+}
+
+/** Global reachability guard: BFS the walkable graph from a PC (or the bottom-left open cell); for any
+ *  actor/entrance cut off from it, carve an L-shaped corridor (opening walls → dirt) to the nearest
+ *  reachable cell. UNCONDITIONAL — the caller decides whether it's needed (buildSceneMap gates it on
+ *  buildings existing; the city always has cross-district gaps to bridge). */
+export function reachabilityCarve(tiles: string[][], walkable: boolean[][], cols: number, rows: number, objects: MapObject[], entrances: Entrance[]): void {
+  const ORTH4 = [[1, 0], [-1, 0], [0, 1], [0, -1]] as const;
+  const inB = (c: number, r: number) => c >= 0 && c < cols && r >= 0 && r < rows;
+  const idx = (c: number, r: number) => r * cols + c;
+  const bfs = (start: { c: number; r: number }): Set<number> => {
+    const seen = new Set<number>();
+    if (!inB(start.c, start.r) || !walkable[start.r]![start.c]) return seen;
+    const q = [start];
+    seen.add(idx(start.c, start.r));
+    while (q.length) {
+      const cur = q.shift()!;
+      for (const [dx, dy] of ORTH4) {
+        const cc = cur.c + dx, rr = cur.r + dy;
+        if (inB(cc, rr) && walkable[rr]![cc] && !seen.has(idx(cc, rr))) { seen.add(idx(cc, rr)); q.push({ c: cc, r: rr }); }
+      }
+    }
+    return seen;
+  };
+  let start: { c: number; r: number } | null = null;
+  for (const o of objects) if (o.role === 'pc' && walkable[o.row]?.[o.col]) { start = { c: o.col, r: o.row }; break; }
+  if (!start) for (let r = rows - 1; r >= 0 && !start; r--) for (let c = 0; c < cols && !start; c++) if (walkable[r]![c]) start = { c, r };
+  if (!start) return;
+  let reach = bfs(start);
+  const carve = (from: { c: number; r: number }, to: { c: number; r: number }): void => {
+    let c = from.c, r = from.r;
+    const open = (): void => { if (inB(c, r)) { walkable[r]![c] = true; if (tiles[r]![c]!.startsWith('wall')) tiles[r]![c] = 'dirt'; } };
+    open();
+    while (c !== to.c) { c += c < to.c ? 1 : -1; open(); }
+    while (r !== to.r) { r += r < to.r ? 1 : -1; open(); }
+  };
+  const targets = [...objects.filter((o) => o.kind === 'actor').map((o) => ({ c: o.col, r: o.row })), ...entrances.map((e2) => ({ c: e2.col, r: e2.row }))];
+  for (const t of targets) {
+    if (reach.has(idx(t.c, t.r))) continue;
+    let best: { c: number; r: number } | null = null;
+    let bestD = Infinity;
+    for (const k of reach) { const c = k % cols, r = (k - c) / cols; const d = Math.abs(c - t.c) + Math.abs(r - t.r); if (d < bestD) { bestD = d; best = { c, r }; } }
+    if (best) { carve(t, best); reach = bfs(start); }
+  }
+}
+
+/**
+ * Furnish a carved room's interior from a per-type template: an optional carpet centrepiece, position-
+ * aware furniture (back/corner/center/wall/around), and a seated keeper — keeping the door's inner cell
+ * clear and ≥half the floor walkable. MUTATES the arrays; returns the updated furniture sequence so ids
+ * stay globally unique. Extracted from carveBuildings so BOTH the classic path AND the primitive engine
+ * furnish rooms IDENTICALLY (the module-engine restore). `door` is a cell on the rect border (keepClear
+ * derives the inner-door cell from it); pass a cell outside the rect to skip the forced clear. */
+export function furnishRoom(
+  tiles: string[][],
+  walkable: boolean[][],
+  occ: boolean[][],
+  objects: MapObject[],
+  rect: Rect,
+  tmpl: RoomTemplate,
+  door: { c: number; r: number },
+  rand: () => number,
+  cols: number,
+  safe: string,
+  groupId: string,
+  seqStart: number,
+  name?: string,
+): number {
+  let furnSeq = seqStart;
+  const { x: rx, y: ry, w: rw, h: rh } = rect;
+  const midX = rx + Math.floor(rw / 2);
+  const midY = ry + Math.floor(rh / 2);
+  const ix = rx + 1, iy = ry + 1, iw = rw - 2, ih = rh - 2;
+  if (iw < 1 || ih < 1) return furnSeq;
+  const inB = (c: number, r: number) => r >= 0 && r < tiles.length && c >= 0 && c < (tiles[0]?.length ?? 0);
+  const interior: { c: number; r: number }[] = [];
+  for (let y = iy; y < iy + ih; y++) for (let x = ix; x < ix + iw; x++) interior.push({ c: x, r: y });
+  for (let i = interior.length - 1; i > 0; i--) { const j = Math.floor(rand() * (i + 1)); const t = interior[i]!; interior[i] = interior[j]!; interior[j] = t; }
+  // CARPET centrepiece (tavern/temple): a 3×3 rug centred in the interior, laid AS TERRAIN so it renders UNDER the furniture/keeper.
+  if (tmpl.carpet && iw >= 3 && ih >= 3) {
+    for (let dy = -1; dy <= 1; dy++)
+      for (let dx = -1; dx <= 1; dx++) {
+        const cc = midX + dx, rr = midY + dy;
+        if (cc < ix || cc > ix + iw - 1 || rr < iy || rr > iy + ih - 1) continue;
+        const vparts = dy < 0 ? 't' : dy > 0 ? 'b' : '';
+        const hparts = dx < 0 ? 'l' : dx > 0 ? 'r' : '';
+        tiles[rr]![cc] = vparts || hparts ? `carpet_${vparts}${hparts}` : 'carpet_c';
+      }
+  }
+  const dR = door.r, dC = door.c;
+  const innerDoor = dR === ry ? { c: dC, r: dR + 1 } : dR === ry + rh - 1 ? { c: dC, r: dR - 1 } : dC === rx ? { c: dC + 1, r: dR } : { c: dC - 1, r: dR };
+  const keepClear = innerDoor.r * cols + innerDoor.c;
+  const budget = Math.max(1, Math.floor((iw * ih) / 2)); // leave ≥half the floor walkable
+  const byBack = (cells: { c: number; r: number }[]) => cells.filter((c) => c.r === iy);
+  const byCorner = (cells: { c: number; r: number }[]) => cells.filter((c) => (c.c === ix || c.c === ix + iw - 1) && (c.r === iy || c.r === iy + ih - 1));
+  const byCenter = (cells: { c: number; r: number }[]) => [...cells].sort((a, z) => Math.abs(a.c - midX) + Math.abs(a.r - midY) - (Math.abs(z.c - midX) + Math.abs(z.r - midY)));
+  const byWall = (cells: { c: number; r: number }[]) => cells.filter((c) => c.r === iy || c.r === iy + ih - 1 || c.c === ix || c.c === ix + iw - 1);
+  const around = (cells: { c: number; r: number }[]) => cells.filter((c) => Math.max(Math.abs(c.c - midX), Math.abs(c.r - midY)) === 1);
+  const takeCell = (pref?: (cells: { c: number; r: number }[]) => { c: number; r: number }[]): { c: number; r: number } | null => {
+    for (const cell of pref ? pref(interior) : interior) {
+      if (cell.r * cols + cell.c === keepClear) continue;
+      if (!inB(cell.c, cell.r) || occ[cell.r]![cell.c] || !walkable[cell.r]![cell.c]) continue;
+      return cell;
+    }
+    return null;
+  };
+  let placedFurn = 0;
+  for (const item of tmpl.items) {
+    for (let k = 0; k < (item.count ?? 1); k++) {
+      if (placedFurn >= budget) break;
+      const pref = item.where === 'back' ? byBack : item.where === 'corner' ? byCorner : item.where === 'center' ? byCenter : item.where === 'wall' ? byWall : item.where === 'around' ? around : undefined;
+      const cell = takeCell(pref) ?? takeCell();
+      if (!cell) break;
+      occ[cell.r]![cell.c] = true; // reserve so nothing else lands here
+      if (propDef(item.tag)?.blocks ?? true) walkable[cell.r]![cell.c] = false; // only blocking furniture blocks pathing
+      objects.push({ id: `prop:${safe}#${(furnSeq++).toString().padStart(2, '0')}`, kind: 'prop', tag: item.tag, col: cell.c, row: cell.r, footprint: { w: 1, h: 1 }, facing: 'down', visible: true, group: groupId });
+      placedFurn++;
+    }
+  }
+  const occCell = takeCell(byCenter);
+  if (occCell) {
+    occ[occCell.r]![occCell.c] = true; // reserve (actor doesn't block walkable)
+    // The keeper is an individually-addressable NPC (NOT grouped) so the DM digest keeps its id/name/position.
+    objects.push({ id: `npc:${safe}-keeper`, kind: 'actor', role: 'npc', tag: isCharacter(tmpl.occupant) ? tmpl.occupant : 'villager', ...(name ? { name } : {}), col: occCell.c, row: occCell.r, footprint: { w: 1, h: 1 }, facing: 'down', visible: true });
+  }
+  return furnSeq;
 }
 
 /** Map each grammar zone to a grid rectangle. Simple + deterministic; refine per grammar later. */
@@ -511,62 +682,9 @@ export function buildSceneMap(comp: SceneComposition): SceneMap {
     if (inB(oC, oR)) { walkable[oR]![oC] = true; occ[oR]![oC] = false; if (tiles[oR]![oC]!.startsWith('wall')) tiles[oR]![oC] = 'dirt'; }
     entrances.push({ toLocationId: comp.locationId, col: dC, row: dR, ...(b.id ? { fixtureId: b.id } : {}) });
 
-    // FURNISH the interior from the per-type template; keep the door's inner cell clear so the room
-    // is never sealed. Furniture blocks its tile; the occupant stands on floor (doesn't block).
-    const ix = rx + 1, iy = ry + 1, iw = rw - 2, ih = rh - 2;
-    const interior: { c: number; r: number }[] = [];
-    for (let y = iy; y < iy + ih; y++) for (let x = ix; x < ix + iw; x++) interior.push({ c: x, r: y });
-    for (let i = interior.length - 1; i > 0; i--) { const j = Math.floor(rand() * (i + 1)); const t = interior[i]!; interior[i] = interior[j]!; interior[j] = t; }
-    // CARPET centrepiece (tavern/temple): an ornate 3×3 rug centred in the interior, laid AS TERRAIN
-    // so it renders UNDER the furniture/keeper that sit on it — the reference's big "authored" cue.
-    if (tmpl.carpet && iw >= 3 && ih >= 3) {
-      for (let dy = -1; dy <= 1; dy++)
-        for (let dx = -1; dx <= 1; dx++) {
-          const cc = midX + dx, rr = midY + dy;
-          if (cc < ix || cc > ix + iw - 1 || rr < iy || rr > iy + ih - 1) continue;
-          const vparts = dy < 0 ? 't' : dy > 0 ? 'b' : '';
-          const hparts = dx < 0 ? 'l' : dx > 0 ? 'r' : '';
-          tiles[rr]![cc] = vparts || hparts ? `carpet_${vparts}${hparts}` : 'carpet_c';
-        }
-    }
-    // The interior cell adjacent to the door — derived from the ACTUAL door position (which may have
-    // fallen back to a different side), kept clear so the room is never sealed at its only exit.
-    const innerDoor = dR === ry ? { c: dC, r: dR + 1 } : dR === ry + rh - 1 ? { c: dC, r: dR - 1 } : dC === rx ? { c: dC + 1, r: dR } : { c: dC - 1, r: dR };
-    const keepClear = innerDoor.r * cols + innerDoor.c;
-    const budget = Math.max(1, Math.floor((iw * ih) / 2)); // leave at least half the floor walkable
-    const byBack = (cells: { c: number; r: number }[]) => cells.filter((c) => c.r === iy);
-    const byCorner = (cells: { c: number; r: number }[]) => cells.filter((c) => (c.c === ix || c.c === ix + iw - 1) && (c.r === iy || c.r === iy + ih - 1));
-    const byCenter = (cells: { c: number; r: number }[]) => [...cells].sort((a, z) => Math.abs(a.c - midX) + Math.abs(a.r - midY) - (Math.abs(z.c - midX) + Math.abs(z.r - midY)));
-    const byWall = (cells: { c: number; r: number }[]) => cells.filter((c) => c.r === iy || c.r === iy + ih - 1 || c.c === ix || c.c === ix + iw - 1); // hug the interior perimeter
-    const around = (cells: { c: number; r: number }[]) => cells.filter((c) => Math.max(Math.abs(c.c - midX), Math.abs(c.r - midY)) === 1); // ring the centre item (chairs around a table)
-    const takeCell = (pref?: (cells: { c: number; r: number }[]) => { c: number; r: number }[]): { c: number; r: number } | null => {
-      for (const cell of pref ? pref(interior) : interior) {
-        if (cell.r * cols + cell.c === keepClear) continue;
-        if (!inB(cell.c, cell.r) || occ[cell.r]![cell.c] || !walkable[cell.r]![cell.c]) continue;
-        return cell;
-      }
-      return null;
-    };
-    let placedFurn = 0;
-    for (const item of tmpl.items) {
-      for (let k = 0; k < (item.count ?? 1); k++) {
-        if (placedFurn >= budget) break;
-        const pref = item.where === 'back' ? byBack : item.where === 'corner' ? byCorner : item.where === 'center' ? byCenter : item.where === 'wall' ? byWall : item.where === 'around' ? around : undefined;
-        const cell = takeCell(pref) ?? takeCell();
-        if (!cell) break;
-        occ[cell.r]![cell.c] = true; // reserve so nothing else lands here
-        if (propDef(item.tag)?.blocks ?? true) walkable[cell.r]![cell.c] = false; // only blocking furniture blocks pathing (rugs/pots don't)
-        objects.push({ id: `prop:${safe}#${(furnSeq++).toString().padStart(2, '0')}`, kind: 'prop', tag: item.tag, col: cell.c, row: cell.r, footprint: { w: 1, h: 1 }, facing: 'down', visible: true, group: b.id });
-        placedFurn++;
-      }
-    }
-    const occCell = takeCell(byCenter);
-    if (occCell) {
-      occ[occCell.r]![occCell.c] = true; // reserve (actor doesn't block walkable)
-      // The keeper is an individually-addressable NPC — NOT grouped with the furniture (a `group`
-      // would collapse it into an anonymous "×N" line in the DM digest, hiding its id/name/position).
-      objects.push({ id: `npc:${safe}-keeper`, kind: 'actor', role: 'npc', tag: isCharacter(tmpl.occupant) ? tmpl.occupant : 'villager', ...(b.name ? { name: b.name } : {}), col: occCell.c, row: occCell.r, footprint: { w: 1, h: 1 }, facing: 'down', visible: true });
-    }
+    // FURNISH the interior from the per-type template (shared helper — the primitive engine uses the
+    // SAME furnishRoom so both paths furnish identically). Keeps the door's inner cell clear.
+    furnSeq = furnishRoom(tiles, walkable, occ, objects, { x: rx, y: ry, w: rw, h: rh }, tmpl, { c: dC, r: dR }, rand, cols, safe, b.id, furnSeq, b.name);
   }
 
   for (const p of order) {
@@ -736,47 +854,10 @@ export function buildSceneMap(comp: SceneComposition): SceneMap {
     for (const [dx, dy] of ORTH4) { const cc = o.col + dx, rr = o.row + dy; if (inB(cc, rr) && !occ[rr]![cc]) { walkable[rr]![cc] = true; break; } }
   }
 
-  // GLOBAL REACHABILITY: a walled settlement must never seal off an actor or a door. BFS the
-  // walkable graph from a PC (or the open plaza); for any actor/entrance cut off from it, carve an
-  // L-shaped corridor (opening walls) to the nearest reachable cell. Only needed when buildings exist.
-  if ((comp.buildings?.length ?? 0) > 0) {
-    const idx = (c: number, r: number) => r * cols + c;
-    const bfs = (start: { c: number; r: number }): Set<number> => {
-      const seen = new Set<number>();
-      if (!inB(start.c, start.r) || !walkable[start.r]![start.c]) return seen;
-      const q = [start];
-      seen.add(idx(start.c, start.r));
-      while (q.length) {
-        const cur = q.shift()!;
-        for (const [dx, dy] of ORTH4) {
-          const cc = cur.c + dx, rr = cur.r + dy;
-          if (inB(cc, rr) && walkable[rr]![cc] && !seen.has(idx(cc, rr))) { seen.add(idx(cc, rr)); q.push({ c: cc, r: rr }); }
-        }
-      }
-      return seen;
-    };
-    let start: { c: number; r: number } | null = null;
-    for (const o of objects) if (o.role === 'pc' && walkable[o.row]?.[o.col]) { start = { c: o.col, r: o.row }; break; }
-    if (!start) for (let r = rows - 1; r >= 0 && !start; r--) for (let c = 0; c < cols && !start; c++) if (walkable[r]![c]) start = { c, r };
-    if (start) {
-      let reach = bfs(start);
-      const carve = (from: { c: number; r: number }, to: { c: number; r: number }): void => {
-        let c = from.c, r = from.r;
-        const open = (): void => { if (inB(c, r)) { walkable[r]![c] = true; if (tiles[r]![c]!.startsWith('wall')) tiles[r]![c] = 'dirt'; } };
-        open();
-        while (c !== to.c) { c += c < to.c ? 1 : -1; open(); }
-        while (r !== to.r) { r += r < to.r ? 1 : -1; open(); }
-      };
-      const targets = [...objects.filter((o) => o.kind === 'actor').map((o) => ({ c: o.col, r: o.row })), ...entrances.map((e2) => ({ c: e2.col, r: e2.row }))];
-      for (const t of targets) {
-        if (reach.has(idx(t.c, t.r))) continue;
-        let best: { c: number; r: number } | null = null;
-        let bestD = Infinity;
-        for (const k of reach) { const c = k % cols, r = (k - c) / cols; const d = Math.abs(c - t.c) + Math.abs(r - t.r); if (d < bestD) { bestD = d; best = { c, r }; } }
-        if (best) { carve(t, best); reach = bfs(start); }
-      }
-    }
-  }
+  // GLOBAL REACHABILITY: a walled settlement must never seal off an actor or a door. Only needed when
+  // buildings exist (the carved walls are the only thing that can isolate a cell). Extracted helper —
+  // the city stitcher reuses it on the assembled grid.
+  if ((comp.buildings?.length ?? 0) > 0) reachabilityCarve(tiles, walkable, cols, rows, objects, entrances);
 
   // Ambiance. In blockout mode the forest fill IS the ambiance (already placed, intentionally dense);
   // otherwise seed-scatter decor biased to the PERIMETER so the playable middle stays legible, and
@@ -824,21 +905,9 @@ export function buildSceneMap(comp: SceneComposition): SceneMap {
   }
 
   // C2 GROUND DECALS: a light, NON-BLOCKING scatter of pebbles + grass tufts on open natural ground
-  // (grass/dirt/sand — not stone plaza/interiors/water) for lived-in floor detail. Walkable decals —
-  // occ-reserved so nothing stacks on them, but pathing is untouched. Seed-stable; runs before the
-  // auto-tile bake (decals are objects, not tiles, so the bake is unaffected).
-  if (!isInterior) {
-    const open: { c: number; r: number }[] = [];
-    for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) if (free(c, r) && /^(grass|dirt|sand)$/.test(tiles[r]![c]!)) open.push({ c, r });
-    for (let i = open.length - 1; i > 0; i--) { const j = Math.floor(rand() * (i + 1)); const t = open[i]!; open[i] = open[j]!; open[j] = t; }
-    const DECALS = ['pebble', 'pebble', 'grass_tuft'] as const;
-    const cap = Math.min(open.length, 60, Math.max(4, Math.floor(open.length * 0.08)));
-    for (let i = 0; i < cap; i++) {
-      const cell = open[i]!;
-      occ[cell.r]![cell.c] = true; // reserve; decals are walkable (blocks:false) so DON'T clear walkable
-      ambiance.push({ tag: DECALS[Math.floor(rand() * DECALS.length)]!, col: cell.c, row: cell.r });
-    }
-  }
+  // (grass/dirt/sand — not stone plaza/interiors/water) for lived-in floor detail. Extracted helper —
+  // runs before the auto-tile bake (decals are objects, not tiles, so the bake is unaffected).
+  if (!isInterior) scatterGroundDecals(tiles, walkable, occ, cols, rows, ambiance, rand);
 
   // TERRAIN AUTO-TILING (C1): edge cells of an EDGED terrain so boundaries read with real DawnLike
   // edge tiles instead of a hard rectangular seam. Baked LAST — reads the FINAL tiles grid (after
@@ -849,21 +918,7 @@ export function buildSceneMap(comp: SceneComposition): SceneMap {
   // which the sand-strip puts against sand). dirt/sand need no own edge set — grass+water already own
   // every boundary they touch (a standalone set would just double-edge). `walkable` was computed from
   // the base terrain and each *_edge shares its base's walkability, so it stays consistent.
-  if (!isInterior) {
-    const FAMILY: Record<string, string> = { grass: 'grass', water: 'water', water_deep: 'water' };
-    const EDGED = new Set(['grass', 'water', 'water_deep']);
-    const orig = tiles.map((row) => row.slice());
-    const famOf = (t: string) => FAMILY[t] ?? t;
-    const sameFam = (c: number, r: number, f: string) => c < 0 || r < 0 || c >= cols || r >= rows || famOf(orig[r]![c]!) === f;
-    for (let r = 0; r < rows; r++)
-      for (let c = 0; c < cols; c++) {
-        const base = orig[r]![c]!;
-        if (!EDGED.has(base)) continue;
-        const f = famOf(base);
-        const suf = edgeSuffix(!sameFam(c, r - 1, f), !sameFam(c + 1, r, f), !sameFam(c, r + 1, f), !sameFam(c - 1, r, f));
-        if (suf) tiles[r]![c] = `${base}${suf}`;
-      }
-  }
+  if (!isInterior) bakeAutoTiles(tiles, cols, rows);
 
   return {
     locationId: comp.locationId,

@@ -27,6 +27,19 @@
               16
             ]
           }
+        },
+        {
+          "art": "/assets/dawnlike/terrain/grass1.png",
+          "from": {
+            "pack": "DawnLike",
+            "crop": "Objects/Floor.png",
+            "rect": [
+              192,
+              112,
+              16,
+              16
+            ]
+          }
         }
       ],
       "license": "CC-BY-4.0",
@@ -248,6 +261,19 @@
               16
             ]
           }
+        },
+        {
+          "art": "/assets/dawnlike/terrain/dirt1.png",
+          "from": {
+            "pack": "DawnLike",
+            "crop": "Objects/Floor.png",
+            "rect": [
+              16,
+              352,
+              16,
+              16
+            ]
+          }
         }
       ],
       "license": "CC-BY-4.0",
@@ -277,6 +303,357 @@
               16
             ]
           }
+        },
+        {
+          "art": "/assets/dawnlike/terrain/stone1.png",
+          "from": {
+            "pack": "DawnLike",
+            "crop": "Objects/Floor.png",
+            "rect": [
+              48,
+              112,
+              16,
+              16
+            ]
+          }
+        },
+        {
+          "art": "/assets/dawnlike/terrain/stone2.png",
+          "from": {
+            "pack": "DawnLike",
+            "crop": "Objects/Floor.png",
+            "rect": [
+              80,
+              112,
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
+    },
+    {
+      "kind": "terrain",
+      "tag": "lava",
+      "desc": "molten lava — a glowing hazard, IMPASSABLE",
+      "walkable": false,
+      "biomes": [
+        "dungeon",
+        "cave"
+      ],
+      "variants": [
+        {
+          "art": "/assets/dawnlike/terrain/lava.png",
+          "from": {
+            "pack": "DawnLike",
+            "crop": "Objects/Pit0.png",
+            "rect": [
+              16,
+              432,
+              16,
+              16
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "kind": "terrain",
+      "tag": "lava_t",
+      "desc": "lava rim — t",
+      "walkable": false,
+      "internal": true,
+      "variants": [
+        {
+          "art": "/assets/dawnlike/terrain/lava_t.png",
+          "from": {
+            "pack": "DawnLike",
+            "crop": "Objects/Pit0.png",
+            "rect": [
+              16,
+              416,
+              16,
+              16
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "kind": "terrain",
+      "tag": "lava_b",
+      "desc": "lava rim — b",
+      "walkable": false,
+      "internal": true,
+      "variants": [
+        {
+          "art": "/assets/dawnlike/terrain/lava_b.png",
+          "from": {
+            "pack": "DawnLike",
+            "crop": "Objects/Pit0.png",
+            "rect": [
+              16,
+              432,
+              16,
+              16
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "kind": "terrain",
+      "tag": "lava_l",
+      "desc": "lava rim — l",
+      "walkable": false,
+      "internal": true,
+      "variants": [
+        {
+          "art": "/assets/dawnlike/terrain/lava_l.png",
+          "from": {
+            "pack": "DawnLike",
+            "crop": "Objects/Pit0.png",
+            "rect": [
+              0,
+              432,
+              16,
+              16
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "kind": "terrain",
+      "tag": "lava_r",
+      "desc": "lava rim — r",
+      "walkable": false,
+      "internal": true,
+      "variants": [
+        {
+          "art": "/assets/dawnlike/terrain/lava_r.png",
+          "from": {
+            "pack": "DawnLike",
+            "crop": "Objects/Pit0.png",
+            "rect": [
+              32,
+              432,
+              16,
+              16
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "kind": "terrain",
+      "tag": "lava_tl",
+      "desc": "lava rim — tl",
+      "walkable": false,
+      "internal": true,
+      "variants": [
+        {
+          "art": "/assets/dawnlike/terrain/lava_tl.png",
+          "from": {
+            "pack": "DawnLike",
+            "crop": "Objects/Pit0.png",
+            "rect": [
+              0,
+              416,
+              16,
+              16
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "kind": "terrain",
+      "tag": "lava_tr",
+      "desc": "lava rim — tr",
+      "walkable": false,
+      "internal": true,
+      "variants": [
+        {
+          "art": "/assets/dawnlike/terrain/lava_tr.png",
+          "from": {
+            "pack": "DawnLike",
+            "crop": "Objects/Pit0.png",
+            "rect": [
+              32,
+              416,
+              16,
+              16
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "kind": "terrain",
+      "tag": "lava_bl",
+      "desc": "lava rim — bl",
+      "walkable": false,
+      "internal": true,
+      "variants": [
+        {
+          "art": "/assets/dawnlike/terrain/lava_bl.png",
+          "from": {
+            "pack": "DawnLike",
+            "crop": "Objects/Pit0.png",
+            "rect": [
+              0,
+              432,
+              16,
+              16
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "kind": "terrain",
+      "tag": "lava_br",
+      "desc": "lava rim — br",
+      "walkable": false,
+      "internal": true,
+      "variants": [
+        {
+          "art": "/assets/dawnlike/terrain/lava_br.png",
+          "from": {
+            "pack": "DawnLike",
+            "crop": "Objects/Pit0.png",
+            "rect": [
+              32,
+              432,
+              16,
+              16
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "kind": "terrain",
+      "tag": "stone_brick",
+      "desc": "fitted stone-brick floor / masonry tiling",
+      "walkable": true,
+      "biomes": [
+        "dungeon",
+        "castle",
+        "crypt"
+      ],
+      "variants": [
+        {
+          "art": "/assets/dawnlike/terrain/stone_brick0.png",
+          "from": {
+            "pack": "DawnLike",
+            "crop": "Objects/Floor.png",
+            "rect": [
+              16,
+              112,
+              16,
+              16
+            ]
+          }
+        },
+        {
+          "art": "/assets/dawnlike/terrain/stone_brick1.png",
+          "from": {
+            "pack": "DawnLike",
+            "crop": "Objects/Floor.png",
+            "rect": [
+              16,
+              64,
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
+    },
+    {
+      "kind": "terrain",
+      "tag": "flagstone",
+      "desc": "dark flagstone / dungeon brick floor",
+      "walkable": true,
+      "biomes": [
+        "dungeon",
+        "crypt",
+        "castle"
+      ],
+      "variants": [
+        {
+          "art": "/assets/dawnlike/terrain/flagstone0.png",
+          "from": {
+            "pack": "DawnLike",
+            "crop": "Objects/Floor.png",
+            "rect": [
+              16,
+              208,
+              16,
+              16
+            ]
+          }
+        },
+        {
+          "art": "/assets/dawnlike/terrain/flagstone1.png",
+          "from": {
+            "pack": "DawnLike",
+            "crop": "Objects/Floor.png",
+            "rect": [
+              16,
+              160,
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
+    },
+    {
+      "kind": "terrain",
+      "tag": "cobblestone",
+      "desc": "rounded cobblestone paving",
+      "walkable": true,
+      "biomes": [
+        "town",
+        "village",
+        "castle",
+        "dungeon"
+      ],
+      "variants": [
+        {
+          "art": "/assets/dawnlike/terrain/cobblestone0.png",
+          "from": {
+            "pack": "DawnLike",
+            "crop": "Objects/Floor.png",
+            "rect": [
+              240,
+              64,
+              16,
+              16
+            ]
+          }
+        },
+        {
+          "art": "/assets/dawnlike/terrain/cobblestone1.png",
+          "from": {
+            "pack": "DawnLike",
+            "crop": "Objects/Floor.png",
+            "rect": [
+              240,
+              112,
+              16,
+              16
+            ]
+          }
         }
       ],
       "license": "CC-BY-4.0",
@@ -297,10 +674,10 @@
           "art": "/assets/dawnlike/terrain/water.png",
           "from": {
             "pack": "DawnLike",
-            "crop": "Objects/Floor.png",
+            "crop": "Objects/Pit0.png",
             "rect": [
-              240,
-              352,
+              16,
+              48,
               16,
               16
             ]
@@ -350,10 +727,10 @@
           "art": "/assets/dawnlike/terrain/water_t.png",
           "from": {
             "pack": "DawnLike",
-            "crop": "Objects/Floor.png",
+            "crop": "Objects/Pit0.png",
             "rect": [
-              240,
-              336,
+              16,
+              32,
               16,
               16
             ]
@@ -374,10 +751,10 @@
           "art": "/assets/dawnlike/terrain/water_b.png",
           "from": {
             "pack": "DawnLike",
-            "crop": "Objects/Floor.png",
+            "crop": "Objects/Pit0.png",
             "rect": [
-              240,
-              368,
+              16,
+              48,
               16,
               16
             ]
@@ -398,10 +775,10 @@
           "art": "/assets/dawnlike/terrain/water_l.png",
           "from": {
             "pack": "DawnLike",
-            "crop": "Objects/Floor.png",
+            "crop": "Objects/Pit0.png",
             "rect": [
-              224,
-              352,
+              0,
+              48,
               16,
               16
             ]
@@ -422,10 +799,10 @@
           "art": "/assets/dawnlike/terrain/water_r.png",
           "from": {
             "pack": "DawnLike",
-            "crop": "Objects/Floor.png",
+            "crop": "Objects/Pit0.png",
             "rect": [
-              256,
-              352,
+              32,
+              48,
               16,
               16
             ]
@@ -446,10 +823,10 @@
           "art": "/assets/dawnlike/terrain/water_tl.png",
           "from": {
             "pack": "DawnLike",
-            "crop": "Objects/Floor.png",
+            "crop": "Objects/Pit0.png",
             "rect": [
-              224,
-              336,
+              0,
+              32,
               16,
               16
             ]
@@ -470,10 +847,10 @@
           "art": "/assets/dawnlike/terrain/water_tr.png",
           "from": {
             "pack": "DawnLike",
-            "crop": "Objects/Floor.png",
+            "crop": "Objects/Pit0.png",
             "rect": [
-              256,
-              336,
+              32,
+              32,
               16,
               16
             ]
@@ -494,10 +871,10 @@
           "art": "/assets/dawnlike/terrain/water_bl.png",
           "from": {
             "pack": "DawnLike",
-            "crop": "Objects/Floor.png",
+            "crop": "Objects/Pit0.png",
             "rect": [
-              224,
-              368,
+              0,
+              48,
               16,
               16
             ]
@@ -518,10 +895,10 @@
           "art": "/assets/dawnlike/terrain/water_br.png",
           "from": {
             "pack": "DawnLike",
-            "crop": "Objects/Floor.png",
+            "crop": "Objects/Pit0.png",
             "rect": [
-              256,
-              368,
+              32,
+              48,
               16,
               16
             ]
@@ -743,6 +1120,19 @@
               16
             ]
           }
+        },
+        {
+          "art": "/assets/dawnlike/terrain/sand1.png",
+          "from": {
+            "pack": "DawnLike",
+            "crop": "Objects/Floor.png",
+            "rect": [
+              64,
+              256,
+              16,
+              16
+            ]
+          }
         }
       ],
       "license": "CC-BY-4.0",
@@ -762,8 +1152,14 @@
         {
           "art": "/assets/dawnlike/terrain/wall0.png",
           "from": {
-            "gen": "wall",
-            "edges": ""
+            "pack": "DawnLike",
+            "crop": "Objects/Wall.png",
+            "rect": [
+              32,
+              144,
+              16,
+              16
+            ]
           }
         }
       ]
@@ -778,8 +1174,14 @@
         {
           "art": "/assets/dawnlike/terrain/wall_tl.png",
           "from": {
-            "gen": "wall",
-            "edges": "tl"
+            "pack": "DawnLike",
+            "crop": "Objects/Wall.png",
+            "rect": [
+              0,
+              144,
+              16,
+              16
+            ]
           }
         }
       ]
@@ -794,8 +1196,14 @@
         {
           "art": "/assets/dawnlike/terrain/wall_t.png",
           "from": {
-            "gen": "wall",
-            "edges": "t"
+            "pack": "DawnLike",
+            "crop": "Objects/Wall.png",
+            "rect": [
+              16,
+              144,
+              16,
+              16
+            ]
           }
         }
       ]
@@ -810,8 +1218,14 @@
         {
           "art": "/assets/dawnlike/terrain/wall_tr.png",
           "from": {
-            "gen": "wall",
-            "edges": "tr"
+            "pack": "DawnLike",
+            "crop": "Objects/Wall.png",
+            "rect": [
+              32,
+              144,
+              16,
+              16
+            ]
           }
         }
       ]
@@ -826,8 +1240,14 @@
         {
           "art": "/assets/dawnlike/terrain/wall_l.png",
           "from": {
-            "gen": "wall",
-            "edges": "l"
+            "pack": "DawnLike",
+            "crop": "Objects/Wall.png",
+            "rect": [
+              0,
+              160,
+              16,
+              16
+            ]
           }
         }
       ]
@@ -842,8 +1262,14 @@
         {
           "art": "/assets/dawnlike/terrain/wall_r.png",
           "from": {
-            "gen": "wall",
-            "edges": "r"
+            "pack": "DawnLike",
+            "crop": "Objects/Wall.png",
+            "rect": [
+              0,
+              160,
+              16,
+              16
+            ]
           }
         }
       ]
@@ -858,8 +1284,14 @@
         {
           "art": "/assets/dawnlike/terrain/wall_bl.png",
           "from": {
-            "gen": "wall",
-            "edges": "bl"
+            "pack": "DawnLike",
+            "crop": "Objects/Wall.png",
+            "rect": [
+              0,
+              176,
+              16,
+              16
+            ]
           }
         }
       ]
@@ -874,8 +1306,14 @@
         {
           "art": "/assets/dawnlike/terrain/wall_b.png",
           "from": {
-            "gen": "wall",
-            "edges": "b"
+            "pack": "DawnLike",
+            "crop": "Objects/Wall.png",
+            "rect": [
+              16,
+              144,
+              16,
+              16
+            ]
           }
         }
       ]
@@ -890,8 +1328,14 @@
         {
           "art": "/assets/dawnlike/terrain/wall_br.png",
           "from": {
-            "gen": "wall",
-            "edges": "br"
+            "pack": "DawnLike",
+            "crop": "Objects/Wall.png",
+            "rect": [
+              32,
+              176,
+              16,
+              16
+            ]
           }
         }
       ]
@@ -913,6 +1357,19 @@
             "rect": [
               16,
               448,
+              16,
+              16
+            ]
+          }
+        },
+        {
+          "art": "/assets/dawnlike/terrain/wood_floor1.png",
+          "from": {
+            "pack": "DawnLike",
+            "crop": "Objects/Floor.png",
+            "rect": [
+              16,
+              496,
               16,
               16
             ]
@@ -2027,6 +2484,925 @@
         "footW": 3,
         "footH": 2
       }
+    },
+    {
+      "kind": "prop",
+      "tag": "jar",
+      "desc": "a striped storage jar",
+      "art": "/assets/dawnlike/props/jar.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false,
+      "biomes": [
+        "dungeon",
+        "town",
+        "village"
+      ],
+      "from": {
+        "pack": "DawnLike",
+        "crop": "Objects/Decor0.png",
+        "rect": [
+          16,
+          48,
+          16,
+          16
+        ]
+      },
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
+    },
+    {
+      "kind": "prop",
+      "tag": "urn",
+      "desc": "a pale ceramic urn",
+      "art": "/assets/dawnlike/props/urn.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false,
+      "biomes": [
+        "dungeon",
+        "crypt",
+        "town",
+        "village"
+      ],
+      "from": {
+        "pack": "DawnLike",
+        "crop": "Objects/Decor0.png",
+        "rect": [
+          48,
+          48,
+          16,
+          16
+        ]
+      },
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
+    },
+    {
+      "kind": "prop",
+      "tag": "sack",
+      "desc": "a bulging cloth sack of goods",
+      "art": "/assets/dawnlike/props/sack.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false,
+      "biomes": [
+        "dungeon",
+        "town",
+        "village",
+        "docks"
+      ],
+      "from": {
+        "pack": "DawnLike",
+        "crop": "Objects/Decor0.png",
+        "rect": [
+          0,
+          48,
+          16,
+          16
+        ]
+      },
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
+    },
+    {
+      "kind": "prop",
+      "tag": "shelf_wares",
+      "desc": "a shelf stocked with bottles and wares",
+      "art": "/assets/dawnlike/props/shelf_wares.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": true,
+      "biomes": [
+        "dungeon",
+        "town",
+        "village"
+      ],
+      "from": {
+        "pack": "DawnLike",
+        "crop": "Objects/Decor0.png",
+        "rect": [
+          16,
+          64,
+          16,
+          16
+        ]
+      },
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
+    },
+    {
+      "kind": "prop",
+      "tag": "shelf_food",
+      "desc": "a larder shelf of food and provisions",
+      "art": "/assets/dawnlike/props/shelf_food.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": true,
+      "biomes": [
+        "town",
+        "village"
+      ],
+      "from": {
+        "pack": "DawnLike",
+        "crop": "Objects/Decor0.png",
+        "rect": [
+          48,
+          64,
+          16,
+          16
+        ]
+      },
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
+    },
+    {
+      "kind": "prop",
+      "tag": "bookshelf_full",
+      "desc": "a bookshelf crammed with colourful tomes",
+      "art": "/assets/dawnlike/props/bookshelf_full.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": true,
+      "biomes": [
+        "dungeon",
+        "town",
+        "village",
+        "castle"
+      ],
+      "from": {
+        "pack": "DawnLike",
+        "crop": "Objects/Decor0.png",
+        "rect": [
+          80,
+          64,
+          16,
+          16
+        ]
+      },
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
+    },
+    {
+      "kind": "prop",
+      "tag": "desk",
+      "desc": "a writing desk strewn with papers",
+      "art": "/assets/dawnlike/props/desk.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": true,
+      "biomes": [
+        "dungeon",
+        "town",
+        "village",
+        "castle"
+      ],
+      "from": {
+        "pack": "DawnLike",
+        "crop": "Objects/Decor0.png",
+        "rect": [
+          16,
+          80,
+          16,
+          16
+        ]
+      },
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
+    },
+    {
+      "kind": "prop",
+      "tag": "table_round",
+      "desc": "a small round wooden table",
+      "art": "/assets/dawnlike/props/table_round.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": true,
+      "biomes": [
+        "dungeon",
+        "town",
+        "village"
+      ],
+      "from": {
+        "pack": "DawnLike",
+        "crop": "Objects/Decor0.png",
+        "rect": [
+          16,
+          112,
+          16,
+          16
+        ]
+      },
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
+    },
+    {
+      "kind": "prop",
+      "tag": "stone_bench",
+      "desc": "a grey stone bench / slab",
+      "art": "/assets/dawnlike/props/stone_bench.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": true,
+      "biomes": [
+        "dungeon",
+        "crypt",
+        "castle"
+      ],
+      "from": {
+        "pack": "DawnLike",
+        "crop": "Objects/Decor0.png",
+        "rect": [
+          64,
+          112,
+          16,
+          16
+        ]
+      },
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
+    },
+    {
+      "kind": "prop",
+      "tag": "throne",
+      "desc": "an ornate gilded throne",
+      "art": "/assets/dawnlike/props/throne.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": true,
+      "biomes": [
+        "castle",
+        "dungeon"
+      ],
+      "from": {
+        "pack": "DawnLike",
+        "crop": "Objects/Decor0.png",
+        "rect": [
+          96,
+          112,
+          16,
+          16
+        ]
+      },
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
+    },
+    {
+      "kind": "prop",
+      "tag": "bed_blue",
+      "desc": "a bed with blue-and-white sheets",
+      "art": "/assets/dawnlike/props/bed_blue.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": true,
+      "biomes": [
+        "dungeon",
+        "town",
+        "village",
+        "castle"
+      ],
+      "from": {
+        "pack": "DawnLike",
+        "crop": "Objects/Decor0.png",
+        "rect": [
+          16,
+          144,
+          16,
+          16
+        ]
+      },
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
+    },
+    {
+      "kind": "prop",
+      "tag": "books",
+      "desc": "an open book on a stand / loose tomes",
+      "art": "/assets/dawnlike/props/books.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false,
+      "biomes": [
+        "dungeon",
+        "town",
+        "village",
+        "castle"
+      ],
+      "from": {
+        "pack": "DawnLike",
+        "crop": "Objects/Decor0.png",
+        "rect": [
+          80,
+          144,
+          16,
+          16
+        ]
+      },
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
+    },
+    {
+      "kind": "prop",
+      "tag": "rug",
+      "desc": "a small woven floor mat / rug",
+      "art": "/assets/dawnlike/props/rug.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false,
+      "biomes": [
+        "dungeon",
+        "town",
+        "village",
+        "castle"
+      ],
+      "from": {
+        "pack": "DawnLike",
+        "crop": "Objects/Decor0.png",
+        "rect": [
+          96,
+          144,
+          16,
+          16
+        ]
+      },
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
+    },
+    {
+      "kind": "prop",
+      "tag": "candle",
+      "desc": "a single lit candle — a small light source",
+      "art": "/assets/dawnlike/props/candle.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 2,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false,
+      "light": true,
+      "biomes": [
+        "dungeon",
+        "crypt",
+        "town",
+        "village",
+        "castle"
+      ],
+      "from": {
+        "pack": "DawnLike",
+        "crop": "Objects/Decor0.png",
+        "rect": [
+          0,
+          128,
+          16,
+          16
+        ],
+        "frame2": "Objects/Decor1.png"
+      },
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite",
+      "fps": 3
+    },
+    {
+      "kind": "prop",
+      "tag": "candelabra_large",
+      "desc": "a many-armed candelabra ablaze with candles — a light source",
+      "art": "/assets/dawnlike/props/candelabra_large.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 2,
+      "footW": 1,
+      "footH": 1,
+      "blocks": true,
+      "light": true,
+      "biomes": [
+        "dungeon",
+        "crypt",
+        "castle"
+      ],
+      "from": {
+        "pack": "DawnLike",
+        "crop": "Objects/Decor0.png",
+        "rect": [
+          64,
+          128,
+          16,
+          16
+        ],
+        "frame2": "Objects/Decor1.png"
+      },
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite",
+      "fps": 3
+    },
+    {
+      "kind": "prop",
+      "tag": "torch_wall",
+      "desc": "a wall torch with a cold blue flame — a light source",
+      "art": "/assets/dawnlike/props/torch_wall.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 2,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false,
+      "light": true,
+      "biomes": [
+        "dungeon",
+        "crypt",
+        "castle"
+      ],
+      "from": {
+        "pack": "DawnLike",
+        "crop": "Objects/Decor0.png",
+        "rect": [
+          80,
+          128,
+          16,
+          16
+        ],
+        "frame2": "Objects/Decor1.png"
+      },
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite",
+      "fps": 3
+    },
+    {
+      "kind": "prop",
+      "tag": "door_wood",
+      "desc": "a closed wooden door",
+      "art": "/assets/dawnlike/props/door_wood.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": true,
+      "biomes": [
+        "dungeon",
+        "crypt",
+        "castle",
+        "town",
+        "village"
+      ],
+      "from": {
+        "pack": "DawnLike",
+        "crop": "Objects/Decor0.png",
+        "rect": [
+          64,
+          160,
+          16,
+          16
+        ]
+      },
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
+    },
+    {
+      "kind": "prop",
+      "tag": "statue",
+      "desc": "a carved stone statue / idol",
+      "art": "/assets/dawnlike/props/statue.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": true,
+      "biomes": [
+        "dungeon",
+        "crypt",
+        "castle"
+      ],
+      "from": {
+        "pack": "DawnLike",
+        "crop": "Objects/Decor0.png",
+        "rect": [
+          16,
+          176,
+          16,
+          16
+        ]
+      },
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
+    },
+    {
+      "kind": "prop",
+      "tag": "weapon_rack",
+      "desc": "a rack holding a sword",
+      "art": "/assets/dawnlike/props/weapon_rack.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": true,
+      "biomes": [
+        "dungeon",
+        "castle",
+        "town"
+      ],
+      "from": {
+        "pack": "DawnLike",
+        "crop": "Objects/Decor0.png",
+        "rect": [
+          48,
+          176,
+          16,
+          16
+        ]
+      },
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
+    },
+    {
+      "kind": "prop",
+      "tag": "woodpile",
+      "desc": "a stack of cut firewood / logs",
+      "art": "/assets/dawnlike/props/woodpile.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": true,
+      "biomes": [
+        "village",
+        "town",
+        "forest",
+        "dungeon"
+      ],
+      "from": {
+        "pack": "DawnLike",
+        "crop": "Objects/Decor0.png",
+        "rect": [
+          96,
+          176,
+          16,
+          16
+        ]
+      },
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
+    },
+    {
+      "kind": "prop",
+      "tag": "skull",
+      "desc": "a bleached skull on the ground",
+      "art": "/assets/dawnlike/props/skull.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false,
+      "biomes": [
+        "dungeon",
+        "crypt",
+        "cave",
+        "fen"
+      ],
+      "from": {
+        "pack": "DawnLike",
+        "crop": "Objects/Decor0.png",
+        "rect": [
+          0,
+          208,
+          16,
+          16
+        ]
+      },
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
+    },
+    {
+      "kind": "prop",
+      "tag": "bones",
+      "desc": "scattered bones / a skeleton's remains",
+      "art": "/assets/dawnlike/props/bones.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false,
+      "biomes": [
+        "dungeon",
+        "crypt",
+        "cave",
+        "fen"
+      ],
+      "from": {
+        "pack": "DawnLike",
+        "crop": "Objects/Decor0.png",
+        "rect": [
+          16,
+          208,
+          16,
+          16
+        ]
+      },
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
+    },
+    {
+      "kind": "prop",
+      "tag": "rug_ornate",
+      "desc": "a large ornate red carpet (centre)",
+      "art": "/assets/dawnlike/props/rug_ornate.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false,
+      "biomes": [
+        "castle",
+        "dungeon",
+        "town"
+      ],
+      "from": {
+        "pack": "DawnLike",
+        "crop": "Objects/Decor0.png",
+        "rect": [
+          16,
+          240,
+          16,
+          16
+        ]
+      },
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
+    },
+    {
+      "kind": "prop",
+      "tag": "tombstone",
+      "desc": "a weathered lined tombstone",
+      "art": "/assets/dawnlike/props/tombstone.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": true,
+      "biomes": [
+        "crypt",
+        "fen",
+        "village"
+      ],
+      "from": {
+        "pack": "DawnLike",
+        "crop": "Objects/Decor0.png",
+        "rect": [
+          16,
+          272,
+          16,
+          16
+        ]
+      },
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
+    },
+    {
+      "kind": "prop",
+      "tag": "tombstone_skull",
+      "desc": "a tombstone carved with a skull",
+      "art": "/assets/dawnlike/props/tombstone_skull.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": true,
+      "biomes": [
+        "crypt",
+        "fen"
+      ],
+      "from": {
+        "pack": "DawnLike",
+        "crop": "Objects/Decor0.png",
+        "rect": [
+          32,
+          272,
+          16,
+          16
+        ]
+      },
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
+    },
+    {
+      "kind": "prop",
+      "tag": "rubble",
+      "desc": "a pile of broken rubble / debris",
+      "art": "/assets/dawnlike/props/rubble.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false,
+      "biomes": [
+        "dungeon",
+        "crypt",
+        "cave",
+        "castle"
+      ],
+      "from": {
+        "pack": "DawnLike",
+        "crop": "Objects/Decor0.png",
+        "rect": [
+          64,
+          272,
+          16,
+          16
+        ]
+      },
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
+    },
+    {
+      "kind": "prop",
+      "tag": "cobweb",
+      "desc": "a dusty cobweb in the corner",
+      "art": "/assets/dawnlike/props/cobweb.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false,
+      "biomes": [
+        "dungeon",
+        "crypt",
+        "cave"
+      ],
+      "from": {
+        "pack": "DawnLike",
+        "crop": "Objects/Decor0.png",
+        "rect": [
+          0,
+          304,
+          16,
+          16
+        ]
+      },
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
+    },
+    {
+      "kind": "prop",
+      "tag": "statue_knight",
+      "desc": "a stone statue of an armoured knight",
+      "art": "/assets/dawnlike/props/statue_knight.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": true,
+      "biomes": [
+        "castle",
+        "dungeon",
+        "crypt"
+      ],
+      "from": {
+        "pack": "DawnLike",
+        "crop": "Objects/Decor0.png",
+        "rect": [
+          48,
+          320,
+          16,
+          16
+        ]
+      },
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
+    },
+    {
+      "kind": "prop",
+      "tag": "cage",
+      "desc": "an iron prison cage / portcullis bars",
+      "art": "/assets/dawnlike/props/cage.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": true,
+      "biomes": [
+        "dungeon",
+        "castle"
+      ],
+      "from": {
+        "pack": "DawnLike",
+        "crop": "Objects/Decor0.png",
+        "rect": [
+          16,
+          336,
+          16,
+          16
+        ]
+      },
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
+    },
+    {
+      "kind": "prop",
+      "tag": "banner",
+      "desc": "a heraldic banner / flag hung on the wall",
+      "art": "/assets/dawnlike/props/banner.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false,
+      "biomes": [
+        "castle",
+        "dungeon",
+        "town"
+      ],
+      "from": {
+        "pack": "DawnLike",
+        "crop": "Objects/Decor0.png",
+        "rect": [
+          32,
+          0,
+          16,
+          16
+        ]
+      },
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
+    },
+    {
+      "kind": "prop",
+      "tag": "stairs_down",
+      "desc": "a stone staircase descending to another level",
+      "art": "/assets/dawnlike/props/stairs_down.png",
+      "frameW": 16,
+      "frameH": 16,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false,
+      "biomes": [
+        "dungeon",
+        "crypt",
+        "castle"
+      ],
+      "from": {
+        "pack": "DawnLike",
+        "crop": "Objects/Tile.png",
+        "rect": [
+          0,
+          16,
+          16,
+          16
+        ]
+      },
+      "fps": 0,
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
     },
     {
       "kind": "prop",

@@ -10,8 +10,8 @@
  */
 
 import type { LlmProvider } from '@mythweaver/llm';
-import { buildSceneMap, type SceneComposer } from '@mythweaver/scene';
-import type { EstablishScene, GameState, PartyMemberRef, SceneComposition, SceneMap } from '@mythweaver/shared';
+import { buildCityScene, buildSceneMap, buildSpikeScene, GOLD_PROGRAMS, LlmCityPlanner, LlmSceneProgrammer, runProgram, type CityDistrictSpec, type CityRequest, type SceneComposer, type SceneProgram } from '@mythweaver/scene';
+import type { EstablishScene, GameState, Lighting, PartyMemberRef, SceneComposition, SceneMap } from '@mythweaver/shared';
 import { buildToolDefs, parseEstablish, seedFor } from './orchestrator.js';
 
 const SET_SCENE_TOOL = buildToolDefs(false, true).find((t) => t.name === 'setScene')!;
@@ -31,7 +31,10 @@ After the tool call, write ONE sentence of scene-setting narration.`;
 export interface LabResult {
   brief: string;
   establish: EstablishScene;
-  composition: SceneComposition;
+  /** Omitted for a city build (there is no single composition — one per district). */
+  composition?: SceneComposition;
+  /** Present for a G1b primitive-program build — the composed op list, for inspection. */
+  program?: SceneProgram;
   sceneMap: SceneMap;
   narration: string;
   model: string;
@@ -74,4 +77,91 @@ export async function labComposeScene(
   const composition = await deps.composer.compose({ establish, party, seed: seedFor(establish.locationId), ...(directive ? { directive } : {}) });
   const sceneMap = buildSceneMap(composition);
   return { brief: directive ?? '', establish, composition, sceneMap, narration: '', model: 'director-only' };
+}
+
+// ---------------------------------------------------------------------------
+// City build (city-scope V2) — stitch N town districts into ONE big SceneMap, NO LLM. Each district
+// reuses the deterministic FakeSceneComposer + Cartographer; the stitcher offsets + connects them.
+// ---------------------------------------------------------------------------
+
+/** Themed districts cycled to populate a city — varied flavours so the stitched result reads as
+ *  distinct quarters, not one town copied N times. All settlement settings (no water keywords). */
+const CITY_DISTRICT_ROSTER: CityDistrictSpec[] = [
+  { setting: 'a market square with a tavern, a general store and stalls', builds: ['tavern', 'shop', 'shop'], npcs: [{ name: 'Marta', look: 'a bustling merchant' }, { name: 'a town guard', look: 'a guard' }] },
+  { setting: 'a temple precinct with a shrine and clergy houses', builds: ['temple', 'house'], npcs: [{ name: 'Brother Cael', look: 'a robed priest' }] },
+  { setting: 'a residential quarter of cottages and homes', builds: ['cottage', 'house', 'house'], npcs: [{ name: 'a goodwife', look: 'a villager woman' }] },
+  { setting: 'a craftsmen quarter with a smithy and workshops', builds: ['smithy', 'shop'], npcs: [{ name: 'Borin', look: 'a burly dwarf smith' }] },
+  { setting: 'an inn district with a tavern and lodging houses', builds: ['tavern', 'house'], npcs: [{ name: 'a traveler', look: 'a hooded ranger' }] },
+  { setting: 'a guild row with a guildhall, a shop and a tavern', builds: ['shop', 'shop', 'tavern'], npcs: [{ name: 'a clerk', look: 'a villager' }] },
+];
+
+/**
+ * Build a multi-district city SceneMap for the Lab. With NO brief it's fully deterministic ($0, no
+ * key) from the roster. With a brief + an LlmProvider it runs the V3 MACRO tier: ONE city-planner LLM
+ * call designs the districts (per-district art/layout stays the $0 stitcher), so a whole themed city
+ * costs ~one cheap call. `count` is the district cap either way.
+ */
+export async function labBuildCity(
+  deps: { llm?: LlmProvider; model?: string },
+  opts: { count?: number; wall?: boolean; cols?: number; lighting?: Lighting; brief?: string } = {},
+): Promise<LabResult> {
+  const count = Math.max(1, Math.min(opts.count ?? 6, 16));
+  const brief = opts.brief?.trim();
+  let districts: CityDistrictSpec[];
+  let model = 'city-stitcher';
+  if (brief && deps.llm) {
+    districts = await new LlmCityPlanner(deps.llm, deps.model).plan(brief, { max: count });
+    model = 'city-planner+stitcher';
+  } else {
+    districts = Array.from({ length: count }, (_, i) => CITY_DISTRICT_ROSTER[i % CITY_DISTRICT_ROSTER.length]!);
+  }
+  const req: CityRequest = {
+    locationId: 'loc:lab-city',
+    districts,
+    lighting: opts.lighting ?? 'day',
+    ...(opts.wall !== undefined ? { wall: opts.wall } : {}),
+    ...(opts.cols ? { cols: opts.cols } : {}),
+  };
+  const sceneMap = await buildCityScene(req);
+  const establish: EstablishScene = {
+    locationId: req.locationId,
+    brief: { setting: brief || `a city of ${districts.length} districts`, biome: sceneMap.biome, timeOfDay: sceneMap.lighting },
+    fixtures: [],
+    npcs: [],
+  };
+  return { brief: brief ?? '', establish, sceneMap, narration: '', model };
+}
+
+/** Build one G1-spike GOLD scene by name (labyrinth/lake/city/crypt) — deterministic, no LLM. Proves
+ *  the primitive vocabulary EXPRESSES diverse scenes from one system. */
+export function labBuildSpike(name: string): LabResult {
+  const key = name in GOLD_PROGRAMS ? name : 'labyrinth';
+  const sceneMap = buildSpikeScene(key);
+  const establish: EstablishScene = {
+    locationId: sceneMap.locationId,
+    brief: { setting: `G1 gold scene: ${key}`, biome: sceneMap.biome, timeOfDay: sceneMap.lighting },
+    fixtures: [],
+    npcs: [],
+  };
+  return { brief: '', establish, sceneMap, narration: '', model: `spike:${key}` };
+}
+
+/** The names of the available G1 gold scenes (for the Lab UI). */
+export const SPIKE_SCENE_NAMES = Object.keys(GOLD_PROGRAMS);
+
+/**
+ * G1b — the CREATIVITY test: one LLM call composes a PRIMITIVE PROGRAM from a freeform brief (the LLM
+ * chooses/arranges primitives, never coordinates), then the deterministic interpreter renders it. No
+ * grammar templates involved. Returns the program too, so the lab can show what the model composed.
+ */
+export async function labBuildProgram(deps: { llm: LlmProvider; model?: string }, brief: string): Promise<LabResult> {
+  const program = await new LlmSceneProgrammer(deps.llm, deps.model).compose(brief);
+  const sceneMap = runProgram(program);
+  const establish: EstablishScene = {
+    locationId: sceneMap.locationId,
+    brief: { setting: brief, biome: sceneMap.biome, timeOfDay: sceneMap.lighting },
+    fixtures: [],
+    npcs: [],
+  };
+  return { brief, establish, program, sceneMap, narration: '', model: 'scene-programmer' };
 }

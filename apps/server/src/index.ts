@@ -22,7 +22,7 @@ import {
 import { buildRetriever } from './corpus.js';
 import { buildTracer } from './tracing.js';
 import { runTurn, type TurnInput } from './orchestrator.js';
-import { labBuildScene, labComposeScene } from './scene-lab.js';
+import { labBuildCity, labBuildProgram, labBuildScene, labBuildSpike, labComposeScene } from './scene-lab.js';
 import { runDmLab, createDmLabSession, dmLabSubmit, arcView, autoRollTotal, DM_LAB_TRANSCRIPTS, type LabTurn, type DmLabSession } from './dm-lab.js';
 import { renderDmLabPage } from './dm-lab-page.js';
 import { distillStyle, DISTILL_MAX_INPUT } from './distill.js';
@@ -143,6 +143,55 @@ app.post('/scene/lab/compose', async (req, reply) => {
     return await labComposeScene({ composer }, establish, [], directive);
   } catch (err) {
     app.log.error(err, 'scene lab compose failed');
+    reply.code(502);
+    return { error: (err as Error).message };
+  }
+});
+
+// Scene Lab — CITY build (city-scope V2): stitch N town districts into ONE big SceneMap, fully
+// deterministic (no DM, no API key, no DB). Powers the Lab "City" toggle for the scope/zoom work.
+app.post('/scene/city', async (req, reply) => {
+  const body = (req.body ?? {}) as { count?: unknown; wall?: unknown; cols?: unknown; lighting?: unknown; brief?: unknown };
+  const count = typeof body.count === 'number' && Number.isFinite(body.count) ? Math.round(body.count) : undefined;
+  const cols = typeof body.cols === 'number' && Number.isFinite(body.cols) ? Math.round(body.cols) : undefined;
+  const wall = typeof body.wall === 'boolean' ? body.wall : undefined;
+  const lighting = body.lighting === 'day' || body.lighting === 'dusk' || body.lighting === 'night' ? body.lighting : undefined;
+  // Optional brief → the V3 macro planner designs the districts (one LLM call). No brief → $0 roster.
+  const brief = typeof body.brief === 'string' && body.brief.trim() ? body.brief.trim().slice(0, 1000) : undefined;
+  try {
+    return await labBuildCity({ llm, model: dmModel }, { ...(count !== undefined ? { count } : {}), ...(cols !== undefined ? { cols } : {}), ...(wall !== undefined ? { wall } : {}), ...(lighting ? { lighting } : {}), ...(brief ? { brief } : {}) });
+  } catch (err) {
+    app.log.error(err, 'scene city build failed');
+    reply.code(502);
+    return { error: (err as Error).message };
+  }
+});
+
+// Scene Lab — G1 SPIKE: render a hand-written GOLD composition (labyrinth/lake/city/crypt) built from
+// the new primitive vocabulary. Deterministic, no DM/LLM — proves the vocabulary expresses diverse scenes.
+app.post('/scene/spike', async (req, reply) => {
+  const body = (req.body ?? {}) as { name?: unknown };
+  const name = typeof body.name === 'string' ? body.name : 'labyrinth';
+  try {
+    return labBuildSpike(name);
+  } catch (err) {
+    app.log.error(err, 'scene spike build failed');
+    reply.code(502);
+    return { error: (err as Error).message };
+  }
+});
+
+// Scene Lab — G1b: the LLM composes a PRIMITIVE PROGRAM from a freeform brief (the creativity test),
+// then the deterministic interpreter renders it. No grammar templates. One LLM call.
+app.post('/scene/program', async (req, reply) => {
+  const body = (req.body ?? {}) as { brief?: unknown };
+  const brief = typeof body.brief === 'string' ? body.brief.trim() : '';
+  if (!brief) return badRequest(reply, 'brief is required');
+  if (brief.length > 1000) return badRequest(reply, 'brief too long (max 1000 chars)');
+  try {
+    return await labBuildProgram({ llm, model: dmModel }, brief);
+  } catch (err) {
+    app.log.error(err, 'scene program failed');
     reply.code(502);
     return { error: (err as Error).message };
   }

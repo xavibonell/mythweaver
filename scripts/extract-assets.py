@@ -63,6 +63,20 @@ def gen_water_deep(dst: str, frm: dict) -> None:
     im.save(dst)
 
 
+def gen_lava(dst: str, frm: dict) -> None:
+    """A molten lava tile: dark-red crust with glowing orange cracks + yellow-hot flecks."""
+    im = Image.new("RGBA", (16, 16), (90, 24, 12, 255))  # dark crust
+    glow = (230, 120, 30, 255)  # orange crack
+    hot = (250, 210, 70, 255)  # yellow-hot
+    for y in range(16):
+        for x in range(16):
+            if (x * 3 + y * 5) % 16 in (0, 1) or (x + y * 2) % 13 == 0:
+                im.putpixel((x, y), glow)
+            elif (x * 5 + y * 3) % 17 == 0:
+                im.putpixel((x, y), hot)
+    im.save(dst)
+
+
 def gen_sand(dst: str, frm: dict) -> None:
     """A flat sandy/beach tile: warm tan with a few lighter + darker grains (Kenney-ish speckle)."""
     im = Image.new("RGBA", (16, 16), (214, 192, 138, 255))
@@ -280,7 +294,7 @@ def gen_stall(dst: str, frm: dict) -> None:
 
 
 GENERATORS = {
-    "water": gen_water, "water_deep": gen_water_deep, "sand": gen_sand, "boat": gen_boat,
+    "water": gen_water, "water_deep": gen_water_deep, "lava": gen_lava, "sand": gen_sand, "boat": gen_boat,
     "house": gen_house, "fountain": gen_fountain, "dlhouse": gen_dlhouse, "stall": gen_stall, "wall": gen_wall, "flowers": gen_flowers,
     "pebble": gen_pebble, "tuft": gen_tuft,
 }
