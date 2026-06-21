@@ -343,29 +343,38 @@ export function furnishRoom(
       objects.push({ id: `prop:${safe}#${(furnSeq++).toString().padStart(2, '0')}`, kind: 'prop', tag, col: c, row: r, footprint: { w: 1, h: 1 }, facing: 'down', visible: true, group: groupId });
       placedFurn++; return true;
     };
+    const pick = (pool: string[]) => pool[Math.floor(rand() * pool.length)]!;
     const wallFree = () => byWall(interior).filter((p) => free(p.c, p.r));
-    const alongWall = (tag: string, n: number) => { let k = 0; for (const p of wallFree()) { if (k >= n) break; if (put(p.c, p.r, tag)) k++; } };
-    const storage = () => { const cn = byCorner(interior).find((p) => free(p.c, p.r)); if (!cn) { alongWall('barrel', 1); return; } put(cn.c, cn.r, 'barrel'); for (const [dx, dy] of ORTH4) if (rand() < 0.6) put(cn.c + dx, cn.r + dy, rand() < 0.5 ? 'crate' : 'sack'); };
+    const alongWall = (pool: string[], n: number) => { let k = 0; for (const p of wallFree()) { if (k >= n) break; if (put(p.c, p.r, pick(pool))) k++; } }; // varied per cell
+    const CRATES = ['barrel', 'crate', 'sack', 'jar', 'urn', 'woodpile', 'pot'];
+    const storage = () => {
+      const cn = byCorner(interior).find((p) => free(p.c, p.r));
+      if (!cn) { alongWall(CRATES, 1); return; }
+      put(cn.c, cn.r, rand() < 0.25 ? 'chest' : pick(CRATES));
+      for (const [dx, dy] of ORTH4) if (rand() < 0.6) put(cn.c + dx, cn.r + dy, pick(CRATES));
+    };
     const dining = () => { // a table with a RANDOM 1-2 (rarely 3) chairs on its free sides — not a stiff ring of 4
       const t = takeCell(byCenter); if (!t) return;
       put(t.c, t.r, rand() < 0.4 ? 'table_round' : 'table');
       const sides = ORTH4.filter(([dx, dy]) => free(t.c + dx, t.r + dy));
       for (let s = sides.length - 1; s > 0; s--) { const j = Math.floor(rand() * (s + 1)); const tmp = sides[s]!; sides[s] = sides[j]!; sides[j] = tmp; }
       const n = Math.min(sides.length, 1 + Math.floor(rand() * 2) + (rand() < 0.18 ? 1 : 0));
-      for (let i = 0; i < n; i++) { const [dx, dy] = sides[i]!; put(t.c + dx, t.r + dy, 'chair'); }
+      for (let i = 0; i < n; i++) { const [dx, dy] = sides[i]!; put(t.c + dx, t.r + dy, rand() < 0.15 ? 'stone_bench' : 'chair'); }
     };
-    const bed = () => { const w = wallFree()[0]; if (w) put(w.c, w.r, rand() < 0.5 ? 'bed' : 'bed_blue'); };
-    const hearth = () => { const b = byBack(interior).find((p) => free(p.c, p.r)) ?? wallFree()[0]; if (b) put(b.c, b.r, 'brazier'); };
-    const counter = () => { let k = 0; for (const p of byBack(interior)) { if (k >= 4) break; if (free(p.c, p.r) && put(p.c, p.r, 'table')) k++; } if (k < 2) alongWall('table', 2); };
-    const study = () => { const d = wallFree()[0]; if (!d) return; put(d.c, d.r, 'desk'); for (const [dx, dy] of ORTH4) if (put(d.c + dx, d.r + dy, 'chair')) break; alongWall('bookshelf', 1); };
+    const bed = () => { const w = wallFree()[0]; if (!w) return; put(w.c, w.r, rand() < 0.5 ? 'bed' : 'bed_blue'); for (const [dx, dy] of ORTH4) if (rand() < 0.5 && put(w.c + dx, w.r + dy, pick(['pot', 'jar', 'chest', 'candle']))) break; }; // a nightstand beside the bed
+    const hearth = () => { const b = byBack(interior).find((p) => free(p.c, p.r)) ?? wallFree()[0]; if (b) put(b.c, b.r, rand() < 0.3 ? 'candelabra_large' : 'brazier'); };
+    const counter = () => { let k = 0; for (const p of byBack(interior)) { if (k >= 4) break; if (free(p.c, p.r) && put(p.c, p.r, 'table')) k++; } if (k < 2) alongWall(['table'], 2); for (const p of byBack(interior)) if (rand() < 0.3 && put(p.c, p.r, pick(['jar', 'pot', 'urn', 'candle']))) break; };
+    const study = () => { const d = wallFree()[0]; if (!d) return; put(d.c, d.r, 'desk'); for (const [dx, dy] of ORTH4) if (put(d.c + dx, d.r + dy, 'chair')) break; alongWall(['bookshelf', 'bookshelf_full', 'books'], 2); };
     const altar = () => { const a = byBack(interior).find((p) => free(p.c, p.r)); if (!a) return; put(a.c, a.r, 'altar'); put(a.c - 1, a.r, 'candelabra'); put(a.c + 1, a.r, 'candelabra'); };
     const benches = () => { let k = 0; for (let r = iy + 2; r < iy + ih && k < 6; r += 2) for (let c = ix + 1; c < ix + iw - 1 && k < 6; c += 2) if (put(c, r, 'stone_bench')) k++; };
     const forge = () => { hearth(); const t = byBack(interior).find((p) => free(p.c, p.r)); if (t) put(t.c, t.r, 'table'); };
     const GROUPS: Record<string, () => void> = {
       dining, bed, hearth, counter, study, altar, benches, forge, storage,
-      shelf: () => alongWall('shelf', 2), books: () => alongWall('bookshelf', 3), pantry: () => { alongWall('shelf_food', 2); storage(); }, wares: () => alongWall('shelf_wares', 2), weapons: () => alongWall('weapon_rack', 1),
+      shelf: () => alongWall(['shelf', 'shelf_food', 'bookshelf'], 2), books: () => alongWall(['bookshelf', 'bookshelf_full', 'books'], 3), pantry: () => { alongWall(['shelf_food', 'shelf'], 2); storage(); }, wares: () => alongWall(['shelf_wares', 'pot', 'jar'], 2), weapons: () => alongWall(['weapon_rack'], 1),
     };
     for (const g of tmpl.groups) { if (placedFurn >= budget) break; (GROUPS[g] ?? (() => {}))(); }
+    // CLUTTER — a couple of small props (tins/jars/chests/books) on free wall-adjacent cells for richness.
+    { let cl = 0; const CLUT = ['pot', 'jar', 'urn', 'candle', 'chest', 'books']; for (const p of wallFree()) { if (cl >= 2 || placedFurn >= budget) break; if (rand() < 0.5 && put(p.c, p.r, pick(CLUT))) cl++; } }
   } else {
     for (const item of tmpl.items) {
       for (let k = 0; k < (item.count ?? 1); k++) {

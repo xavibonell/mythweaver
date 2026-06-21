@@ -478,19 +478,24 @@ export function compound(cv: Canvas, region: Rect, type: BuildingType, opts: { d
   // fountain + varied flowers) — the loved "inner garden". The room must be BIG (area ≥42 AND min dim ≥6)
   // so it reads as an unmistakable OPEN garden, never a fountain crammed in a small room ("fountain
   // indoors"). A fountain is ONLY ever placed here, on grass.
-  let courtyardIdx = -1;
-  if (leaves.length >= 3 && rw * rh >= 120 && cv.rng() < 0.6) {
-    let bestA = 41;
-    for (let i = 1; i < leaves.length; i++) { const lf = leaves[i]!; const a = lf.w * lf.h; if (a > bestA && Math.min(lf.w, lf.h) >= 6) { bestA = a; courtyardIdx = i; } }
-  }
-  // L-SHAPE: otherwise a big compound sometimes cuts a NON-front CORNER room out to the exterior (a side
-  // yard) → an L/T silhouette instead of a plain rectangle (the "buildings are only squares" complaint).
-  // Reuses the room leaves; the cut corner opens to the street and gets planted by the town greenery pass.
-  let notchIdx = -1;
-  if (courtyardIdx < 0 && leaves.length >= 3 && rw * rh >= 110 && cv.rng() < 0.5) {
+  const bigEnough = leaves.length >= 3 && rw * rh >= 110;
+  // L-SHAPE: cut up to TWO non-front CORNER rooms out to the exterior → an irregular L/T/U silhouette
+  // (restores varied building shapes). Independent of the courtyard below, so a building can be L AND have
+  // a garden. The cut corners open to the street and get planted by the town greenery pass.
+  const notchSet = new Set<number>();
+  if (bigEnough) {
     const atCorner = (lf: Rect) => (lf.x === rx || lf.x + lf.w - 1 === rx + rw - 1) && (lf.y === ry || lf.y + lf.h - 1 === ry + rh - 1);
-    let best = rw * rh * 0.36; // a modest corner cut, not the whole building
-    for (let i = 1; i < leaves.length; i++) { const lf = leaves[i]!; const a = lf.w * lf.h; if (atCorner(lf) && a <= best) { best = a; notchIdx = i; } }
+    const corners: number[] = [];
+    for (let i = 1; i < leaves.length; i++) { const lf = leaves[i]!; if (atCorner(lf) && lf.w * lf.h <= rw * rh * 0.34) corners.push(i); }
+    for (let s = corners.length - 1; s > 0; s--) { const j = Math.floor(cv.rng() * (s + 1)); const t = corners[s]!; corners[s] = corners[j]!; corners[j] = t; }
+    for (const i of corners) { if (notchSet.size >= 2) break; if (cv.rng() < 0.5) notchSet.add(i); }
+  }
+  // COURTYARD: a big NON-NOTCH back room becomes an open inner garden (grass + fountain + flowers) — only
+  // when big enough (≥42, min dim ≥6) so it never reads as a fountain crammed in a small room.
+  let courtyardIdx = -1;
+  if (bigEnough && cv.rng() < 0.55) {
+    let bestA = 41;
+    for (let i = 1; i < leaves.length; i++) { if (notchSet.has(i)) continue; const lf = leaves[i]!; const a = lf.w * lf.h; if (a > bestA && Math.min(lf.w, lf.h) >= 6) { bestA = a; courtyardIdx = i; } }
   }
   // DOORS — a wooden door sprite at the exterior entrance + every interior doorway (decorative, walkable).
   cv.ambiance.push({ tag: 'door_house', col: ed.dC, row: ed.dR });
@@ -510,7 +515,7 @@ export function compound(cv: Canvas, region: Rect, type: BuildingType, opts: { d
       for (let y = lf.y + 1; y < lf.y + lf.h - 1; y++) for (let x = lf.x + 1; x < lf.x + lf.w - 1; x++) if (cv.isFree(x, y) && cv.rng() < 0.45) { const tag = GARDEN[Math.floor(cv.rng() * GARDEN.length)]!; cv.reserve(x, y); if (tag.startsWith('tree')) cv.walkable[y]![x] = false; cv.ambiance.push({ tag, col: x, row: y }); }
       return;
     }
-    if (i === notchIdx) {
+    if (notchSet.has(i)) {
       // open this corner room to the exterior: remove its outer-ring walls + clear to grass (the interior
       // partition walls stay, so the neighbouring rooms remain enclosed) → an L footprint + a side yard.
       for (let y = lf.y; y < lf.y + lf.h; y++) for (let x = lf.x; x < lf.x + lf.w; x++) {
