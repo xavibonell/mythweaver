@@ -1391,7 +1391,7 @@
             "crop": "Objects/Wall.png",
             "rect": [
               128,
-              96,
+              112,
               16,
               16
             ]
@@ -1412,7 +1412,7 @@
             "pack": "DawnLike",
             "crop": "Objects/Wall.png",
             "rect": [
-              96,
+              112,
               96,
               16,
               16
@@ -1434,7 +1434,7 @@
             "pack": "DawnLike",
             "crop": "Objects/Wall.png",
             "rect": [
-              112,
+              128,
               96,
               16,
               16
@@ -1456,7 +1456,7 @@
             "pack": "DawnLike",
             "crop": "Objects/Wall.png",
             "rect": [
-              128,
+              144,
               96,
               16,
               16
@@ -1478,7 +1478,7 @@
             "pack": "DawnLike",
             "crop": "Objects/Wall.png",
             "rect": [
-              96,
+              112,
               112,
               16,
               16
@@ -1500,7 +1500,7 @@
             "pack": "DawnLike",
             "crop": "Objects/Wall.png",
             "rect": [
-              96,
+              144,
               112,
               16,
               16
@@ -1522,7 +1522,7 @@
             "pack": "DawnLike",
             "crop": "Objects/Wall.png",
             "rect": [
-              96,
+              112,
               128,
               16,
               16
@@ -1544,8 +1544,8 @@
             "pack": "DawnLike",
             "crop": "Objects/Wall.png",
             "rect": [
-              112,
-              96,
+              128,
+              128,
               16,
               16
             ]
@@ -1566,7 +1566,7 @@
             "pack": "DawnLike",
             "crop": "Objects/Wall.png",
             "rect": [
-              128,
+              144,
               128,
               16,
               16

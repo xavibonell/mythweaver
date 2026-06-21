@@ -219,8 +219,9 @@ export default function SceneCanvas({ data, freeCamera = false, fitNonce = 0 }: 
             // /play keeps auto-fit on resize; the Lab free-camera leaves the tester's view alone.
             scene.scale.on('resize', () => { if (!freeCamera && scene.lastData) fitCamera(scene, scene.lastData); });
             if (freeCamera) {
-              // LAB-ONLY: drag to pan, wheel to zoom toward the cursor (clamped to [fit .. 8], pan
-              // clamped to world bounds via fitCamera's setBounds). Lets the tester inspect a big scene.
+              // LAB-ONLY: drag to pan, wheel to zoom toward the cursor (clamped to [fit .. LAB_MAX_ZOOM],
+              // pan clamped to world bounds via fitCamera's setBounds). Lets the tester inspect a big scene.
+              const LAB_MAX_ZOOM = 6; // cap — close enough to read one building, not pixel-peeping
               const cam = scene.cameras.main;
               scene.input.on('pointermove', (p: any) => {
                 if (!p.isDown) return;
@@ -230,7 +231,7 @@ export default function SceneCanvas({ data, freeCamera = false, fitNonce = 0 }: 
               scene.input.on('wheel', (p: any, _over: any, _dx: number, dy: number) => {
                 const before = cam.getWorldPoint(p.x, p.y);
                 const factor = dy > 0 ? 0.85 : 1.18;
-                cam.setZoom(Math.min(8, Math.max(scene.fitZoom ?? 0.2, cam.zoom * factor)));
+                cam.setZoom(Math.min(LAB_MAX_ZOOM, Math.max(scene.fitZoom ?? 0.2, cam.zoom * factor)));
                 const after = cam.getWorldPoint(p.x, p.y);
                 cam.scrollX += before.x - after.x;
                 cam.scrollY += before.y - after.y;

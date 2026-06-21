@@ -474,13 +474,14 @@ export function compound(cv: Canvas, region: Rect, type: BuildingType, opts: { d
   const safe = (opts.id && opts.id.includes(':') ? opts.id.slice(opts.id.indexOf(':') + 1) : opts.id ?? type).replace(/[^a-z0-9_-]/gi, '-').toLowerCase() || type;
   if (opts.locationId) cv.entrances.push({ toLocationId: opts.locationId, col: ed.dC, row: ed.dR, ...(opts.id ? { fixtureId: opts.id } : {}) });
   const onBorder = (lf: Rect, p: { c: number; r: number }) => p.c >= lf.x && p.c <= lf.x + lf.w - 1 && p.r >= lf.y && p.r <= lf.y + lf.h - 1 && (p.c === lf.x || p.c === lf.x + lf.w - 1 || p.r === lf.y || p.r === lf.y + lf.h - 1);
-  // COURTYARD: only a big TAVERN/TEMPLE turns its biggest back room into an open inner garden (grass +
-  // fountain + varied flowers). Houses/shops NEVER get a fountain-in-a-room (the "fountain in the
-  // livingroom" complaint).
+  // COURTYARD: a big compound (any type) turns its biggest back room into an open inner garden (grass +
+  // fountain + varied flowers) — the loved "inner garden". The room must be BIG (area ≥42 AND min dim ≥6)
+  // so it reads as an unmistakable OPEN garden, never a fountain crammed in a small room ("fountain
+  // indoors"). A fountain is ONLY ever placed here, on grass.
   let courtyardIdx = -1;
-  if (leaves.length >= 3 && rw * rh >= 130 && cv.rng() < 0.6 && (type === 'temple' || type === 'tavern')) {
-    let bestA = 29;
-    for (let i = 1; i < leaves.length; i++) { const a = leaves[i]!.w * leaves[i]!.h; if (a > bestA) { bestA = a; courtyardIdx = i; } }
+  if (leaves.length >= 3 && rw * rh >= 120 && cv.rng() < 0.6) {
+    let bestA = 41;
+    for (let i = 1; i < leaves.length; i++) { const lf = leaves[i]!; const a = lf.w * lf.h; if (a > bestA && Math.min(lf.w, lf.h) >= 6) { bestA = a; courtyardIdx = i; } }
   }
   // L-SHAPE: otherwise a big compound sometimes cuts a NON-front CORNER room out to the exterior (a side
   // yard) → an L/T silhouette instead of a plain rectangle (the "buildings are only squares" complaint).
