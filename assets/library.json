@@ -1401,18 +1401,6 @@
     },
     {
       "kind": "terrain",
-      "tag": "wall_cap",
-      "desc": "shadowed wall-top cap",
-      "walkable": true,
-      "variants": [
-        {
-          "art": "/assets/dawnlike/terrain/wall_cap.png",
-          "from": {}
-        }
-      ]
-    },
-    {
-      "kind": "terrain",
       "tag": "wall_wood_tl",
       "desc": "wood plank wall",
       "walkable": false,

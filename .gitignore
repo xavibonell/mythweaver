@@ -14,7 +14,12 @@ traces*.jsonl
 
 # Copyrighted source material + extracted corpus — personal use only, NEVER commit/ship.
 raw-data/
+raw-data*.zip
 content/corpus/
+*.zip
+
+# Visual-judge render captures (derived PNGs + score reports) — dev artifacts, never ship.
+apps/server/src/scene-eval/captures/
 
 # Raw third-party asset packs (curated subset extracted into apps/web/public/assets/).
 # CC0: kenney-tiny-* + tiny-creatures. Free-for-commercial: pixel-crawler (kept for cherry-picking).

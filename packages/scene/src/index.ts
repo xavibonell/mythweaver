@@ -4,6 +4,7 @@ export { LlmCityPlanner, normalizeDistricts, CITY_PLANNER_SYSTEM } from './city-
 export { runProgram, buildSpikeScene, GOLD_PROGRAMS, LlmSceneProgrammer, normalizeProgram, SCENE_PROGRAMMER_SYSTEM, type SceneProgram, type SceneOp } from './scene-program.js';
 export { GENERATORS, ARCHETYPE_KINDS, type ArchetypeKind, type ArchetypeGenerator, type Contents, type GenContext } from './archetypes.js';
 export { buildComponentSheet, COMPONENT_KINDS, type ComponentKind } from './component-lab.js';
+export { checkStructure, type StructureReport } from './structure-check.js';
 export { THEMES, THEME_NAMES, themeNameFor, type Theme } from './themes.js';
 export { type SceneComposer, FakeSceneComposer, LlmSceneComposer } from './composer.js';
 export { loadAssetLibrary, type AssetLibrary, type AssetEntry, type AssetKind } from './asset-library.js';

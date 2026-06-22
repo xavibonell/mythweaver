@@ -24,6 +24,8 @@
     "compose:demo": "node scripts/compose-demo.mjs",
     "scene:eval": "node scripts/scene-eval.mjs",
     "scene:eval:update": "node scripts/scene-eval.mjs --update",
+    "scene:judge:visual": "node scripts/visual-judge.mjs",
+    "scene:sweep": "node scripts/structure-sweep.mjs",
     "assets:extract": "python3 scripts/extract-assets.py",
     "up": "docker compose up --build"
   },

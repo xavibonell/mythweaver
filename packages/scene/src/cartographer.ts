@@ -180,35 +180,48 @@ export function bakeAutoTiles(tiles: string[][], cols: number, rows: number): vo
     }
 }
 
-/** WOOD-WALL autotile: re-tile every `wall_wood*` cell from its 4-neighbour wall mask (N=1,E=2,S=4,W=8)
- *  using the VERIFIED DawnLike block — so edges, corners, interior partitions AND L-shaped footprints all
- *  get the right faced tile by construction (not a rect-edge guess). Reads a snapshot; idempotent. */
+/** WOOD-WALL autotile (hybrid): WALL CONNECTIVITY decides the SHAPE — a cell is a corner only where the
+ *  wall actually turns (2 perpendicular wall neighbours), so a door/opening (which is FLOOR, not wall)
+ *  never makes the adjacent cell render as a corner ("bumps off a straight wall"). The interior-FLOOR
+ *  quadrant then orients the corner, so convex corners AND concave inner corners of an L both face the
+ *  room correctly. DawnLike's block is one horizontal tile (_t), one vertical (_l) and four corners
+ *  (_tl/_tr/_bl/_br); _b/_r are identical to _t/_l, so straights are emitted canonically. Idempotent. */
 export function bakeWoodWalls(tiles: string[][], cols: number, rows: number): void {
   const orig = tiles.map((row) => row.slice());
-  const wall = (c: number, r: number) => c >= 0 && r >= 0 && c < cols && r < rows && (orig[r]![c] ?? '').startsWith('wall_wood');
-  const floorish = (c: number, r: number) => { const t = orig[r]?.[c] ?? ''; return t === 'wood_floor' || t === 'stone' || t === 'flagstone' || t === 'stone_brick' || t.startsWith('carpet'); };
-  const CORNER: Record<number, string> = { 6: 'wall_wood_tl', 12: 'wall_wood_tr', 3: 'wall_wood_bl', 9: 'wall_wood_br' }; // E+S, S+W, N+E, N+W
-  const HORIZ = new Set([10, 2, 8, 11, 14]); // E/W runs
-  const VERT = new Set([5, 1, 4, 7, 13]);    // N/S runs — pick l vs r by which side is the room interior
+  // Any faced wall — wood ('wall_wood*') OR stone ('wall*'). The tile's base is kept per-cell so a stone
+  // building autotiles with the stone set and a wood one with the wood set (both have all 4 corners).
+  const wall = (c: number, r: number) => c >= 0 && r >= 0 && c < cols && r < rows && (orig[r]![c] ?? '').startsWith('wall');
+  const baseOf = (c: number, r: number) => ((orig[r]?.[c] ?? '').startsWith('wall_wood') ? 'wall_wood' : 'wall');
+  const f = (c: number, r: number) => { const t = orig[r]?.[c] ?? ''; return t === 'wood_floor' || t === 'stone' || t === 'flagstone' || t === 'stone_brick' || t.startsWith('carpet'); };
+  const CORNER: Record<number, string> = { 6: '_tl', 12: '_tr', 3: '_bl', 9: '_br' }; // E+S, S+W, N+E, N+W
   for (let r = 0; r < rows; r++)
     for (let c = 0; c < cols; c++) {
       if (!wall(c, r)) continue;
-      const mask = (wall(c, r - 1) ? 1 : 0) | (wall(c + 1, r) ? 2 : 0) | (wall(c, r + 1) ? 4 : 0) | (wall(c - 1, r) ? 8 : 0);
-      tiles[r]![c] = CORNER[mask] ?? (HORIZ.has(mask) ? 'wall_wood_t' : VERT.has(mask) ? (floorish(c + 1, r) ? 'wall_wood_l' : floorish(c - 1, r) ? 'wall_wood_r' : 'wall_wood_l') : 'wall_wood');
+      const wN = wall(c, r - 1), wE = wall(c + 1, r), wS = wall(c, r + 1), wW = wall(c - 1, r);
+      const oppH = wE && wW, oppV = wN && wS;
+      let suf: string;
+      if (oppH || oppV) {
+        suf = oppH ? '_t' : '_l'; // straight run, or a T-junction → the through-straight
+      } else if ((wN ? 1 : 0) + (wE ? 1 : 0) + (wS ? 1 : 0) + (wW ? 1 : 0) === 2) {
+        // exactly two PERPENDICULAR walls = a corner. Orient it by the quadrant the interior floor is in,
+        // so convex (floor on the diagonal) and concave/L-step (floor on two adjacent sides) both face the room.
+        const fN = f(c, r - 1), fE = f(c + 1, r), fS = f(c, r + 1), fW = f(c - 1, r);
+        const fNE = f(c + 1, r - 1), fSE = f(c + 1, r + 1), fSW = f(c - 1, r + 1), fNW = f(c - 1, r - 1);
+        if (fSE || (fS && fE)) suf = '_tl';
+        else if (fSW || (fS && fW)) suf = '_tr';
+        else if (fNE || (fN && fE)) suf = '_bl';
+        else if (fNW || (fN && fW)) suf = '_br';
+        else suf = CORNER[(wN ? 1 : 0) | (wE ? 2 : 0) | (wS ? 4 : 0) | (wW ? 8 : 0)] ?? '_t'; // fallback by wall directions
+      } else if (wE || wW) {
+        suf = '_t'; // horizontal END (one wall neighbour) → straight, never a corner
+      } else if (wN || wS) {
+        suf = '_l'; // vertical END → straight
+      } else {
+        // isolated wall cell (no wall neighbours) → orient by adjacent floor, never a chunky fill block
+        suf = f(c, r - 1) || f(c, r + 1) ? '_t' : '_l';
+      }
+      tiles[r]![c] = baseOf(c, r) + suf;
     }
-}
-
-/** WALL CAP: DawnLike walls read as 2-tiles-tall — a shadowed top above the wall face. We render one
- *  tile per cell, so a NORTH-facing wall's top edge/corners never visually "close". This bakes a
- *  `wall_cap` tile into the exterior cell ABOVE each north-facing wood wall, giving the tall look +
- *  closing the top corners. Kept walkable (purely visual) so it never affects pathing/reachability. */
-export function bakeWallCaps(tiles: string[][], cols: number, rows: number): void {
-  const orig = tiles.map((row) => row.slice());
-  const woodWall = (c: number, r: number) => c >= 0 && r >= 0 && c < cols && r < rows && (orig[r]![c] ?? '').startsWith('wall_wood');
-  const exterior = (c: number, r: number) => { const t = orig[r]?.[c] ?? ''; return t.startsWith('grass') || t === 'dirt' || t === 'cobblestone' || t === 'sand'; };
-  for (let r = 1; r < rows; r++)
-    for (let c = 0; c < cols; c++)
-      if (woodWall(c, r) && exterior(c, r - 1)) tiles[r - 1]![c] = 'wall_cap';
 }
 
 /** C2 ground decals: a light, NON-blocking scatter of pebbles + grass tufts on free open natural

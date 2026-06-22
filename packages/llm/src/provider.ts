@@ -38,7 +38,14 @@ export interface ToolResultBlock {
   content: string;
   isError?: boolean;
 }
-export type LlmContentBlock = TextBlock | ToolUseBlock | ToolResultBlock;
+/** A base64-encoded image in a user message (vision input — e.g. the scene-eval visual judge). */
+export interface ImageBlock {
+  type: 'image';
+  mediaType: 'image/png' | 'image/jpeg' | 'image/gif' | 'image/webp';
+  /** Base64 image bytes, WITHOUT the `data:` URL prefix. */
+  dataBase64: string;
+}
+export type LlmContentBlock = TextBlock | ToolUseBlock | ToolResultBlock | ImageBlock;
 
 export interface LlmMessage {
   role: 'user' | 'assistant';

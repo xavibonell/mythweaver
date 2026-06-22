@@ -22,6 +22,7 @@ import {
   building, bspRooms, Canvas, cave, clumpScatter, compound, entrance, fill, island, place, plaza, poissonScatter, scatter, vignette, wallRing,
   type Pt, type Rect,
 } from './primitives.js';
+import { SHAPE_MIN, type ShapeKind } from './footprint.js';
 import type { Theme } from './themes.js';
 
 /** The semantic cast the LLM (or a completeness net) supplies — names + which things exist, NO geometry. */
@@ -159,6 +160,12 @@ function townGen(cv: Canvas, ctx: GenContext): void {
   const lotD = (l: Rect) => Math.hypot(rectCenter(l).c - plazaCtr.c, rectCenter(l).r - plazaCtr.r);
   lots.sort((a, b) => lotD(a) - lotD(b));
   let bi = 0, ni = 0;
+  // Footprint variety: when a lot is big enough for a silhouette, ~40% of the time give it a clean L/T/U/
+  // cross (derived as a watertight ring — never a carved-out notch). Always falls back to rect.
+  const chooseShape = (w: number, h: number): ShapeKind => {
+    const fits = (['ell', 'tee', 'you', 'plus'] as ShapeKind[]).filter((s) => w >= SHAPE_MIN[s].w && h >= SHAPE_MIN[s].h);
+    return !fits.length || cv.rng() < 0.6 ? 'rect' : fits[Math.floor(cv.rng() * fits.length)]!;
+  };
   for (const lot of lots) {
     const sb = (dim: number) => (dim >= 8 ? Math.floor(cv.rng() * 2) : 0);
     const ox = sb(lot.w), oy = sb(lot.h);
@@ -167,7 +174,7 @@ function townGen(cv: Canvas, ctx: GenContext): void {
     let type: BuildingType, name: string | undefined;
     if (ni < named.length) { type = named[ni]!.type; name = named[ni]!.name; ni++; }
     else { const big = fp.w * fp.h >= 72; type = big ? (cv.rng() < 0.3 ? 'shop' : 'house') : 'house'; } // procedural fill = mostly homes (big lots → manors/shops)
-    compound(cv, fp, type, { door: doorToward(fp), locationId, ...(name ? { name } : {}), id: `bldg:b${bi++}` });
+    compound(cv, fp, type, { door: doorToward(fp), shape: chooseShape(fp.w, fp.h), locationId, ...(name ? { name } : {}), id: `bldg:b${bi++}` });
   }
 
   // STAGE 5 — DENSITY (two deliberate textures, region-masked, depth-ordered). Trees/bushes spread by

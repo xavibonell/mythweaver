@@ -23,6 +23,7 @@ import { buildRetriever } from './corpus.js';
 import { buildTracer } from './tracing.js';
 import { runTurn, type TurnInput } from './orchestrator.js';
 import { labBuildCity, labBuildComponent, labBuildProgram, labBuildScene, labBuildSpike, labComposeScene } from './scene-lab.js';
+import { saveSceneCapture } from './scene-eval/capture.js';
 import { runDmLab, createDmLabSession, dmLabSubmit, arcView, autoRollTotal, DM_LAB_TRANSCRIPTS, type LabTurn, type DmLabSession } from './dm-lab.js';
 import { renderDmLabPage } from './dm-lab-page.js';
 import { distillStyle, DISTILL_MAX_INPUT } from './distill.js';
@@ -209,6 +210,25 @@ app.post('/scene/component', async (req, reply) => {
   } catch (err) {
     app.log.error(err, 'scene component build failed');
     reply.code(502);
+    return { error: (err as Error).message };
+  }
+});
+
+// Scene Lab — VISUAL EVAL capture (strategy A): the renderer POSTs a PNG data URL of the CURRENT
+// render; we persist it under scene-eval/captures/ so the visual judge scores the real pixels the
+// player sees (not a text digest). Dev tool; big body limit because a PNG data URL is ~MBs.
+app.post('/scene/eval/capture', { bodyLimit: 32 * 1024 * 1024 }, async (req, reply) => {
+  const body = (req.body ?? {}) as { name?: unknown; dataUrl?: unknown };
+  const name = typeof body.name === 'string' ? body.name : '';
+  const dataUrl = typeof body.dataUrl === 'string' ? body.dataUrl : '';
+  const m = dataUrl.match(/^data:image\/png;base64,([A-Za-z0-9+/=]+)$/);
+  if (!m) return badRequest(reply, 'dataUrl must be a base64 PNG data URL');
+  try {
+    const path = await saveSceneCapture(name, m[1]!);
+    return { ok: true, path, bytes: Math.floor((m[1]!.length * 3) / 4) };
+  } catch (err) {
+    app.log.error(err, 'scene capture failed');
+    reply.code(400);
     return { error: (err as Error).message };
   }
 });

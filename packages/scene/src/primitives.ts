@@ -13,8 +13,9 @@
  */
 
 import { FEET_PER_TILE, type AmbianceItem, type BuildingType, type Entrance, type LayoutGrammar, type Lighting, type MapObject, type SceneMap } from '@mythweaver/shared';
-import { bakeAutoTiles, bakeWallCaps, bakeWoodWalls, BUILDING_TEMPLATES, furnishRoom, makeRng, reachabilityCarve, ROOM_PROGRAMS, ROOM_RECIPES, ROOM_TEMPLATES, scatterGroundDecals, wallTagFor, type RoomTemplate } from './cartographer.js';
+import { bakeAutoTiles, bakeWoodWalls, BUILDING_TEMPLATES, furnishRoom, makeRng, reachabilityCarve, ROOM_PROGRAMS, ROOM_RECIPES, ROOM_TEMPLATES, scatterGroundDecals, wallTagFor, type RoomTemplate } from './cartographer.js';
 import { isCharacter, propDef, terrainWalkable } from './catalog.js';
+import { inside, maskFor, ringCells, type ShapeKind } from './footprint.js';
 
 export interface Pt {
   c: number;
@@ -401,7 +402,7 @@ export function building(cv: Canvas, region: Rect, type: BuildingType, opts: { d
  * back to a single furnished room. This is what makes interiors read as real homes/shops (separate
  * rooms with the right furniture each) instead of one open box.
  */
-export function compound(cv: Canvas, region: Rect, type: BuildingType, opts: { door?: 'north' | 'south' | 'east' | 'west'; locationId?: string; name?: string; id?: string } = {}): void {
+export function compound(cv: Canvas, region: Rect, type: BuildingType, opts: { door?: 'north' | 'south' | 'east' | 'west'; locationId?: string; name?: string; id?: string; shape?: ShapeKind } = {}): void {
   const R = clampRect(cv, region);
   if (R.w < 7 || R.h < 7) { building(cv, R, type, opts); return; } // too small to partition → single room
   const base = BUILDING_TEMPLATES[type] ?? BUILDING_TEMPLATES.house;
@@ -409,24 +410,30 @@ export function compound(cv: Canvas, region: Rect, type: BuildingType, opts: { d
   const wallBase = mat === 'wood' ? 'wall_wood' : 'wall';
   const floor = base.floor;
   const { x: rx, y: ry, w: rw, h: rh } = R;
+  const N4: readonly [number, number][] = [[0, -1], [1, 0], [0, 1], [-1, 0]];
 
-  // 1. OUTER faced wall ring + floor interior.
-  for (let y = ry; y < ry + rh; y++)
-    for (let x = rx; x < rx + rw; x++) {
-      const top = y === ry, bot = y === ry + rh - 1, left = x === rx, right = x === rx + rw - 1;
-      if (top || bot || left || right) { cv.set(x, y, wallTagFor(top, bot, left, right, mat), false); cv.occ[y]![x] = true; }
-      else cv.set(x, y, floor, true);
-    }
+  // FOOTPRINT: the floor is an arbitrary cell MASK (rect by default; L/T/U/cross via opts.shape). Walls are
+  // DERIVED as the N8 ring around it, so EVERY shape gets a clean, watertight, correctly-cornered 1-tile
+  // boundary — no draw-then-mutate, hence no staircase. (footprint.ts; design: docs/SCENE-CONTRACTS / plan.)
+  const mask = maskFor(opts.shape ?? 'rect', R, cv.rng);
+  const ringSet = ringCells(mask);
+  const onRing = (c: number, r: number) => ringSet.has(`${c},${r}`);
+  const inMask = (c: number, r: number) => inside(mask, c, r);
 
-  // 2. SUBDIVIDE the interior into rooms — recursive bisection; each split records a connecting DOOR
-  //    (with its passage orientation) so the room graph is a connected spanning tree by construction.
+  // 1. FLOOR every interior cell; DERIVE the wall ring around it.
+  for (const p of mask.parts) for (let y = p.y; y < p.y + p.h; y++) for (let x = p.x; x < p.x + p.w; x++) { cv.set(x, y, floor, true); cv.occ[y]![x] = false; }
+  for (const k of ringSet) { const [c, r] = k.split(',').map(Number) as [number, number]; if (cv.inB(c, r)) { cv.set(c, r, wallBase, false); cv.occ[r]![c] = true; } }
+
+  // 2. SUBDIVIDE each part into rooms — recursive bisection (biggest-first); each split records a door.
   const minRoom = 5;
-  const target = Math.max(1, Math.min(ROOM_PROGRAMS[type]?.length ?? 3, Math.floor(((rw - 2) * (rh - 2)) / 20)));
+  let floorArea = 0; for (const p of mask.parts) floorArea += p.w * p.h;
+  const target = Math.max(mask.parts.length, Math.min(ROOM_PROGRAMS[type]?.length ?? 3, Math.floor(floorArea / 20)));
   const leaves: Rect[] = [];
   const doors: { c: number; r: number; horiz: boolean }[] = [];
-  const q: Rect[] = [R];
+  const partCells = new Set<string>(); // the bisection CUT LINES only — NOT part seams (so wings stay open)
+  const q: Rect[] = mask.parts.map((p) => ({ ...p }));
   let guard = 0;
-  while (q.length && leaves.length + q.length < target && guard++ < 40) {
+  while (q.length && leaves.length + q.length < target && guard++ < 60) {
     q.sort((a, b) => b.w * b.h - a.w * a.h);
     const cur = q.shift()!;
     const canH = cur.w >= 2 * minRoom - 1, canV = cur.h >= 2 * minRoom - 1;
@@ -434,36 +441,56 @@ export function compound(cv: Canvas, region: Rect, type: BuildingType, opts: { d
     const horiz = canH && (!canV || cur.w >= cur.h);
     if (horiz) {
       const cut = cur.x + minRoom - 1 + Math.floor(cv.rng() * (cur.w - 2 * minRoom + 2));
-      doors.push({ c: cut, r: Math.max(cur.y + 1, Math.min(cur.y + cur.h - 2, cur.y + Math.floor(cur.h / 2) + (Math.floor(cv.rng() * 3) - 1))), horiz: true }); // centred ±1, away from corners
+      for (let y = cur.y; y < cur.y + cur.h; y++) partCells.add(`${cut},${y}`); // vertical partition line
+      doors.push({ c: cut, r: Math.max(cur.y + 1, Math.min(cur.y + cur.h - 2, cur.y + Math.floor(cur.h / 2) + (Math.floor(cv.rng() * 3) - 1))), horiz: true });
       q.push({ x: cur.x, y: cur.y, w: cut - cur.x + 1, h: cur.h }, { x: cut, y: cur.y, w: cur.x + cur.w - cut, h: cur.h });
     } else {
       const cut = cur.y + minRoom - 1 + Math.floor(cv.rng() * (cur.h - 2 * minRoom + 2));
+      for (let x = cur.x; x < cur.x + cur.w; x++) partCells.add(`${x},${cut}`); // horizontal partition line
       doors.push({ c: Math.max(cur.x + 1, Math.min(cur.x + cur.w - 2, cur.x + Math.floor(cur.w / 2) + (Math.floor(cv.rng() * 3) - 1))), r: cut, horiz: false });
       q.push({ x: cur.x, y: cur.y, w: cur.w, h: cut - cur.y + 1 }, { x: cur.x, y: cut, w: cur.w, h: cur.y + cur.h - cut });
     }
   }
   leaves.push(...q);
 
-  // 3. PARTITION walls (interior leaf borders only — the outer ring is already faced), then carve the
-  //    doors + RESERVE each doorway (cell + its two passage neighbours) so furniture never blocks it.
-  const isOuter = (c: number, r: number) => c === rx || c === rx + rw - 1 || r === ry || r === ry + rh - 1;
-  for (const lf of leaves) {
-    for (let x = lf.x; x < lf.x + lf.w; x++) for (const yy of [lf.y, lf.y + lf.h - 1]) if (!isOuter(x, yy)) { cv.set(x, yy, wallBase, false); cv.occ[yy]![x] = true; }
-    for (let y = lf.y; y < lf.y + lf.h; y++) for (const xx of [lf.x, lf.x + lf.w - 1]) if (!isOuter(xx, y)) { cv.set(xx, y, wallBase, false); cv.occ[y]![xx] = true; }
-  }
+  // 3. PARTITION walls = the bisection cut lines, then carve those doors.
+  for (const k of partCells) { const [c, r] = k.split(',').map(Number) as [number, number]; if (inMask(c, r)) { cv.set(c, r, wallBase, false); cv.occ[r]![c] = true; } }
   for (const d of doors) {
     const pass = d.horiz ? [{ c: d.c, r: d.r }, { c: d.c - 1, r: d.r }, { c: d.c + 1, r: d.r }] : [{ c: d.c, r: d.r }, { c: d.c, r: d.r - 1 }, { c: d.c, r: d.r + 1 }];
-    for (const p of pass) if (cv.inB(p.c, p.r) && !isOuter(p.c, p.r)) { cv.set(p.c, p.r, floor, true); cv.occ[p.r]![p.c] = true; } // reserved-but-walkable: keeps the passage clear
+    for (const p of pass) if (inMask(p.c, p.r)) { cv.set(p.c, p.r, floor, true); cv.occ[p.r]![p.c] = true; }
   }
 
-  // 4. EXTERIOR door on the requested side (faced ring → floor gap + outside walkable + Entrance).
-  const midX = rx + Math.floor(rw / 2), midY = ry + Math.floor(rh / 2);
-  const doorFor = (side: string) => side === 'north' ? { dC: midX, dR: ry, oC: midX, oR: ry - 1 } : side === 'east' ? { dC: rx + rw - 1, dR: midY, oC: rx + rw, oR: midY } : side === 'west' ? { dC: rx, dR: midY, oC: rx - 1, oR: midY } : { dC: midX, dR: ry + rh - 1, oC: midX, oR: ry + rh };
-  let ed = doorFor(opts.door ?? 'south');
-  if (!cv.inB(ed.oC, ed.oR)) ed = [opts.door ?? 'south', 'south', 'north', 'east', 'west'].map(doorFor).find((d) => cv.inB(d.oC, d.oR)) ?? ed;
-  cv.set(ed.dC, ed.dR, floor, true); cv.occ[ed.dR]![ed.dC] = true; // reserve so furniture can't seal the entrance
-  const inC = 2 * ed.dC - ed.oC, inR = 2 * ed.dR - ed.oR; // the cell one step INSIDE the entrance — reserve it too so furniture never blocks the doorway
-  if (cv.inB(inC, inR)) { cv.set(inC, inR, floor, true); cv.occ[inR]![inC] = true; }
+  // 3b. PART-SEAM walls — make each part (an L/T/U/cross arm or bar) its OWN room. Wall the seam 1-tile
+  //     thick on the HIGHER-index part's side (so it's never doubled), then CONNECT carves a door through
+  //     it. Without this the parts merge into one open space (U/cross read as a single room).
+  const partIdOf = (c: number, r: number) => { for (let i = 0; i < mask.parts.length; i++) { const p = mask.parts[i]!; if (c >= p.x && c < p.x + p.w && r >= p.y && r < p.y + p.h) return i; } return -1; };
+  if (mask.parts.length > 1)
+    for (let r = mask.bbox.y; r < mask.bbox.y + mask.bbox.h; r++)
+      for (let c = mask.bbox.x; c < mask.bbox.x + mask.bbox.w; c++) {
+        const pid = partIdOf(c, r);
+        if (pid <= 0) continue; // part 0 keeps its full floor; higher parts wall their seam side
+        if (N4.some(([dc, dr]) => { const np = partIdOf(c + dc, r + dr); return np >= 0 && np < pid; })) { cv.set(c, r, wallBase, false); cv.occ[r]![c] = true; }
+      }
+
+  // 4. EXTERIOR door — a clean RING FACE (a ring cell with exactly ONE interior neighbour, never a corner),
+  //    preferring the requested side. Reused by the REPAIR pass below.
+  const ringDoorCands = () => {
+    const out: { side: string; dC: number; dR: number; oC: number; oR: number; iC: number; iR: number }[] = [];
+    for (const k of ringSet) {
+      const [c, r] = k.split(',').map(Number) as [number, number];
+      const ins = N4.filter(([dc, dr]) => inMask(c + dc, r + dr));
+      if (ins.length !== 1) continue; // a flat wall face — corners (≥2) never become doors
+      const [idc, idr] = ins[0]!;
+      const oC = c - idc, oR = r - idr; // the side OPPOSITE the interior must be genuine open exterior
+      if (!cv.inB(oC, oR) || inMask(oC, oR) || (cv.tileAt(oC, oR) ?? '').startsWith('wall')) continue;
+      out.push({ side: oR > r ? 'south' : oR < r ? 'north' : oC > c ? 'east' : 'west', dC: c, dR: r, oC, oR, iC: c + idc, iR: r + idr });
+    }
+    return out;
+  };
+  const pickDoor = (pref: string) => { const cs = ringDoorCands(); for (const s of [pref, 'south', 'north', 'east', 'west']) { const d = cs.find((e) => e.side === s); if (d) return d; } return cs[0]; };
+  const pick0 = pickDoor(opts.door ?? 'south');
+  let ed = pick0 ? { dC: pick0.dC, dR: pick0.dR, oC: pick0.oC, oR: pick0.oR } : { dC: rx + Math.floor(rw / 2), dR: ry + rh - 1, oC: rx + Math.floor(rw / 2), oR: ry + rh };
+  cv.set(ed.dC, ed.dR, floor, true); cv.occ[ed.dR]![ed.dC] = true;
   if (cv.inB(ed.oC, ed.oR)) { if ((cv.tileAt(ed.oC, ed.oR) ?? '').startsWith('wall')) cv.set(ed.oC, ed.oR, 'dirt', true); else cv.walkable[ed.oR]![ed.oC] = true; cv.occ[ed.oR]![ed.oC] = false; }
 
   // 5. FURNISH each room BY FUNCTION. The leaf holding the exterior door is the PRIMARY (front) room →
@@ -472,36 +499,36 @@ export function compound(cv: Canvas, region: Rect, type: BuildingType, opts: { d
   leaves.sort((a, b) => (inLeaf(b, ed.dC, ed.dR) ? 1 : 0) - (inLeaf(a, ed.dC, ed.dR) ? 1 : 0));
   const program = ROOM_PROGRAMS[type] ?? ROOM_PROGRAMS.house;
   const safe = (opts.id && opts.id.includes(':') ? opts.id.slice(opts.id.indexOf(':') + 1) : opts.id ?? type).replace(/[^a-z0-9_-]/gi, '-').toLowerCase() || type;
-  if (opts.locationId) cv.entrances.push({ toLocationId: opts.locationId, col: ed.dC, row: ed.dR, ...(opts.id ? { fixtureId: opts.id } : {}) });
+  // (entrance record is pushed AFTER the repair pass, so it reflects the final door position.)
   const onBorder = (lf: Rect, p: { c: number; r: number }) => p.c >= lf.x && p.c <= lf.x + lf.w - 1 && p.r >= lf.y && p.r <= lf.y + lf.h - 1 && (p.c === lf.x || p.c === lf.x + lf.w - 1 || p.r === lf.y || p.r === lf.y + lf.h - 1);
   // COURTYARD: a big compound (any type) turns its biggest back room into an open inner garden (grass +
   // fountain + varied flowers) — the loved "inner garden". The room must be BIG (area ≥42 AND min dim ≥6)
   // so it reads as an unmistakable OPEN garden, never a fountain crammed in a small room ("fountain
   // indoors"). A fountain is ONLY ever placed here, on grass.
   const bigEnough = leaves.length >= 3 && rw * rh >= 110;
-  // L-SHAPE: cut up to TWO non-front CORNER rooms out to the exterior → an irregular L/T/U silhouette
-  // (restores varied building shapes). Independent of the courtyard below, so a building can be L AND have
-  // a garden. The cut corners open to the street and get planted by the town greenery pass.
-  const notchSet = new Set<number>();
-  if (bigEnough) {
-    const atCorner = (lf: Rect) => (lf.x === rx || lf.x + lf.w - 1 === rx + rw - 1) && (lf.y === ry || lf.y + lf.h - 1 === ry + rh - 1);
-    const corners: number[] = [];
-    for (let i = 1; i < leaves.length; i++) { const lf = leaves[i]!; if (atCorner(lf) && lf.w * lf.h <= rw * rh * 0.34) corners.push(i); }
-    for (let s = corners.length - 1; s > 0; s--) { const j = Math.floor(cv.rng() * (s + 1)); const t = corners[s]!; corners[s] = corners[j]!; corners[j] = t; }
-    for (const i of corners) { if (notchSet.size >= 2) break; if (cv.rng() < 0.5) notchSet.add(i); }
-  }
-  // COURTYARD: a big NON-NOTCH back room becomes an open inner garden (grass + fountain + flowers) — only
-  // when big enough (≥42, min dim ≥6) so it never reads as a fountain crammed in a small room.
+  // (Irregular SILHOUETTES are now first-class footprint shapes — opts.shape: L/T/U/cross — derived as a
+  //  clean ring, NOT carved out of a rect. The old "notch a corner room to grass" hack is gone; it left the
+  //  staircase/jog defect.) COURTYARD stays: a big back room becomes an open inner garden, fenced not walled.
   let courtyardIdx = -1;
-  if (bigEnough && cv.rng() < 0.55) {
+  // A leaf fully surrounded by interior floor — a true INNER courtyard that can't open onto the street or
+  // strand a wall arm when cleared to garden.
+  const interiorLeaf = (lf: Rect) => {
+    for (let x = lf.x; x < lf.x + lf.w; x++) if (!inMask(x, lf.y - 1) || !inMask(x, lf.y + lf.h)) return false;
+    for (let y = lf.y; y < lf.y + lf.h; y++) if (!inMask(lf.x - 1, y) || !inMask(lf.x + lf.w, y)) return false;
+    return true;
+  };
+  // Courtyard only on a plain RECT footprint (on a shaped one it can sever a wing) and only on an INTERIOR leaf.
+  if (bigEnough && (opts.shape ?? 'rect') === 'rect' && cv.rng() < 0.55) {
     let bestA = 41;
-    for (let i = 1; i < leaves.length; i++) { if (notchSet.has(i)) continue; const lf = leaves[i]!; const a = lf.w * lf.h; if (a > bestA && Math.min(lf.w, lf.h) >= 6) { bestA = a; courtyardIdx = i; } }
+    for (let i = 1; i < leaves.length; i++) { const lf = leaves[i]!; const a = lf.w * lf.h; if (a > bestA && Math.min(lf.w, lf.h) >= 6 && interiorLeaf(lf)) { bestA = a; courtyardIdx = i; } }
   }
   const GARDEN = ['flowers', 'flowers_blue', 'flowers_yellow', 'flowers_red', 'bush', 'grass_tuft', 'mushroom', 'tree_oak', 'tree_autumn']; // varied garden planting
   leaves.forEach((lf, i) => {
     if (i === courtyardIdx) {
       // OPEN garden — clear the whole room (incl. its bounding walls) to grass and RING it with a low
       // FENCE (not a solid wall), leaving the doorway as the gate, so it reads as an open garden.
+      // The garden is ringed by a low FENCE (open — you can see in), never a solid wall. A fence is a
+      // non-walkable barrier, so it seals the building just like a wall (no leak) while reading as a garden.
       const isGate = (x: number, y: number) => doors.some((d) => d.c === x && d.r === y) || (x === ed.dC && y === ed.dR);
       for (let y = lf.y; y < lf.y + lf.h; y++) for (let x = lf.x; x < lf.x + lf.w; x++) { cv.set(x, y, 'grass', true); cv.occ[y]![x] = false; }
       for (let y = lf.y; y < lf.y + lf.h; y++) for (let x = lf.x; x < lf.x + lf.w; x++) {
@@ -512,42 +539,181 @@ export function compound(cv: Canvas, region: Rect, type: BuildingType, opts: { d
       for (let y = lf.y + 1; y < lf.y + lf.h - 1; y++) for (let x = lf.x + 1; x < lf.x + lf.w - 1; x++) if (cv.isFree(x, y) && cv.rng() < 0.45) { const tag = GARDEN[Math.floor(cv.rng() * GARDEN.length)]!; cv.reserve(x, y); if (tag.startsWith('tree')) cv.walkable[y]![x] = false; cv.ambiance.push({ tag, col: x, row: y }); }
       return;
     }
-    if (notchSet.has(i)) {
-      // open this corner room to the exterior: remove its outer-ring walls + clear to grass (the interior
-      // partition walls stay, so the neighbouring rooms remain enclosed) → an L footprint + a side yard.
-      for (let y = lf.y; y < lf.y + lf.h; y++) for (let x = lf.x; x < lf.x + lf.w; x++) {
-        const onOuter = x === rx || x === rx + rw - 1 || y === ry || y === ry + rh - 1;
-        const strictInner = x > lf.x && x < lf.x + lf.w - 1 && y > lf.y && y < lf.y + lf.h - 1;
-        if (onOuter || strictInner) { cv.set(x, y, 'grass', true); cv.occ[y]![x] = false; }
-      }
-      return;
-    }
     const fn = program[Math.min(i, program.length - 1)]!;
     const tmpl: RoomTemplate = { ...ROOM_TEMPLATES[fn], floor, wall: mat, occupant: i === 0 ? base.occupant : '', groups: ROOM_RECIPES[fn] };
     const d = doors.find((dd) => onBorder(lf, dd)) ?? (i === 0 ? { c: ed.dC, r: ed.dR } : { c: lf.x, r: lf.y });
     furnishRoom(cv.tiles, cv.walkable, cv.occ, cv.objects, lf, tmpl, d, cv.rng, cv.cols, `${safe}-r${i}`, `bldg:${safe}-r${i}`, 0, i === 0 ? opts.name : undefined);
   });
 
-  // DOORS — placed AFTER notch/garden clearing so the checks are accurate. The EXTERIOR entrance gets a
-  // door. Interior doorways get a wooden ARCH, but ONLY where BOTH sides are interior floor (a real
-  // room↔room connector) — never where a door now opens onto a cleared yard/exterior (the "door to a
-  // wall" bug). A door onto a yard/exterior stays an open gap (no sprite).
-  const interiorFloor = (c: number, r: number) => { const t = cv.tileAt(c, r) ?? ''; return t === floor || t === 'wood_floor' || t === 'stone' || t === 'flagstone' || t === 'stone_brick' || t.startsWith('carpet'); };
-  cv.ambiance.push({ tag: 'door_house', col: ed.dC, row: ed.dR });
+  // SEAL → CONNECT → REPAIR → FRAME: make the structural invariants hold BY CONSTRUCTION (structure-check.ts).
+  // Runs after all mutations (notch/courtyard/furnish), so the wall/floor state is final.
+  const INTERIOR_FLOORS = new Set([floor, 'wood_floor', 'stone', 'flagstone', 'stone_brick']);
+  const roomFloor = (c: number, r: number) => { if (!cv.inB(c, r)) return false; const t = cv.tileAt(c, r) ?? ''; return INTERIOR_FLOORS.has(t) || t.startsWith('carpet'); };
+  const grassWalk = (c: number, r: number) => cv.inB(c, r) && (cv.tileAt(c, r) ?? '') === 'grass' && cv.walkable[r]![c] === true;
+  const sanctioned = new Set<string>();
+  const archAt: { c: number; r: number }[] = [];
+
+  // Sanction real interior connectors: room↔room doorways and room↔garden gates (so SEAL leaves them open).
   for (const dd of doors) {
-    const connectsRooms = dd.horiz ? interiorFloor(dd.c - 1, dd.r) && interiorFloor(dd.c + 1, dd.r) : interiorFloor(dd.c, dd.r - 1) && interiorFloor(dd.c, dd.r + 1);
-    if (connectsRooms) cv.ambiance.push({ tag: 'arch', col: dd.c, row: dd.r });
+    const [ac, ar, bc, br] = dd.horiz ? [dd.c - 1, dd.r, dd.c + 1, dd.r] : [dd.c, dd.r - 1, dd.c, dd.r + 1];
+    const bothRooms = roomFloor(ac, ar) && roomFloor(bc, br);
+    const gardenGate = (roomFloor(ac, ar) && grassWalk(bc, br)) || (roomFloor(bc, br) && grassWalk(ac, ar));
+    if (bothRooms || gardenGate) { sanctioned.add(`${dd.c},${dd.r}`); if (bothRooms) archAt.push(dd); }
+  }
+  sanctioned.add(`${ed.dC},${ed.dR}`);
+
+  // Exterior reach — the street plus any yard OPEN to it (a notch, or a courtyard that merged with one).
+  // Flood walkable non-room ground inward from just outside the footprint.
+  const extReach = new Set<string>();
+  {
+    const isYard = (c: number, r: number) => cv.inB(c, r) && cv.walkable[r]![c] === true && !roomFloor(c, r);
+    const q: [number, number][] = [];
+    const seedE = (c: number, r: number) => { const k = `${c},${r}`; if (isYard(c, r) && !extReach.has(k)) { extReach.add(k); q.push([c, r]); } };
+    for (let c = rx - 1; c <= rx + rw; c++) { seedE(c, ry - 1); seedE(c, ry + rh); }
+    for (let r = ry - 1; r <= ry + rh; r++) { seedE(rx - 1, r); seedE(rx + rw, r); }
+    while (q.length) { const [c, r] = q.shift()!; for (const [dc, dr] of N4) seedE(c + dc, r + dr); }
   }
 
-  // WINDOWS — periodic windows set into the REMAINING outer walls (skip cleared notch/garden cells +
-  // the door + corners). Decorative ambiance drawn over the wall tile, non-blocking.
+  // PASS A — SEAL: wall any EXTERIOR-REACHABLE yard cell inside the footprint that borders a room (a hole,
+  //   a door-gap onto a notch, or a garden gate that merged with the street) — except the one real entrance.
+  //   A gate into a truly ENCLOSED garden is not exterior-reachable, so it is left open (the garden stays).
+  for (let r = ry; r < ry + rh; r++)
+    for (let c = rx; c < rx + rw; c++) {
+      // spare the entrance AND its approach cell (for a shaped footprint the approach can fall inside the
+      // lot bounds — without this, SEAL would wall the door's path out and trap the building).
+      if (roomFloor(c, r) || (c === ed.dC && r === ed.dR) || (c === ed.oC && r === ed.oR) || !extReach.has(`${c},${r}`)) continue;
+      if (N4.some(([dc, dr]) => roomFloor(c + dc, r + dr))) { cv.set(c, r, wallBase, false); cv.occ[r]![c] = true; }
+    }
+
+  // PASS C — CONNECT every room into ONE component. Seed from ANY room (not the door, which a mutation may
+  //   have blocked); carve a fresh arch through a partition wherever a room is left unreached.
+  // Match the checker: a room counts as connected only through interior floor, doors, and ENCLOSED grass
+  // (a courtyard) — never the exterior street (extReach), or a room "reachable" only by walking outside
+  // and around would look connected here but sealed to the player.
+  const reachPass = (c: number, r: number) => roomFloor(c, r) || sanctioned.has(`${c},${r}`) || (grassWalk(c, r) && !extReach.has(`${c},${r}`));
+  const reached = new Set<string>();
+  // Seed from the LARGEST room region — never a stray sliver, or the fill below would wall the real building.
+  let firstRoom: [number, number] | null = null;
+  {
+    const visited = new Set<string>();
+    let bestSize = 0;
+    for (let r = ry; r < ry + rh; r++)
+      for (let c = rx; c < rx + rw; c++) {
+        if (!roomFloor(c, r) || visited.has(`${c},${r}`)) continue;
+        const comp: [number, number][] = [[c, r]]; visited.add(`${c},${r}`);
+        let roomCells = 0;
+        for (let i = 0; i < comp.length; i++) { const [cc, cr] = comp[i]!; if (roomFloor(cc, cr)) roomCells++; for (const [dc, dr] of N4) { const nc = cc + dc, nr = cr + dr, k = `${nc},${nr}`; if (!visited.has(k) && reachPass(nc, nr)) { visited.add(k); comp.push([nc, nr]); } } }
+        if (roomCells > bestSize) { bestSize = roomCells; firstRoom = [c, r]; }
+      }
+  }
+  const runBfs = () => {
+    reached.clear();
+    const q: [number, number][] = [];
+    const seed = (c: number, r: number) => { const k = `${c},${r}`; if (cv.inB(c, r) && reachPass(c, r) && !reached.has(k)) { reached.add(k); q.push([c, r]); } };
+    if (firstRoom) seed(firstRoom[0], firstRoom[1]);
+    while (q.length) { const [c, r] = q.shift()!; for (const [dc, dr] of N4) seed(c + dc, r + dr); }
+  };
+  // Reconnect any unreached room by carving a doorway through a partition between it and a reached region;
+  //   if that leaves a degenerate room (a 1-wide protrusion) that shares no partition with anything reached,
+  //   carve a minimal tunnel of doorways through interior walls to the nearest reached cell. Never the outer
+  //   ring (can't breach the envelope). Repeat until every room is connected — no fill, so no orphan walls.
+  const onOuterRingC = onRing; // never tunnel through the derived outer ring (can't breach the envelope)
+  runBfs(); // seed the reached set before connecting
+  // (a) cheap pass: carve a single partition wall wherever a reached region abuts an unreached room.
+  for (let guard2 = 0; guard2 < 40; guard2++) {
+    let carved = false;
+    for (let r = ry + 1; r < ry + rh - 1 && !carved; r++)
+      for (let c = rx + 1; c < rx + rw - 1 && !carved; c++) {
+        if (!(cv.tileAt(c, r) ?? '').startsWith('wall')) continue;
+        const pairs: [number, number, number, number][] = [[c - 1, r, c + 1, r], [c + 1, r, c - 1, r], [c, r - 1, c, r + 1], [c, r + 1, c, r - 1]];
+        for (const [ac, ar, bc, br] of pairs)
+          if (reached.has(`${ac},${ar}`) && roomFloor(bc, br) && !reached.has(`${bc},${br}`)) { cv.set(c, r, floor, true); cv.occ[r]![c] = true; sanctioned.add(`${c},${r}`); archAt.push({ c, r }); carved = true; break; }
+        if (carved) break;
+      }
+    if (!carved) break;
+    runBfs();
+  }
+  // (b) fallback: a room with no partition to a reached region (severed by a yard) gets a minimal tunnel
+  //   of carved doorways along the shortest interior-wall path to the reached set.
+  const tunnelConnect = (): boolean => {
+    const seen = new Set(reached);
+    const prev = new Map<string, string>();
+    const q: [number, number][] = [...reached].map((k) => k.split(',').map(Number) as [number, number]);
+    for (let head = 0; head < q.length; head++) {
+      const [c, r] = q[head]!;
+      if (roomFloor(c, r) && !reached.has(`${c},${r}`)) {
+        for (let cur = `${c},${r}`; prev.has(cur); cur = prev.get(cur)!) { const [pc, pr] = cur.split(',').map(Number) as [number, number]; if ((cv.tileAt(pc, pr) ?? '').startsWith('wall')) { cv.set(pc, pr, floor, true); cv.occ[pr]![pc] = true; sanctioned.add(`${pc},${pr}`); archAt.push({ c: pc, r: pr }); } }
+        return true;
+      }
+      for (const [dc, dr] of N4) {
+        const nc = c + dc, nr = r + dr, k = `${nc},${nr}`;
+        if (!cv.inB(nc, nr) || seen.has(k)) continue;
+        const carvableWall = (cv.tileAt(nc, nr) ?? '').startsWith('wall') && !onOuterRingC(nc, nr);
+        if (roomFloor(nc, nr) || (grassWalk(nc, nr) && !extReach.has(k)) || carvableWall) { seen.add(k); prev.set(k, `${c},${r}`); q.push([nc, nr]); }
+      }
+    }
+    return false;
+  };
+  for (let guard3 = 0; guard3 < 40 && tunnelConnect(); guard3++) runBfs();
+
+  // REPAIR the entrance: if the exterior door no longer opens into a room (a courtyard fence / notch
+  //   overwrote its inside cell), wall it and relocate to an outer-ring cell that DOES have room floor
+  //   inside — prefer the requested side. Guarantees door → room (no unreachable building, no door-to-wall).
+  let inIC = 2 * ed.dC - ed.oC, inIR = 2 * ed.dR - ed.oR;
+  if (!roomFloor(inIC, inIR)) {
+    cv.set(ed.dC, ed.dR, wallBase, false); cv.occ[ed.dR]![ed.dC] = true; // remove the broken door
+    const ring = ringDoorCands();
+    let best: typeof ring[number] | undefined;
+    for (const side of [opts.door ?? 'south', 'south', 'north', 'east', 'west']) { best = ring.find((e) => e.side === side && cv.inB(e.oC, e.oR) && roomFloor(e.iC, e.iR)); if (best) break; }
+    if (!best) best = ring.find((e) => cv.inB(e.oC, e.oR) && roomFloor(e.iC, e.iR));
+    if (best) {
+      ed = { dC: best.dC, dR: best.dR, oC: best.oC, oR: best.oR };
+      inIC = best.iC; inIR = best.iR;
+      cv.set(ed.dC, ed.dR, floor, true); cv.occ[ed.dR]![ed.dC] = true;
+      if (cv.inB(ed.oC, ed.oR)) { if ((cv.tileAt(ed.oC, ed.oR) ?? '').startsWith('wall')) cv.set(ed.oC, ed.oR, 'dirt', true); else cv.walkable[ed.oR]![ed.oC] = true; cv.occ[ed.oR]![ed.oC] = false; }
+      sanctioned.add(`${ed.dC},${ed.dR}`);
+    }
+  }
+
+  // Entrance record — pushed here so it reflects the final, repaired door position.
+  if (opts.locationId) cv.entrances.push({ toLocationId: opts.locationId, col: ed.dC, row: ed.dR, ...(opts.id ? { fixtureId: opts.id } : {}) });
+
+  // PASS B — FRAME: a house door on the entrance, a wooden arch on every interior connector — but ONLY
+  //   where it truly joins two passable spaces on OPPOSITE sides (a real doorway). A candidate that ended
+  //   up at an interior corner (passable on adjacent sides only) gets no sprite — the cell just stays open.
+  cv.ambiance.push({ tag: 'door_house', col: ed.dC, row: ed.dR });
+  const framed = new Set<string>();
+  const psbl = (c: number, r: number) => roomFloor(c, r) || grassWalk(c, r);
+  for (const a of archAt) {
+    const k = `${a.c},${a.r}`;
+    if (framed.has(k) || !roomFloor(a.c, a.r)) continue;
+    if ((psbl(a.c, a.r - 1) && psbl(a.c, a.r + 1)) || (psbl(a.c - 1, a.r) && psbl(a.c + 1, a.r))) { framed.add(k); cv.ambiance.push({ tag: 'arch', col: a.c, row: a.r }); }
+  }
+
+  // PASS D — PRUNE: any wall cell with NO interior floor in its N8 neighbourhood is redundant — a stranded
+  //   arm (e.g. a partition orphaned when a back room became a garden) or the outer cell of a 2-tile-thick
+  //   wall. It encloses nothing, so drop it to exterior grass → the ring stays exactly 1 tile thick (the
+  //   keystone). Iterate so a 3-thick wall fully peels. Doesn't expose interior (it bordered none).
+  const N8: readonly [number, number][] = [...N4, [1, -1], [1, 1], [-1, 1], [-1, -1]];
+  for (let pass = 0; pass < 3; pass++) {
+    let pruned = false;
+    for (let r = ry - 1; r <= ry + rh; r++)
+      for (let c = rx - 1; c <= rx + rw; c++) {
+        if (!cv.inB(c, r) || !(cv.tileAt(c, r) ?? '').startsWith('wall')) continue;
+        if (!N8.some(([dc, dr]) => roomFloor(c + dc, r + dr))) { cv.set(c, r, 'grass', true); cv.occ[r]![c] = false; pruned = true; }
+      }
+    if (!pruned) break;
+  }
+
+  // WINDOWS — periodic, set into STRAIGHT mid-runs of the (wood) outer ring only (never a corner/end/door).
+  // Ring-based so it works for any footprint shape. Decorative ambiance over the wall tile, non-blocking.
   const stillWall = (c: number, r: number) => (cv.tileAt(c, r) ?? '').startsWith('wall_wood');
-  const straightH = (c: number, r: number) => stillWall(c, r) && stillWall(c - 1, r) && stillWall(c + 1, r); // mid-run of a horizontal wall (not a corner/end)
-  const straightV = (c: number, r: number) => stillWall(c, r) && stillWall(c, r - 1) && stillWall(c, r + 1);
-  for (let x = rx + 2; x < rx + rw - 2; x += 3) if (straightH(x, ry) && !(x === ed.dC && ry === ed.dR)) cv.ambiance.push({ tag: 'window', col: x, row: ry });
-  for (let y = ry + 3; y < ry + rh - 2; y += 4) {
-    if (straightV(rx, y) && !(rx === ed.dC && y === ed.dR)) cv.ambiance.push({ tag: 'window', col: rx, row: y });
-    if (straightV(rx + rw - 1, y) && !(rx + rw - 1 === ed.dC && y === ed.dR)) cv.ambiance.push({ tag: 'window', col: rx + rw - 1, row: y });
+  for (const k of ringSet) {
+    const [c, r] = k.split(',').map(Number) as [number, number];
+    if ((c + r) % 3 !== 0 || (c === ed.dC && r === ed.dR) || !stillWall(c, r)) continue;
+    const straightH = stillWall(c - 1, r) && stillWall(c + 1, r) && !stillWall(c, r - 1) && !stillWall(c, r + 1);
+    const straightV = stillWall(c, r - 1) && stillWall(c, r + 1) && !stillWall(c - 1, r) && !stillWall(c + 1, r);
+    if (straightH || straightV) cv.ambiance.push({ tag: 'window', col: c, row: r });
   }
 }
 
@@ -796,7 +962,6 @@ export function finalize(
   // corridors between them would mangle the gallery. Real scenes leave it on (the rare safety net).
   if (!meta.skipReachability) reachabilityCarve(cv.tiles, cv.walkable, cv.cols, cv.rows, cv.objects, cv.entrances); // safety net; primitives are connectivity-correct so this rarely fires
   bakeWoodWalls(cv.tiles, cv.cols, cv.rows); // neighbour-autotile wood walls → correct edges/corners on any shape (incl. L-footprints + partitions)
-  bakeWallCaps(cv.tiles, cv.cols, cv.rows); // shadowed cap above north-facing walls → tall look + closed top corners
   if (meta.outdoor) {
     scatterGroundDecals(cv.tiles, cv.walkable, cv.occ, cv.cols, cv.rows, cv.ambiance, cv.rng);
     bakeAutoTiles(cv.tiles, cv.cols, cv.rows);

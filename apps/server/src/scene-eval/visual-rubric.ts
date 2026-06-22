@@ -1,0 +1,184 @@
+/**
+ * VISUAL rubric + judge prompts (strategy A — score the rendered PIXELS, not a text digest).
+ *
+ * The text judge in rubric.ts reads a digest of the SceneMap and explicitly ignores art ("assume
+ * placeholder tiles") — so it is blind to whole classes of defect that exist ONLY in the render:
+ * unfinished wall corners, a door opening onto a wall, a hole in an exterior wall, a prop used for
+ * the wrong purpose, the same three assets repeated. This rubric scores exactly those, from an image.
+ *
+ * Design notes:
+ * - We describe WHAT GOOD LOOKS LIKE per dimension (which naturally enumerates the failure classes)
+ *   but never tell the judge which specific defects to expect — the whole point is that it finds them
+ *   on its own.
+ * - CALIBRATION: a NOT-A-DEFECT list pins the builder's INTENTIONAL features (enclosed courtyards /
+ *   indoor gardens / fenced plots, the roofless top-down view, placeholder art) so the judge stops
+ *   dinging things we want. Edit that list as taste is established — it is the judge's calibration knob.
+ * - LOCALIsATION: each defect carries a canonical `unit` (which building, counted left→right, top row
+ *   then bottom: "#3") + a coarse `region` (nw…se/whole). That makes a defect a MATCHABLE key, so the
+ *   panel's lenses can corroborate the same defect (consensus) instead of phrasing it three ways.
+ * - The judge runs as a PANEL of LENSES (see visual-judge.ts); each shares this rubric but scrutinises
+ *   one area hardest, so a single flaky pass can't sink (or inflate) the verdict.
+ */
+
+export const VISUAL_RUBRIC = [
+  {
+    key: 'wallIntegrity',
+    label: 'Wall & edge integrity',
+    desc:
+      'Each building is a CLOSED wall ring. Corners are finished with proper corner tiles (a top-left corner ' +
+      'differs from a top-right corner, which differ from a straight run). There are NO black / blank / ' +
+      'transparent cells where a wall or floor should be, and no stretch of wall built from the wrong or a ' +
+      'repeated tile. The wall reads as one continuous, deliberate boundary.',
+  },
+  {
+    key: 'openingSanity',
+    label: 'Opening sanity',
+    desc:
+      'Every door and archway connects two REAL walkable spaces. There is NO door that opens onto a wall or ' +
+      'onto empty exterior ground, and NO gap / hole in an exterior wall that lacks an actual door in it ' +
+      '(a wall is continuous except at genuine, framed doorways). Interior connector arches sit between two ' +
+      'interior rooms, never on an outside wall.',
+  },
+  {
+    key: 'furnitureCoherence',
+    label: 'Furniture coherence',
+    desc:
+      'Furniture is grouped sensibly by room function: a table HAS chairs around it; a bed sits AGAINST a ' +
+      'wall; storage (chests/barrels/shelves) clusters in a corner. Nothing is marooned alone in the middle ' +
+      'of a room, there are no duplicate beds scattered at random, and no prop is used for the wrong job ' +
+      '(e.g. an archway tile dropped in as if it were a table). NOTE: an enclosed COURTYARD or indoor GARDEN ' +
+      '(trees, flowers, a fountain/well inside or beside the walls) is an intentional space, not a furnished ' +
+      'room — judge it as a garden, never as "marooned props" or "no room function".',
+  },
+  {
+    key: 'assetRichness',
+    label: 'Asset richness & legibility',
+    desc:
+      'A believable VARIETY of props is used (not the same two or three tiles repeated everywhere). Density ' +
+      'reads well — rooms feel lived-in, neither barren nor an unreadable clutter. Outdoor greenery (trees, ' +
+      'flowers, bushes) looks intentional, not noise.',
+  },
+  {
+    key: 'overallFidelity',
+    label: 'Overall fidelity',
+    desc:
+      'Taken whole, each building reads as a hand-crafted, top-down RPG building in the DawnLike style — a ' +
+      'place a person designed — rather than a procedurally filled box of scattered tiles.',
+  },
+] as const;
+
+export type VisualRubricKey = (typeof VISUAL_RUBRIC)[number]['key'];
+export type VisualScores = Record<VisualRubricKey, number>;
+
+/**
+ * The builder's INTENTIONAL features — the judge must NOT report these as defects. This is the
+ * calibration knob: as taste is established, add/remove lines here rather than re-prompting ad hoc.
+ */
+export const NOT_DEFECTS = [
+  'An indoor GARDEN/COURTYARD that is ringed by a low FENCE (open — you can see into it: trees, flowers, a fountain or well on grass) is INTENTIONAL — do not call it clutter, marooned props, or "no room function". (A garden boxed in by SOLID WALLS instead of a fence is NOT intentional — that one you SHOULD flag.)',
+  'The ROOFLESS top-down view (you can see into every building by design — that is not a "missing roof").',
+  'Placeholder / programmer-art tile quality, minor colour banding, or the dark background OUTSIDE the buildings.',
+  'Any faint coordinate grid or labels overlaid for reference (if present) — that is annotation, not part of the scene.',
+];
+
+export type DefectSeverity = 'critical' | 'major' | 'minor';
+/** Coarse position of a defect within its unit/the image — a matchable bucket for consensus. */
+export const REGIONS = ['nw', 'n', 'ne', 'w', 'center', 'e', 'sw', 's', 'se', 'whole'] as const;
+export type Region = (typeof REGIONS)[number];
+
+export interface VisualDefect {
+  severity: DefectSeverity;
+  /** Which rubric dimension this defect belongs to. */
+  category: VisualRubricKey;
+  /** Canonical unit label — which building, counted left→right then top→bottom, e.g. "#3" (or "whole"). */
+  unit: string;
+  /** Coarse region within that unit. */
+  region: Region;
+  /** What is wrong, concretely and visually, including the precise spot. */
+  detail: string;
+}
+
+export interface VisualVerdict {
+  scores: VisualScores;
+  defects: VisualDefect[];
+  rationale: string;
+}
+
+/** A judging LENS: a label + the area it scrutinises hardest. All lenses share the full rubric. */
+export interface JudgeLens {
+  key: string;
+  focus: string;
+}
+
+export const JUDGE_LENSES: JudgeLens[] = [
+  { key: 'structure', focus: 'WALLS, CORNERS and OPENINGS — trace every wall ring; hunt unfinished/mismatched corners, doors that open onto a wall or nothing, and holes in walls with no door.' },
+  { key: 'habitability', focus: 'FURNITURE and ROOM FUNCTION — check each room is furnished coherently; hunt marooned items, duplicate/random beds, and props used for the wrong purpose. (Remember: courtyards/gardens are not rooms.)' },
+  { key: 'fidelity', focus: 'RICHNESS and OVERALL CRAFT — judge asset variety, density legibility, and whether the whole thing reads as hand-crafted vs. procedurally scattered.' },
+];
+
+const SEVERITIES: DefectSeverity[] = ['critical', 'major', 'minor'];
+
+export interface VisualJudgeContext {
+  /** What the image shows, e.g. "a contact sheet of 6 'building:house' instances". */
+  subject: string;
+  /** Tile pixel size in the render (DawnLike = 16), so the judge can reason about cells. */
+  tilePx?: number;
+}
+
+/** Build the judge prompt for one lens. The image is attached separately as an image block. */
+export function buildVisualJudgePrompt(ctx: VisualJudgeContext, lens: JudgeLens): string {
+  const dims = VISUAL_RUBRIC.map((d) => `- ${d.key}: ${d.label} — ${d.desc}`).join('\n');
+  const notDefects = NOT_DEFECTS.map((n) => `- ${n}`).join('\n');
+  const defectShape = `{"severity": "critical|major|minor", "category": "<one rubric key>", "unit": "<which building, counted left→right then top→bottom, e.g. #3; or 'whole'>", "region": "<nw|n|ne|w|center|e|sw|s|se|whole>", "detail": "<what is visually wrong, with the precise spot>"}`;
+  const shape = `{${VISUAL_RUBRIC.map((d) => `"${d.key}": <integer 0-5>`).join(', ')}, "defects": [${defectShape}, ...], "rationale": "<one sentence>"}`;
+  return `You are a strict, calibrated art-direction reviewer for a top-down, tile-based RPG (DawnLike sprite style, ${ctx.tilePx ?? 16}px tiles, grid origin top-left). You are shown ONE rendered image: ${ctx.subject}. Judge the COMPOSITION AND THE RENDER ITSELF — what is actually drawn on screen.
+
+Your sharpest focus this pass: ${lens.focus}
+(Still score every dimension and report defects you notice outside that focus too.)
+
+Score each dimension 0 (broken) to 5 (excellent). Be critical; reserve 5 for genuinely excellent. Then list EVERY visible defect, each pinned to its UNIT (which building — count left→right, top row first — e.g. "#3") and a coarse REGION within it (nw…se, or "whole"). Use the SAME counting so your locations are comparable. Do not invent defects you cannot actually see; do not soften real ones. Unfinished corners, doors opening onto a wall, and holes in walls without a door are exactly the kind of thing to catch.
+
+These are INTENTIONAL — do NOT report them as defects:
+${notDefects}
+
+DIMENSIONS:
+${dims}
+
+Respond with ONLY a JSON object (no prose, no code fence):
+${shape}`;
+}
+
+function clampScore(v: unknown): number {
+  if (typeof v !== 'number' || Number.isNaN(v)) throw new Error('missing/invalid score');
+  return Math.max(0, Math.min(5, Math.round(v)));
+}
+
+/** Parse one lens's JSON verdict. Tolerant of surrounding prose / code fences. */
+export function parseVisualVerdict(text: string): VisualVerdict {
+  const match = text.match(/\{[\s\S]*\}/);
+  if (!match) throw new Error('judge returned no JSON object');
+  const obj = JSON.parse(match[0]) as Record<string, unknown>;
+  const scores = {} as VisualScores;
+  for (const d of VISUAL_RUBRIC) scores[d.key] = clampScore(obj[d.key]);
+  const rawDefects = Array.isArray(obj.defects) ? obj.defects : [];
+  const validKeys = new Set<string>(VISUAL_RUBRIC.map((d) => d.key));
+  const validRegions = new Set<string>(REGIONS);
+  const defects: VisualDefect[] = rawDefects
+    .filter((d): d is Record<string, unknown> => !!d && typeof d === 'object')
+    .map((d) => {
+      // Tolerate older/looser keys: detail|description, unit|where.
+      const detail = typeof d.detail === 'string' ? d.detail : typeof d.description === 'string' ? d.description : '';
+      const unit = typeof d.unit === 'string' && d.unit.trim() ? d.unit.trim() : typeof d.where === 'string' ? d.where.trim() : 'whole';
+      const region = validRegions.has(d.region as string) ? (d.region as Region) : 'whole';
+      return {
+        severity: SEVERITIES.includes(d.severity as DefectSeverity) ? (d.severity as DefectSeverity) : 'minor',
+        category: validKeys.has(d.category as string) ? (d.category as VisualRubricKey) : 'overallFidelity',
+        unit,
+        region,
+        detail,
+      };
+    })
+    .filter((d) => d.detail.length > 0);
+  const rationale = typeof obj.rationale === 'string' ? obj.rationale : '';
+  return { scores, defects, rationale };
+}

@@ -53,6 +53,7 @@ function toContent(m: LlmMessage, idToName: Map<string, string>): { role: 'user'
   for (const b of m.content as LlmContentBlock[]) {
     if (b.type === 'text') parts.push({ text: b.text });
     else if (b.type === 'tool_use') parts.push({ functionCall: { name: b.name, args: b.input } });
+    else if (b.type === 'image') parts.push({ inlineData: { mimeType: b.mediaType, data: b.dataBase64 } });
     else parts.push({ functionResponse: { name: idToName.get(b.toolUseId) ?? 'tool', response: { result: b.content } } });
   }
   return { role, parts };

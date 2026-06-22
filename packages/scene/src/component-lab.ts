@@ -16,10 +16,12 @@
 
 import { type SceneMap } from '@mythweaver/shared';
 import { bspRooms, building, Canvas, cave, clearing, clumpScatter, compound, fill, finalize, maze, place, plaza, poissonScatter, vignette, type Rect } from './primitives.js';
+import { type ShapeKind } from './footprint.js';
 
 /** The components you can iterate on, grouped by family for the Lab dropdown. */
 export const COMPONENT_KINDS = [
   'building:tavern', 'building:temple', 'building:smithy', 'building:shop', 'building:house',
+  'shape:rect', 'shape:ell', 'shape:tee', 'shape:you', 'shape:plus',
   'vignette:market', 'vignette:forge', 'vignette:shrine', 'vignette:well', 'vignette:camp', 'vignette:graveyard',
   'plaza', 'streets', 'density:trees', 'density:flowers', 'density:furniture',
   'clearing', 'cave', 'rooms', 'maze',
@@ -43,6 +45,19 @@ function specFor(kind: string): CellSpec {
         let fp: Rect = { x: rect.x + mx, y: rect.y + my, w: rect.w - mx - (1 + Math.floor(cv.rng() * 3)), h: rect.h - my - (1 + Math.floor(cv.rng() * 2)) };
         if (fp.w < 5 || fp.h < 5) fp = { x: rect.x + 1, y: rect.y + 1, w: rect.w - 2, h: rect.h - 2 };
         compound(cv, fp, type, { door: 'south', id: `bldg:c${i}`, locationId: 'loc:lab-component' });
+      },
+    };
+  }
+  if (kind.startsWith('shape:')) {
+    // iterate ONE footprint shape (rect/L/T/U/cross) in isolation — bigger cells so the silhouette is legible.
+    const shape = kind.slice(6) as ShapeKind;
+    return {
+      cw: 19, ch: 17,
+      render: (cv, rect, i) => {
+        const mx = 1 + Math.floor(cv.rng() * 2), my = 1 + Math.floor(cv.rng() * 2);
+        let fp: Rect = { x: rect.x + mx, y: rect.y + my, w: rect.w - mx - (1 + Math.floor(cv.rng() * 2)), h: rect.h - my - (1 + Math.floor(cv.rng() * 2)) };
+        if (fp.w < 13 || fp.h < 13) fp = { x: rect.x + 1, y: rect.y + 1, w: rect.w - 2, h: rect.h - 2 };
+        compound(cv, fp, 'house', { door: 'south', shape, id: `bldg:c${i}`, locationId: 'loc:lab-component' });
       },
     };
   }
