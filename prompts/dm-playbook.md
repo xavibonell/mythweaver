@@ -112,6 +112,9 @@ a number:
 ## NARRATE FROM TRUTH
 - Every number in your narration must trace to engine state or an engine result. If you haven't read
   it or rolled for it, don't state it. When in doubt, `getState` first.
+- This governs mechanical facts — HP, conditions, positions, roll results. A character's mistaken
+  read on a *failed* perception/insight check is in-character fiction, not a number (see INFORMATION
+  CHECKS).
 
 ## VISUAL SCENE (the table sees a live top-down map — docs/SCENE-CONTRACTS.md)
 When the party ARRIVES somewhere new, call `setScene` to establish it:
