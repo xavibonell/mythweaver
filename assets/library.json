@@ -2330,6 +2330,66 @@
     },
     {
       "kind": "prop",
+      "tag": "bed_down",
+      "desc": "a bed (headboard at the bottom)",
+      "art": "/assets/dawnlike/props/bed_down.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": true,
+      "biomes": [
+        "dungeon",
+        "town",
+        "village"
+      ],
+      "from": {
+        "pack": "DawnLike",
+        "crop": "Objects/Decor0.png",
+        "rect": [
+          0,
+          144,
+          16,
+          16
+        ],
+        "flipV": true
+      },
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
+    },
+    {
+      "kind": "prop",
+      "tag": "bed_right",
+      "desc": "a bed (headboard on the right)",
+      "art": "/assets/dawnlike/props/bed_right.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": true,
+      "biomes": [
+        "dungeon",
+        "town",
+        "village"
+      ],
+      "from": {
+        "pack": "DawnLike",
+        "crop": "Objects/Decor0.png",
+        "rect": [
+          16,
+          144,
+          16,
+          16
+        ],
+        "flipH": true
+      },
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
+    },
+    {
+      "kind": "prop",
       "tag": "pot",
       "desc": "a clay pot / urn",
       "art": "/assets/dawnlike/props/pot.png",
@@ -2880,7 +2940,7 @@
     {
       "kind": "prop",
       "tag": "bed_blue",
-      "desc": "a bed with blue-and-white sheets",
+      "desc": "a bed (headboard on the left)",
       "art": "/assets/dawnlike/props/bed_blue.png",
       "frameW": 16,
       "frameH": 16,
@@ -3179,6 +3239,36 @@
         "crop": "Objects/Decor0.png",
         "rect": [
           16,
+          16,
+          16,
+          16
+        ]
+      },
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
+    },
+    {
+      "kind": "prop",
+      "tag": "window_front",
+      "desc": "a window seen face-on (for a horizontal wall)",
+      "art": "/assets/dawnlike/props/window_front.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false,
+      "biomes": [
+        "village",
+        "town",
+        "coast",
+        "forest"
+      ],
+      "from": {
+        "pack": "DawnLike",
+        "crop": "Objects/Decor0.png",
+        "rect": [
+          0,
           16,
           16,
           16

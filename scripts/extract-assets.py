@@ -320,6 +320,12 @@ def extract_one(art: str, frm: dict) -> tuple[bool, str]:
         return True, f"{w}x{h}"
     x, y, cw, ch = frm["rect"]
     f0 = Image.open(src).convert("RGBA").crop((x, y, x + cw, y + ch))
+    # `flipH`/`flipV`: mirror the crop, so one source sprite yields its mirrored orientations (e.g. a
+    # head-left bed -> head-right; a head-up bed -> head-down) without needing a separate source tile.
+    if frm.get("flipH"):
+        f0 = f0.transpose(Image.FLIP_LEFT_RIGHT)
+    if frm.get("flipV"):
+        f0 = f0.transpose(Image.FLIP_TOP_BOTTOM)
     # `frame2`: a second sheet (DawnLike's *1.png) holding the next animation frame at the SAME rect.
     # Emit a horizontal 2-frame strip the renderer plays as a looping idle anim.
     f2rel = frm.get("frame2")
@@ -328,6 +334,10 @@ def extract_one(art: str, frm: dict) -> tuple[bool, str]:
         if not os.path.exists(src2):
             return False, f"missing frame2 {frm.get('pack')}/{f2rel}"
         f1 = Image.open(src2).convert("RGBA").crop((x, y, x + cw, y + ch))
+        if frm.get("flipH"):
+            f1 = f1.transpose(Image.FLIP_LEFT_RIGHT)
+        if frm.get("flipV"):
+            f1 = f1.transpose(Image.FLIP_TOP_BOTTOM)
         strip = Image.new("RGBA", (cw * 2, ch), (0, 0, 0, 0))
         strip.alpha_composite(f0, (0, 0))
         strip.alpha_composite(f1, (cw, 0))

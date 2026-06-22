@@ -541,8 +541,14 @@ export function compound(cv: Canvas, region: Rect, type: BuildingType, opts: { d
     }
     const fn = program[Math.min(i, program.length - 1)]!;
     const tmpl: RoomTemplate = { ...ROOM_TEMPLATES[fn], floor, wall: mat, occupant: i === 0 ? base.occupant : '', groups: ROOM_RECIPES[fn] };
-    const d = doors.find((dd) => onBorder(lf, dd)) ?? (i === 0 ? { c: ed.dC, r: ed.dR } : { c: lf.x, r: lf.y });
-    furnishRoom(cv.tiles, cv.walkable, cv.occ, cv.objects, lf, tmpl, d, cv.rng, cv.cols, `${safe}-r${i}`, `bldg:${safe}-r${i}`, 0, i === 0 ? opts.name : undefined);
+    // furnishRoom's contract is a WALL-INCLUSIVE rect (it insets 1 to find the interior). A leaf `lf` is pure
+    // FLOOR (walls are the ring derived OUTSIDE the mask), so expand it by 1 to put the surrounding wall on the
+    // rect border. Without this, furnishRoom double-insets: every wall-hugging item (beds, shelves, counters,
+    // altars…) floats 1 cell off the wall AND the room furnishes 2 cells smaller than it really is.
+    const room: Rect = { x: lf.x - 1, y: lf.y - 1, w: lf.w + 2, h: lf.h + 2 };
+    const onRoomBorder = (p: { c: number; r: number }) => p.c >= room.x && p.c <= room.x + room.w - 1 && p.r >= room.y && p.r <= room.y + room.h - 1 && (p.c === room.x || p.c === room.x + room.w - 1 || p.r === room.y || p.r === room.y + room.h - 1);
+    const d = doors.find(onRoomBorder) ?? (i === 0 ? { c: ed.dC, r: ed.dR } : { c: lf.x - 1, r: lf.y });
+    furnishRoom(cv.tiles, cv.walkable, cv.occ, cv.objects, room, tmpl, d, cv.rng, cv.cols, `${safe}-r${i}`, `bldg:${safe}-r${i}`, 0, i === 0 ? opts.name : undefined);
   });
 
   // SEAL → CONNECT → REPAIR → FRAME: make the structural invariants hold BY CONSTRUCTION (structure-check.ts).
@@ -713,7 +719,10 @@ export function compound(cv: Canvas, region: Rect, type: BuildingType, opts: { d
     if ((c + r) % 3 !== 0 || (c === ed.dC && r === ed.dR) || !stillWall(c, r)) continue;
     const straightH = stillWall(c - 1, r) && stillWall(c + 1, r) && !stillWall(c, r - 1) && !stillWall(c, r + 1);
     const straightV = stillWall(c, r - 1) && stillWall(c, r + 1) && !stillWall(c - 1, r) && !stillWall(c + 1, r);
-    if (straightH || straightV) cv.ambiance.push({ tag: 'window', col: c, row: r });
+    // A horizontal wall run (the top/bottom of a room) is seen FACE-ON → the frontal window; a vertical run
+    // (a side wall) is seen edge-on → the side window. Using one sprite for both made it read as "stuck on".
+    if (straightH) cv.ambiance.push({ tag: 'window_front', col: c, row: r });
+    else if (straightV) cv.ambiance.push({ tag: 'window', col: c, row: r });
   }
 }
 

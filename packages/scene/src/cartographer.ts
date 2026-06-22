@@ -318,6 +318,13 @@ export function furnishRoom(
   const midY = ry + Math.floor(rh / 2);
   const ix = rx + 1, iy = ry + 1, iw = rw - 2, ih = rh - 2;
   if (iw < 1 || ih < 1) return furnSeq;
+  // BED ORIENTATION — a bed's headboard goes ON the wall it sits against, so the sprite is chosen by which
+  // interior edge the cell is on (shared by BOTH furnishing paths: the relational groups + the legacy items).
+  const BED_TAG = { top: 'bed', bottom: 'bed_down', left: 'bed_blue', right: 'bed_right' } as const;
+  // Headboard side = the direction of the ACTUAL adjacent wall tile. Robust on irregular footprints, where a
+  // leaf's bounding-rect edge isn't always a real wall (a U/compose arm can open onto another room, not a wall).
+  const wallAt = (c: number, r: number) => (tiles[r]?.[c] ?? '').startsWith('wall');
+  const bedSideOf = (c: number, r: number): keyof typeof BED_TAG | null => (wallAt(c, r - 1) ? 'top' : wallAt(c, r + 1) ? 'bottom' : wallAt(c - 1, r) ? 'left' : wallAt(c + 1, r) ? 'right' : null);
   const inB = (c: number, r: number) => r >= 0 && r < tiles.length && c >= 0 && c < (tiles[0]?.length ?? 0);
   const interior: { c: number; r: number }[] = [];
   for (let y = iy; y < iy + ih; y++) for (let x = ix; x < ix + iw; x++) interior.push({ c: x, r: y });
@@ -392,7 +399,20 @@ export function furnishRoom(
       const n = Math.min(sides.length, 1 + Math.floor(rand() * 2) + (rand() < 0.18 ? 1 : 0));
       for (let i = 0; i < n; i++) { const [dx, dy] = sides[i]!; put(t.c + dx, t.r + dy, rand() < 0.15 ? 'stone_bench' : 'chair'); }
     };
-    const bed = () => { const w = wallFree()[0]; if (!w) return; put(w.c, w.r, rand() < 0.5 ? 'bed' : 'bed_blue'); for (const [dx, dy] of ORTH4) if (rand() < 0.5 && put(w.c + dx, w.r + dy, pick(['pot', 'jar', 'chest', 'candle']))) break; }; // a nightstand beside the bed
+    // BEDS — against a wall, HEADBOARD on it (BED_TAG/bedSideOf, hoisted above). Every bed in the room shares
+    // ONE wall+orientation (locked in by the first bed) so a 2-bed room never mixes directions.
+    let bedSide: keyof typeof BED_TAG | null = null;
+    let bedsPlaced = 0;
+    const bed = () => {
+      if (bedsPlaced >= 2) return; // never more than two beds in one room
+      const slots = interior.filter((p) => free(p.c, p.r) && bedSideOf(p.c, p.r) !== null); // any free floor cell ACTUALLY against a wall
+      const head = (bedSide ? slots.filter((p) => bedSideOf(p.c, p.r) === bedSide) : slots)[0];
+      if (!head) return; // no slot left on the established wall → skip rather than break orientation consistency
+      bedSide ??= bedSideOf(head.c, head.r);
+      if (!put(head.c, head.r, BED_TAG[bedSide!])) return;
+      bedsPlaced++;
+      if (bedsPlaced === 1) for (const [dx, dy] of ORTH4) if (rand() < 0.5 && put(head.c + dx, head.r + dy, pick(['pot', 'jar', 'chest', 'candle']))) break; // a nightstand beside the first bed
+    };
     const hearth = () => { const b = byBack(interior).find((p) => free(p.c, p.r)) ?? wallFree()[0]; if (b) put(b.c, b.r, rand() < 0.3 ? 'candelabra_large' : 'brazier'); };
     const counter = () => { let k = 0; for (const p of byBack(interior)) { if (k >= 4) break; if (free(p.c, p.r) && put(p.c, p.r, 'table')) k++; } if (k < 2) alongWall(['table'], 2); for (const p of byBack(interior)) if (rand() < 0.3 && put(p.c, p.r, pick(['jar', 'pot', 'urn', 'candle']))) break; };
     const study = () => { const d = wallFree()[0]; if (!d) return; put(d.c, d.r, 'desk'); for (const [dx, dy] of ORTH4) if (put(d.c + dx, d.r + dy, 'chair')) break; alongWall(['bookshelf_full', 'books'], 2); };
@@ -416,7 +436,9 @@ export function furnishRoom(
         if (!cell) break;
         occ[cell.r]![cell.c] = true; // reserve so nothing else lands here
         if (propDef(item.tag)?.blocks ?? true) walkable[cell.r]![cell.c] = false; // only blocking furniture blocks pathing
-        objects.push({ id: `prop:${safe}#${(furnSeq++).toString().padStart(2, '0')}`, kind: 'prop', tag: item.tag, col: cell.c, row: cell.r, footprint: { w: 1, h: 1 }, facing: 'down', visible: true, group: groupId });
+        // A bed orients to whichever wall its cell sits against (same per-side sprite as the groups path).
+        const tag = item.tag.startsWith('bed') ? BED_TAG[bedSideOf(cell.c, cell.r) ?? 'top'] : item.tag;
+        objects.push({ id: `prop:${safe}#${(furnSeq++).toString().padStart(2, '0')}`, kind: 'prop', tag, col: cell.c, row: cell.r, footprint: { w: 1, h: 1 }, facing: 'down', visible: true, group: groupId });
         placedFurn++;
       }
     }
