@@ -31,7 +31,11 @@ export interface StructureReport {
   /** Wall cells with NO interior floor in their 8-neighbourhood — a redundant cell of a 2-tile-thick wall
    *  (the staircase/jog symptom). A clean ring is exactly 1 tile thick, so this should be 0 for any shape. */
   wallJog: number;
-  /** True iff all five are zero. */
+  /** A door/arch/entrance whose interior approach cell is blocked by furniture (not walkable) — the building
+   *  isn't TRAVERSABLE through that doorway. The ONE furniture-aware check (the rest are furniture-agnostic):
+   *  a character must always be able to step through every door. Should be 0 for any building. */
+  doorBlocked: number;
+  /** True iff all are zero. */
   clean: boolean;
   /** A few example cells per violation, for eyeballing a failing seed. */
   samples: { kind: string; col: number; row: number }[];
@@ -151,6 +155,18 @@ export function checkStructure(map: SceneMap): StructureReport {
       if (!N8.some(([dc, dr]) => interior(c + dc, r + dr))) { wallJog++; sample('jog', c, r); }
     }
 
-  const clean = leakedInterior === 0 && unreachable === 0 && freestandingWall === 0 && badDoor === 0 && wallJog === 0;
-  return { leakedInterior, unreachable, freestandingWall, badDoor, wallJog, clean, samples };
+  // ── doorBlocked: every door/arch/entrance must be STEPPABLE — its interior approach cell(s) must be
+  //    WALKABLE (no furniture on the threshold). Furniture-AWARE, unlike `unreachable` above: a character
+  //    must be able to pass through every doorway, so a building is genuinely traversable.
+  let doorBlocked = 0;
+  const doorCells = new Set<string>(doorSet);
+  for (const key of doorCells) {
+    const [c, r] = key.split(',').map(Number) as [number, number];
+    const approaches = N4.map(([dc, dr]) => [c + dc, r + dr] as [number, number]).filter(([nc, nr]) => interior(nc, nr));
+    if (approaches.length === 0) continue; // a door with no interior side is a badDoor, not a block
+    if (approaches.some(([nc, nr]) => !walk(nc, nr))) { doorBlocked++; sample('doorblock', c, r); }
+  }
+
+  const clean = leakedInterior === 0 && unreachable === 0 && freestandingWall === 0 && badDoor === 0 && wallJog === 0 && doorBlocked === 0;
+  return { leakedInterior, unreachable, freestandingWall, badDoor, wallJog, doorBlocked, clean, samples };
 }

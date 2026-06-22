@@ -696,6 +696,17 @@ export function compound(cv: Canvas, region: Rect, type: BuildingType, opts: { d
     if ((psbl(a.c, a.r - 1) && psbl(a.c, a.r + 1)) || (psbl(a.c - 1, a.r) && psbl(a.c + 1, a.r))) { framed.add(k); cv.ambiance.push({ tag: 'arch', col: a.c, row: a.r }); }
   }
 
+  // DOOR CLEARANCE — a building must be TRAVERSABLE: NO doorway may be blocked by furniture. Now that every
+  //   door is final (the entrance + every carved arch), clear any blocking prop from the room cell(s)
+  //   immediately inside each doorway, so a character can always step through. (furnishRoom keeps the door it
+  //   was handed clear, but a room can border several doors and some arches are carved AFTER furnishing.)
+  const clearApproach = (c: number, r: number) => {
+    if (!roomFloor(c, r) || cv.walkable[r]![c] === true) return; // already a walkable interior cell → nothing to clear
+    for (let i = cv.objects.length - 1; i >= 0; i--) { const o = cv.objects[i]!; if (o.kind === 'prop' && o.col === c && o.row === r) cv.objects.splice(i, 1); }
+    cv.occ[r]![c] = false; cv.walkable[r]![c] = true;
+  };
+  for (const d of [{ c: ed.dC, r: ed.dR }, ...archAt]) for (const [dc, dr] of N4) clearApproach(d.c + dc, d.r + dr);
+
   // PASS D — PRUNE: any wall cell with NO interior floor in its N8 neighbourhood is redundant — a stranded
   //   arm (e.g. a partition orphaned when a back room became a garden) or the outer cell of a 2-tile-thick
   //   wall. It encloses nothing, so drop it to exterior grass → the ring stays exactly 1 tile thick (the

@@ -892,6 +892,14 @@ export function buildSceneMap(comp: SceneComposition): SceneMap {
     // FURNISH the interior from the per-type template (shared helper — the primitive engine uses the
     // SAME furnishRoom so both paths furnish identically). Keeps the door's inner cell clear.
     furnSeq = furnishRoom(tiles, walkable, occ, objects, { x: rx, y: ry, w: rw, h: rh }, tmpl, { c: dC, r: dR }, rand, cols, safe, b.id, furnSeq, b.name);
+
+    // DOOR CLEARANCE — guarantee the entrance is TRAVERSABLE: clear any furniture from the cell just inside
+    // the door (furnishRoom already keeps it clear; this is the universal belt-and-suspenders, same as compound).
+    const inIC = 2 * dC - oC, inIR = 2 * dR - oR;
+    if (inB(inIC, inIR) && walkable[inIR]![inIC] === false && !(tiles[inIR]![inIC] ?? '').startsWith('wall')) {
+      for (let i = objects.length - 1; i >= 0; i--) { const o = objects[i]!; if (o.kind === 'prop' && o.col === inIC && o.row === inIR) objects.splice(i, 1); }
+      occ[inIR]![inIC] = false; walkable[inIR]![inIC] = true;
+    }
   }
 
   for (const p of order) {
