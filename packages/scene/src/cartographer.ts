@@ -427,31 +427,52 @@ export function furnishRoom(
     };
     const hearth = () => { const b = byBack(interior).find((p) => free(p.c, p.r)) ?? wallFree()[0]; if (b) put(b.c, b.r, rand() < 0.3 ? 'candelabra_large' : 'brazier'); };
     const counter = () => { let k = 0; for (const p of byBack(interior)) { if (k >= 4) break; if (free(p.c, p.r) && put(p.c, p.r, 'table')) k++; } if (k < 2) alongWall(['table'], 2); for (const p of byBack(interior)) if (rand() < 0.3 && put(p.c, p.r, pick(['jar', 'pot', 'urn', 'candle']))) break; };
-    // COUNTER STATION — a CONTINUOUS bar_counter RUN along the LONGEST free wall stretch (preferring the wall
-    // opposite the entrance), the keeper posted at its centre + a standing lane. A RUN (not a point) is the
-    // focal, so it reads unmistakably as a counter. Shared by the tavern bar and the shop service counter.
+    // COUNTER STATION — a CONTINUOUS bar_counter RUN, the keeper BEHIND it (between counter and wall) and the
+    // customers in FRONT, so it reads as a real double-sided counter (not a wall-mounted shelf). The counter
+    // sits ONE ROW OFF the wall where the room is deep enough (>=3 perpendicular); in a shallow room it falls
+    // back to wall-flush with the keeper in front. Shared by the tavern bar and the shop service counter.
+    // Returns the run + `into` = the CUSTOMER-side direction (where stools/approach go).
+    const dTop = dR === ry, dBot = dR === ry + rh - 1, dLeft = dC === rx, dRight = dC === rx + rw - 1;
+    type CCfg = { line: { c: number; r: number }[]; back: readonly [number, number]; into: readonly [number, number]; opp: boolean; depth: number; offset: boolean };
     const counterRun = (): { run: { c: number; r: number }[]; dc: number; dr: number } | null => {
-      const dTop = dR === ry, dBot = dR === ry + rh - 1, dLeft = dC === rx, dRight = dC === rx + rw - 1;
-      const wallLines = [
-        { cells: Array.from({ length: iw }, (_, k) => ({ c: ix + k, r: iy })), into: [0, 1] as const, opp: dBot },
-        { cells: Array.from({ length: iw }, (_, k) => ({ c: ix + k, r: iy + ih - 1 })), into: [0, -1] as const, opp: dTop },
-        { cells: Array.from({ length: ih }, (_, k) => ({ c: ix, r: iy + k })), into: [1, 0] as const, opp: dRight },
-        { cells: Array.from({ length: ih }, (_, k) => ({ c: ix + iw - 1, r: iy + k })), into: [-1, 0] as const, opp: dLeft },
+      // offset=true configs put the counter one row IN (keeper behind); offset=false are the flush fallback.
+      const cfgs: CCfg[] = [
+        { line: Array.from({ length: iw }, (_, k) => ({ c: ix + k, r: iy + 1 })), back: [0, -1], into: [0, 1], opp: dBot, depth: ih, offset: true },
+        { line: Array.from({ length: iw }, (_, k) => ({ c: ix + k, r: iy + ih - 2 })), back: [0, 1], into: [0, -1], opp: dTop, depth: ih, offset: true },
+        { line: Array.from({ length: ih }, (_, k) => ({ c: ix + 1, r: iy + k })), back: [-1, 0], into: [1, 0], opp: dRight, depth: iw, offset: true },
+        { line: Array.from({ length: ih }, (_, k) => ({ c: ix + iw - 1, r: iy + k })), back: [1, 0], into: [-1, 0], opp: dLeft, depth: iw, offset: true },
+        // flush fallback (shallow rooms): counter ON the wall, keeper in front.
+        { line: Array.from({ length: iw }, (_, k) => ({ c: ix + k, r: iy })), back: [0, -1], into: [0, 1], opp: dBot, depth: ih, offset: false },
+        { line: Array.from({ length: iw }, (_, k) => ({ c: ix + k, r: iy + ih - 1 })), back: [0, 1], into: [0, -1], opp: dTop, depth: ih, offset: false },
+        { line: Array.from({ length: ih }, (_, k) => ({ c: ix, r: iy + k })), back: [-1, 0], into: [1, 0], opp: dRight, depth: iw, offset: false },
+        { line: Array.from({ length: ih }, (_, k) => ({ c: ix + iw - 1, r: iy + k })), back: [1, 0], into: [-1, 0], opp: dLeft, depth: iw, offset: false },
       ];
-      let best: { run: { c: number; r: number }[]; into: readonly [number, number]; opp: boolean } | null = null;
-      for (const w of wallLines) {
+      // prefer: offset (double-sided) over flush, then longer run, then the wall opposite the entrance.
+      let best: { run: { c: number; r: number }[]; cfg: CCfg } | null = null;
+      const better = (run: { c: number; r: number }[], cfg: CCfg) => {
+        if (!best) return true;
+        if (cfg.offset !== best.cfg.offset) return cfg.offset; // double-sided wins
+        if (run.length !== best.run.length) return run.length > best.run.length;
+        return cfg.opp && !best.cfg.opp;
+      };
+      for (const cfg of cfgs) {
+        if (cfg.offset && cfg.depth < 3) continue; // need back-lane + counter + customer space for a double-sided bar
         let cur: { c: number; r: number }[] = [];
-        for (const p of [...w.cells, null]) {
-          if (p && free(p.c, p.r)) cur.push(p);
-          else { if (cur.length && (!best || cur.length > best.run.length || (cur.length === best.run.length && w.opp && !best.opp))) best = { run: cur, into: w.into, opp: w.opp }; cur = []; }
+        for (const p of [...cfg.line, null]) {
+          const ok = p && free(p.c, p.r) && (!cfg.offset || free(p.c + cfg.back[0], p.r + cfg.back[1])); // the staff lane behind must exist
+          if (ok) cur.push(p);
+          else { if (cur.length >= 2 && better(cur, cfg)) best = { run: cur, cfg }; cur = []; }
         }
       }
-      if (!best || best.run.length < 2) return null; // no wall can host a counter
-      const [dc, dr] = best.into, run = best.run;
+      if (!best) return null;
+      const { run, cfg } = best;
       for (const p of run) put(p.c, p.r, 'bar_counter');
       const mid = run[Math.floor(run.length / 2)]!;
-      reserveKeeper(mid.c + dc, mid.r + dr, [dc, dr]); // keeper at the counter centre + a reserved standing lane
-      return { run, dc, dr };
+      // keeper on the SERVICE side: behind the counter for a double-sided bar, in front for the flush fallback.
+      const kc = cfg.offset ? mid.c + cfg.back[0] : mid.c + cfg.into[0], kr = cfg.offset ? mid.r + cfg.back[1] : mid.r + cfg.into[1];
+      const laneDir: readonly [number, number] = cfg.back[0] === 0 ? [1, 0] : [0, 1]; // a keeper lane parallel to the counter
+      reserveKeeper(kc, kr, laneDir);
+      return { run, dc: cfg.into[0], dr: cfg.into[1] };
     };
     const bar = () => { // tavern: a counter with patron stools in front + a keg at each end
       const cr = counterRun(); if (!cr) return;

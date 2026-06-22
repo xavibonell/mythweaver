@@ -150,7 +150,13 @@ export function checkSemantics(map: SceneMap, type: string): SemanticReport {
     }
     if (spec.keeperAtFocal) {
       const k = keeperByBldg.get(bldgKey);
-      if (k && !N4.some(([dc, dr]) => focals.some((f) => f.col === k.col + dc && f.row === k.row + dr))) { rep.keeperOffStation++; sample('keeper', k.col, k.row); }
+      // The keeper must be at the focal. For a RUN focal (a counter) it must be BEHIND it — a focal cell on one
+      // side and a wall on the OPPOSITE side — so the counter is double-sided (customers can stand across it),
+      // not a wall-mounted shelf with the keeper on the customer side. For a point focal, simple adjacency.
+      const atFocal = k && (spec.focalRun
+        ? N4.some(([dc, dr]) => focals.some((f) => f.col === k.col + dc && f.row === k.row + dr) && wall(k.col - dc, k.row - dr))
+        : N4.some(([dc, dr]) => focals.some((f) => f.col === k.col + dc && f.row === k.row + dr)));
+      if (k && !atFocal) { rep.keeperOffStation++; sample('keeper', k.col, k.row); }
     }
   }
 

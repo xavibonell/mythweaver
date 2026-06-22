@@ -52,9 +52,19 @@ track (parallel long pole, gated by a catalog-existence test). F2 = smithy → t
 generalize to vignettes / streets / caves + a `scene:gate` ($0 sweeps per commit; paid vision judge on
 demand). Derived from a 3-architect + adversarial-critic design panel (2026-06-22).
 
-- [ ] **F0 temple:** `nave` station (altar opposite door, candelabra flanking, ranked pews + center aisle) ·
-  `semantic-check.ts` + `checkSemantics(map,type)` · `scene:sweep:semantics` driven to 100% on temple ·
-  `semantic-check.test.ts` · adversarial audit of green seeds · re-pin temple + house vision baselines.
+- [x] **The kernel:** `semantic-check.ts` (`checkSemantics(map,type)`, point/run/station focals + `keeperAtFocal`
+  + graceful degradation) · `scene:sweep:semantics` · `typeReadability` rubric dim. Two new structural
+  invariants ratcheted from audits: `doorBlocked` (traversable) + `actorBoxed` (no sealed-in NPC).
+- [x] **F0 temple** — `nave` station (altar opposite door, candelabra, ranked pews + aisle). 100% rect.
+- [x] **F1 tavern** — `bar` station (continuous `bar_counter` RUN, barkeep at it, stools, kegs). 100% rect.
+- [x] **F2 smithy** — `forge` station (lit forge + adjacent anvil + smith, quench barrel). New gen anvil/forge. 100% rect.
+- [x] **F3 shop** — `shopfront` station (service counter + shopkeeper + display ware-shelves). 100% rect.
+- All four station types: 100% reads-as-itself on the SHIPPING path (rect/L/T/U/cross), structure 100%
+  (0 blocked doors, 0 boxed NPCs), driven by the deterministic sweep + adversarial green-seed audits.
+- [ ] **F4 composed station-types** — composed (organic) footprints degrade (tavern ~87%, shop ~65%, smithy
+  ~55%): a focal STATION on a composed PARTITION wall can be sheared by an inter-room arch. Fix: anchor
+  focal stations on the OUTER RING (never a partition) — lifts every composed station-type in one move.
+- [ ] **F5 vision baselines** — pin per-type `typeReadability` baselines (paid judge run) + re-pin house.
 
 ---
 
