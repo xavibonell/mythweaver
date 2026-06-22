@@ -7,7 +7,7 @@ import { checkStructure } from './structure-check.js';
 const BUILDING_TYPES = ['house', 'tavern', 'temple', 'smithy', 'shop'] as const;
 
 function sweep(kind: string, seeds: number) {
-  const totals = { leakedInterior: 0, unreachable: 0, freestandingWall: 0, badDoor: 0, wallJog: 0, doorBlocked: 0 };
+  const totals = { leakedInterior: 0, unreachable: 0, freestandingWall: 0, badDoor: 0, wallJog: 0, doorBlocked: 0, actorBoxed: 0 };
   let dirty: number[] = [];
   for (let s = 1; s <= seeds; s++) {
     const rep = checkStructure(buildComponentSheet(kind, 6, s));
@@ -17,12 +17,13 @@ function sweep(kind: string, seeds: number) {
     totals.badDoor += rep.badDoor;
     totals.wallJog += rep.wallJog;
     totals.doorBlocked += rep.doorBlocked;
+    totals.actorBoxed += rep.actorBoxed;
     if (!rep.clean && dirty.length < 8) dirty.push(s);
   }
   return { totals, dirty };
 }
 
-const ZERO = { leakedInterior: 0, unreachable: 0, freestandingWall: 0, badDoor: 0, wallJog: 0, doorBlocked: 0, dirtySeeds: [] };
+const ZERO = { leakedInterior: 0, unreachable: 0, freestandingWall: 0, badDoor: 0, wallJog: 0, doorBlocked: 0, actorBoxed: 0, dirtySeeds: [] };
 
 describe('structure invariants — building:house is structurally perfect (the tuned ceiling)', () => {
   it('has ZERO structural defects across 150 seeds (900 buildings)', () => {

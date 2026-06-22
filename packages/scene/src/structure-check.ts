@@ -35,6 +35,9 @@ export interface StructureReport {
    *  isn't TRAVERSABLE through that doorway. The ONE furniture-aware check (the rest are furniture-agnostic):
    *  a character must always be able to step through every door. Should be 0 for any building. */
   doorBlocked: number;
+  /** An actor (keeper/NPC) with NO walkable cell orthogonally adjacent — sealed in by its own furniture, so
+   *  it can't move and can't be reached. Furniture-aware, like doorBlocked. Should be 0 for any building. */
+  actorBoxed: number;
   /** True iff all are zero. */
   clean: boolean;
   /** A few example cells per violation, for eyeballing a failing seed. */
@@ -167,6 +170,14 @@ export function checkStructure(map: SceneMap): StructureReport {
     if (approaches.some(([nc, nr]) => !walk(nc, nr))) { doorBlocked++; sample('doorblock', c, r); }
   }
 
-  const clean = leakedInterior === 0 && unreachable === 0 && freestandingWall === 0 && badDoor === 0 && wallJog === 0 && doorBlocked === 0;
-  return { leakedInterior, unreachable, freestandingWall, badDoor, wallJog, doorBlocked, clean, samples };
+  // ── actorBoxed: an actor with NO walkable orthogonal neighbour is sealed in by furniture — it can't move
+  //    and nothing can reach it (a keeper boxed behind its own bar/counter). Furniture-aware, like doorBlocked.
+  let actorBoxed = 0;
+  for (const o of map.objects) {
+    if (o.kind !== 'actor') continue;
+    if (!N4.some(([dc, dr]) => walk(o.col + dc, o.row + dr))) { actorBoxed++; sample('boxed', o.col, o.row); }
+  }
+
+  const clean = leakedInterior === 0 && unreachable === 0 && freestandingWall === 0 && badDoor === 0 && wallJog === 0 && doorBlocked === 0 && actorBoxed === 0;
+  return { leakedInterior, unreachable, freestandingWall, badDoor, wallJog, doorBlocked, actorBoxed, clean, samples };
 }

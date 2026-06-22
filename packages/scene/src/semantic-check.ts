@@ -29,13 +29,16 @@ export interface BuildingSemanticSpec {
   focalRun?: number;
   /** required supporting furniture: at least `min` of `tag` per building (scaled later if needed). */
   seating?: { tag: string; min: number };
+  /** the keeper must be posted AT the focal (the barkeep behind the bar, the smith at the forge) — i.e.
+   *  orthogonally adjacent to a focal cell, not marooned in the room centre. */
+  keeperAtFocal?: boolean;
 }
 
 export const BUILDING_SEMANTICS: Record<string, BuildingSemanticSpec> = {
   // Temple is the Phase-F reference slice (its whole kit already exists as art).
   temple: { focal: 'altar', seating: { tag: 'stone_bench', min: 2 } },
-  // Tavern: a continuous bar counter (run) is the focal; chairs are patron seating.
-  tavern: { focal: 'bar_counter', focalRun: 3, seating: { tag: 'chair', min: 2 } },
+  // Tavern: a continuous bar counter (run) is the focal; chairs are patron seating; the barkeep is AT the bar.
+  tavern: { focal: 'bar_counter', focalRun: 3, seating: { tag: 'chair', min: 2 }, keeperAtFocal: true },
 };
 
 export interface SemanticReport {
@@ -47,6 +50,8 @@ export interface SemanticReport {
   focalNotProminent: number;
   /** required supporting furniture below its minimum (e.g. a nave with too few pews). */
   understocked: number;
+  /** the keeper exists but isn't posted at the focal (e.g. a barkeep marooned away from the bar). */
+  keeperOffStation: number;
   /** True iff all defect counts are zero (vacuously true for a type with no spec). */
   clean: boolean;
   samples: { kind: string; col: number; row: number }[];
@@ -61,7 +66,7 @@ const N4 = [
 
 /** Deterministic semantic check of a frozen SceneMap for building type `type`. */
 export function checkSemantics(map: SceneMap, type: string): SemanticReport {
-  const rep: SemanticReport = { buildings: 0, missingFocal: 0, focalNotProminent: 0, understocked: 0, clean: true, samples: [] };
+  const rep: SemanticReport = { buildings: 0, missingFocal: 0, focalNotProminent: 0, understocked: 0, keeperOffStation: 0, clean: true, samples: [] };
   const spec = BUILDING_SEMANTICS[type];
   if (!spec) return rep; // no contract declared yet → vacuously clean
 
@@ -79,6 +84,13 @@ export function checkSemantics(map: SceneMap, type: string): SemanticReport {
     if (o.kind !== 'prop') continue;
     const id = (o.group ?? '').replace(/-r\d+$/, '') || (o.group ?? '?');
     (byBldg.get(id) ?? byBldg.set(id, []).get(id)!).push({ tag: o.tag, col: o.col, row: o.row });
+  }
+  // Keeper actor per building (id 'npc:<safe>-r<room>-keeper') → keyed to match the prop group 'bldg:<safe>'.
+  const keeperByBldg = new Map<string, { col: number; row: number }>();
+  for (const o of map.objects) {
+    if (o.kind !== 'actor') continue;
+    const m = /^npc:(.+)-r\d+-keeper$/.exec(o.id ?? '');
+    if (m) keeperByBldg.set(`bldg:${m[1]}`, { col: o.col, row: o.row });
   }
 
   // Bounding-box of the interior-floor room containing (c,r) — to scale a focal requirement to room size
@@ -104,7 +116,7 @@ export function checkSemantics(map: SceneMap, type: string): SemanticReport {
     return best;
   };
 
-  for (const [, props] of byBldg) {
+  for (const [bldgKey, props] of byBldg) {
     rep.buildings++;
     const focals = props.filter((p) => p.tag === spec.focal);
     if (focals.length === 0) { rep.missingFocal++; continue; }
@@ -125,8 +137,12 @@ export function checkSemantics(map: SceneMap, type: string): SemanticReport {
       const n = props.filter((p) => p.tag === spec.seating!.tag).length;
       if (n < spec.seating.min) { rep.understocked++; sample('seating', focal.col, focal.row); }
     }
+    if (spec.keeperAtFocal) {
+      const k = keeperByBldg.get(bldgKey);
+      if (k && !N4.some(([dc, dr]) => focals.some((f) => f.col === k.col + dc && f.row === k.row + dr))) { rep.keeperOffStation++; sample('keeper', k.col, k.row); }
+    }
   }
 
-  rep.clean = rep.missingFocal === 0 && rep.focalNotProminent === 0 && rep.understocked === 0;
+  rep.clean = rep.missingFocal === 0 && rep.focalNotProminent === 0 && rep.understocked === 0 && rep.keeperOffStation === 0;
   return rep;
 }

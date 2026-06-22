@@ -443,8 +443,13 @@ export function furnishRoom(
       const [dc, dr] = best.into, run = best.run;
       for (const p of run) put(p.c, p.r, 'bar_counter');
       const mid = run[Math.floor(run.length / 2)]!, kc = mid.c + dc, kr = mid.r + dr;
-      if (free(kc, kr)) keeperAt = { c: kc, r: kr }; // post the barkeep at the centre of the bar
-      for (const p of run) { const sc = p.c + dc, sr = p.r + dr; if ((sc !== kc || sr !== kr) && free(sc, sr) && rand() < 0.6) put(sc, sr, 'chair'); } // patron stools
+      const lc = kc + dc, lr = kr + dr; // a standing lane one further in, so the barkeep is never boxed in
+      if (free(kc, kr)) {
+        keeperAt = { c: kc, r: kr };
+        occ[kr]![kc] = true; // RESERVE the barkeep's spot so the later dining/hearth groups don't bury it
+        if (free(lc, lr)) occ[lr]![lc] = true; // reserve a walkable approach lane (stays walkable → reachable)
+      }
+      for (const p of run) { const sc = p.c + dc, sr = p.r + dr; if ((sc !== kc || sr !== kr) && (sc !== lc || sr !== lr) && free(sc, sr) && rand() < 0.6) put(sc, sr, 'chair'); } // patron stools
       for (const e of [run[0]!, run[run.length - 1]!]) { const ec = e.c + dc, er = e.r + dr; if ((ec !== kc || er !== kr) && free(ec, er) && rand() < 0.45) put(ec, er, 'barrel'); } // kegs at the ends
     };
     const study = () => { const d = wallFree()[0]; if (!d) return; put(d.c, d.r, 'desk'); for (const [dx, dy] of ORTH4) if (put(d.c + dx, d.r + dy, 'chair')) break; alongWall(['bookshelf_full', 'books'], 2); };
@@ -501,10 +506,16 @@ export function furnishRoom(
       }
     }
   }
-  // Keeper at its STATION if a focal group posted one (barkeep at the bar), else the room centre. (Taking the
-  // hint as a parameter resets the closure-narrowing of keeperAt to its declared type.)
-  const pickKeeper = (hint: { c: number; r: number } | null): { c: number; r: number } | null =>
-    hint && !occ[hint.r]![hint.c] && walkable[hint.r]![hint.c] === true && hint.r * cols + hint.c !== keepClear ? hint : takeCell(byCenter);
+  // Keeper at its STATION if a focal group posted one (barkeep at the bar), else a NON-BOXED room cell. The
+  // keeper must always have a walkable neighbour (it can't be sealed in by its own furniture) — so it can move
+  // and be reached. The station RESERVED its keeper cell in occ on purpose, so accept the hint on walkability.
+  const N4K = [[0, -1], [1, 0], [0, 1], [-1, 0]] as const;
+  const notBoxed = (c: number, r: number) => N4K.some(([dc, dr]) => walkable[r + dr]?.[c + dc] === true);
+  const pickKeeper = (hint: { c: number; r: number } | null): { c: number; r: number } | null => {
+    if (hint && walkable[hint.r]![hint.c] === true && hint.r * cols + hint.c !== keepClear && notBoxed(hint.c, hint.r)) return hint;
+    for (const cell of byCenter(interior)) if (cell.r * cols + cell.c !== keepClear && !occ[cell.r]![cell.c] && walkable[cell.r]![cell.c] === true && notBoxed(cell.c, cell.r)) return cell;
+    return takeCell(byCenter); // last resort (tiny room): any free cell
+  };
   const occCell = tmpl.occupant ? pickKeeper(keeperAt) : null; // empty occupant → no keeper (multi-room compounds put ONE keeper in the primary room only)
   if (occCell) {
     occ[occCell.r]![occCell.c] = true; // reserve (actor doesn't block walkable)

@@ -11,7 +11,7 @@ const seeds = Number(arg('seeds', '200'));
 const verbose = process.argv.includes('--verbose');
 
 const C = { dim: '\x1b[2m', red: '\x1b[31m', green: '\x1b[32m', yellow: '\x1b[33m', bold: '\x1b[1m', reset: '\x1b[0m' };
-const KINDS = ['missingFocal', 'focalNotProminent', 'understocked'];
+const KINDS = ['missingFocal', 'focalNotProminent', 'understocked', 'keeperOffStation'];
 // Only types with a declared spec are meaningful; the rest are vacuously clean.
 const types = Object.keys(BUILDING_SEMANTICS);
 const targets = only ? [only.replace(/^building:/, '')] : types;
