@@ -21,7 +21,7 @@ import { type ShapeKind } from './footprint.js';
 /** The components you can iterate on, grouped by family for the Lab dropdown. */
 export const COMPONENT_KINDS = [
   'building:tavern', 'building:temple', 'building:smithy', 'building:shop', 'building:house',
-  'shape:rect', 'shape:ell', 'shape:tee', 'shape:you', 'shape:plus', 'shape:compose',
+  'shape:rect', 'shape:ell', 'shape:tee', 'shape:you', 'shape:plus', 'shape:compose', 'shape:compose:temple',
   'vignette:market', 'vignette:forge', 'vignette:shrine', 'vignette:well', 'vignette:camp', 'vignette:graveyard',
   'plaza', 'streets', 'density:trees', 'density:flowers', 'density:furniture',
   'clearing', 'cave', 'rooms', 'maze',
@@ -49,15 +49,19 @@ function specFor(kind: string): CellSpec {
     };
   }
   if (kind.startsWith('shape:')) {
-    // iterate ONE footprint shape (rect/L/T/U/cross) in isolation — bigger cells so the silhouette is legible.
-    const shape = kind.slice(6) as ShapeKind;
+    // iterate ONE footprint shape (rect/L/T/U/cross/compose) in isolation — bigger cells so the silhouette is
+    // legible. `shape:<shape>` defaults the building TYPE to house; `shape:<shape>:<type>` targets any type
+    // (e.g. shape:compose:temple) — proving SHAPE (geometry) is orthogonal to TYPE (furnishing) in compound().
+    const [shapeStr, typeStr] = kind.slice(6).split(':');
+    const shape = shapeStr as ShapeKind;
+    const type = (BUILDING_TYPES as readonly string[]).includes(typeStr ?? '') ? (typeStr as (typeof BUILDING_TYPES)[number]) : 'house';
     return {
       cw: 19, ch: 17,
       render: (cv, rect, i) => {
         const mx = 1 + Math.floor(cv.rng() * 2), my = 1 + Math.floor(cv.rng() * 2);
         let fp: Rect = { x: rect.x + mx, y: rect.y + my, w: rect.w - mx - (1 + Math.floor(cv.rng() * 2)), h: rect.h - my - (1 + Math.floor(cv.rng() * 2)) };
         if (fp.w < 13 || fp.h < 13) fp = { x: rect.x + 1, y: rect.y + 1, w: rect.w - 2, h: rect.h - 2 };
-        compound(cv, fp, 'house', { door: 'south', shape, id: `bldg:c${i}`, locationId: 'loc:lab-component' });
+        compound(cv, fp, type, { door: 'south', shape, id: `bldg:c${i}`, locationId: 'loc:lab-component' });
       },
     };
   }

@@ -700,12 +700,25 @@ export function compound(cv: Canvas, region: Rect, type: BuildingType, opts: { d
   //   door is final (the entrance + every carved arch), clear any blocking prop from the room cell(s)
   //   immediately inside each doorway, so a character can always step through. (furnishRoom keeps the door it
   //   was handed clear, but a room can border several doors and some arches are carved AFTER furnishing.)
+  const doorList = [{ c: ed.dC, r: ed.dR }, ...archAt];
+  const approachCells = new Set<string>(); // every room cell touching a door — must stay clear, and is no place to relocate a focal prop to
+  for (const d of doorList) for (const [dc, dr] of N4) approachCells.add(`${d.c + dc},${d.r + dr}`);
+  const FOCAL = new Set(['altar']); // a type's centrepiece must NEVER be deleted by clearance — relocate it instead
+  const wallAdj = (c: number, r: number) => N4.some(([dc, dr]) => (cv.tileAt(c + dc, r + dr) ?? '').startsWith('wall'));
+  const relocateFocal = (o: { col: number; row: number }): boolean => { // slide it to the nearest free wall cell that isn't a door approach
+    for (let rad = 1; rad <= 4; rad++) for (let dr = -rad; dr <= rad; dr++) for (let dc = -rad; dc <= rad; dc++) {
+      const nc = o.col + dc, nr = o.row + dr, k = `${nc},${nr}`;
+      if (roomFloor(nc, nr) && cv.walkable[nr]![nc] === true && !cv.occ[nr]![nc] && wallAdj(nc, nr) && !approachCells.has(k)) { o.col = nc; o.row = nr; cv.occ[nr]![nc] = true; cv.walkable[nr]![nc] = false; return true; }
+    }
+    return false;
+  };
   const clearApproach = (c: number, r: number) => {
     if (!roomFloor(c, r) || cv.walkable[r]![c] === true) return; // already a walkable interior cell → nothing to clear
-    for (let i = cv.objects.length - 1; i >= 0; i--) { const o = cv.objects[i]!; if (o.kind === 'prop' && o.col === c && o.row === r) cv.objects.splice(i, 1); }
+    const idx = cv.objects.findIndex((o) => o.kind === 'prop' && o.col === c && o.row === r);
+    if (idx >= 0) { const o = cv.objects[idx]!; if (!(FOCAL.has(o.tag) && relocateFocal(o))) cv.objects.splice(idx, 1); } // relocate a focal piece; else remove the furniture
     cv.occ[r]![c] = false; cv.walkable[r]![c] = true;
   };
-  for (const d of [{ c: ed.dC, r: ed.dR }, ...archAt]) for (const [dc, dr] of N4) clearApproach(d.c + dc, d.r + dr);
+  for (const d of doorList) for (const [dc, dr] of N4) clearApproach(d.c + dc, d.r + dr);
 
   // PASS D — PRUNE: any wall cell with NO interior floor in its N8 neighbourhood is redundant — a stranded
   //   arm (e.g. a partition orphaned when a back room became a garden) or the outer cell of a 2-tile-thick

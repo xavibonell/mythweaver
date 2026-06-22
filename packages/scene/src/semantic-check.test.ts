@@ -32,6 +32,15 @@ describe('semantic invariants — building:temple reads as a temple (the Phase-F
     expect(checkSemantics({ ...m, objects: m.objects.filter((o) => o.tag !== 'stone_bench') }, 'temple').understocked).toBeGreaterThan(0);
   });
 
+  it('a COMPOSED (organic multi-wing) temple still reads as a temple — composition is type-agnostic', () => {
+    // shape (geometry) is orthogonal to type (furnishing): a composed footprint furnished as a temple must
+    // still pass the semantic gate. (Caught a real bug: door-clearance was deleting an altar a late arch
+    // landed beside — fixed by relocating focal props instead of removing them.)
+    const dirty: number[] = [];
+    for (let s = 1; s <= 80; s++) if (!checkSemantics(buildComponentSheet('shape:compose:temple', 6, s), 'temple').clean && dirty.length < 8) dirty.push(s);
+    expect(dirty).toEqual([]);
+  });
+
   it('a type with no declared spec is vacuously clean (its station is not built yet)', () => {
     const r = checkSemantics(buildComponentSheet('building:smithy', 6, 1), 'smithy');
     expect(r.clean).toBe(true);
