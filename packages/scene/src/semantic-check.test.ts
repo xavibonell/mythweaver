@@ -123,3 +123,39 @@ describe('semantic invariants — building:smithy reads as a smithy (forge + anv
     expect(clean / 80).toBeGreaterThanOrEqual(0.5);
   });
 });
+
+describe('semantic invariants — building:shop reads as a shop (service counter + display wares)', () => {
+  it('has ZERO semantic defects across 150 seeds (900 buildings)', () => {
+    const dirty: { seed: number; missingFocal: number; focalNotProminent: number; understocked: number; keeperOffStation: number }[] = [];
+    for (let s = 1; s <= 150; s++) {
+      const r = checkSemantics(buildComponentSheet('building:shop', 6, s), 'shop');
+      if (!r.clean && dirty.length < 8) dirty.push({ seed: s, missingFocal: r.missingFocal, focalNotProminent: r.focalNotProminent, understocked: r.understocked, keeperOffStation: r.keeperOffStation });
+    }
+    expect(dirty).toEqual([]);
+  });
+
+  it('every shop has a service counter + ≥2 display ware-shelves + the shopkeeper at the counter', () => {
+    let buildings = 0;
+    for (let s = 1; s <= 40; s++) {
+      const r = checkSemantics(buildComponentSheet('building:shop', 6, s), 'shop');
+      buildings += r.buildings;
+      expect(r.missingFocal).toBe(0);
+      expect(r.focalNotProminent).toBe(0);
+      expect(r.understocked).toBe(0);
+      expect(r.keeperOffStation).toBe(0);
+    }
+    expect(buildings).toBeGreaterThan(100);
+  });
+
+  it('catches a broken shop (counter removed → missingFocal; wares removed → understocked)', () => {
+    const m = buildComponentSheet('building:shop', 6, 1);
+    expect(checkSemantics({ ...m, objects: m.objects.filter((o) => o.tag !== 'bar_counter') }, 'shop').missingFocal).toBeGreaterThan(0);
+    expect(checkSemantics({ ...m, objects: m.objects.filter((o) => o.tag !== 'shelf_wares') }, 'shop').understocked).toBeGreaterThan(0);
+  });
+
+  it('a COMPOSED shop mostly reads as a shop (bonus path; tiny wings degrade)', () => {
+    let clean = 0;
+    for (let s = 1; s <= 80; s++) if (checkSemantics(buildComponentSheet('shape:compose:shop', 6, s), 'shop').clean) clean++;
+    expect(clean / 80).toBeGreaterThanOrEqual(0.55);
+  });
+});

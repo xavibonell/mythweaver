@@ -45,6 +45,8 @@ export const BUILDING_SEMANTICS: Record<string, BuildingSemanticSpec> = {
   tavern: { focal: 'bar_counter', focalRun: 3, seating: { tag: 'chair', min: 2 }, keeperAtFocal: true },
   // Smithy: a lit forge is the focal, the anvil its station partner; the smith is posted at the forge.
   smithy: { focal: 'forge', nearFocal: { tag: 'anvil', within: 2 }, keeperAtFocal: true },
+  // Shop: a service counter (run) is the focal; display wares are the stock; the shopkeeper is at the counter.
+  shop: { focal: 'bar_counter', focalRun: 2, seating: { tag: 'shelf_wares', min: 2 }, keeperAtFocal: true },
 };
 
 export interface SemanticReport {

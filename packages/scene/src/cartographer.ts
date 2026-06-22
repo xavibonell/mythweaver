@@ -95,7 +95,7 @@ export const ROOM_RECIPES: Record<RoomFunction, string[]> = {
   kitchen: ['pantry', 'storage', 'hearth', 'dining'],
   bedroom: ['bed', 'bed', 'shelf', 'dining'],
   storeroom: ['storage', 'storage', 'storage', 'shelf'],
-  shopfront: ['counter', 'wares', 'wares', 'storage'],
+  shopfront: ['shopfront', 'wares', 'wares', 'storage'],
   parlor: ['dining', 'hearth', 'books'],
   nave: ['nave'],
   vestry: ['study', 'books'],
@@ -427,20 +427,18 @@ export function furnishRoom(
     };
     const hearth = () => { const b = byBack(interior).find((p) => free(p.c, p.r)) ?? wallFree()[0]; if (b) put(b.c, b.r, rand() < 0.3 ? 'candelabra_large' : 'brazier'); };
     const counter = () => { let k = 0; for (const p of byBack(interior)) { if (k >= 4) break; if (free(p.c, p.r) && put(p.c, p.r, 'table')) k++; } if (k < 2) alongWall(['table'], 2); for (const p of byBack(interior)) if (rand() < 0.3 && put(p.c, p.r, pick(['jar', 'pot', 'urn', 'candle']))) break; };
-    // BAR — the tavern focal STATION: a CONTINUOUS bar_counter RUN along the wall opposite the entrance, the
-    // barkeep posted at it, patron stools (chairs) in front, a keg at each end. A run (not a point) is the
-    // focal, so it reads unmistakably as a bar rather than tables shoved against a wall.
-    const bar = () => {
-      // Consider all four walls; the bar takes the LONGEST contiguous FREE stretch (preferring the wall
-      // opposite the entrance), with `into` pointing at the room interior — so a bar lands in any shaped room.
+    // COUNTER STATION — a CONTINUOUS bar_counter RUN along the LONGEST free wall stretch (preferring the wall
+    // opposite the entrance), the keeper posted at its centre + a standing lane. A RUN (not a point) is the
+    // focal, so it reads unmistakably as a counter. Shared by the tavern bar and the shop service counter.
+    const counterRun = (): { run: { c: number; r: number }[]; dc: number; dr: number } | null => {
       const dTop = dR === ry, dBot = dR === ry + rh - 1, dLeft = dC === rx, dRight = dC === rx + rw - 1;
-      const wallLines: { cells: { c: number; r: number }[]; into: [number, number]; opp: boolean }[] = [
-        { cells: Array.from({ length: iw }, (_, k) => ({ c: ix + k, r: iy })), into: [0, 1], opp: dBot },
-        { cells: Array.from({ length: iw }, (_, k) => ({ c: ix + k, r: iy + ih - 1 })), into: [0, -1], opp: dTop },
-        { cells: Array.from({ length: ih }, (_, k) => ({ c: ix, r: iy + k })), into: [1, 0], opp: dRight },
-        { cells: Array.from({ length: ih }, (_, k) => ({ c: ix + iw - 1, r: iy + k })), into: [-1, 0], opp: dLeft },
+      const wallLines = [
+        { cells: Array.from({ length: iw }, (_, k) => ({ c: ix + k, r: iy })), into: [0, 1] as const, opp: dBot },
+        { cells: Array.from({ length: iw }, (_, k) => ({ c: ix + k, r: iy + ih - 1 })), into: [0, -1] as const, opp: dTop },
+        { cells: Array.from({ length: ih }, (_, k) => ({ c: ix, r: iy + k })), into: [1, 0] as const, opp: dRight },
+        { cells: Array.from({ length: ih }, (_, k) => ({ c: ix + iw - 1, r: iy + k })), into: [-1, 0] as const, opp: dLeft },
       ];
-      let best: { run: { c: number; r: number }[]; into: [number, number]; opp: boolean } | null = null;
+      let best: { run: { c: number; r: number }[]; into: readonly [number, number]; opp: boolean } | null = null;
       for (const w of wallLines) {
         let cur: { c: number; r: number }[] = [];
         for (const p of [...w.cells, null]) {
@@ -448,14 +446,19 @@ export function furnishRoom(
           else { if (cur.length && (!best || cur.length > best.run.length || (cur.length === best.run.length && w.opp && !best.opp))) best = { run: cur, into: w.into, opp: w.opp }; cur = []; }
         }
       }
-      if (!best || best.run.length < 2) return; // no wall can host a bar → leave the room to dining/hearth
+      if (!best || best.run.length < 2) return null; // no wall can host a counter
       const [dc, dr] = best.into, run = best.run;
       for (const p of run) put(p.c, p.r, 'bar_counter');
-      const mid = run[Math.floor(run.length / 2)]!, kc = mid.c + dc, kr = mid.r + dr;
-      reserveKeeper(kc, kr, [dc, dr]); // barkeep at the bar centre + a reserved standing lane (never boxed in)
-      for (const p of run) { const sc = p.c + dc, sr = p.r + dr; if (free(sc, sr) && rand() < 0.6) put(sc, sr, 'chair'); } // patron stools (free() skips the reserved keeper + lane)
-      for (const e of [run[0]!, run[run.length - 1]!]) { const ec = e.c + dc, er = e.r + dr; if (free(ec, er) && rand() < 0.45) put(ec, er, 'barrel'); } // kegs at the ends
+      const mid = run[Math.floor(run.length / 2)]!;
+      reserveKeeper(mid.c + dc, mid.r + dr, [dc, dr]); // keeper at the counter centre + a reserved standing lane
+      return { run, dc, dr };
     };
+    const bar = () => { // tavern: a counter with patron stools in front + a keg at each end
+      const cr = counterRun(); if (!cr) return;
+      for (const p of cr.run) { const sc = p.c + cr.dc, sr = p.r + cr.dr; if (free(sc, sr) && rand() < 0.6) put(sc, sr, 'chair'); }
+      for (const e of [cr.run[0]!, cr.run[cr.run.length - 1]!]) { const ec = e.c + cr.dc, er = e.r + cr.dr; if (free(ec, er) && rand() < 0.45) put(ec, er, 'barrel'); }
+    };
+    const shopfront = () => { if (counterRun()) alongWall(['shelf_wares'], 2); }; // shop: the service counter + shopkeeper, with ware shelves on display along the walls
     const study = () => { const d = wallFree()[0]; if (!d) return; put(d.c, d.r, 'desk'); for (const [dx, dy] of ORTH4) if (put(d.c + dx, d.r + dy, 'chair')) break; alongWall(['bookshelf_full', 'books'], 2); };
     const altar = () => { const a = byBack(interior).find((p) => free(p.c, p.r)); if (!a) return; put(a.c, a.r, 'altar'); put(a.c - 1, a.r, 'candelabra'); put(a.c + 1, a.r, 'candelabra'); };
     const benches = () => { let k = 0; for (let r = iy + 2; r < iy + ih && k < 6; r += 2) for (let c = ix + 1; c < ix + iw - 1 && k < 6; c += 2) if (put(c, r, 'stone_bench')) k++; };
@@ -505,7 +508,7 @@ export function furnishRoom(
       if (!([[aC + dr, aR + dc], [aC - dr, aR - dc]] as const).some(([bc, br]) => put(bc, br, 'barrel'))) { const b = wallFree()[0]; if (b) put(b.c, b.r, 'barrel'); }
     };
     const GROUPS: Record<string, () => void> = {
-      dining, bed, hearth, counter, bar, study, altar, benches, nave, forge, storage,
+      dining, bed, hearth, counter, bar, shopfront, study, altar, benches, nave, forge, storage,
       shelf: () => alongWall(['shelf', 'shelf_food'], 2), books: () => alongWall(['bookshelf_full', 'books'], 3), pantry: () => { alongWall(['shelf_food', 'shelf'], 2); storage(); }, wares: () => alongWall(['shelf_wares', 'pot', 'jar'], 2), weapons: () => alongWall(['weapon_rack'], 1),
     };
     for (const g of tmpl.groups) { if (placedFurn >= budget) break; (GROUPS[g] ?? (() => {}))(); }
