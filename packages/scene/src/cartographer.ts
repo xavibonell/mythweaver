@@ -180,11 +180,12 @@ export function bakeAutoTiles(tiles: string[][], cols: number, rows: number): vo
     }
 }
 
-/** WOOD-WALL autotile (hybrid): WALL CONNECTIVITY decides the SHAPE — a cell is a corner only where the
- *  wall actually turns (2 perpendicular wall neighbours), so a door/opening (which is FLOOR, not wall)
- *  never makes the adjacent cell render as a corner ("bumps off a straight wall"). The interior-FLOOR
- *  quadrant then orients the corner, so convex corners AND concave inner corners of an L both face the
- *  room correctly. DawnLike's block is one horizontal tile (_t), one vertical (_l) and four corners
+/** WOOD-WALL autotile (hybrid): WALL-LINE CONNECTIVITY decides the SHAPE — a cell is a corner only where the
+ *  wall actually turns (2 perpendicular wall-line neighbours). The wall LINE runs through doorways (a hole in
+ *  a wall counts as the line continuing), so a door mid-straight-wall stays collinear → straight (no "bump
+ *  off a straight wall"), while a door right beside a real corner still reads as that corner (not a false
+ *  end). The interior-FLOOR quadrant then orients the corner, so convex corners AND concave inner corners of
+ *  an L both face the room correctly. DawnLike's block is one horizontal tile (_t), one vertical (_l) and four corners
  *  (_tl/_tr/_bl/_br); _b/_r are identical to _t/_l, so straights are emitted canonically. Idempotent. */
 export function bakeWoodWalls(tiles: string[][], cols: number, rows: number): void {
   const orig = tiles.map((row) => row.slice());
@@ -193,11 +194,16 @@ export function bakeWoodWalls(tiles: string[][], cols: number, rows: number): vo
   const wall = (c: number, r: number) => c >= 0 && r >= 0 && c < cols && r < rows && (orig[r]![c] ?? '').startsWith('wall');
   const baseOf = (c: number, r: number) => ((orig[r]?.[c] ?? '').startsWith('wall_wood') ? 'wall_wood' : 'wall');
   const f = (c: number, r: number) => { const t = orig[r]?.[c] ?? ''; return t === 'wood_floor' || t === 'stone' || t === 'flagstone' || t === 'stone_brick' || t.startsWith('carpet'); };
+  // A DOORWAY is a hole in a wall LINE — a non-wall cell flanked by walls on opposite sides. For SHAPE
+  // detection the line continues THROUGH it, so a door adjacent to a real corner still reads as a corner
+  // (was a false "end" → straight glyph), while a door mid-straight-wall stays collinear → still straight.
+  const doorway = (c: number, r: number) => !wall(c, r) && ((wall(c, r - 1) && wall(c, r + 1)) || (wall(c - 1, r) && wall(c + 1, r)));
+  const wline = (c: number, r: number) => wall(c, r) || doorway(c, r); // wall-line present (wall OR doorway)
   const CORNER: Record<number, string> = { 6: '_tl', 12: '_tr', 3: '_bl', 9: '_br' }; // E+S, S+W, N+E, N+W
   for (let r = 0; r < rows; r++)
     for (let c = 0; c < cols; c++) {
       if (!wall(c, r)) continue;
-      const wN = wall(c, r - 1), wE = wall(c + 1, r), wS = wall(c, r + 1), wW = wall(c - 1, r);
+      const wN = wline(c, r - 1), wE = wline(c + 1, r), wS = wline(c, r + 1), wW = wline(c - 1, r);
       const oppH = wE && wW, oppV = wN && wS;
       let suf: string;
       if (oppH || oppV) {

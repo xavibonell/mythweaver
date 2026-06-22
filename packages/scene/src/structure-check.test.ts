@@ -33,7 +33,7 @@ describe('structure invariants — building:house is structurally perfect (the t
 describe('structure invariants — every footprint SHAPE is clean (the any-shape building tool)', () => {
   // The headline guarantee: rect / L / T / U / cross all produce a watertight, 1-tile-thick ring with no
   // sealed rooms or doors-to-nowhere — proven over the seed space, not eyeballed.
-  for (const sh of ['rect', 'ell', 'tee', 'you', 'plus'] as const) {
+  for (const sh of ['rect', 'ell', 'tee', 'you', 'plus', 'compose'] as const) {
     it(`shape:${sh} — ZERO structural defects across 80 seeds (480 buildings)`, () => {
       const { totals, dirty } = sweep(`shape:${sh}`, 80);
       expect({ ...totals, dirtySeeds: dirty }).toEqual(ZERO);

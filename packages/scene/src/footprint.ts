@@ -15,7 +15,7 @@
 
 import type { Rect } from './primitives.js';
 
-export type ShapeKind = 'rect' | 'ell' | 'tee' | 'you' | 'plus';
+export type ShapeKind = 'rect' | 'ell' | 'tee' | 'you' | 'plus' | 'compose';
 
 export interface FootprintMask {
   /** Bounding box of the floor region (the wall ring sits in the 1-cell margin around it). */
@@ -133,12 +133,47 @@ function plusMask(lot: Rect, rng: () => number): FootprintMask {
   return { bbox: { x, y, w, h }, parts: [col, leftArm, rightArm].filter((p) => p.w >= 3 && p.h >= 3) };
 }
 
+/** COMPOSE — an organic compound: a core rect grows 2–3 adjoining wings (random side/size/offset). Each
+ *  wing is flush against an existing part sharing a full edge ≥3 (so the union stays 4-connected and a door
+ *  always fits) and overlaps nothing (parts stay disjoint → true rooms). This is the fixed shapes
+ *  generalised: instead of hand-placed parts, parts are grown, so no two buildings share a silhouette. */
+function composeMask(lot: Rect, rng: () => number): FootprintMask {
+  const X0 = lot.x + 1, Y0 = lot.y + 1, X1 = lot.x + lot.w - 1, Y1 = lot.y + lot.h - 1; // floor must stay in [X0,X1)×[Y0,Y1)
+  const iw = X1 - X0, ih = Y1 - Y0;
+  const dim = (cap: number) => ri(rng, 4, Math.max(4, Math.min(7, cap))); // a wing/core extent, ≥4, ≤7, ≤cap
+
+  const cw = dim(iw), ch = dim(ih);
+  const parts: Rect[] = [{ x: ri(rng, X0, X1 - cw), y: ri(rng, Y0, Y1 - ch), w: cw, h: ch }];
+  const overlaps = (a: Rect, b: Rect) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+  const within = (r: Rect) => r.x >= X0 && r.y >= Y0 && r.x + r.w <= X1 && r.y + r.h <= Y1;
+
+  const want = 1 + ri(rng, 1, 3); // 2–4 parts total
+  let guard = 0;
+  while (parts.length < want && guard++ < 60) {
+    const base = parts[ri(rng, 0, parts.length - 1)]!;
+    const ww = dim(iw), wh = dim(ih);
+    const side = ri(rng, 0, 3); // 0 N, 1 E, 2 S, 3 W — flush against `base`, offset so the shared edge is ≥3
+    let nr: Rect;
+    if (side === 0) nr = { x: base.x + ri(rng, -(ww - 3), base.w - 3), y: base.y - wh, w: ww, h: wh };
+    else if (side === 2) nr = { x: base.x + ri(rng, -(ww - 3), base.w - 3), y: base.y + base.h, w: ww, h: wh };
+    else if (side === 1) nr = { x: base.x + base.w, y: base.y + ri(rng, -(wh - 3), base.h - 3), w: ww, h: wh };
+    else nr = { x: base.x - ww, y: base.y + ri(rng, -(wh - 3), base.h - 3), w: ww, h: wh };
+    if (!within(nr) || parts.some((p) => overlaps(nr, p))) continue;
+    parts.push(nr);
+  }
+
+  const minx = Math.min(...parts.map((p) => p.x)), miny = Math.min(...parts.map((p) => p.y));
+  const maxx = Math.max(...parts.map((p) => p.x + p.w)), maxy = Math.max(...parts.map((p) => p.y + p.h));
+  return { bbox: { x: minx, y: miny, w: maxx - minx, h: maxy - miny }, parts };
+}
+
 export const SHAPE_GENS: Record<ShapeKind, (lot: Rect, rng: () => number) => FootprintMask> = {
   rect: (lot) => rectMask(lot),
   ell: ellMask,
   tee: teeMask,
   you: youMask,
   plus: plusMask,
+  compose: composeMask,
 };
 
 /** Smallest lot (w×h incl. the wall ring) each shape needs to be legible; below this, fall back to rect. */
@@ -148,6 +183,7 @@ export const SHAPE_MIN: Record<ShapeKind, { w: number; h: number }> = {
   tee: { w: 11, h: 11 },
   you: { w: 13, h: 11 },
   plus: { w: 13, h: 13 },
+  compose: { w: 13, h: 12 },
 };
 
 /** Build a validated mask for a shape on a lot, falling back to rect if the shape doesn't fit or fails. */
