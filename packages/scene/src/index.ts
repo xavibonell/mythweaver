@@ -5,6 +5,7 @@ export { runProgram, buildSpikeScene, GOLD_PROGRAMS, LlmSceneProgrammer, normali
 export { GENERATORS, ARCHETYPE_KINDS, type ArchetypeKind, type ArchetypeGenerator, type Contents, type GenContext } from './archetypes.js';
 export { buildComponentSheet, COMPONENT_KINDS, type ComponentKind } from './component-lab.js';
 export { checkStructure, type StructureReport } from './structure-check.js';
+export { checkSemantics, BUILDING_SEMANTICS, type SemanticReport, type BuildingSemanticSpec } from './semantic-check.js';
 export { THEMES, THEME_NAMES, themeNameFor, type Theme } from './themes.js';
 export { type SceneComposer, FakeSceneComposer, LlmSceneComposer } from './composer.js';
 export { loadAssetLibrary, type AssetLibrary, type AssetEntry, type AssetKind } from './asset-library.js';

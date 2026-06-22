@@ -97,7 +97,7 @@ export const ROOM_RECIPES: Record<RoomFunction, string[]> = {
   storeroom: ['storage', 'storage', 'storage', 'shelf'],
   shopfront: ['counter', 'wares', 'wares', 'storage'],
   parlor: ['dining', 'hearth', 'books'],
-  nave: ['altar', 'benches'],
+  nave: ['nave'],
   vestry: ['study', 'books'],
   forge: ['forge', 'weapons', 'storage'],
 };
@@ -418,9 +418,35 @@ export function furnishRoom(
     const study = () => { const d = wallFree()[0]; if (!d) return; put(d.c, d.r, 'desk'); for (const [dx, dy] of ORTH4) if (put(d.c + dx, d.r + dy, 'chair')) break; alongWall(['bookshelf_full', 'books'], 2); };
     const altar = () => { const a = byBack(interior).find((p) => free(p.c, p.r)); if (!a) return; put(a.c, a.r, 'altar'); put(a.c - 1, a.r, 'candelabra'); put(a.c + 1, a.r, 'candelabra'); };
     const benches = () => { let k = 0; for (let r = iy + 2; r < iy + ih && k < 6; r += 2) for (let c = ix + 1; c < ix + iw - 1 && k < 6; c += 2) if (put(c, r, 'stone_bench')) k++; };
+    // NAVE — the temple focal STATION: altar centered on the wall OPPOSITE the entrance (the visual focus),
+    // candelabra flanking it, and pews ranked toward the door in rows with a clear CENTRAL AISLE down the
+    // door→altar axis. Orients off the door so the altar always faces the congregation, never the back of the door.
+    const nave = () => {
+      // 1) ALTAR on the wall OPPOSITE the entrance, preferring that wall's centre — but ALWAYS land it (fall
+      //    back to any back/wall cell) so the focal point can never go missing.
+      const dTop = dR === ry, dLeft = dC === rx, dRight = dC === rx + rw - 1;
+      const horiz = dLeft || dRight; // entrance on a side wall → altar on the far side wall
+      const cand: { c: number; r: number }[] = [];
+      if (horiz) { const ac = dLeft ? ix + iw - 1 : ix; for (let r = iy; r <= iy + ih - 1; r++) cand.push({ c: ac, r }); }
+      else { const ar = dTop ? iy + ih - 1 : iy; for (let c = ix; c <= ix + iw - 1; c++) cand.push({ c, r: ar }); }
+      const midOf = horiz ? midY : midX;
+      cand.sort((a, b) => Math.abs((horiz ? a.r : a.c) - midOf) - Math.abs((horiz ? b.r : b.c) - midOf)); // centre-out
+      const altarCell = cand.find((p) => free(p.c, p.r)) ?? byBack(interior).find((p) => free(p.c, p.r)) ?? wallFree()[0];
+      if (!altarCell || !put(altarCell.c, altarCell.r, 'altar')) return;
+      const aC = altarCell.c, aR = altarCell.r;
+      // 2) which wall is the altar actually against → flank candelabra ALONG it and rank pews AWAY from it.
+      const side = wallAt(aC, aR - 1) ? 'top' : wallAt(aC, aR + 1) ? 'bottom' : wallAt(aC - 1, aR) ? 'left' : 'right';
+      const vert = side === 'top' || side === 'bottom';
+      if (vert) { if (free(aC - 1, aR)) put(aC - 1, aR, 'candelabra'); if (free(aC + 1, aR)) put(aC + 1, aR, 'candelabra'); }
+      else { if (free(aC, aR - 1)) put(aC, aR - 1, 'candelabra'); if (free(aC, aR + 1)) put(aC, aR + 1, 'candelabra'); }
+      // 3) PEWS ranked away from the altar wall (every other row/col), central aisle aligned with the altar kept clear.
+      const step = side === 'top' || side === 'left' ? 1 : -1;
+      if (vert) for (let r = aR + 2 * step; r >= iy && r <= iy + ih - 1; r += 2 * step) for (let c = ix; c <= ix + iw - 1; c++) { if (c !== aC) put(c, r, 'stone_bench'); }
+      else for (let c = aC + 2 * step; c >= ix && c <= ix + iw - 1; c += 2 * step) for (let r = iy; r <= iy + ih - 1; r++) { if (r !== aR) put(c, r, 'stone_bench'); }
+    };
     const forge = () => { hearth(); const t = byBack(interior).find((p) => free(p.c, p.r)); if (t) put(t.c, t.r, 'table'); };
     const GROUPS: Record<string, () => void> = {
-      dining, bed, hearth, counter, study, altar, benches, forge, storage,
+      dining, bed, hearth, counter, study, altar, benches, nave, forge, storage,
       shelf: () => alongWall(['shelf', 'shelf_food'], 2), books: () => alongWall(['bookshelf_full', 'books'], 3), pantry: () => { alongWall(['shelf_food', 'shelf'], 2); storage(); }, wares: () => alongWall(['shelf_wares', 'pot', 'jar'], 2), weapons: () => alongWall(['weapon_rack'], 1),
     };
     for (const g of tmpl.groups) { if (placedFurn >= budget) break; (GROUPS[g] ?? (() => {}))(); }

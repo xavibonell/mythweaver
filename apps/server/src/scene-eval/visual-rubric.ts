@@ -59,6 +59,19 @@ export const VISUAL_RUBRIC = [
       'flowers, bushes) looks intentional, not noise.',
   },
   {
+    key: 'typeReadability',
+    label: 'Type readability',
+    desc:
+      'Each building reads UNMISTAKABLY as the kind of place it is, from its FOCAL composition — not just ' +
+      'generic furniture. A temple has a clear altar as the focal point with seating ranked toward it down an ' +
+      'aisle; a tavern a continuous bar counter with stools; a smithy a forge workstation (forge + anvil + ' +
+      'tools clustered); a shop a service counter with goods on display. You could name the building type at a ' +
+      'glance. A geometrically-correct but generic interior (right walls, plausible furniture, but no legible ' +
+      'function) scores LOW here even if every other dimension is high — this is the "reads as itself" gate. ' +
+      '(This is necessary-but-not-sufficient with the deterministic semantic check, which proves the focal ' +
+      'piece is present and prominent; this dimension judges whether it actually READS as the focus.)',
+  },
+  {
     key: 'overallFidelity',
     label: 'Overall fidelity',
     desc:

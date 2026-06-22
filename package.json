@@ -26,6 +26,7 @@
     "scene:eval:update": "node scripts/scene-eval.mjs --update",
     "scene:judge:visual": "node scripts/visual-judge.mjs",
     "scene:sweep": "node scripts/structure-sweep.mjs",
+    "scene:sweep:semantics": "node scripts/semantic-sweep.mjs",
     "assets:extract": "python3 scripts/extract-assets.py",
     "up": "docker compose up --build"
   },

@@ -15,6 +15,49 @@ SceneComposition / SceneMap artifacts shown so you can see *which stage* is at f
 
 ---
 
+## ▶ Phase F — Systematic semantic quality: the "10/10 everywhere" kernel (ACTIVE)
+
+House reached 10/10 not by hand-polishing but by a **machine**: declare correctness as checkable
+invariants → sweep the seed space to zero ($0) → adversarially verify → vision-judge the residue.
+The STRUCTURAL axis of that machine (`structure-check.ts` + `scene:sweep`) is already type-agnostic and
+green for all 5 types. Phase F **clones that crank for a second, SEMANTIC axis** — "does it *read as*
+itself?" — so tavern/temple/smithy/shop (and every future component) reach 10/10 by the same loop, not
+by per-building polishing.
+
+**Two hard truths (verified) that shape the order:**
+1. **`facing` is a render no-op for props** (`SceneCanvas` only flips on `facing==='left'`). Orientation
+   MUST live in oriented sprite **tags** (the `bed`/`bed_down`, `window`/`window_front` pattern), never
+   the `MapObject.facing` field — else a checker goes green while the screenshot is unchanged.
+2. **The focal sprites don't exist yet** (no anvil/forge/stool/pew/bar-counter/display-case). Art is the
+   long pole and gates smithy/tavern/shop. **Temple ships first** — its whole kit already exists.
+
+**The kernel (built once, reused everywhere):**
+- `BuildingSpec` per type (data): the *contract* — focal piece + room + where, required props min/max
+  scoped to room, service-path rule. Read by BOTH generator and checker.
+- `semantic-check.ts` — deterministic gate mirroring `structure-check.ts`: `missingFocal`,
+  `focalNotProminent` (on a wall + clear approach), `noSeating`/`countOutOfRange`, `clientsNotFacing`,
+  `brokenStation`, `servicePathBlocked`, `wrongRoomFurniture`. No SceneMap schema change (the sweep knows the kind).
+- A focal-**station** GROUP primitive in `furnishRoom` (centerpiece anchored + relational satellites +
+  keep-clear approach, so prominence passes *by construction*).
+- Per-type vision baseline + a 6th rubric dim `typeReadability` for the irreducibly subjective residue.
+
+**Definition of done per type (NEVER a screenshot sign-off):** semantic sweep 100% over ≥200 seeds AND
+per-type vision baseline pinned & non-regressed AND an adversarial audit run **on the GREEN
+(checker-passing) seeds** hunting "passes-but-reads-generic" — every survivor ratcheted into a new
+deterministic invariant OR a new oriented asset. That ratchet rule is what prevents collapse back to
+hand-polishing.
+
+**Order:** F0 = **TEMPLE end-to-end** (no new art) → produces the kernel everything copies. F1 = ART
+track (parallel long pole, gated by a catalog-existence test). F2 = smithy → tavern → shop. F3 =
+generalize to vignettes / streets / caves + a `scene:gate` ($0 sweeps per commit; paid vision judge on
+demand). Derived from a 3-architect + adversarial-critic design panel (2026-06-22).
+
+- [ ] **F0 temple:** `nave` station (altar opposite door, candelabra flanking, ranked pews + center aisle) ·
+  `semantic-check.ts` + `checkSemantics(map,type)` · `scene:sweep:semantics` driven to 100% on temple ·
+  `semantic-check.test.ts` · adversarial audit of green seeds · re-pin temple + house vision baselines.
+
+---
+
 ## ✅ Phase A — Foundation (DONE)
 
 - [x] Contract pipeline (EstablishScene → SceneComposition → SceneMap), frozen world graph, re-entry reuse.
