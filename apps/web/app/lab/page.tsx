@@ -56,7 +56,7 @@ export default function LabPage() {
   const [fitNonce, setFitNonce] = useState(0); // bump to re-frame the whole scene in the free camera
   // Component mode — a contact sheet of N seed-varied instances of ONE micro-generator, for isolated
   // iteration. Mirrors COMPONENT_KINDS on the server (packages/scene/src/component-lab.ts).
-  const COMPONENT_KINDS = ['building:tavern', 'building:temple', 'building:smithy', 'building:shop', 'building:house', 'shape:rect', 'shape:ell', 'shape:tee', 'shape:you', 'shape:plus', 'shape:compose', 'shape:compose:temple', 'vignette:market', 'vignette:forge', 'vignette:shrine', 'vignette:well', 'vignette:camp', 'vignette:graveyard', 'plaza', 'streets', 'density:trees', 'density:flowers', 'density:furniture', 'clearing', 'cave', 'rooms', 'maze'];
+  const COMPONENT_KINDS = ['building:tavern', 'building:temple', 'building:smithy', 'building:shop', 'building:house', 'shape:rect', 'shape:ell', 'shape:tee', 'shape:you', 'shape:plus', 'shape:compose', 'shape:compose:temple', 'shape:compose:tavern', 'vignette:market', 'vignette:forge', 'vignette:shrine', 'vignette:well', 'vignette:camp', 'vignette:graveyard', 'plaza', 'streets', 'density:trees', 'density:flowers', 'density:furniture', 'clearing', 'cave', 'rooms', 'maze'];
   const [componentKind, setComponentKind] = useState('building:tavern');
   const [componentCount, setComponentCount] = useState(6);
   const [componentSeed, setComponentSeed] = useState(1);

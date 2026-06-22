@@ -2214,6 +2214,25 @@
     },
     {
       "kind": "prop",
+      "tag": "bar_counter",
+      "desc": "a wooden bar / service counter (a row reads as one continuous counter)",
+      "art": "/assets/dawnlike/props/bar_counter.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": true,
+      "biomes": [
+        "town",
+        "village"
+      ],
+      "from": {
+        "gen": "counter"
+      }
+    },
+    {
+      "kind": "prop",
       "tag": "gravestone",
       "desc": "a stone gravestone",
       "art": "/assets/dawnlike/props/gravestone.png",

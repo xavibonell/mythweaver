@@ -90,7 +90,7 @@ export const ROOM_PROGRAMS: Record<BuildingType, RoomFunction[]> = {
  *  counter = a back-wall bar, …). Groups are the reuse unit (~14, shared by every room/building/biome);
  *  a recipe is just a list of them, so this scales without per-item grind. */
 export const ROOM_RECIPES: Record<RoomFunction, string[]> = {
-  bar: ['counter', 'dining', 'dining', 'hearth', 'storage'],
+  bar: ['bar', 'dining', 'dining', 'hearth', 'storage'],
   dining: ['dining', 'dining', 'hearth', 'shelf'],
   kitchen: ['pantry', 'storage', 'hearth', 'dining'],
   bedroom: ['bed', 'bed', 'shelf', 'dining'],
@@ -325,6 +325,9 @@ export function furnishRoom(
   // leaf's bounding-rect edge isn't always a real wall (a U/compose arm can open onto another room, not a wall).
   const wallAt = (c: number, r: number) => (tiles[r]?.[c] ?? '').startsWith('wall');
   const bedSideOf = (c: number, r: number): keyof typeof BED_TAG | null => (wallAt(c, r - 1) ? 'top' : wallAt(c, r + 1) ? 'bottom' : wallAt(c - 1, r) ? 'left' : wallAt(c + 1, r) ? 'right' : null);
+  // A focal STATION (bar / forge / shop counter) can post the keeper AT its station (the barkeep behind the
+  // bar, the smith at the forge) by setting this; otherwise the keeper falls back to the room centre.
+  let keeperAt: { c: number; r: number } | null = null;
   const inB = (c: number, r: number) => r >= 0 && r < tiles.length && c >= 0 && c < (tiles[0]?.length ?? 0);
   const interior: { c: number; r: number }[] = [];
   for (let y = iy; y < iy + ih; y++) for (let x = ix; x < ix + iw; x++) interior.push({ c: x, r: y });
@@ -415,6 +418,35 @@ export function furnishRoom(
     };
     const hearth = () => { const b = byBack(interior).find((p) => free(p.c, p.r)) ?? wallFree()[0]; if (b) put(b.c, b.r, rand() < 0.3 ? 'candelabra_large' : 'brazier'); };
     const counter = () => { let k = 0; for (const p of byBack(interior)) { if (k >= 4) break; if (free(p.c, p.r) && put(p.c, p.r, 'table')) k++; } if (k < 2) alongWall(['table'], 2); for (const p of byBack(interior)) if (rand() < 0.3 && put(p.c, p.r, pick(['jar', 'pot', 'urn', 'candle']))) break; };
+    // BAR — the tavern focal STATION: a CONTINUOUS bar_counter RUN along the wall opposite the entrance, the
+    // barkeep posted at it, patron stools (chairs) in front, a keg at each end. A run (not a point) is the
+    // focal, so it reads unmistakably as a bar rather than tables shoved against a wall.
+    const bar = () => {
+      // Consider all four walls; the bar takes the LONGEST contiguous FREE stretch (preferring the wall
+      // opposite the entrance), with `into` pointing at the room interior — so a bar lands in any shaped room.
+      const dTop = dR === ry, dBot = dR === ry + rh - 1, dLeft = dC === rx, dRight = dC === rx + rw - 1;
+      const wallLines: { cells: { c: number; r: number }[]; into: [number, number]; opp: boolean }[] = [
+        { cells: Array.from({ length: iw }, (_, k) => ({ c: ix + k, r: iy })), into: [0, 1], opp: dBot },
+        { cells: Array.from({ length: iw }, (_, k) => ({ c: ix + k, r: iy + ih - 1 })), into: [0, -1], opp: dTop },
+        { cells: Array.from({ length: ih }, (_, k) => ({ c: ix, r: iy + k })), into: [1, 0], opp: dRight },
+        { cells: Array.from({ length: ih }, (_, k) => ({ c: ix + iw - 1, r: iy + k })), into: [-1, 0], opp: dLeft },
+      ];
+      let best: { run: { c: number; r: number }[]; into: [number, number]; opp: boolean } | null = null;
+      for (const w of wallLines) {
+        let cur: { c: number; r: number }[] = [];
+        for (const p of [...w.cells, null]) {
+          if (p && free(p.c, p.r)) cur.push(p);
+          else { if (cur.length && (!best || cur.length > best.run.length || (cur.length === best.run.length && w.opp && !best.opp))) best = { run: cur, into: w.into, opp: w.opp }; cur = []; }
+        }
+      }
+      if (!best || best.run.length < 2) return; // no wall can host a bar → leave the room to dining/hearth
+      const [dc, dr] = best.into, run = best.run;
+      for (const p of run) put(p.c, p.r, 'bar_counter');
+      const mid = run[Math.floor(run.length / 2)]!, kc = mid.c + dc, kr = mid.r + dr;
+      if (free(kc, kr)) keeperAt = { c: kc, r: kr }; // post the barkeep at the centre of the bar
+      for (const p of run) { const sc = p.c + dc, sr = p.r + dr; if ((sc !== kc || sr !== kr) && free(sc, sr) && rand() < 0.6) put(sc, sr, 'chair'); } // patron stools
+      for (const e of [run[0]!, run[run.length - 1]!]) { const ec = e.c + dc, er = e.r + dr; if ((ec !== kc || er !== kr) && free(ec, er) && rand() < 0.45) put(ec, er, 'barrel'); } // kegs at the ends
+    };
     const study = () => { const d = wallFree()[0]; if (!d) return; put(d.c, d.r, 'desk'); for (const [dx, dy] of ORTH4) if (put(d.c + dx, d.r + dy, 'chair')) break; alongWall(['bookshelf_full', 'books'], 2); };
     const altar = () => { const a = byBack(interior).find((p) => free(p.c, p.r)); if (!a) return; put(a.c, a.r, 'altar'); put(a.c - 1, a.r, 'candelabra'); put(a.c + 1, a.r, 'candelabra'); };
     const benches = () => { let k = 0; for (let r = iy + 2; r < iy + ih && k < 6; r += 2) for (let c = ix + 1; c < ix + iw - 1 && k < 6; c += 2) if (put(c, r, 'stone_bench')) k++; };
@@ -446,7 +478,7 @@ export function furnishRoom(
     };
     const forge = () => { hearth(); const t = byBack(interior).find((p) => free(p.c, p.r)); if (t) put(t.c, t.r, 'table'); };
     const GROUPS: Record<string, () => void> = {
-      dining, bed, hearth, counter, study, altar, benches, nave, forge, storage,
+      dining, bed, hearth, counter, bar, study, altar, benches, nave, forge, storage,
       shelf: () => alongWall(['shelf', 'shelf_food'], 2), books: () => alongWall(['bookshelf_full', 'books'], 3), pantry: () => { alongWall(['shelf_food', 'shelf'], 2); storage(); }, wares: () => alongWall(['shelf_wares', 'pot', 'jar'], 2), weapons: () => alongWall(['weapon_rack'], 1),
     };
     for (const g of tmpl.groups) { if (placedFurn >= budget) break; (GROUPS[g] ?? (() => {}))(); }
@@ -469,7 +501,11 @@ export function furnishRoom(
       }
     }
   }
-  const occCell = tmpl.occupant ? takeCell(byCenter) : null; // empty occupant → no keeper (multi-room compounds put ONE keeper in the primary room only)
+  // Keeper at its STATION if a focal group posted one (barkeep at the bar), else the room centre. (Taking the
+  // hint as a parameter resets the closure-narrowing of keeperAt to its declared type.)
+  const pickKeeper = (hint: { c: number; r: number } | null): { c: number; r: number } | null =>
+    hint && !occ[hint.r]![hint.c] && walkable[hint.r]![hint.c] === true && hint.r * cols + hint.c !== keepClear ? hint : takeCell(byCenter);
+  const occCell = tmpl.occupant ? pickKeeper(keeperAt) : null; // empty occupant → no keeper (multi-room compounds put ONE keeper in the primary room only)
   if (occCell) {
     occ[occCell.r]![occCell.c] = true; // reserve (actor doesn't block walkable)
     // The keeper is an individually-addressable NPC (NOT grouped) so the DM digest keeps its id/name/position.

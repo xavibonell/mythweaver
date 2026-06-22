@@ -293,10 +293,26 @@ def gen_stall(dst: str, frm: dict) -> None:
     im.save(dst)
 
 
+def gen_counter(dst: str, frm: dict) -> None:
+    """A wooden bar / service counter tile: a warm plank top with vertical seams, a bright top lip (the edge
+    facing the patrons) and a dark base shadow — so a ROW of them reads as one continuous counter."""
+    from PIL import ImageDraw
+
+    im = Image.new("RGBA", (16, 16), (0, 0, 0, 0))
+    d = ImageDraw.Draw(im)
+    top, seam, hi, base = _db("brown"), _db("maroon"), _db("orange"), _db("black")
+    d.rectangle([0, 2, 15, 15], fill=top)
+    for x in range(0, 16, 4):  # vertical plank seams
+        d.line([(x, 3), (x, 13)], fill=seam)
+    d.rectangle([0, 1, 15, 2], fill=hi)  # bright top lip (counter edge)
+    d.rectangle([0, 14, 15, 15], fill=base)  # dark base shadow
+    im.save(dst)
+
+
 GENERATORS = {
     "water": gen_water, "water_deep": gen_water_deep, "lava": gen_lava, "sand": gen_sand, "boat": gen_boat,
     "house": gen_house, "fountain": gen_fountain, "dlhouse": gen_dlhouse, "stall": gen_stall, "wall": gen_wall, "flowers": gen_flowers,
-    "pebble": gen_pebble, "tuft": gen_tuft,
+    "pebble": gen_pebble, "tuft": gen_tuft, "counter": gen_counter,
 }
 
 

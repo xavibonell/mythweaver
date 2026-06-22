@@ -21,8 +21,12 @@ const isWallTile = (t: string): boolean => t.startsWith('wall');
 
 /** The CHECKABLE contract for a building type (what must read as itself), NOT the recipe that builds it. */
 export interface BuildingSemanticSpec {
-  /** the type's centrepiece prop — must exist, sit against a wall, and have a clear approach in front. */
+  /** the type's centrepiece prop. A POINT focal (altar) must sit against a wall with a clear approach; a RUN
+   *  focal (bar counter) must form a contiguous line — see focalRun. */
   focal: string;
+  /** if set, the focal is a RUN: there must be a contiguous straight line of ≥ focalRun focal tiles (a bar,
+   *  a service counter) — not a single prop. */
+  focalRun?: number;
   /** required supporting furniture: at least `min` of `tag` per building (scaled later if needed). */
   seating?: { tag: string; min: number };
 }
@@ -30,6 +34,8 @@ export interface BuildingSemanticSpec {
 export const BUILDING_SEMANTICS: Record<string, BuildingSemanticSpec> = {
   // Temple is the Phase-F reference slice (its whole kit already exists as art).
   temple: { focal: 'altar', seating: { tag: 'stone_bench', min: 2 } },
+  // Tavern: a continuous bar counter (run) is the focal; chairs are patron seating.
+  tavern: { focal: 'bar_counter', focalRun: 3, seating: { tag: 'chair', min: 2 } },
 };
 
 export interface SemanticReport {
@@ -75,14 +81,46 @@ export function checkSemantics(map: SceneMap, type: string): SemanticReport {
     (byBldg.get(id) ?? byBldg.set(id, []).get(id)!).push({ tag: o.tag, col: o.col, row: o.row });
   }
 
+  // Bounding-box of the interior-floor room containing (c,r) — to scale a focal requirement to room size
+  // (graceful degradation: a tiny room can only host a short bar, so don't demand a 3-run it can't fit).
+  const roomSpan = (c0: number, r0: number): number => {
+    const seen = new Set([`${c0},${r0}`]); const st: [number, number][] = [[c0, r0]];
+    let minc = c0, maxc = c0, minr = r0, maxr = r0;
+    while (st.length) {
+      const [c, r] = st.pop()!; minc = Math.min(minc, c); maxc = Math.max(maxc, c); minr = Math.min(minr, r); maxr = Math.max(maxr, r);
+      for (const [dc, dr] of N4) { const nc = c + dc, nr = r + dr, k = `${nc},${nr}`; if (!seen.has(k) && interiorFloor(nc, nr)) { seen.add(k); st.push([nc, nr]); } }
+    }
+    return Math.max(maxc - minc + 1, maxr - minr + 1); // the room's longest interior dimension = its longest wall
+  };
+
+  // Longest contiguous straight run (horizontal or vertical) among a set of cells — for a RUN focal (a bar).
+  const longestRun = (cells: { col: number; row: number }[]): number => {
+    const set = new Set(cells.map((p) => `${p.col},${p.row}`));
+    let best = 0;
+    for (const p of cells) {
+      if (!set.has(`${p.col - 1},${p.row}`)) { let n = 0, c = p.col; while (set.has(`${c},${p.row}`)) { n++; c++; } best = Math.max(best, n); }
+      if (!set.has(`${p.col},${p.row - 1}`)) { let n = 0, r = p.row; while (set.has(`${p.col},${r}`)) { n++; r++; } best = Math.max(best, n); }
+    }
+    return best;
+  };
+
   for (const [, props] of byBldg) {
     rep.buildings++;
-    const focal = props.find((p) => p.tag === spec.focal);
-    if (!focal) { rep.missingFocal++; continue; }
-    // Prominence: the focal sits against a wall AND a walkable interior-floor cell is adjacent (its approach).
-    const onWall = N4.some(([dc, dr]) => wall(focal.col + dc, focal.row + dr));
-    const hasApproach = N4.some(([dc, dr]) => interiorFloor(focal.col + dc, focal.row + dr) && walk(focal.col + dc, focal.row + dr));
-    if (!onWall || !hasApproach) { rep.focalNotProminent++; sample('focal', focal.col, focal.row); }
+    const focals = props.filter((p) => p.tag === spec.focal);
+    if (focals.length === 0) { rep.missingFocal++; continue; }
+    const focal = focals[0]!;
+    if (spec.focalRun) {
+      // RUN focal (bar counter): a contiguous line against a wall, ≥ focalRun — but never longer than the room
+      // can hold (a tiny room legitimately gets a shorter bar; the station already places the longest run).
+      const wallBacked = focals.some((f) => N4.some(([dc, dr]) => wall(f.col + dc, f.row + dr)));
+      const need = Math.min(spec.focalRun, roomSpan(focal.col, focal.row));
+      if (longestRun(focals) < need || !wallBacked) { rep.focalNotProminent++; sample('focalrun', focal.col, focal.row); }
+    } else {
+      // POINT focal (altar): sits against a wall AND a walkable interior-floor cell is adjacent (its approach).
+      const onWall = N4.some(([dc, dr]) => wall(focal.col + dc, focal.row + dr));
+      const hasApproach = N4.some(([dc, dr]) => interiorFloor(focal.col + dc, focal.row + dr) && walk(focal.col + dc, focal.row + dr));
+      if (!onWall || !hasApproach) { rep.focalNotProminent++; sample('focal', focal.col, focal.row); }
+    }
     if (spec.seating) {
       const n = props.filter((p) => p.tag === spec.seating!.tag).length;
       if (n < spec.seating.min) { rep.understocked++; sample('seating', focal.col, focal.row); }

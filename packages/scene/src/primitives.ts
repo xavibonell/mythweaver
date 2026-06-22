@@ -495,8 +495,12 @@ export function compound(cv: Canvas, region: Rect, type: BuildingType, opts: { d
 
   // 5. FURNISH each room BY FUNCTION. The leaf holding the exterior door is the PRIMARY (front) room →
   //    keeper + name + entrance; the rest get furniture only (occupant '' → furnishRoom skips a keeper).
+  // PRIMARY room (index 0) = the LARGEST leaf — it hosts the keeper + the type's FOCAL station (altar / bar
+  //   run / forge), which needs space; on a composed footprint a tiny primary leaf can't fit a focal RUN.
+  //   Tie-broken toward the leaf holding the entrance, so you tend to enter into the main hall.
   const inLeaf = (lf: Rect, c: number, r: number) => c >= lf.x && c < lf.x + lf.w && r >= lf.y && r < lf.y + lf.h;
-  leaves.sort((a, b) => (inLeaf(b, ed.dC, ed.dR) ? 1 : 0) - (inLeaf(a, ed.dC, ed.dR) ? 1 : 0));
+  const inIC0 = 2 * ed.dC - ed.oC, inIR0 = 2 * ed.dR - ed.oR; // the floor cell just inside the entrance
+  leaves.sort((a, b) => (b.w * b.h + (inLeaf(b, inIC0, inIR0) ? 0.5 : 0)) - (a.w * a.h + (inLeaf(a, inIC0, inIR0) ? 0.5 : 0)));
   const program = ROOM_PROGRAMS[type] ?? ROOM_PROGRAMS.house;
   const safe = (opts.id && opts.id.includes(':') ? opts.id.slice(opts.id.indexOf(':') + 1) : opts.id ?? type).replace(/[^a-z0-9_-]/gi, '-').toLowerCase() || type;
   // (entrance record is pushed AFTER the repair pass, so it reflects the final door position.)
