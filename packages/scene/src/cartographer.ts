@@ -501,7 +501,8 @@ export function furnishRoom(
       const aC = f.c + dc, aR = f.r + dr;
       if (free(aC, aR)) put(aC, aR, 'anvil'); // the anvil right in front of the forge
       for (const [pc, pr] of [[f.c + dr, f.r + dc], [f.c - dr, f.r - dc], [aC + dr, aR + dc], [aC - dr, aR - dc]] as const) if (reserveKeeper(pc, pr, [dc, dr])) break; // the smith, posted at the forge (+ a lane)
-      for (const [bc, br] of [[aC + dr, aR + dc], [aC - dr, aR - dc]] as const) if (free(bc, br) && rand() < 0.7) { put(bc, br, 'barrel'); break; } // a quench barrel by the anvil
+      // a quench barrel by the anvil — ALWAYS (a forge reads as a working forge), beside it or else any forge-room wall cell
+      if (!([[aC + dr, aR + dc], [aC - dr, aR - dc]] as const).some(([bc, br]) => put(bc, br, 'barrel'))) { const b = wallFree()[0]; if (b) put(b.c, b.r, 'barrel'); }
     };
     const GROUPS: Record<string, () => void> = {
       dining, bed, hearth, counter, bar, study, altar, benches, nave, forge, storage,
