@@ -29,6 +29,10 @@ export interface BuildingSemanticSpec {
   focalRun?: number;
   /** required supporting furniture: at least `min` of `tag` per building (scaled later if needed). */
   seating?: { tag: string; min: number };
+  /** a STATION partner that must sit near the focal (the anvil by the forge) — within Chebyshev `within`
+   *  cells. When set, a point focal is "prominent" if it's wall-backed AND has its partner (instead of a
+   *  clear approach — a workstation's front is occupied by its partner, not open floor). */
+  nearFocal?: { tag: string; within: number };
   /** the keeper must be posted AT the focal (the barkeep behind the bar, the smith at the forge) — i.e.
    *  orthogonally adjacent to a focal cell, not marooned in the room centre. */
   keeperAtFocal?: boolean;
@@ -39,6 +43,8 @@ export const BUILDING_SEMANTICS: Record<string, BuildingSemanticSpec> = {
   temple: { focal: 'altar', seating: { tag: 'stone_bench', min: 2 } },
   // Tavern: a continuous bar counter (run) is the focal; chairs are patron seating; the barkeep is AT the bar.
   tavern: { focal: 'bar_counter', focalRun: 3, seating: { tag: 'chair', min: 2 }, keeperAtFocal: true },
+  // Smithy: a lit forge is the focal, the anvil its station partner; the smith is posted at the forge.
+  smithy: { focal: 'forge', nearFocal: { tag: 'anvil', within: 2 }, keeperAtFocal: true },
 };
 
 export interface SemanticReport {
@@ -128,10 +134,13 @@ export function checkSemantics(map: SceneMap, type: string): SemanticReport {
       const need = Math.min(spec.focalRun, roomSpan(focal.col, focal.row));
       if (longestRun(focals) < need || !wallBacked) { rep.focalNotProminent++; sample('focalrun', focal.col, focal.row); }
     } else {
-      // POINT focal (altar): sits against a wall AND a walkable interior-floor cell is adjacent (its approach).
+      // POINT focal: sits against a wall, AND — for a STATION (nearFocal) — has its partner nearby (the anvil
+      // by the forge); otherwise (a lone focal like an altar) has a clear walkable approach in front.
       const onWall = N4.some(([dc, dr]) => wall(focal.col + dc, focal.row + dr));
-      const hasApproach = N4.some(([dc, dr]) => interiorFloor(focal.col + dc, focal.row + dr) && walk(focal.col + dc, focal.row + dr));
-      if (!onWall || !hasApproach) { rep.focalNotProminent++; sample('focal', focal.col, focal.row); }
+      const stationOk = spec.nearFocal
+        ? props.some((p) => p.tag === spec.nearFocal!.tag && Math.abs(p.col - focal.col) <= spec.nearFocal!.within && Math.abs(p.row - focal.row) <= spec.nearFocal!.within)
+        : N4.some(([dc, dr]) => interiorFloor(focal.col + dc, focal.row + dr) && walk(focal.col + dc, focal.row + dr));
+      if (!onWall || !stationOk) { rep.focalNotProminent++; sample('focal', focal.col, focal.row); }
     }
     if (spec.seating) {
       const n = props.filter((p) => p.tag === spec.seating!.tag).length;

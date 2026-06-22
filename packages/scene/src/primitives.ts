@@ -707,7 +707,7 @@ export function compound(cv: Canvas, region: Rect, type: BuildingType, opts: { d
   const doorList = [{ c: ed.dC, r: ed.dR }, ...archAt];
   const approachCells = new Set<string>(); // every room cell touching a door — must stay clear, and is no place to relocate a focal prop to
   for (const d of doorList) for (const [dc, dr] of N4) approachCells.add(`${d.c + dc},${d.r + dr}`);
-  const FOCAL = new Set(['altar']); // a type's centrepiece must NEVER be deleted by clearance — relocate it instead
+  const FOCAL = new Set(['altar', 'forge']); // a type's wall-backed centrepiece must NEVER be deleted by clearance — relocate it instead
   const wallAdj = (c: number, r: number) => N4.some(([dc, dr]) => (cv.tileAt(c + dc, r + dr) ?? '').startsWith('wall'));
   const relocateFocal = (o: { col: number; row: number }): boolean => { // slide it to the nearest free wall cell that isn't a door approach
     for (let rad = 1; rad <= 4; rad++) for (let dr = -rad; dr <= rad; dr++) for (let dc = -rad; dc <= rad; dc++) {

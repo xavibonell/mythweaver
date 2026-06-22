@@ -41,8 +41,8 @@ describe('semantic invariants — building:temple reads as a temple (the Phase-F
     expect(clean / 80).toBeGreaterThanOrEqual(0.95);
   });
 
-  it('a type with no declared spec is vacuously clean (its station is not built yet)', () => {
-    const r = checkSemantics(buildComponentSheet('building:smithy', 6, 1), 'smithy');
+  it('a type with no declared spec is vacuously clean (the kernel only gates types with a contract)', () => {
+    const r = checkSemantics(buildComponentSheet('building:house', 6, 1), 'house'); // house is a residence — no single focal spec
     expect(r.clean).toBe(true);
     expect(r.buildings).toBe(0);
   });
@@ -83,5 +83,43 @@ describe('semantic invariants — building:tavern reads as a tavern (a bar is a 
     let clean = 0;
     for (let s = 1; s <= 80; s++) if (checkSemantics(buildComponentSheet('shape:compose:tavern', 6, s), 'tavern').clean) clean++;
     expect(clean / 80).toBeGreaterThanOrEqual(0.8);
+  });
+});
+
+describe('semantic invariants — building:smithy reads as a smithy (forge + anvil STATION)', () => {
+  it('has ZERO semantic defects across 150 seeds (900 buildings)', () => {
+    const dirty: { seed: number; missingFocal: number; focalNotProminent: number; keeperOffStation: number }[] = [];
+    for (let s = 1; s <= 150; s++) {
+      const r = checkSemantics(buildComponentSheet('building:smithy', 6, s), 'smithy');
+      if (!r.clean && dirty.length < 8) dirty.push({ seed: s, missingFocal: r.missingFocal, focalNotProminent: r.focalNotProminent, keeperOffStation: r.keeperOffStation });
+    }
+    expect(dirty).toEqual([]);
+  });
+
+  it('every smithy has a forge with its anvil adjacent + the smith posted at it', () => {
+    let buildings = 0;
+    for (let s = 1; s <= 40; s++) {
+      const r = checkSemantics(buildComponentSheet('building:smithy', 6, s), 'smithy');
+      buildings += r.buildings;
+      expect(r.missingFocal).toBe(0);       // a forge is present
+      expect(r.focalNotProminent).toBe(0);  // the anvil is by the forge
+      expect(r.keeperOffStation).toBe(0);   // the smith is at the forge
+    }
+    expect(buildings).toBeGreaterThan(100);
+  });
+
+  it('catches a broken smithy (forge removed → missingFocal; anvil removed → focalNotProminent)', () => {
+    const m = buildComponentSheet('building:smithy', 6, 1);
+    expect(checkSemantics({ ...m, objects: m.objects.filter((o) => o.tag !== 'forge') }, 'smithy').missingFocal).toBeGreaterThan(0);
+    expect(checkSemantics({ ...m, objects: m.objects.filter((o) => o.tag !== 'anvil') }, 'smithy').focalNotProminent).toBeGreaterThan(0);
+  });
+
+  it('a COMPOSED smithy is structurally sound but the forge STATION degrades most in tiny wings (bonus path)', () => {
+    // The forge+anvil+smith cluster is the most space-demanding focal; on a composed partition wall an
+    // inter-room arch can shear it apart. Rect smithy is exact-100% (the shipping path); composed is a known-
+    // weaker bonus we keep honest here rather than hide. Follow-up: anchor focal stations on the outer ring.
+    let clean = 0;
+    for (let s = 1; s <= 80; s++) if (checkSemantics(buildComponentSheet('shape:compose:smithy', 6, s), 'smithy').clean) clean++;
+    expect(clean / 80).toBeGreaterThanOrEqual(0.5);
   });
 });

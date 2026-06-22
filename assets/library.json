@@ -2233,6 +2233,45 @@
     },
     {
       "kind": "prop",
+      "tag": "anvil",
+      "desc": "a blacksmith's iron anvil",
+      "art": "/assets/dawnlike/props/anvil.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": true,
+      "biomes": [
+        "town",
+        "village"
+      ],
+      "from": {
+        "gen": "anvil"
+      }
+    },
+    {
+      "kind": "prop",
+      "tag": "forge",
+      "desc": "a lit blacksmith's forge",
+      "art": "/assets/dawnlike/props/forge.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": true,
+      "light": true,
+      "biomes": [
+        "town",
+        "village"
+      ],
+      "from": {
+        "gen": "forge"
+      }
+    },
+    {
+      "kind": "prop",
       "tag": "gravestone",
       "desc": "a stone gravestone",
       "art": "/assets/dawnlike/props/gravestone.png",

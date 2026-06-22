@@ -309,7 +309,45 @@ def gen_counter(dst: str, frm: dict) -> None:
     im.save(dst)
 
 
+def gen_anvil(dst: str, frm: dict) -> None:
+    """A blacksmith's anvil: iron-grey, a flat top face with a horn on the right, a narrow waist, a wide base.
+    The iconic smithy work-object (DB16 palette so it sits beside the gen forge/counter)."""
+    from PIL import ImageDraw
+
+    im = Image.new("RGBA", (16, 16), (0, 0, 0, 0))
+    d = ImageDraw.Draw(im)
+    body, dark, hi, base = _db("grey"), _db("dgrey"), _db("lgrey"), _db("black")
+    d.rectangle([3, 4, 11, 7], fill=body)  # top face
+    d.polygon([(11, 4), (15, 5), (15, 6), (11, 7)], fill=body)  # horn (points right)
+    d.line([(3, 4), (11, 4)], fill=hi)  # top highlight
+    d.rectangle([6, 7, 9, 10], fill=dark)  # waist
+    d.rectangle([4, 10, 11, 13], fill=body)  # base
+    d.rectangle([3, 13, 12, 14], fill=base)  # ground shadow
+    im.save(dst)
+
+
+def gen_forge(dst: str, frm: dict) -> None:
+    """A lit blacksmith's forge: a stone hearth with glowing coals + flame on top — the smithy focal (brighter
+    and more 'fire' than a brazier). DB16 palette."""
+    from PIL import ImageDraw
+
+    im = Image.new("RGBA", (16, 16), (0, 0, 0, 0))
+    d = ImageDraw.Draw(im)
+    stone, dstone, fire, hot, ember, black = _db("grey"), _db("dgrey"), _db("orange"), _db("yellow"), _db("red"), _db("black")
+    d.rectangle([1, 7, 14, 15], fill=stone)  # stone hearth base
+    d.rectangle([1, 7, 14, 8], fill=dstone)
+    for x in range(3, 14, 3):  # brick seams
+        d.line([(x, 9), (x, 14)], fill=dstone)
+    d.rectangle([3, 3, 12, 7], fill=black)  # firebox opening
+    d.rectangle([4, 5, 11, 7], fill=ember)  # glowing coals
+    d.polygon([(5, 6), (7, 2), (8, 6)], fill=fire)  # flame
+    d.polygon([(8, 6), (10, 3), (11, 6)], fill=fire)  # flame 2
+    d.point([(7, 3), (10, 4), (9, 5)], fill=hot)  # hot flecks
+    im.save(dst)
+
+
 GENERATORS = {
+    "anvil": gen_anvil, "forge": gen_forge,
     "water": gen_water, "water_deep": gen_water_deep, "lava": gen_lava, "sand": gen_sand, "boat": gen_boat,
     "house": gen_house, "fountain": gen_fountain, "dlhouse": gen_dlhouse, "stall": gen_stall, "wall": gen_wall, "flowers": gen_flowers,
     "pebble": gen_pebble, "tuft": gen_tuft, "counter": gen_counter,

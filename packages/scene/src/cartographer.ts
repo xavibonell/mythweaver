@@ -385,6 +385,15 @@ export function furnishRoom(
       placedFurn++; return true;
     };
     const pick = (pool: string[]) => pool[Math.floor(rand() * pool.length)]!;
+    // Post the keeper AT a focal station: reserve the cell AND a standing lane (a free orthogonal neighbour)
+    // so later groups can't box the keeper in. Returns true if posted. (bar/forge share this.)
+    const reserveKeeper = (c: number, r: number, prefer?: readonly [number, number]): boolean => {
+      if (!free(c, r)) return false;
+      keeperAt = { c, r }; occ[r]![c] = true;
+      const dirs = prefer ? [prefer, ...ORTH4] : ORTH4; // prefer a lane deeper into the room, not a seating cell
+      for (const [dx, dy] of dirs) if (free(c + dx, r + dy)) { occ[r + dy]![c + dx] = true; break; }
+      return true;
+    };
     const wallFree = () => byWall(interior).filter((p) => free(p.c, p.r));
     const alongWall = (pool: string[], n: number) => { let k = 0; for (const p of wallFree()) { if (k >= n) break; if (put(p.c, p.r, pick(pool))) k++; } }; // varied per cell
     const CRATES = ['barrel', 'crate', 'sack', 'jar', 'urn', 'woodpile', 'pot'];
@@ -443,14 +452,9 @@ export function furnishRoom(
       const [dc, dr] = best.into, run = best.run;
       for (const p of run) put(p.c, p.r, 'bar_counter');
       const mid = run[Math.floor(run.length / 2)]!, kc = mid.c + dc, kr = mid.r + dr;
-      const lc = kc + dc, lr = kr + dr; // a standing lane one further in, so the barkeep is never boxed in
-      if (free(kc, kr)) {
-        keeperAt = { c: kc, r: kr };
-        occ[kr]![kc] = true; // RESERVE the barkeep's spot so the later dining/hearth groups don't bury it
-        if (free(lc, lr)) occ[lr]![lc] = true; // reserve a walkable approach lane (stays walkable → reachable)
-      }
-      for (const p of run) { const sc = p.c + dc, sr = p.r + dr; if ((sc !== kc || sr !== kr) && (sc !== lc || sr !== lr) && free(sc, sr) && rand() < 0.6) put(sc, sr, 'chair'); } // patron stools
-      for (const e of [run[0]!, run[run.length - 1]!]) { const ec = e.c + dc, er = e.r + dr; if ((ec !== kc || er !== kr) && free(ec, er) && rand() < 0.45) put(ec, er, 'barrel'); } // kegs at the ends
+      reserveKeeper(kc, kr, [dc, dr]); // barkeep at the bar centre + a reserved standing lane (never boxed in)
+      for (const p of run) { const sc = p.c + dc, sr = p.r + dr; if (free(sc, sr) && rand() < 0.6) put(sc, sr, 'chair'); } // patron stools (free() skips the reserved keeper + lane)
+      for (const e of [run[0]!, run[run.length - 1]!]) { const ec = e.c + dc, er = e.r + dr; if (free(ec, er) && rand() < 0.45) put(ec, er, 'barrel'); } // kegs at the ends
     };
     const study = () => { const d = wallFree()[0]; if (!d) return; put(d.c, d.r, 'desk'); for (const [dx, dy] of ORTH4) if (put(d.c + dx, d.r + dy, 'chair')) break; alongWall(['bookshelf_full', 'books'], 2); };
     const altar = () => { const a = byBack(interior).find((p) => free(p.c, p.r)); if (!a) return; put(a.c, a.r, 'altar'); put(a.c - 1, a.r, 'candelabra'); put(a.c + 1, a.r, 'candelabra'); };
@@ -481,7 +485,24 @@ export function furnishRoom(
       if (vert) for (let r = aR + 2 * step; r >= iy && r <= iy + ih - 1; r += 2 * step) for (let c = ix; c <= ix + iw - 1; c++) { if (c !== aC) put(c, r, 'stone_bench'); }
       else for (let c = aC + 2 * step; c >= ix && c <= ix + iw - 1; c += 2 * step) for (let r = iy; r <= iy + ih - 1; r++) { if (r !== aR) put(c, r, 'stone_bench'); }
     };
-    const forge = () => { hearth(); const t = byBack(interior).find((p) => free(p.c, p.r)); if (t) put(t.c, t.r, 'table'); };
+    // FORGE STATION (smithy focal): a lit forge on the wall opposite the entrance, the ANVIL in front of it,
+    // the SMITH posted beside the forge, a quench barrel adjacent. (weapon_rack comes from the 'weapons' recipe.)
+    const forge = () => {
+      const dTop = dR === ry, dLeft = dC === rx, dRight = dC === rx + rw - 1;
+      const horiz = dLeft || dRight;
+      const line: { c: number; r: number }[] = [];
+      if (horiz) { const fc = dLeft ? ix + iw - 1 : ix; for (let r = iy; r <= iy + ih - 1; r++) line.push({ c: fc, r }); }
+      else { const fr = dTop ? iy + ih - 1 : iy; for (let c = ix; c <= ix + iw - 1; c++) line.push({ c, r: fr }); }
+      const midOf = horiz ? midY : midX;
+      line.sort((a, b) => Math.abs((horiz ? a.r : a.c) - midOf) - Math.abs((horiz ? b.r : b.c) - midOf)); // centre-out
+      const f = line.find((p) => free(p.c, p.r)) ?? byBack(interior).find((p) => free(p.c, p.r)) ?? wallFree()[0];
+      if (!f || !put(f.c, f.r, 'forge')) return;
+      const dc = wallAt(f.c - 1, f.r) ? 1 : wallAt(f.c + 1, f.r) ? -1 : 0, dr = dc !== 0 ? 0 : (wallAt(f.c, f.r - 1) ? 1 : -1); // into the room
+      const aC = f.c + dc, aR = f.r + dr;
+      if (free(aC, aR)) put(aC, aR, 'anvil'); // the anvil right in front of the forge
+      for (const [pc, pr] of [[f.c + dr, f.r + dc], [f.c - dr, f.r - dc], [aC + dr, aR + dc], [aC - dr, aR - dc]] as const) if (reserveKeeper(pc, pr, [dc, dr])) break; // the smith, posted at the forge (+ a lane)
+      for (const [bc, br] of [[aC + dr, aR + dc], [aC - dr, aR - dc]] as const) if (free(bc, br) && rand() < 0.7) { put(bc, br, 'barrel'); break; } // a quench barrel by the anvil
+    };
     const GROUPS: Record<string, () => void> = {
       dining, bed, hearth, counter, bar, study, altar, benches, nave, forge, storage,
       shelf: () => alongWall(['shelf', 'shelf_food'], 2), books: () => alongWall(['bookshelf_full', 'books'], 3), pantry: () => { alongWall(['shelf_food', 'shelf'], 2); storage(); }, wares: () => alongWall(['shelf_wares', 'pot', 'jar'], 2), weapons: () => alongWall(['weapon_rack'], 1),

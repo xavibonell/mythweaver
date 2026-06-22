@@ -21,7 +21,7 @@ import { type ShapeKind } from './footprint.js';
 /** The components you can iterate on, grouped by family for the Lab dropdown. */
 export const COMPONENT_KINDS = [
   'building:tavern', 'building:temple', 'building:smithy', 'building:shop', 'building:house',
-  'shape:rect', 'shape:ell', 'shape:tee', 'shape:you', 'shape:plus', 'shape:compose', 'shape:compose:temple', 'shape:compose:tavern',
+  'shape:rect', 'shape:ell', 'shape:tee', 'shape:you', 'shape:plus', 'shape:compose', 'shape:compose:temple', 'shape:compose:tavern', 'shape:compose:smithy',
   'vignette:market', 'vignette:forge', 'vignette:shrine', 'vignette:well', 'vignette:camp', 'vignette:graveyard',
   'plaza', 'streets', 'density:trees', 'density:flowers', 'density:furniture',
   'clearing', 'cave', 'rooms', 'maze',
