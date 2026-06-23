@@ -152,3 +152,104 @@ export async function distillStyle(llm: LlmProvider, input: string, mode: Distil
   );
   return { styleBlock, mode, chunks: excerpts.length, sampledChars: excerpts.length * CHUNK_CHARS, inputChars: text.length };
 }
+
+// ---------------------------------------------------------------------------
+// Pass 2 — RECONCILE: merge a freshly-distilled block into the WHOLE playbook
+// cumulatively. The LLM is advisory only (it returns a small JSON MergePlan);
+// the client does the deterministic, marker-bounded text surgery so the
+// hand-written CANON (everything outside the markers) can never be clobbered.
+// Keep these marker strings in sync with markersFor() in dm-lab-page.ts.
+// ---------------------------------------------------------------------------
+
+export const DISTILL_MARKERS: Record<DistillMode, { begin: string; end: string }> = {
+  guide: { begin: '<!-- DISTILLED-PRINCIPLES:BEGIN -->', end: '<!-- DISTILLED-PRINCIPLES:END -->' },
+  transcript: { begin: '<!-- DISTILLED-STYLE:BEGIN -->', end: '<!-- DISTILLED-STYLE:END -->' },
+};
+
+export interface MergePlan {
+  /** New bullet directives (text only, no leading "- ") to ADD cumulatively. */
+  keep: string[];
+  /** Direct contradictions with an EXISTING distilled bullet — operator approves each. */
+  conflicts: { add: string; remove: string; why: string }[];
+  /** Things dropped or flagged (duplicates, canon overlap, mechanics) — shown, never applied. */
+  notes: string[];
+}
+
+/** Belt-and-suspenders: a distilled directive must never carry a mechanical NUMBER. */
+const MECHANICS_TRIPWIRE = /\b(dc|ac)\s*\d|\b\d+\s*hp\b|\b\d+d\d+\b|\bto[- ]hit\b|[-+]\d+\s+to\s+(hit|the)/i;
+
+const RECONCILE_SYSTEM = `You merge a NEW set of distilled Dungeon Master guidance bullets into an existing AI DM playbook, CUMULATIVELY and conservatively.
+
+You get the FULL current playbook plus the new bullets. The playbook has CANON sections (hand-authored, AUTHORITATIVE) and ONE auto-managed DISTILLED region delimited by HTML markers ("<!-- DISTILLED-...:BEGIN/END -->"). Only the text BETWEEN those markers may grow or change.
+
+For each NEW bullet choose exactly one:
+- KEEP — it adds something not already covered anywhere in the playbook → put its directive text in "keep".
+- DROP — it is already substantially present (in CANON or the existing DISTILLED region) → do NOT keep it; add a short line to "notes" ("duplicate of: …", or "overlaps canon: … — hand-edit if you want it stronger").
+- CONFLICT — it DIRECTLY contradicts an EXISTING bullet that is INSIDE the DISTILLED region, on the same topic → add { "add": <new bullet text>, "remove": <the existing distilled bullet it would replace>, "why": <one line> }.
+
+HARD RULES:
+- NEVER remove or edit CANON. "remove" may ONLY quote a line that currently sits INSIDE the distilled markers. If a new bullet conflicts with CANON, DROP it and explain in "notes" — canon always wins.
+- Bias to KEEP / cumulative. Only raise a conflict when the contradiction is direct and on the same topic; when unsure, keep both.
+- NEVER keep a bullet that encodes a mechanical number (a DC, AC, HP, damage dice, to-hit, modifier). Drop it to "notes". The engine owns mechanics; this is voice/principles only.
+- "keep"/"add"/"remove" hold the directive TEXT ONLY — no leading "- ".
+
+Return ONLY a JSON object, no prose, no code fence:
+{"keep":["…"],"conflicts":[{"add":"…","remove":"…","why":"…"}],"notes":["…"]}`;
+
+function bulletsOf(block: string): string[] {
+  return block
+    .split('\n')
+    .map((l) => l.trim())
+    .filter((l) => /^[-*]\s+/.test(l))
+    .map((l) => l.replace(/^[-*]\s+/, ''));
+}
+
+/** Degrade gracefully: a missing/garbled plan becomes a pure cumulative append of the new bullets. */
+function fallbackPlan(newBlock: string): MergePlan {
+  return { keep: bulletsOf(newBlock), conflicts: [], notes: [] };
+}
+
+function parsePlan(raw: string): MergePlan | null {
+  let s = raw.trim();
+  const fence = s.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  if (fence?.[1]) s = fence[1].trim();
+  const obj = s.match(/\{[\s\S]*\}/);
+  if (!obj) return null;
+  try {
+    const p = JSON.parse(obj[0]) as Partial<MergePlan>;
+    if (!Array.isArray(p.keep)) return null;
+    return {
+      keep: p.keep.filter((x): x is string => typeof x === 'string' && x.trim().length > 0),
+      conflicts: Array.isArray(p.conflicts)
+        ? (p.conflicts as ReadonlyArray<Record<string, unknown>>)
+            .filter((c) => c && typeof c.add === 'string' && typeof c.remove === 'string')
+            .map((c) => ({ add: c.add as string, remove: c.remove as string, why: typeof c.why === 'string' ? c.why : '' }))
+        : [],
+      notes: Array.isArray(p.notes) ? p.notes.filter((x): x is string => typeof x === 'string') : [],
+    };
+  } catch {
+    return null;
+  }
+}
+
+export async function reconcile(llm: LlmProvider, mode: DistillMode, newBlock: string, currentPlaybook: string): Promise<MergePlan> {
+  const markers = DISTILL_MARKERS[mode];
+  const pb = currentPlaybook.slice(0, 60_000);
+  const user = `CURRENT PLAYBOOK (canon = everything OUTSIDE the ${markers.begin} … ${markers.end} region; the distilled region between those markers is what you may grow):\n\n${pb}\n\n---\nNEW DISTILLED BULLETS to merge:\n\n${newBlock}`;
+
+  let plan: MergePlan;
+  try {
+    plan = parsePlan(await complete(llm, RECONCILE_SYSTEM, user, 1600)) ?? fallbackPlan(newBlock);
+  } catch {
+    return fallbackPlan(newBlock);
+  }
+
+  // Server-side tripwire: any kept bullet that encodes a number is dropped to notes.
+  const keep: string[] = [];
+  const notes = [...plan.notes];
+  for (const k of plan.keep) {
+    if (MECHANICS_TRIPWIRE.test(k)) notes.push(`dropped (looks mechanical — add to canon by hand if you meant it): ${k}`);
+    else keep.push(k);
+  }
+  return { keep, conflicts: plan.conflicts, notes };
+}

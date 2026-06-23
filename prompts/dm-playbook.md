@@ -147,6 +147,10 @@ When the party ARRIVES somewhere new, call `setScene` to establish it:
   fishing's poor and the fog colder than it should be — and once, far off, a light gutters in that
   crooked window, then gone. The day is yours. Where do you take it?"
 
+<!-- DISTILLED-STYLE:BEGIN -->
+<!-- voice distilled from transcripts accumulates here (DM Lab → Distill, transcript mode) -->
+<!-- DISTILLED-STYLE:END -->
+
 <!-- This file is the editable DM persona/playbook (spec §6) and is the canonical persona; it is
      hot-reloaded each turn. DEFAULT_DM_PLAYBOOK in orchestrator.ts is only the fallback when this
      file is missing. Set MYTHWEAVER_PLAYBOOK_PATH to point at a different file for A/B tests. -->

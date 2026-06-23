@@ -25,7 +25,7 @@ import { runTurn, type TurnInput } from './orchestrator.js';
 import { labBuildScene, labComposeScene } from './scene-lab.js';
 import { runDmLab, createDmLabSession, dmLabSubmit, arcView, autoRollTotal, DM_LAB_TRANSCRIPTS, type LabTurn, type DmLabSession } from './dm-lab.js';
 import { renderDmLabPage } from './dm-lab-page.js';
-import { distillStyle, DISTILL_MAX_INPUT } from './distill.js';
+import { distillStyle, reconcile, DISTILL_MAX_INPUT } from './distill.js';
 import { buildArcPlanner } from './arc-planner.js';
 import { buildArcComposer, validateGeneratedArc, type ArcSeed, type GeneratedArc } from './arc-composer.js';
 
@@ -187,15 +187,23 @@ app.get('/dm/lab/files', async (req, reply) => {
 // Distill real session transcripts into a DM voice guide (spec §6). Returns a Markdown style
 // block the UI splices into the playbook as a temporary override to test, then persist if happy.
 app.post('/dm/lab/distill', async (req, reply) => {
-  const body = (req.body ?? {}) as { transcript?: unknown; mode?: unknown };
+  const body = (req.body ?? {}) as { transcript?: unknown; mode?: unknown; playbook?: unknown };
   const transcript = typeof body.transcript === 'string' ? body.transcript : '';
   const mode = body.mode === 'guide' ? 'guide' : 'transcript';
+  const playbook = typeof body.playbook === 'string' ? body.playbook : '';
   if (!transcript.trim()) return badRequest(reply, 'paste or upload some text first');
   if (transcript.length > DISTILL_MAX_INPUT) {
     return badRequest(reply, `input too large (${transcript.length} chars; max ${DISTILL_MAX_INPUT}) — paste a representative sample or fewer files`);
   }
   try {
-    return await distillStyle(llm, transcript, mode);
+    const result = await distillStyle(llm, transcript, mode);
+    // Pass 2 (optional): if the client sent the current playbook, return a cumulative merge plan.
+    // Absent (CLI, evals, old callers) → behave exactly as before.
+    if (playbook.trim()) {
+      const plan = await reconcile(llm, result.mode, result.styleBlock, playbook);
+      return { ...result, plan };
+    }
+    return result;
   } catch (err) {
     app.log.error(err, 'distill failed');
     reply.code(502);

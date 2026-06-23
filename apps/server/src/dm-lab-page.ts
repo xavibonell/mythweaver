@@ -133,6 +133,12 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
   .diff-view .ctx { color: #6b7080; }
   .diff-view .gap { color: #4b5060; font-style: italic; padding: 3px 6px; }
   .diff-view .none { color: #6b7080; font-style: italic; }
+  .diff-view .note { color: #c9a96a; }
+  .diff-view .plan-h { color: #8b90a0; margin: 0 0 8px; font-family: -apple-system, system-ui, sans-serif; }
+  .diff-view .plan-sec { color: #aeb4c2; font-weight: 600; margin: 12px 0 4px; font-family: -apple-system, system-ui, sans-serif; }
+  .diff-view .conflict { border: 1px solid #3a2a30; border-radius: 6px; padding: 6px 8px; margin: 6px 0; }
+  .diff-view .conflict .ctoggle { display: inline-block; color: #e8a13a; cursor: pointer; margin-bottom: 4px; font-family: -apple-system, system-ui, sans-serif; }
+  .diff-view .conflict .why { color: #6b7080; font-style: italic; margin-top: 3px; }
   /* director tab (3 editable prompts side by side) */
   .view.director.active { display: flex; flex-direction: column; }
   .dir-head { padding: 10px 20px; border-bottom: 1px solid #23262e; background: #0c0e12; color: #8b90a0; font-size: 12px; }
@@ -364,12 +370,14 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
       <div class="distill-col">
         <div class="ed-toolbar">
           <span class="name" id="distill-out-name">Distilled output (editable)</span>
+          <button class="ghost seg-btn" id="view-plan">Merge</button>
           <button class="ghost seg-btn active" id="view-block">Block</button>
           <button class="ghost seg-btn" id="view-diff">Diff</button>
           <button id="distill-apply" style="margin-left:auto">Apply to Playbook →</button>
           <span class="status" id="distill-status"></span>
         </div>
         <div class="ed-wrap" id="wrap-block"><textarea id="distill-out" spellcheck="false" placeholder="The distilled block appears here. Review/edit it, flip to 'Diff' to see exactly what it changes in the playbook, then 'Apply to Playbook' (temporary) and test in Run. Nothing is saved until you hit Save on the Playbook tab."></textarea></div>
+        <div class="diff-view" id="wrap-plan" style="display:none"></div>
         <div class="diff-view" id="wrap-diff" style="display:none"></div>
       </div>
     </div>
@@ -848,12 +856,43 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
       ? { b: '<!-- DISTILLED-PRINCIPLES:BEGIN -->', e: '<!-- DISTILLED-PRINCIPLES:END -->' }
       : { b: '<!-- DISTILLED-STYLE:BEGIN -->', e: '<!-- DISTILLED-STYLE:END -->' };
   }
-  function spliceInto(pb, block, mode) {
+  var mergePlan = null; // the server's MergePlan for the CURRENT distilled output (or null)
+  function normLine(s) { return String(s || '').replace(/^[-*\\s]+/, '').replace(/\\s+/g, ' ').trim().toLowerCase(); }
+  function planFromBlock(block) {
+    var keep = String(block || '').split('\\n').map(function (l) { return l.trim(); }).filter(function (l) { return /^[-*]\\s+/.test(l); }).map(function (l) { return l.replace(/^[-*]\\s+/, ''); });
+    return { keep: keep, conflicts: [], notes: [] };
+  }
+  // Deterministic, marker-bounded CUMULATIVE merge. Canon (text outside the markers) stays
+  // byte-identical; only the distilled region grows. approved[i]=true means "use the new bullet"
+  // for conflict i (default is keep-old — nothing is destroyed without a click).
+  function mergeInto(pb, mode, plan, approved) {
     var m = markersFor(mode);
-    var wrapped = m.b + '\\n' + block.trim() + '\\n' + m.e;
-    var bi = pb.indexOf(m.b), ei = pb.indexOf(m.e);
-    if (bi >= 0 && ei > bi) return pb.slice(0, bi) + wrapped + pb.slice(ei + m.e.length);
-    return pb.replace(/\\s*$/, '') + '\\n\\n' + wrapped + '\\n';
+    plan = plan || { keep: [], conflicts: [], notes: [] };
+    approved = approved || {};
+    var bi = pb.indexOf(m.b), ei = pb.indexOf(m.e), pre, region, post;
+    if (bi >= 0 && ei > bi) { pre = pb.slice(0, bi + m.b.length); region = pb.slice(bi + m.b.length, ei); post = pb.slice(ei); }
+    else { pre = pb.replace(/\\s*$/, '') + '\\n\\n' + m.b; region = '\\n'; post = m.e + '\\n'; }
+    var existing = {};
+    pb.split('\\n').forEach(function (l) { if (/^\\s*[-*]\\s/.test(l)) existing[normLine(l)] = true; });
+    var lines = region.split('\\n');
+    (plan.conflicts || []).forEach(function (c, idx) {
+      if (!approved[idx]) return;
+      var rn = normLine(c.remove);
+      for (var i = 0; i < lines.length; i++) { if (/^\\s*[-*]/.test(lines[i]) && normLine(lines[i]) === rn) { lines[i] = '- ' + c.add; existing[normLine(c.add)] = true; break; } }
+    });
+    var add = [];
+    (plan.keep || []).forEach(function (k) { var nk = normLine(k); if (!nk || existing[nk]) return; existing[nk] = true; add.push('- ' + String(k).replace(/^[-*\\s]+/, '')); });
+    var regionText = lines.join('\\n').replace(/\\s+$/, '');
+    if (add.length) {
+      if (regionText.indexOf('### Distilled (session)') < 0) regionText += (regionText ? '\\n\\n' : '') + '### Distilled (session)';
+      regionText += '\\n' + add.join('\\n');
+    }
+    return pre + '\\n' + regionText + '\\n' + post;
+  }
+  function approvedConflicts() {
+    var ap = {};
+    [].slice.call(document.querySelectorAll('#wrap-plan input[data-cidx]')).forEach(function (cb) { if (cb.checked) ap[Number(cb.getAttribute('data-cidx'))] = true; });
+    return ap;
   }
   function inCount() { $('distill-incount').textContent = $('distill-in').value.length.toLocaleString() + ' chars'; }
   $('distill-in').oninput = inCount;
@@ -883,24 +922,27 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
     var btn = $('distill-run');
     btn.disabled = true;
     $('distill-status').innerHTML = '<span class="spin"></span>distilling — real API calls…';
-    fetch('/dm/lab/distill', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ transcript: input, mode: mode }) })
+    fetch('/dm/lab/distill', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ transcript: input, mode: mode, playbook: $('ed-playbook').value }) })
       .then(function (res) { return res.json().then(function (b) { return { ok: res.ok, body: b }; }); })
       .then(function (x) {
         if (!x.ok) { $('distill-status').textContent = 'error: ' + (x.body.error || 'failed'); return; }
         distillMode = x.body.mode || mode;
         $('distill-out').value = x.body.styleBlock || '';
+        mergePlan = x.body.plan || null;
         $('distill-out-name').textContent = distillMode === 'guide' ? 'Distilled principles (editable)' : 'Distilled voice (editable)';
-        setDiffView(false);
-        $('distill-status').textContent = 'distilled ' + x.body.chunks + ' excerpt(s) of ' + (x.body.inputChars || 0).toLocaleString() + ' chars — review/Diff, then Apply';
+        showDistillView(mergePlan ? 'plan' : 'block');
+        var p = mergePlan ? (mergePlan.keep.length + ' to add · ' + mergePlan.conflicts.length + ' conflict(s) · ' + mergePlan.notes.length + ' flagged — review Merge, then Apply') : ('review/Diff, then Apply');
+        $('distill-status').textContent = 'distilled ' + x.body.chunks + ' excerpt(s) of ' + (x.body.inputChars || 0).toLocaleString() + ' chars — ' + p;
       })
       .catch(function (e) { $('distill-status').textContent = 'error: ' + (e.message || e); })
       .finally(function () { btn.disabled = false; });
   };
   $('distill-apply').onclick = function () {
     var block = $('distill-out').value.trim();
-    if (!block) { $('distill-status').textContent = 'nothing to apply — Distill first'; return; }
-    $('ed-playbook').value = spliceInto($('ed-playbook').value, block, distillMode);
-    $('distill-status').textContent = 'applied to playbook (unsaved) — switch to Run to test, or Playbook to review/Save';
+    var plan = mergePlan || (block ? planFromBlock(block) : null);
+    if (!plan || (!plan.keep.length && !plan.conflicts.length)) { $('distill-status').textContent = 'nothing to apply — Distill first'; return; }
+    $('ed-playbook').value = mergeInto($('ed-playbook').value, distillMode, plan, approvedConflicts());
+    $('distill-status').textContent = 'merged into playbook (unsaved) — switch to Run to test, or Playbook to review/Save';
     showTab('playbook');
   };
 
@@ -939,20 +981,41 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
     flush();
     return html.join('');
   }
-  function setDiffView(on) {
-    $('wrap-block').style.display = on ? 'none' : '';
-    $('wrap-diff').style.display = on ? '' : 'none';
-    $('view-block').classList.toggle('active', !on);
-    $('view-diff').classList.toggle('active', on);
-    if (on) {
-      var block = $('distill-out').value.trim();
-      if (!block) { $('wrap-diff').innerHTML = '<div class="none">Distill or paste a block first.</div>'; return; }
-      var pb = $('ed-playbook').value;
-      $('wrap-diff').innerHTML = renderDiff(pb, spliceInto(pb, block, distillMode));
+  function planForView() { var block = $('distill-out').value.trim(); return mergePlan || (block ? planFromBlock(block) : { keep: [], conflicts: [], notes: [] }); }
+  function renderPlan() {
+    var plan = planForView();
+    if (!plan.keep.length && !plan.conflicts.length && !plan.notes.length) return '<div class="none">Distill first — the cumulative merge plan appears here.</div>';
+    var h = ['<div class="plan-h">Cumulative merge — nothing existing is removed unless you tick a conflict below.</div>'];
+    if (plan.conflicts.length) {
+      h.push('<div class="plan-sec">Conflicts (' + plan.conflicts.length + ') — tick = use the NEW bullet (replaces the old); unticked = keep the OLD (default):</div>');
+      plan.conflicts.forEach(function (c, i) {
+        h.push('<div class="conflict"><label class="ctoggle"><input type="checkbox" data-cidx="' + i + '" /> replace</label>'
+          + '<div class="ln del">' + esc('- ' + c.remove) + '</div>'
+          + '<div class="ln add">' + esc('- ' + c.add) + '</div>'
+          + (c.why ? '<div class="why">' + esc(c.why) + '</div>' : '') + '</div>');
+      });
+    }
+    if (plan.keep.length) { h.push('<div class="plan-sec">Will add (' + plan.keep.length + '):</div>'); plan.keep.forEach(function (k) { h.push('<div class="ln add">' + esc('+ ' + k) + '</div>'); }); }
+    if (plan.notes.length) { h.push('<div class="plan-sec">Flagged / dropped (' + plan.notes.length + '):</div>'); plan.notes.forEach(function (n) { h.push('<div class="ln note">' + esc('· ' + n) + '</div>'); }); }
+    return h.join('');
+  }
+  function showDistillView(which) {
+    $('wrap-block').style.display = which === 'block' ? '' : 'none';
+    $('wrap-plan').style.display = which === 'plan' ? '' : 'none';
+    $('wrap-diff').style.display = which === 'diff' ? '' : 'none';
+    $('view-block').classList.toggle('active', which === 'block');
+    $('view-plan').classList.toggle('active', which === 'plan');
+    $('view-diff').classList.toggle('active', which === 'diff');
+    if (which === 'plan') { $('wrap-plan').innerHTML = renderPlan(); }
+    else if (which === 'diff') {
+      var pb = $('ed-playbook').value, plan = planForView();
+      if (!plan.keep.length && !plan.conflicts.length) { $('wrap-diff').innerHTML = '<div class="none">Distill first.</div>'; return; }
+      $('wrap-diff').innerHTML = renderDiff(pb, mergeInto(pb, distillMode, plan, approvedConflicts()));
     }
   }
-  $('view-block').onclick = function () { setDiffView(false); };
-  $('view-diff').onclick = function () { setDiffView(true); };
+  $('view-plan').onclick = function () { showDistillView('plan'); };
+  $('view-block').onclick = function () { showDistillView('block'); };
+  $('view-diff').onclick = function () { showDistillView('diff'); };
   loadFiles();
   setBusy(false); // gates the Run input off until a session is started from Generate
 </script>
