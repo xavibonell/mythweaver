@@ -49,6 +49,12 @@ export const BUILDING_TEMPLATES: Record<BuildingType, RoomTemplate> = {
   temple: { floor: 'stone', wall: 'stone', occupant: 'wizard', carpet: true, items: [{ tag: 'altar', where: 'back' }, { tag: 'candelabra', where: 'back', count: 2 }, { tag: 'chair', where: 'around', count: 4 }, { tag: 'bookshelf', where: 'wall' }] },
   smithy: { floor: 'stone', wall: 'stone', occupant: 'dwarf', items: [{ tag: 'brazier', where: 'back' }, { tag: 'table', where: 'center' }, { tag: 'barrel', where: 'corner' }, { tag: 'crate', where: 'corner' }] },
   house: { floor: 'wood_floor', wall: 'wood', occupant: 'villager', items: [{ tag: 'bed', where: 'corner' }, { tag: 'table', where: 'center' }, { tag: 'chair', where: 'around', count: 2 }, { tag: 'pot', where: 'wall' }] },
+  // P0 batch — town/site location types added on the focal-station kernel (reuse-only props).
+  inn: { floor: 'wood_floor', wall: 'wood', occupant: 'villager_woman', carpet: true, items: [{ tag: 'table', where: 'back', count: 2 }, { tag: 'bed', where: 'corner', count: 2 }, { tag: 'chair', where: 'around', count: 2 }, { tag: 'candelabra', where: 'wall' }] },
+  general_store: { floor: 'wood_floor', wall: 'wood', occupant: 'villager', items: [{ tag: 'table', where: 'back', count: 2 }, { tag: 'shelf_wares', where: 'wall', count: 3 }, { tag: 'sack', where: 'corner', count: 2 }, { tag: 'barrel', where: 'corner', count: 2 }, { tag: 'crate', where: 'corner' }] },
+  cathedral: { floor: 'stone', wall: 'stone', occupant: 'wizard', carpet: true, items: [{ tag: 'altar', where: 'back' }, { tag: 'statue', where: 'back' }, { tag: 'candelabra_large', where: 'back', count: 2 }, { tag: 'stone_bench', where: 'around', count: 4 }] },
+  jail: { floor: 'stone', wall: 'stone', occupant: 'villager', items: [{ tag: 'cage', where: 'wall', count: 3 }, { tag: 'desk', where: 'center' }, { tag: 'chair', where: 'around' }, { tag: 'barrel', where: 'corner' }] },
+  vault: { floor: 'stone', wall: 'stone', occupant: 'villager', items: [{ tag: 'chest', where: 'wall', count: 4 }, { tag: 'barrel', where: 'corner', count: 2 }, { tag: 'crate', where: 'corner' }] },
 };
 
 /**
@@ -60,7 +66,7 @@ export const BUILDING_TEMPLATES: Record<BuildingType, RoomTemplate> = {
  * primary room); only `carpet` + `items` are function-specific. Reuses the same FurnSpec selectors as
  * BUILDING_TEMPLATES (back = counter/altar along the back wall, around = seating ringing the centre).
  */
-export type RoomFunction = 'bar' | 'dining' | 'kitchen' | 'bedroom' | 'storeroom' | 'shopfront' | 'parlor' | 'nave' | 'vestry' | 'forge';
+export type RoomFunction = 'bar' | 'dining' | 'kitchen' | 'bedroom' | 'storeroom' | 'shopfront' | 'parlor' | 'nave' | 'vestry' | 'forge' | 'apse' | 'cellblock' | 'strongroom' | 'innfront';
 export const ROOM_TEMPLATES: Record<RoomFunction, RoomTemplate> = {
   bar: { floor: 'wood_floor', wall: 'wood', occupant: 'villager_woman', items: [{ tag: 'table', where: 'back', count: 4 }, { tag: 'shelf_wares', where: 'back' }, { tag: 'barrel', where: 'corner', count: 2 }, { tag: 'crate', where: 'corner' }, { tag: 'candelabra', where: 'wall' }, { tag: 'chair', where: 'around', count: 2 }] },
   dining: { floor: 'wood_floor', wall: 'wood', occupant: '', carpet: true, items: [{ tag: 'table', where: 'center' }, { tag: 'chair', where: 'around', count: 4 }, { tag: 'candelabra', where: 'wall' }, { tag: 'barrel', where: 'corner' }] },
@@ -72,6 +78,14 @@ export const ROOM_TEMPLATES: Record<RoomFunction, RoomTemplate> = {
   nave: { floor: 'stone', wall: 'stone', occupant: 'wizard', carpet: true, items: [{ tag: 'altar', where: 'back' }, { tag: 'candelabra', where: 'back', count: 2 }, { tag: 'stone_bench', where: 'around', count: 4 }, { tag: 'bookshelf', where: 'wall' }] },
   vestry: { floor: 'stone', wall: 'stone', occupant: '', items: [{ tag: 'bookshelf', where: 'wall', count: 2 }, { tag: 'desk', where: 'center' }, { tag: 'chair', where: 'around' }, { tag: 'candle', where: 'wall' }] },
   forge: { floor: 'stone', wall: 'stone', occupant: 'dwarf', items: [{ tag: 'brazier', where: 'back' }, { tag: 'table', where: 'center' }, { tag: 'weapon_rack', where: 'wall' }, { tag: 'barrel', where: 'corner' }, { tag: 'crate', where: 'corner' }, { tag: 'woodpile', where: 'corner' }] },
+  // P0 batch room functions: apse (cathedral focal — altar + deity statue), cellblock (jail — caged cells +
+  // a jailer's desk), strongroom (vault — a hoard of chests). occupant/material set per-building by compound.
+  // innfront — the inn's primary room: a check-in counter AND a couple of beds, so even a single-room inn
+  //   reads as an inn (lodging), not a tavern. Bigger footprints add dedicated bedroom rooms on top.
+  innfront: { floor: 'wood_floor', wall: 'wood', occupant: 'villager_woman', carpet: true, items: [{ tag: 'table', where: 'back', count: 2 }, { tag: 'bed', where: 'corner', count: 2 }, { tag: 'chair', where: 'around', count: 2 }] },
+  apse: { floor: 'stone', wall: 'stone', occupant: 'wizard', carpet: true, items: [{ tag: 'altar', where: 'back' }, { tag: 'statue', where: 'back' }, { tag: 'candelabra_large', where: 'back', count: 2 }, { tag: 'stone_bench', where: 'around', count: 4 }] },
+  cellblock: { floor: 'stone', wall: 'stone', occupant: 'villager', items: [{ tag: 'cage', where: 'wall', count: 3 }, { tag: 'desk', where: 'center' }, { tag: 'chair', where: 'around' }] },
+  strongroom: { floor: 'stone', wall: 'stone', occupant: 'villager', items: [{ tag: 'chest', where: 'wall', count: 4 }, { tag: 'barrel', where: 'corner', count: 2 }] },
 };
 
 /** Per-building-type ROOM PROGRAM: the ordered room functions a compound contains. Index 0 is the
@@ -83,6 +97,14 @@ export const ROOM_PROGRAMS: Record<BuildingType, RoomFunction[]> = {
   temple: ['nave', 'vestry', 'bedroom'],
   smithy: ['forge', 'storeroom', 'kitchen'],
   house: ['parlor', 'bedroom', 'kitchen'],
+  // P0 batch. inn = a check-in bar + a block of rentable bedrooms (the defining beds). general_store =
+  // a service counter + storerooms packed with mixed stock. cathedral = a grand apse + vestry. jail =
+  // a cell block + storeroom. vault = a strongroom of chests + storeroom.
+  inn: ['innfront', 'bedroom', 'bedroom', 'kitchen'],
+  general_store: ['shopfront', 'storeroom', 'storeroom'],
+  cathedral: ['apse', 'vestry', 'bedroom'],
+  jail: ['cellblock', 'storeroom'],
+  vault: ['strongroom', 'strongroom'], // both rooms are chest hoards — a treasury reads as chests, not generic crates
 };
 
 /** Per-room-FUNCTION furniture RECIPE: a short list of relational GROUPS (see furnishRoom's group
@@ -100,6 +122,10 @@ export const ROOM_RECIPES: Record<RoomFunction, string[]> = {
   nave: ['nave'],
   vestry: ['study', 'books'],
   forge: ['forge', 'weapons', 'storage'],
+  innfront: ['checkin', 'bed', 'bed', 'bed'], // a LEAN check-in counter (keeper behind) + beds in the common room
+  apse: ['apse'],               // altar + flanking deity statue + ranked pews = a cathedral (statue distinguishes it from a temple)
+  cellblock: ['cells', 'study'], // a row of caged cells + a jailer's desk post
+  strongroom: ['hoard', 'hoard'], // a hoard of strongboxes (chest-dominant — a treasury, not a storeroom)
 };
 
 interface Rect {
@@ -480,6 +506,7 @@ export function furnishRoom(
       for (const e of [cr.run[0]!, cr.run[cr.run.length - 1]!]) { const ec = e.c + cr.dc, er = e.r + cr.dr; if (free(ec, er) && rand() < 0.45) put(ec, er, 'barrel'); }
     };
     const shopfront = () => { if (counterRun()) alongWall(['shelf_wares'], 2); }; // shop: the service counter + shopkeeper, with ware shelves on display along the walls
+    const checkin = () => { counterRun(); }; // inn: a LEAN check-in counter (keeper behind) — no stools/kegs, so the budget is left for the room's defining beds
     const study = () => { const d = wallFree()[0]; if (!d) return; put(d.c, d.r, 'desk'); for (const [dx, dy] of ORTH4) if (put(d.c + dx, d.r + dy, 'chair')) break; alongWall(['bookshelf_full', 'books'], 2); };
     const altar = () => { const a = byBack(interior).find((p) => free(p.c, p.r)); if (!a) return; put(a.c, a.r, 'altar'); put(a.c - 1, a.r, 'candelabra'); put(a.c + 1, a.r, 'candelabra'); };
     const benches = () => { let k = 0; for (let r = iy + 2; r < iy + ih && k < 6; r += 2) for (let c = ix + 1; c < ix + iw - 1 && k < 6; c += 2) if (put(c, r, 'stone_bench')) k++; };
@@ -528,8 +555,57 @@ export function furnishRoom(
       // a quench barrel by the anvil — ALWAYS (a forge reads as a working forge), beside it or else any forge-room wall cell
       if (!([[aC + dr, aR + dc], [aC - dr, aR - dc]] as const).some(([bc, br]) => put(bc, br, 'barrel'))) { const b = wallFree()[0]; if (b) put(b.c, b.r, 'barrel'); }
     };
+    // P0 STATIONS (reuse-only props).
+    // apse — the CATHEDRAL focal: altar centred on the wall opposite the door, a deity STATUE flanking it (placed
+    //   BEFORE the pews so it's guaranteed adjacent + within budget — what makes it read as a cathedral, not a
+    //   plain temple), candelabra on the other side, then pews ranked toward the door. Mirrors nave()'s geometry.
+    const apse = () => {
+      const dTop = dR === ry, dLeft = dC === rx, dRight = dC === rx + rw - 1;
+      const horiz = dLeft || dRight;
+      const cand: { c: number; r: number }[] = [];
+      if (horiz) { const ac = dLeft ? ix + iw - 1 : ix; for (let r = iy; r <= iy + ih - 1; r++) cand.push({ c: ac, r }); }
+      else { const ar = dTop ? iy + ih - 1 : iy; for (let c = ix; c <= ix + iw - 1; c++) cand.push({ c, r: ar }); }
+      const midOf = horiz ? midY : midX;
+      cand.sort((a, b) => Math.abs((horiz ? a.r : a.c) - midOf) - Math.abs((horiz ? b.r : b.c) - midOf));
+      const altarCell = cand.find((p) => free(p.c, p.r)) ?? byBack(interior).find((p) => free(p.c, p.r)) ?? wallFree()[0];
+      if (!altarCell || !put(altarCell.c, altarCell.r, 'altar')) return;
+      const aC = altarCell.c, aR = altarCell.r;
+      const side = wallAt(aC, aR - 1) ? 'top' : wallAt(aC, aR + 1) ? 'bottom' : wallAt(aC - 1, aR) ? 'left' : 'right';
+      const vert = side === 'top' || side === 'bottom';
+      // the deity statue goes BESIDE the altar (within 2 → reads as a cathedral): prefer along-wall flanks, then
+      //   into-room diagonals, then a cell two along — never the direct aisle front. Placed before pews so a cell is free.
+      const ring: readonly (readonly [number, number])[] = vert
+        ? [[-1, 0], [1, 0], [-1, 1], [1, 1], [-1, -1], [1, -1], [-2, 0], [2, 0]]
+        : [[0, -1], [0, 1], [1, -1], [1, 1], [-1, -1], [-1, 1], [0, -2], [0, 2]];
+      let statued = false;
+      for (const [dx, dy] of ring) if (put(aC + dx, aR + dy, 'statue')) { statued = true; break; }
+      if (!statued) { const s = byBack(interior).find((p) => free(p.c, p.r)) ?? wallFree()[0]; if (s) put(s.c, s.r, 'statue'); } // guarantee a deity statue even in a cramped apse
+      if (vert) { put(aC - 1, aR, 'candelabra'); put(aC + 1, aR, 'candelabra'); } else { put(aC, aR - 1, 'candelabra'); put(aC, aR + 1, 'candelabra'); }
+      // pews ranked away from the altar wall (every other row/col), central aisle aligned with the altar kept clear.
+      const step = side === 'top' || side === 'left' ? 1 : -1;
+      if (vert) for (let r = aR + 2 * step; r >= iy && r <= iy + ih - 1; r += 2 * step) for (let c = ix; c <= ix + iw - 1; c++) { if (c !== aC) put(c, r, 'stone_bench'); }
+      else for (let c = aC + 2 * step; c >= ix && c <= ix + iw - 1; c += 2 * step) for (let r = iy; r <= iy + ih - 1; r++) { if (r !== aR) put(c, r, 'stone_bench'); }
+    };
+    // cells — a JAIL cell block: caged cells along the walls, kept NON-ADJACENT so each reads as a separate cell
+    //   (not one wide pen), each with a CLEAR interior front (the focal needs a walkable approach). Jailer desk = 'study'.
+    const cells = () => {
+      const clearFront = (c: number, r: number) => ORTH4.some(([dx, dy]) => free(c + dx, r + dy) && !wallAt(c + dx, r + dy));
+      const placed: { c: number; r: number }[] = [];
+      const noAdj = (c: number, r: number) => !placed.some((q) => Math.abs(q.c - c) + Math.abs(q.r - r) === 1);
+      let idx = 0;
+      for (const p of byBack(interior)) { if (placed.length >= 4) break; if (free(p.c, p.r) && clearFront(p.c, p.r) && noAdj(p.c, p.r) && idx++ % 2 === 0 && put(p.c, p.r, 'cage')) placed.push({ c: p.c, r: p.r }); }
+      for (const p of byWall(interior)) { if (placed.length >= 3) break; if (free(p.c, p.r) && clearFront(p.c, p.r) && noAdj(p.c, p.r) && put(p.c, p.r, 'cage')) placed.push({ c: p.c, r: p.r }); }
+      for (const p of byWall(interior)) { if (placed.length >= 2) break; if (free(p.c, p.r) && clearFront(p.c, p.r) && put(p.c, p.r, 'cage')) placed.push({ c: p.c, r: p.r }); } // last resort: allow adjacency only to reach a 2-cell block
+    };
+    // hoard — a VAULT treasury: strongboxes lining the walls (fronts kept clear). Chests DOMINATE (no generic-
+    //   crate program) so it reads as a treasury, not a storeroom.
+    const hoard = () => {
+      let placed = 0;
+      for (const p of byBack(interior)) { if (placed >= 6) break; if (free(p.c, p.r) && put(p.c, p.r, 'chest')) placed++; }
+      for (const p of byWall(interior)) { if (placed >= 4) break; if (free(p.c, p.r) && put(p.c, p.r, 'chest')) placed++; } // ensure ≥2 chests = a hoard
+    };
     const GROUPS: Record<string, () => void> = {
-      dining, bed, hearth, counter, bar, shopfront, study, altar, benches, nave, forge, storage,
+      dining, bed, hearth, counter, bar, shopfront, checkin, study, altar, benches, nave, forge, storage, apse, cells, hoard,
       shelf: () => alongWall(['shelf', 'shelf_food'], 2), books: () => alongWall(['bookshelf_full', 'books'], 3), pantry: () => { alongWall(['shelf_food', 'shelf'], 2); storage(); }, wares: () => alongWall(['shelf_wares', 'pot', 'jar'], 2), weapons: () => alongWall(['weapon_rack'], 1),
     };
     for (const g of tmpl.groups) { if (placedFurn >= budget) break; (GROUPS[g] ?? (() => {}))(); }

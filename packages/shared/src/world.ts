@@ -218,7 +218,7 @@ export interface ObjectField {
  * out), furnishes the interior from a per-type template, and seats an occupant. One per declared
  * building fixture (tavern/smithy/shop/temple/cottage…).
  */
-export const BUILDING_TYPES = ['house', 'shop', 'tavern', 'temple', 'smithy'] as const;
+export const BUILDING_TYPES = ['house', 'shop', 'tavern', 'temple', 'smithy', 'inn', 'general_store', 'cathedral', 'jail', 'vault'] as const;
 export type BuildingType = (typeof BUILDING_TYPES)[number];
 export interface Building {
   id: EntityId;

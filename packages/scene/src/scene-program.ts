@@ -312,10 +312,16 @@ const charOr = (v: unknown): string => (typeof v === 'string' && isCharacter(v) 
 /** Map any structure word → a BuildingType the furnishing engine has a template for. */
 function buildingTypeFor(v: unknown): BuildingType {
   const s = (typeof v === 'string' ? v : '').toLowerCase();
-  if (/tavern|inn|alehouse|pub|lodge/.test(s)) return 'tavern';
+  // specific NEW types first, so an inn/cathedral/jail/vault/general-store gets its own slice, not a fallback.
+  if (/\b(inn|lodging|hostel)\b/.test(s)) return 'inn';
+  if (/tavern|alehouse|pub|tap.?house|lodge/.test(s)) return 'tavern';
   if (/smith|forge|foundry|workshop|anvil/.test(s)) return 'smithy';
-  if (/temple|shrine|chapel|church|cathedral|sanctuary|abbey|altar/.test(s)) return 'temple';
-  if (/shop|store|market|emporium|apothecary|bakery|guildhall|stall/.test(s)) return 'shop';
+  if (/cathedral|minster|basilica|abbey|monastery/.test(s)) return 'cathedral';
+  if (/temple|shrine|chapel|church|sanctuary|altar/.test(s)) return 'temple';
+  if (/jail|gaol|prison|cell.?block/.test(s)) return 'jail';
+  if (/vault|treasury|strong.?room|hoard|reliquary/.test(s)) return 'vault';
+  if (/general.?store|provisioner|trading.?post|apothecary|emporium|sundr/.test(s)) return 'general_store';
+  if (/shop|store|market|bakery|guildhall|stall|butcher|tailor/.test(s)) return 'shop';
   if ((BUILDING_TYPES as readonly string[]).includes(s)) return s as BuildingType;
   return 'house';
 }

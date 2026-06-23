@@ -159,3 +159,71 @@ describe('semantic invariants — building:shop reads as a shop (service counter
     expect(clean / 80).toBeGreaterThanOrEqual(0.55);
   });
 });
+
+// ── P0 batch (the next five most adventure-central location types). Each is a focal-station slice on the
+// same kernel as smithy/shop: general_store + cathedral are exact-100% (their stations place plenty); inn,
+// jail and vault have a tiny-footprint tail (their defining BLOCK — beds / a cell row / a chest hoard — needs
+// more room than one focal prop, so a 4×4 lab footprint degrades gracefully; shipping town footprints are full).
+
+describe('semantic invariants — building:general_store reads as a provisioner (counter + dense stock)', () => {
+  it('has ZERO semantic defects across 150 seeds', () => {
+    const dirty: number[] = [];
+    for (let s = 1; s <= 150; s++) if (!checkSemantics(buildComponentSheet('building:general_store', 6, s), 'general_store').clean && dirty.length < 8) dirty.push(s);
+    expect(dirty).toEqual([]);
+  });
+  it('catches a broken store (counter removed → missingFocal; wares removed → understocked)', () => {
+    const m = buildComponentSheet('building:general_store', 6, 1);
+    expect(checkSemantics({ ...m, objects: m.objects.filter((o) => o.tag !== 'bar_counter') }, 'general_store').missingFocal).toBeGreaterThan(0);
+    expect(checkSemantics({ ...m, objects: m.objects.filter((o) => o.tag !== 'shelf_wares') }, 'general_store').understocked).toBeGreaterThan(0);
+  });
+});
+
+describe('semantic invariants — building:cathedral reads as a cathedral (grand altar + ranked pews)', () => {
+  it('has ZERO semantic defects across 150 seeds', () => {
+    const dirty: number[] = [];
+    for (let s = 1; s <= 150; s++) if (!checkSemantics(buildComponentSheet('building:cathedral', 6, s), 'cathedral').clean && dirty.length < 8) dirty.push(s);
+    expect(dirty).toEqual([]);
+  });
+  it('catches a broken cathedral (altar removed → missingFocal; pews removed → understocked)', () => {
+    const m = buildComponentSheet('building:cathedral', 6, 1);
+    expect(checkSemantics({ ...m, objects: m.objects.filter((o) => o.tag !== 'altar') }, 'cathedral').missingFocal).toBeGreaterThan(0);
+    expect(checkSemantics({ ...m, objects: m.objects.filter((o) => o.tag !== 'stone_bench') }, 'cathedral').understocked).toBeGreaterThan(0);
+  });
+});
+
+describe('semantic invariants — building:inn reads as an inn (check-in counter + rentable beds)', () => {
+  it('reads as an inn on ≥92% of seeds (tiny single-room footprints degrade gracefully)', () => {
+    let clean = 0;
+    for (let s = 1; s <= 150; s++) if (checkSemantics(buildComponentSheet('building:inn', 6, s), 'inn').clean) clean++;
+    expect(clean / 150).toBeGreaterThanOrEqual(0.92);
+  });
+  it('catches a broken inn (counter removed → missingFocal; all beds removed → understocked)', () => {
+    const m = buildComponentSheet('building:inn', 6, 1);
+    expect(checkSemantics({ ...m, objects: m.objects.filter((o) => o.tag !== 'bar_counter') }, 'inn').missingFocal).toBeGreaterThan(0);
+    expect(checkSemantics({ ...m, objects: m.objects.filter((o) => !o.tag.startsWith('bed')) }, 'inn').understocked).toBeGreaterThan(0);
+  });
+});
+
+describe('semantic invariants — building:jail reads as a jail (a block of caged cells)', () => {
+  it('reads as a jail on ≥93% of seeds (a 3-wide footprint cannot host a 2-cell block — graceful)', () => {
+    let clean = 0;
+    for (let s = 1; s <= 150; s++) if (checkSemantics(buildComponentSheet('building:jail', 6, s), 'jail').clean) clean++;
+    expect(clean / 150).toBeGreaterThanOrEqual(0.93);
+  });
+  it('catches a broken jail (the cages removed → missingFocal)', () => {
+    const m = buildComponentSheet('building:jail', 6, 1);
+    expect(checkSemantics({ ...m, objects: m.objects.filter((o) => o.tag !== 'cage') }, 'jail').missingFocal).toBeGreaterThan(0);
+  });
+});
+
+describe('semantic invariants — building:vault reads as a vault (a hoard of strongboxes)', () => {
+  it('reads as a vault on ≥98% of seeds', () => {
+    let clean = 0;
+    for (let s = 1; s <= 150; s++) if (checkSemantics(buildComponentSheet('building:vault', 6, s), 'vault').clean) clean++;
+    expect(clean / 150).toBeGreaterThanOrEqual(0.98);
+  });
+  it('catches a broken vault (the chests removed → missingFocal)', () => {
+    const m = buildComponentSheet('building:vault', 6, 1);
+    expect(checkSemantics({ ...m, objects: m.objects.filter((o) => o.tag !== 'chest') }, 'vault').missingFocal).toBeGreaterThan(0);
+  });
+});

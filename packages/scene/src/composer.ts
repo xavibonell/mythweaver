@@ -284,10 +284,16 @@ function clampInt(v: unknown, min: number, max: number, dflt: number): number {
  * matters — the specific types (tavern/smithy/temple/shop) win over the generic 'house'.
  */
 const BUILDING_TAG_TYPE: [RegExp, BuildingType][] = [
-  [/tavern|inn|alehouse|pub|brewery|lodge/, 'tavern'],
+  // specific NEW types first (first match wins) so they don't get swallowed by the generic tavern/temple/shop lines.
+  [/\b(inn|lodging|hostel)\b/, 'inn'],
+  [/tavern|alehouse|pub|brewery|tap.?house|lodge/, 'tavern'],
   [/smith|forge|foundry|blacksmith|workshop/, 'smithy'],
-  [/temple|shrine|church|chapel|cathedral|sanctuary|abbey|monastery/, 'temple'],
-  [/shop|store|market.?house|emporium|trading.?post|apothecary|bakery|butcher|tailor|bank|guildhall|general.?store/, 'shop'],
+  [/cathedral|minster|basilica|abbey|monastery/, 'cathedral'],
+  [/temple|shrine|church|chapel|sanctuary/, 'temple'],
+  [/jail|gaol|prison|cell.?block|gallows/, 'jail'],
+  [/vault|treasury|strong.?room|hoard|reliquary/, 'vault'],
+  [/general.?store|provisioner|trading.?post|apothecary|emporium|sundr/, 'general_store'],
+  [/shop|store|market.?house|bakery|butcher|tailor|bank|guildhall/, 'shop'],
   [/house|home|cottage|hut|cabin|hovel|shack|dwelling|residence|longhouse|manor|hall|farmhouse|barn|mill|tower/, 'house'],
 ];
 function buildingTypeOf(tag: string): BuildingType | null {

@@ -47,6 +47,19 @@ export const BUILDING_SEMANTICS: Record<string, BuildingSemanticSpec> = {
   smithy: { focal: 'forge', nearFocal: { tag: 'anvil', within: 2 }, keeperAtFocal: true },
   // Shop: a service counter (run) is the focal; display wares are the stock; the shopkeeper is at the counter.
   shop: { focal: 'bar_counter', focalRun: 2, seating: { tag: 'shelf_wares', min: 2 }, keeperAtFocal: true },
+  // P0 batch.
+  // Inn: a check-in counter (run) with the innkeeper behind it; the rentable BEDS are the defining stock.
+  inn: { focal: 'bar_counter', focalRun: 2, seating: { tag: 'bed', min: 2 }, keeperAtFocal: true },
+  // General store: a service counter + provisioner; dense ware shelving is the stock (same shape as shop).
+  general_store: { focal: 'bar_counter', focalRun: 2, seating: { tag: 'shelf_wares', min: 2 }, keeperAtFocal: true },
+  // Cathedral: a grand altar focal + ranked pews. Like temple's contract (a place of worship); the apse recipe
+  // additionally plants a deity statue beside the altar + more pews, which is what reads as a CATHEDRAL vs a plain
+  // temple (the contract can't tell them apart, same as general_store vs shop — an accepted, documented overlap).
+  cathedral: { focal: 'altar', seating: { tag: 'stone_bench', min: 2 } },
+  // Jail: a caged cell is the focal; ≥2 cages = a cell block (seating reuses the count for the same tag).
+  jail: { focal: 'cage', seating: { tag: 'cage', min: 2 } },
+  // Vault: a strongbox is the focal; ≥2 chests = a hoard.
+  vault: { focal: 'chest', seating: { tag: 'chest', min: 2 } },
 };
 
 export interface SemanticReport {
@@ -86,12 +99,15 @@ export function checkSemantics(map: SceneMap, type: string): SemanticReport {
   const walk = (c: number, r: number) => inb(c, r) && map.walkable[r]![c] === true;
   const sample = (kind: string, c: number, r: number) => { if (rep.samples.filter((s) => s.kind === kind).length < 3) rep.samples.push({ kind, col: c, row: r }); };
 
-  // Group PROPS by building (the group id minus its '-r<room>' suffix).
+  // Group PROPS by building (the group id minus its '-r<room>' suffix); also tally how many ROOMS each
+  // building has (distinct '-r<room>' suffixes) so a focal-room minimum can scale to building size.
   const byBldg = new Map<string, { tag: string; col: number; row: number }[]>();
+  const roomsByBldg = new Map<string, Set<string>>();
   for (const o of map.objects) {
     if (o.kind !== 'prop') continue;
     const id = (o.group ?? '').replace(/-r\d+$/, '') || (o.group ?? '?');
     (byBldg.get(id) ?? byBldg.set(id, []).get(id)!).push({ tag: o.tag, col: o.col, row: o.row });
+    (roomsByBldg.get(id) ?? roomsByBldg.set(id, new Set()).get(id)!).add(/-r\d+$/.exec(o.group ?? '')?.[0] ?? '');
   }
   // Keeper actor per building (id 'npc:<safe>-r<room>-keeper') → keyed to match the prop group 'bldg:<safe>'.
   const keeperByBldg = new Map<string, { col: number; row: number }>();
@@ -137,16 +153,24 @@ export function checkSemantics(map: SceneMap, type: string): SemanticReport {
       if (longestRun(focals) < need || !wallBacked) { rep.focalNotProminent++; sample('focalrun', focal.col, focal.row); }
     } else {
       // POINT focal: sits against a wall, AND — for a STATION (nearFocal) — has its partner nearby (the anvil
-      // by the forge); otherwise (a lone focal like an altar) has a clear walkable approach in front.
-      const onWall = N4.some(([dc, dr]) => wall(focal.col + dc, focal.row + dr));
-      const stationOk = spec.nearFocal
-        ? props.some((p) => p.tag === spec.nearFocal!.tag && Math.abs(p.col - focal.col) <= spec.nearFocal!.within && Math.abs(p.row - focal.row) <= spec.nearFocal!.within)
-        : N4.some(([dc, dr]) => interiorFloor(focal.col + dc, focal.row + dr) && walk(focal.col + dc, focal.row + dr));
-      if (!onWall || !stationOk) { rep.focalNotProminent++; sample('focal', focal.col, focal.row); }
+      // by the forge); otherwise (a lone focal like an altar) has a clear walkable approach in front. When the
+      // type has SEVERAL focal instances (a jail's cages, a vault's chests), ANY ONE being prominent reads —
+      // a corner cage boxed by its neighbours doesn't fail the building if another cell is well-placed.
+      const prominent = (f: { col: number; row: number }) =>
+        N4.some(([dc, dr]) => wall(f.col + dc, f.row + dr)) &&
+        (spec.nearFocal
+          ? props.some((p) => p.tag === spec.nearFocal!.tag && Math.abs(p.col - f.col) <= spec.nearFocal!.within && Math.abs(p.row - f.row) <= spec.nearFocal!.within)
+          : N4.some(([dc, dr]) => interiorFloor(f.col + dc, f.row + dr) && walk(f.col + dc, f.row + dr)));
+      if (!focals.some(prominent)) { rep.focalNotProminent++; sample('focal', focal.col, focal.row); }
     }
     if (spec.seating) {
-      const n = props.filter((p) => p.tag === spec.seating!.tag).length;
-      if (n < spec.seating.min) { rep.understocked++; sample('seating', focal.col, focal.row); }
+      // match the tag exactly OR a per-orientation variant of it (bed → bed_down/bed_blue/bed_right).
+      const st = spec.seating.tag;
+      const n = props.filter((p) => p.tag === st || p.tag.startsWith(st + '_')).length;
+      // graceful degradation: a SINGLE-room building can't host a full block (a 4×4 inn fits a counter + 1 bed,
+      // not 2) — relax the minimum by one there. Multi-room buildings (the shipping norm) need the full count.
+      const need = (roomsByBldg.get(bldgKey)?.size ?? 1) >= 2 ? spec.seating.min : Math.max(1, spec.seating.min - 1);
+      if (n < need) { rep.understocked++; sample('seating', focal.col, focal.row); }
     }
     if (spec.keeperAtFocal) {
       const k = keeperByBldg.get(bldgKey);

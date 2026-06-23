@@ -4,7 +4,7 @@ import { checkStructure } from './structure-check.js';
 
 // Structural invariants over the seed space — the deterministic, $0 regression gate for the town builder
 // (pairs with the visual judge, which gates aesthetics). See docs + structure-check.ts.
-const BUILDING_TYPES = ['house', 'tavern', 'temple', 'smithy', 'shop'] as const;
+const BUILDING_TYPES = ['house', 'tavern', 'temple', 'smithy', 'shop', 'inn', 'general_store', 'cathedral', 'jail', 'vault'] as const;
 
 function sweep(kind: string, seeds: number) {
   const totals = { leakedInterior: 0, unreachable: 0, freestandingWall: 0, badDoor: 0, wallJog: 0, doorBlocked: 0, actorBoxed: 0 };
@@ -82,7 +82,7 @@ describe('structure invariants — furniture-aware reachability (deadPocket): th
   // furniture and connect strandeds; for residences/temples/smithies it reaches EVERY cell. A densely-
   // furnished tavern/shop compound can still strand a back-of-bar nook the counter geometry seals (a known
   // F4 follow-up) — so those are asserted as bounded, not zero, keeping the gate honest.
-  for (const t of ['house', 'temple', 'smithy'] as const) {
+  for (const t of ['house', 'temple', 'smithy', 'cathedral', 'jail', 'vault'] as const) {
     it(`building:${t} — ZERO furniture-sealed pockets across 80 seeds (the carve fully connects these)`, () => {
       expect(sweep(`building:${t}`, 80).deadPocket).toBe(0);
     });
