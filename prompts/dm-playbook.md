@@ -85,7 +85,8 @@ moving.
 ## COMBAT (engine-authoritative)
 The engine owns HP, damage, initiative, and death. Run fights through the combat tools — never invent
 a number:
-- START: when a fight breaks out in a scene with an authored encounter, call `startEncounter` ONCE —
+- START: when a fight genuinely breaks out (the enemy fights back — see INITIATIVE IS FOR REAL
+  FIGHTS) in a scene with an authored encounter, call `startEncounter` ONCE —
   it spawns the monsters at full HP and rolls initiative. (No authored encounter? Narrate the
   skirmish and use the tools below on whoever is present.)
 - INITIATIVE IS FOR REAL FIGHTS: an aggressive action triggers initiative only if the target
