@@ -724,6 +724,55 @@ export function compound(cv: Canvas, region: Rect, type: BuildingType, opts: { d
   };
   for (const d of doorList) for (const [dc, dr] of N4) clearApproach(d.c + dc, d.r + dr);
 
+  // FURNITURE-AWARE REACHABILITY — a character entering must be able to WALK to every interior cell. Dissolve
+  //   the MINIMAL furniture so no walkable floor is marooned (a sealed back room / corner pocket). Routes
+  //   around counters (never punches a hole in a bar/shop counter); staff space behind a counter is left sealed.
+  {
+    // PROTECTED props are a type's focal/station/seating pieces — the carve routes AROUND them (never clears
+    // them to make a path), so connecting a pocket can't break a forge/altar/bar/shop station.
+    const PROTECT = new Set(['altar', 'forge', 'anvil', 'bar_counter', 'shelf_wares', 'stone_bench', 'candelabra']);
+    const isCounter = new Set(cv.objects.filter((o) => o.tag === 'bar_counter').map((o) => `${o.col},${o.row}`));
+    const isProtected = new Set(cv.objects.filter((o) => o.kind === 'prop' && PROTECT.has(o.tag)).map((o) => `${o.col},${o.row}`));
+    const staff = (c: number, r: number) => N4.some(([dc, dr]) => isCounter.has(`${c + dc},${r + dr}`) && (cv.tileAt(c - dc, r - dr) ?? '').startsWith('wall'));
+    const flood = (): Set<string> => {
+      const seen = new Set<string>(); const q: [number, number][] = [];
+      const seed = (c: number, r: number) => { const k = `${c},${r}`; if (cv.inB(c, r) && cv.walkable[r]![c] === true && !seen.has(k)) { seen.add(k); q.push([c, r]); } };
+      seed(inIC, inIR);
+      while (q.length) { const [c, r] = q.shift()!; for (const [dc, dr] of N4) seed(c + dc, r + dr); }
+      return seen;
+    };
+    // Shortest path from a stranded cell to the reached region over ORDINARY interior floor (clearable if an
+    //   ordinary prop blocks it) + walkable openings — never through a PROTECTED station prop.
+    const pathTo = (target: [number, number], reach: Set<string>): string[] | null => {
+      const prev = new Map<string, string>(); const seen2 = new Set<string>([`${target[0]},${target[1]}`]); const q2: [number, number][] = [target]; let hit: string | null = null;
+      while (q2.length && !hit) {
+        const [c, r] = q2.shift()!;
+        for (const [dc, dr] of N4) {
+          const nc = c + dc, nr = r + dr, k = `${nc},${nr}`;
+          if (seen2.has(k) || isProtected.has(k)) continue; // never route through a focal/station prop
+          if (!roomFloor(nc, nr) && cv.walkable[nr]?.[nc] !== true) continue;
+          seen2.add(k); prev.set(k, `${c},${r}`);
+          if (reach.has(k)) { hit = k; break; }
+          q2.push([nc, nr]);
+        }
+      }
+      if (!hit) return null;
+      const path: string[] = [];
+      for (let cur = hit; cur && cur !== `${target[0]},${target[1]}`; cur = prev.get(cur)!) path.push(cur);
+      return path;
+    };
+    const giveUp = new Set<string>();
+    for (let pass = 0; pass < 400; pass++) {
+      const reach = flood();
+      let target: [number, number] | null = null;
+      for (let r = ry; r < ry + rh && !target; r++) for (let c = rx; c < rx + rw; c++) if (roomFloor(c, r) && cv.walkable[r]![c] === true && !reach.has(`${c},${r}`) && !staff(c, r) && !giveUp.has(`${c},${r}`)) { target = [c, r]; break; }
+      if (!target) break; // every interior cell reachable
+      const path = pathTo(target, reach);
+      if (!path) { giveUp.add(`${target[0]},${target[1]}`); continue; } // only reachable through a station → leave it
+      for (const cur of path) { const [c, r] = cur.split(',').map(Number) as [number, number]; if (cv.walkable[r]![c] !== true) { const i = cv.objects.findIndex((o) => o.kind === 'prop' && o.col === c && o.row === r); if (i >= 0) cv.objects.splice(i, 1); cv.occ[r]![c] = false; cv.walkable[r]![c] = true; } }
+    }
+  }
+
   // PASS D — PRUNE: any wall cell with NO interior floor in its N8 neighbourhood is redundant — a stranded
   //   arm (e.g. a partition orphaned when a back room became a garden) or the outer cell of a 2-tile-thick
   //   wall. It encloses nothing, so drop it to exterior grass → the ring stays exactly 1 tile thick (the

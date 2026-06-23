@@ -38,7 +38,14 @@ export interface StructureReport {
   /** An actor (keeper/NPC) with NO walkable cell orthogonally adjacent — sealed in by its own furniture, so
    *  it can't move and can't be reached. Furniture-aware, like doorBlocked. Should be 0 for any building. */
   actorBoxed: number;
-  /** True iff all are zero. */
+  /** A walkable interior-floor cell NOT reachable on the walkable grid from any entrance — a furniture-sealed
+   *  pocket (vs `unreachable`, which is tile/door based). Excludes intentional staff space behind a counter.
+   *  A TRACKED METRIC, NOT part of `clean`: the carve drives it to 0 for residences/temples/smithies, but a
+   *  densely-furnished tavern/shop compound can still strand a back-of-bar nook (the counter geometry seals it
+   *  and #1's keeper-behind contract forbids punching the counter) — a known F4 follow-up, not a hard defect.
+   *  Gated traversability is doorBlocked + actorBoxed + unreachable (every door steppable, every room reached). */
+  deadPocket: number;
+  /** True iff all GATED defects are zero (deadPocket is tracked separately — see its note). */
   clean: boolean;
   /** A few example cells per violation, for eyeballing a failing seed. */
   samples: { kind: string; col: number; row: number }[];
@@ -178,6 +185,39 @@ export function checkStructure(map: SceneMap): StructureReport {
     if (!N4.some(([dc, dr]) => walk(o.col + dc, o.row + dr))) { actorBoxed++; sample('boxed', o.col, o.row); }
   }
 
+  // ── deadPocket: FURNITURE-AWARE reachability. A character entering must be able to WALK to every interior
+  //    cell. BFS from each entrance/door over the WALKABLE grid — AND through counter cells (a bar/shop counter
+  //    has an intentional staff area behind it, reachable only by stepping over the counter; that is not a
+  //    defect). An interior-floor cell still unreached is sealed by WALLS or ORDINARY furniture — a marooned
+  //    corner / back room no one can get to. Unlike `unreachable` (tile + door based), this honours furniture.
+  const counterSet = new Set<string>();
+  for (const o of map.objects) if (o.kind === 'prop' && o.tag === 'bar_counter') counterSet.add(`${o.col},${o.row}`);
+  const reachW = Array.from({ length: rows }, () => new Array<boolean>(cols).fill(false));
+  const qw: [number, number][] = [];
+  const seedW = (c: number, r: number) => { if (walk(c, r) && !reachW[r]![c]) { reachW[r]![c] = true; qw.push([c, r]); } };
+  for (const key of doorSet) { const [c, r] = key.split(',').map(Number) as [number, number]; for (const [dc, dr] of N4) seedW(c + dc, r + dr); } // step inside each door/entrance
+  while (qw.length) { const [c, r] = qw.shift()!; for (const [dc, dr] of N4) seedW(c + dc, r + dr); }
+  // Group the unreachable walkable interior into regions; a region that TOUCHES a counter is intentional
+  //   back-of-bar staff space (only reachable over the counter) — not a defect. Flag the rest.
+  let deadPocket = 0;
+  const pocketSeen = Array.from({ length: rows }, () => new Array<boolean>(cols).fill(false));
+  for (let r0 = 0; r0 < rows; r0++)
+    for (let c0 = 0; c0 < cols; c0++) {
+      if (!interior(c0, r0) || !walk(c0, r0) || reachW[r0]![c0] || pocketSeen[r0]![c0]) continue;
+      const region: [number, number][] = [[c0, r0]]; pocketSeen[r0]![c0] = true;
+      let touchesCounter = false;
+      for (let i = 0; i < region.length; i++) {
+        const [c, r] = region[i]!;
+        for (const [dc, dr] of N4) {
+          const nc = c + dc, nr = r + dr;
+          if (counterSet.has(`${nc},${nr}`)) touchesCounter = true;
+          if (interior(nc, nr) && walk(nc, nr) && !reachW[nr]?.[nc] && !pocketSeen[nr]![nc]) { pocketSeen[nr]![nc] = true; region.push([nc, nr]); }
+        }
+      }
+      if (!touchesCounter) { deadPocket += region.length; sample('pocket', c0, r0); }
+    }
+
+  // deadPocket is a TRACKED METRIC, not gated (see its field note) — gated traversability = doorBlocked + actorBoxed + unreachable.
   const clean = leakedInterior === 0 && unreachable === 0 && freestandingWall === 0 && badDoor === 0 && wallJog === 0 && doorBlocked === 0 && actorBoxed === 0;
-  return { leakedInterior, unreachable, freestandingWall, badDoor, wallJog, doorBlocked, actorBoxed, clean, samples };
+  return { leakedInterior, unreachable, freestandingWall, badDoor, wallJog, doorBlocked, actorBoxed, deadPocket, clean, samples };
 }
