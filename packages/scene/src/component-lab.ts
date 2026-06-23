@@ -16,6 +16,8 @@
 
 import { type SceneMap } from '@mythweaver/shared';
 import { bspRooms, building, Canvas, cave, clearing, clumpScatter, compound, fill, finalize, maze, place, plaza, poissonScatter, vignette, type Rect } from './primitives.js';
+import { GENERATORS, type Contents } from './archetypes.js';
+import { THEMES } from './themes.js';
 import { type ShapeKind } from './footprint.js';
 
 /** The components you can iterate on, grouped by family for the Lab dropdown. */
@@ -28,6 +30,7 @@ export const COMPONENT_KINDS = [
   'vignette:market', 'vignette:forge', 'vignette:shrine', 'vignette:well', 'vignette:camp', 'vignette:graveyard',
   'plaza', 'streets', 'density:trees', 'density:flowers', 'density:furniture',
   'clearing', 'cave', 'rooms', 'maze',
+  'town', 'village', // full procedural settlements (townGen) — seed-varied, for assessing town COMPOSITION
 ] as const;
 export type ComponentKind = (typeof COMPONENT_KINDS)[number];
 
@@ -120,6 +123,27 @@ function specFor(kind: string): CellSpec {
       return { cw: 16, ch: 14, render: (cv, rect) => { bspRooms(cv, rect, 4, 'wall', 'stone'); } };
     case 'maze':
       return { cw: 16, ch: 14, render: (cv, rect) => maze(cv, rect, 'wall', 'grass') };
+    case 'town':
+    case 'village': {
+      // A full procedural settlement (townGen), seed-varied per cell — the surface for assessing town
+      // COMPOSITION (streets, plaza, zoning, entrance paths, framing). A believable roster of the 21 types.
+      const big = kind === 'town';
+      const roster: Contents = {
+        buildings: [
+          { type: 'cathedral' }, { type: 'keep', name: 'the keep' }, { type: 'manor' }, { type: 'guildhall' }, { type: 'courthouse' },
+          { type: 'tavern', name: 'the inn' }, { type: 'inn' }, { type: 'temple' }, { type: 'smithy' }, { type: 'general_store' },
+          { type: 'library' }, { type: 'armory' }, { type: 'shop' }, { type: 'curio' }, { type: 'workshop' }, { type: 'barracks' },
+        ],
+        landmarks: [{ tag: 'well' }],
+        npcs: [{ tag: 'villager' }, { tag: 'villager_woman' }, { tag: 'knight' }, { tag: 'wizard' }, { tag: 'ranger' }],
+        mobs: [],
+        wall: false,
+      };
+      return {
+        cw: big ? 56 : 36, ch: big ? 44 : 30,
+        render: (cv, rect, i) => GENERATORS.town(cv, { theme: THEMES.village ?? Object.values(THEMES)[0]!, contents: roster, bounds: rect, locationId: `loc:lab-town-${i}` }),
+      };
+    }
     default:
       return { cw: 16, ch: 14, render: (cv, rect, i) => { void i; building(cv, { x: rect.x + 1, y: rect.y + 1, w: rect.w - 2, h: rect.h - 2 }, 'house', { door: 'south', id: 'bldg:fallback' }); } };
   }

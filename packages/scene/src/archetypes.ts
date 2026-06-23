@@ -79,7 +79,6 @@ function townGen(cv: Canvas, ctx: GenContext): void {
   // rarely fires). Jittered positions + varied widths give irregular, non-uniform blocks.
   const MIN_BLOCK = 15;
   const GRID_CHAOS = 0.42;
-  const totalArea = interior.w * interior.h;
   const open: { r: Rect; d: number }[] = [{ r: interior, d: 0 }];
   const blocks: Rect[] = [];
   let guard = 0;
@@ -91,8 +90,10 @@ function townGen(cv: Canvas, ctx: GenContext): void {
     const len = horiz ? R.w : R.h;
     // Keep lanes NARROW (only the first couple of arteries are 2-wide) — wide streets flood the map
     // with dirt and read as a muddy field instead of a village threaded by paths.
-    const streetW = R.w * R.h > totalArea / 4 ? 2 : 1;
-    const streetMat = streetW >= 2 ? ARTERY : path; // wide arteries = cobblestone, narrow alleys = dirt
+    // The main street SKELETON (the first couple of recursive cuts) is a 2-wide COBBLE artery; deeper cuts are
+    // 1-wide dirt alleys. So a town reads as cobbled high streets threaded by dirt lanes, not a muddy field.
+    const streetW = d === 0 ? 2 : 1;
+    const streetMat = d <= 1 ? ARTERY : path;
     const lo = Math.floor(MIN_BLOCK / 2), hi = len - Math.floor(MIN_BLOCK / 2) - streetW;
     if (hi <= lo) { blocks.push(R); continue; }
     const cut = Math.max(lo, Math.min(hi, Math.floor(len * (0.5 + (cv.rng() - 0.5) * GRID_CHAOS))));
@@ -117,6 +118,22 @@ function townGen(cv: Canvas, ctx: GenContext): void {
   const plazaCtr = rectCenter(pRect);
   const vig = contents.landmarks.map((l) => l.tag).find((t) => TOWN_VIGNETTES.has(t)) ?? (contents.landmarks.some((l) => /well|fountain/.test(l.tag)) ? 'well' : 'well');
   vignette(cv, plazaCtr, vig, `plaza-${slug(locationId, 0)}`);
+  // benches at the square's corners — somewhere to sit by the market/well.
+  for (const [cx, cy] of [[pRect.x + 1, pRect.y + 1], [pRect.x + pRect.w - 2, pRect.y + 1], [pRect.x + 1, pRect.y + pRect.h - 2], [pRect.x + pRect.w - 2, pRect.y + pRect.h - 2]] as const)
+    if (cv.inB(cx, cy) && cv.isFree(cx, cy)) place(cv, { id: `prop:plaza-bench-${cx}-${cy}`, tag: 'stone_bench', kind: 'prop', at: { c: cx, r: cy } });
+
+  // STAGE 2b — PARK. A green neighbourhood square (a fountain + benches on grass, no buildings), placed on the
+  // FAR side of town from the paved plaza, so a settlement has a breathing space distinct from the market square.
+  if (blocks.length >= 4) {
+    let kIdx = -1, kBest = -1;
+    blocks.forEach((b, i) => { if (Math.min(b.w, b.h) < 6) return; const c = rectCenter(b); const dd = (c.c - plazaCtr.c) ** 2 + (c.r - plazaCtr.r) ** 2; if (dd > kBest) { kBest = dd; kIdx = i; } });
+    if (kIdx >= 0) {
+      const park = blocks.splice(kIdx, 1)[0]!;
+      const parkCtr = rectCenter(park);
+      place(cv, { id: `prop:park-fountain-${slug(locationId, 0)}`, tag: 'fountain', kind: 'prop', at: parkCtr });
+      for (const [dx, dy] of [[-2, 0], [2, 0], [0, -2], [0, 2]] as const) { const bc = parkCtr.c + dx, br = parkCtr.r + dy; if (cv.inB(bc, br) && cv.isFree(bc, br)) place(cv, { id: `prop:park-bench-${bc}-${br}`, tag: 'stone_bench', kind: 'prop', at: { c: bc, r: br } }); }
+    }
+  }
 
   // STAGE 3 — PARCEL SUBDIVISION (OBB recursive split, soft probabilistic stop). Each block is inset off
   // its streets, then split along the SHORTER axis at a jittered ratio (1-tile alley between halves) until
@@ -174,7 +191,18 @@ function townGen(cv: Canvas, ctx: GenContext): void {
     let type: BuildingType, name: string | undefined;
     if (ni < named.length) { type = named[ni]!.type; name = named[ni]!.name; ni++; }
     else { const big = fp.w * fp.h >= 72; type = big ? (cv.rng() < 0.3 ? 'shop' : 'house') : 'house'; } // procedural fill = mostly homes (big lots → manors/shops)
-    compound(cv, fp, type, { door: doorToward(fp), shape: chooseShape(fp.w, fp.h), locationId, ...(name ? { name } : {}), id: `bldg:b${bi++}` });
+    const dside = doorToward(fp);
+    compound(cv, fp, type, { door: dside, shape: chooseShape(fp.w, fp.h), locationId, ...(name ? { name } : {}), id: `bldg:${slug(locationId, 0)}-b${bi++}` });
+    // ENTRANCE PATH — a short dirt path from the door OUT across the front-yard grass to the nearest street, so
+    // every building has a deliberate, hand-placed approach instead of a door opening onto bare ground.
+    const dir = dside === 'north' ? { c: 0, r: -1 } : dside === 'south' ? { c: 0, r: 1 } : dside === 'west' ? { c: -1, r: 0 } : { c: 1, r: 0 };
+    let pc = dside === 'east' ? fp.x + fp.w : dside === 'west' ? fp.x - 1 : fp.x + Math.floor(fp.w / 2);
+    let pr = dside === 'south' ? fp.y + fp.h : dside === 'north' ? fp.y - 1 : fp.y + Math.floor(fp.h / 2);
+    for (let step = 0; step < 5 && cv.inB(pc, pr); step++) {
+      if (isStreet(pc, pr)) break;                              // reached the road — done
+      if (cv.tileAt(pc, pr) === ground) cv.set(pc, pr, path, true); // pave the front path
+      pc += dir.c; pr += dir.r;
+    }
   }
 
   // STAGE 5 — DENSITY (two deliberate textures, region-masked, depth-ordered). Trees/bushes spread by
@@ -191,15 +219,27 @@ function townGen(cv: Canvas, ctx: GenContext): void {
   clumpScatter(cv, interior, { tags: ['tree_oak', 'tree_dark', 'tree_autumn', 'tree_pine'], freq: 0.2, threshold: 0.68, seedOffset: 0x51ed, blocks: true, max: 40, filter: onGround });
   // groundcover — flower beds (varied colours) + tufts clump (lusher: lower threshold, higher cap)
   clumpScatter(cv, interior, { tags: ['flowers', 'flowers_blue', 'flowers_yellow', 'flowers_red', 'grass_tuft', 'mushroom'], freq: 0.14, threshold: 0.52, seedOffset: 0x9e37, blocks: false, max: 170, filter: onGround });
-  // street furniture lining the lanes
-  poissonScatter(cv, interior, { tags: ['signpost', 'fence', 'woodpile', 'barrel', 'crate', 'market_stall'], r: 6, blocks: true, max: 16, filter: (c, r) => onGround(c, r) && nearTile(c, r, isStreet) });
+  // street furniture lining the lanes (signposts handled separately — they belong at junctions, not at random)
+  poissonScatter(cv, interior, { tags: ['fence', 'woodpile', 'barrel', 'crate', 'market_stall'], r: 6, blocks: true, max: 16, filter: (c, r) => onGround(c, r) && nearTile(c, r, isStreet) });
+  // SIGNPOSTS at street JUNCTIONS — where lanes cross/branch (≥3 street neighbours), plant a sign on a free
+  // grass corner. Min-spaced so a dense crossing doesn't sprout a thicket of signs.
+  const signs: Pt[] = [];
+  for (let r = interior.y + 1; r < interior.y + interior.h - 1 && signs.length < 8; r++)
+    for (let c = interior.x + 1; c < interior.x + interior.w - 1 && signs.length < 8; c++) {
+      if (!isStreet(c, r)) continue;
+      const sn = (isStreet(c, r - 1) ? 1 : 0) + (isStreet(c, r + 1) ? 1 : 0) + (isStreet(c - 1, r) ? 1 : 0) + (isStreet(c + 1, r) ? 1 : 0);
+      if (sn < 3 || signs.some((p) => Math.abs(p.c - c) + Math.abs(p.r - r) < 9)) continue;
+      const corner = ([[1, 1], [-1, 1], [1, -1], [-1, -1]] as const).map(([dx, dy]) => ({ c: c + dx, r: r + dy })).find((p) => cv.inB(p.c, p.r) && cv.isFree(p.c, p.r) && onGround(p.c, p.r));
+      if (corner) { place(cv, { id: `prop:signpost-${c}-${r}`, tag: 'signpost', kind: 'prop', at: corner }); signs.push({ c, r }); }
+    }
   // flower beds hugging building walls
   clumpScatter(cv, interior, { tags: ['flowers', 'flowers_red', 'flowers_yellow', 'bush'], freq: 0.32, threshold: 0.4, seedOffset: 0x85eb, blocks: false, max: 80, filter: (c, r) => onGround(c, r) && nearTile(c, r, isWall) });
 
   // STAGE 6 — CAST. NPCs along the streets/plaza; mobs scattered through the interior.
   const streetCells = cv.shuffle((() => { const out: Pt[] = []; for (let r = interior.y; r < interior.y + interior.h; r++) for (let c = interior.x; c < interior.x + interior.w; c++) if (cv.isFree(c, r) && (isStreet(c, r) || cv.tileAt(c, r) === theme.plaza)) out.push({ c, r }); return out; })());
-  contents.npcs.forEach((npc, i) => place(cv, { id: `npc:${slug(npc.tag, i)}`, tag: npc.tag, kind: 'actor', role: 'npc', at: streetCells[i % Math.max(1, streetCells.length)] ?? plazaCtr, ...(npc.name ? { name: npc.name } : {}) }));
-  contents.mobs.forEach((mob, i) => scatter(cv, { idBase: `mob:${slug(mob.tag, i)}`, tags: [mob.tag], kind: 'actor', role: 'mob', region: interior, count: Math.max(1, Math.min(20, mob.count)) }));
+  const loc = slug(locationId, 0); // namespace the cast by location so two towns on one canvas don't share ids
+  contents.npcs.forEach((npc, i) => place(cv, { id: `npc:${loc}-${slug(npc.tag, i)}`, tag: npc.tag, kind: 'actor', role: 'npc', at: streetCells[i % Math.max(1, streetCells.length)] ?? plazaCtr, ...(npc.name ? { name: npc.name } : {}) }));
+  contents.mobs.forEach((mob, i) => scatter(cv, { idBase: `mob:${loc}-${slug(mob.tag, i)}`, tags: [mob.tag], kind: 'actor', role: 'mob', region: interior, count: Math.max(1, Math.min(20, mob.count)) }));
   if (!contents.wall) entrance(cv, edgePt(B, contents.entranceSide ?? 'south'), locationId);
 }
 
