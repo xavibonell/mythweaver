@@ -23,6 +23,7 @@ export const COMPONENT_KINDS = [
   'building:tavern', 'building:temple', 'building:smithy', 'building:shop', 'building:house',
   'building:inn', 'building:general_store', 'building:cathedral', 'building:jail', 'building:vault',
   'building:keep', 'building:library', 'building:armory', 'building:barracks', 'building:guildhall', 'building:goblin_warren', 'building:manor',
+  'building:tomb', 'building:courthouse', 'building:workshop', 'building:curio',
   'shape:rect', 'shape:ell', 'shape:tee', 'shape:you', 'shape:plus', 'shape:compose', 'shape:compose:temple', 'shape:compose:tavern', 'shape:compose:smithy', 'shape:compose:shop',
   'vignette:market', 'vignette:forge', 'vignette:shrine', 'vignette:well', 'vignette:camp', 'vignette:graveyard',
   'plaza', 'streets', 'density:trees', 'density:flowers', 'density:furniture',
@@ -30,7 +31,7 @@ export const COMPONENT_KINDS = [
 ] as const;
 export type ComponentKind = (typeof COMPONENT_KINDS)[number];
 
-const BUILDING_TYPES = ['tavern', 'temple', 'smithy', 'shop', 'house', 'inn', 'general_store', 'cathedral', 'jail', 'vault', 'keep', 'library', 'armory', 'barracks', 'guildhall', 'goblin_warren', 'manor'] as const;
+const BUILDING_TYPES = ['tavern', 'temple', 'smithy', 'shop', 'house', 'inn', 'general_store', 'cathedral', 'jail', 'vault', 'keep', 'library', 'armory', 'barracks', 'guildhall', 'goblin_warren', 'manor', 'tomb', 'courthouse', 'workshop', 'curio'] as const;
 const onGrass = (cv: Canvas, c: number, r: number) => cv.tileAt(c, r) === 'grass';
 const nearTile = (cv: Canvas, c: number, r: number, tag: string) => cv.tileAt(c, r - 1) === tag || cv.tileAt(c, r + 1) === tag || cv.tileAt(c - 1, r) === tag || cv.tileAt(c + 1, r) === tag;
 

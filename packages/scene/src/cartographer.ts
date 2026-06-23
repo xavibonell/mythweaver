@@ -63,6 +63,11 @@ export const BUILDING_TEMPLATES: Record<BuildingType, RoomTemplate> = {
   guildhall: { floor: 'wood_floor', wall: 'wood', occupant: 'villager', carpet: true, items: [{ tag: 'banner', where: 'back' }, { tag: 'table', where: 'center' }, { tag: 'chair', where: 'around', count: 3 }, { tag: 'chest', where: 'corner' }] },
   goblin_warren: { floor: 'stone', wall: 'stone', occupant: '', items: [{ tag: 'throne', where: 'back' }, { tag: 'brazier', where: 'center' }, { tag: 'bones', where: 'scatter', count: 3 }, { tag: 'cage', where: 'wall' }, { tag: 'crate', where: 'corner' }] },
   manor: { floor: 'wood_floor', wall: 'wood', occupant: 'villager', carpet: true, items: [{ tag: 'table_round', where: 'center' }, { tag: 'chair', where: 'around', count: 4 }, { tag: 'candelabra_large', where: 'wall' }, { tag: 'bookshelf', where: 'wall' }, { tag: 'bed', where: 'corner' }] },
+  // P2 batch.
+  tomb: { floor: 'stone', wall: 'stone', occupant: '', items: [{ tag: 'sarcophagus', where: 'wall', count: 3 }, { tag: 'candelabra', where: 'wall' }, { tag: 'bones', where: 'scatter', count: 2 }] },
+  courthouse: { floor: 'stone', wall: 'stone', occupant: 'villager', carpet: true, items: [{ tag: 'throne', where: 'back' }, { tag: 'stone_bench', where: 'around', count: 6 }, { tag: 'candelabra', where: 'wall' }] },
+  workshop: { floor: 'wood_floor', wall: 'wood', occupant: 'villager', items: [{ tag: 'table', where: 'center' }, { tag: 'woodpile', where: 'corner', count: 2 }, { tag: 'weapon_rack', where: 'wall' }, { tag: 'crate', where: 'corner' }] },
+  curio: { floor: 'wood_floor', wall: 'wood', occupant: 'villager', items: [{ tag: 'table', where: 'back', count: 2 }, { tag: 'shelf_wares', where: 'wall', count: 2 }, { tag: 'jar', where: 'wall' }, { tag: 'urn', where: 'wall' }, { tag: 'chest', where: 'corner' }, { tag: 'books', where: 'wall' }] },
 };
 
 /**
@@ -74,7 +79,7 @@ export const BUILDING_TEMPLATES: Record<BuildingType, RoomTemplate> = {
  * primary room); only `carpet` + `items` are function-specific. Reuses the same FurnSpec selectors as
  * BUILDING_TEMPLATES (back = counter/altar along the back wall, around = seating ringing the centre).
  */
-export type RoomFunction = 'bar' | 'dining' | 'kitchen' | 'bedroom' | 'storeroom' | 'shopfront' | 'parlor' | 'nave' | 'vestry' | 'forge' | 'apse' | 'cellblock' | 'strongroom' | 'innfront' | 'greathall' | 'readinghall' | 'armory' | 'barracks' | 'guildhall' | 'warrenhall';
+export type RoomFunction = 'bar' | 'dining' | 'kitchen' | 'bedroom' | 'storeroom' | 'shopfront' | 'parlor' | 'nave' | 'vestry' | 'forge' | 'apse' | 'cellblock' | 'strongroom' | 'innfront' | 'greathall' | 'readinghall' | 'armory' | 'barracks' | 'guildhall' | 'warrenhall' | 'mausoleum' | 'courtroom' | 'workshop' | 'oddmentshop';
 export const ROOM_TEMPLATES: Record<RoomFunction, RoomTemplate> = {
   bar: { floor: 'wood_floor', wall: 'wood', occupant: 'villager_woman', items: [{ tag: 'table', where: 'back', count: 4 }, { tag: 'shelf_wares', where: 'back' }, { tag: 'barrel', where: 'corner', count: 2 }, { tag: 'crate', where: 'corner' }, { tag: 'candelabra', where: 'wall' }, { tag: 'chair', where: 'around', count: 2 }] },
   dining: { floor: 'wood_floor', wall: 'wood', occupant: '', carpet: true, items: [{ tag: 'table', where: 'center' }, { tag: 'chair', where: 'around', count: 4 }, { tag: 'candelabra', where: 'wall' }, { tag: 'barrel', where: 'corner' }] },
@@ -102,6 +107,12 @@ export const ROOM_TEMPLATES: Record<RoomFunction, RoomTemplate> = {
   barracks: { floor: 'wood_floor', wall: 'wood', occupant: 'villager', items: [{ tag: 'bed', where: 'wall', count: 4 }, { tag: 'chest', where: 'corner' }] },
   guildhall: { floor: 'wood_floor', wall: 'wood', occupant: 'villager', carpet: true, items: [{ tag: 'banner', where: 'back' }, { tag: 'table', where: 'center' }, { tag: 'chair', where: 'around', count: 3 }] },
   warrenhall: { floor: 'stone', wall: 'stone', occupant: '', items: [{ tag: 'throne', where: 'back' }, { tag: 'brazier', where: 'center' }, { tag: 'bones', where: 'scatter', count: 3 }, { tag: 'cage', where: 'wall' }] },
+  // P2 batch room functions: mausoleum (tomb — sarcophagi), courtroom (throne magistrate + bench gallery),
+  // workshop (carpenter — workbench + lumber), oddmentshop (curio — counter + bric-a-brac).
+  mausoleum: { floor: 'stone', wall: 'stone', occupant: '', items: [{ tag: 'sarcophagus', where: 'wall', count: 3 }, { tag: 'candelabra', where: 'wall' }, { tag: 'bones', where: 'scatter', count: 2 }] },
+  courtroom: { floor: 'stone', wall: 'stone', occupant: 'villager', carpet: true, items: [{ tag: 'throne', where: 'back' }, { tag: 'stone_bench', where: 'around', count: 6 }] },
+  workshop: { floor: 'wood_floor', wall: 'wood', occupant: 'villager', items: [{ tag: 'table', where: 'center' }, { tag: 'woodpile', where: 'corner', count: 2 }, { tag: 'weapon_rack', where: 'wall' }, { tag: 'crate', where: 'corner' }] },
+  oddmentshop: { floor: 'wood_floor', wall: 'wood', occupant: 'villager', items: [{ tag: 'table', where: 'back', count: 2 }, { tag: 'shelf_wares', where: 'wall', count: 2 }, { tag: 'jar', where: 'wall' }, { tag: 'urn', where: 'wall' }, { tag: 'chest', where: 'corner' }] },
 };
 
 /** Per-building-type ROOM PROGRAM: the ordered room functions a compound contains. Index 0 is the
@@ -129,6 +140,11 @@ export const ROOM_PROGRAMS: Record<BuildingType, RoomFunction[]> = {
   guildhall: ['guildhall', 'storeroom'],
   goblin_warren: ['warrenhall', 'storeroom'],
   manor: ['parlor', 'dining', 'vestry', 'bedroom'], // a grand multi-room residence (a study sets it apart from a plain house)
+  // P2 batch.
+  tomb: ['mausoleum', 'storeroom'],
+  courthouse: ['courtroom', 'storeroom'],
+  workshop: ['workshop', 'storeroom'],
+  curio: ['oddmentshop', 'storeroom'],
 };
 
 /** Per-room-FUNCTION furniture RECIPE: a short list of relational GROUPS (see furnishRoom's group
@@ -156,6 +172,10 @@ export const ROOM_RECIPES: Record<RoomFunction, string[]> = {
   barracks: ['bunks', 'bunks', 'storage'], // rows of identical cots
   guildhall: ['crest', 'dining', 'storage'], // the guild banner/crest + a meeting table
   warrenhall: ['throne', 'warren', 'storage'], // a crude chief's seat + a cookfire, bones, a prisoner cage
+  mausoleum: ['sarcophagi', 'storage'], // rows of stone sarcophagi = a tomb/crypt
+  courtroom: ['throne', 'benches', 'storage'], // a magistrate's seat (throne) facing a gallery of benches
+  workshop: ['workbench', 'storage', 'storage'], // a workbench + lumber + tools = a carpenter's shop
+  oddmentshop: ['shopfront', 'oddments', 'oddments'], // a service counter packed with mismatched curios
 };
 
 interface Rect {
@@ -664,6 +684,24 @@ export function furnishRoom(
       const b = byBack(interior).find((p) => free(p.c, p.r)) ?? wallFree()[0]; if (b) put(b.c, b.r, 'banner');
       const t = byCenter(interior).find((p) => free(p.c, p.r)); if (t) { put(t.c, t.r, 'table'); let k = 0; for (const [dx, dy] of ORTH4) { if (k >= 3) break; if (free(t.c + dx, t.r + dy) && put(t.c + dx, t.r + dy, 'chair')) k++; } }
     };
+    // P2 STATIONS (reuse-only props).
+    // sarcophagi — a TOMB/CRYPT: rows of stone sarcophagi along the walls (every other, fronts kept clear), a candle + bones for the crypt mood.
+    const sarcophagi = () => {
+      let placed = 0, idx = 0;
+      for (const p of byBack(interior)) { if (placed >= 4) break; if (free(p.c, p.r) && idx++ % 2 === 0 && put(p.c, p.r, 'sarcophagus')) placed++; }
+      for (const p of byWall(interior)) { if (placed >= 2) break; if (free(p.c, p.r) && put(p.c, p.r, 'sarcophagus')) placed++; } // ensure ≥2 = a mausoleum
+      const cd = wallFree()[0]; if (cd) put(cd.c, cd.r, 'candelabra');
+      let b = 0; for (const p of interior) { if (b >= 2) break; if (free(p.c, p.r) && rand() < 0.3 && put(p.c, p.r, rand() < 0.5 ? 'bones' : 'skull')) b++; }
+    };
+    // workbench — a CARPENTER'S WORKSHOP: a central workbench, a tool rack, stacked lumber + crates (no gated focal — the clutter is the read).
+    const workbench = () => {
+      const t = byCenter(interior).find((p) => free(p.c, p.r)); if (t) put(t.c, t.r, 'table');
+      alongWall(['weapon_rack'], 1); // the tool rack — placed explicitly so it never drops to a random woodpile pick
+      alongWall(['woodpile'], 1);
+      let k = 0; for (const p of byCorner(interior)) { if (k >= 2) break; if (free(p.c, p.r) && put(p.c, p.r, k % 2 ? 'crate' : 'woodpile')) k++; }
+    };
+    // oddments — a CURIO SHOP: walls packed with mismatched bric-a-brac on top of the shopfront counter.
+    const oddments = () => alongWall(['pot', 'jar', 'urn', 'chest', 'candle', 'books', 'bones', 'skull'], 4);
     // warren — a GOBLIN LAIR: prisoner CAGES (the lair marker — TWO so the read survives a path-carve deleting one),
     //   a central cookfire (brazier), gnawed bones. (throne = the chief's seat.)
     const warren = () => {
@@ -673,7 +711,7 @@ export function furnishRoom(
       let b = 0; for (const p of interior) { if (b >= 3) break; if (free(p.c, p.r) && rand() < 0.4 && put(p.c, p.r, rand() < 0.5 ? 'bones' : 'skeleton')) b++; }
     };
     const GROUPS: Record<string, () => void> = {
-      dining, bed, hearth, counter, bar, shopfront, checkin, study, altar, benches, nave, forge, storage, apse, cells, hoard, throne, shelving, bunks, crest, warren,
+      dining, bed, hearth, counter, bar, shopfront, checkin, study, altar, benches, nave, forge, storage, apse, cells, hoard, throne, shelving, bunks, crest, warren, sarcophagi, workbench, oddments,
       shelf: () => alongWall(['shelf', 'shelf_food'], 2), books: () => alongWall(['bookshelf_full', 'books'], 3), pantry: () => { alongWall(['shelf_food', 'shelf'], 2); storage(); }, wares: () => alongWall(['shelf_wares', 'pot', 'jar'], 2), weapons: () => alongWall(['weapon_rack'], 1),
     };
     for (const g of tmpl.groups) { if (placedFurn >= budget) break; (GROUPS[g] ?? (() => {}))(); }

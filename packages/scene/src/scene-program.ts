@@ -315,7 +315,7 @@ function buildingTypeFor(v: unknown): BuildingType {
   // specific NEW types first, so an inn/cathedral/jail/vault/general-store gets its own slice, not a fallback.
   if (/\b(inn|lodging|hostel)\b/.test(s)) return 'inn';
   if (/tavern|alehouse|pub|tap.?house|lodge/.test(s)) return 'tavern';
-  if (/smith|forge|foundry|workshop|anvil/.test(s)) return 'smithy';
+  if (/smith|forge|foundry|anvil|blacksmith/.test(s)) return 'smithy';
   if (/cathedral|minster|basilica|abbey|monastery/.test(s)) return 'cathedral';
   if (/temple|shrine|chapel|church|sanctuary|altar/.test(s)) return 'temple';
   if (/jail|gaol|prison|cell.?block/.test(s)) return 'jail';
@@ -327,6 +327,10 @@ function buildingTypeFor(v: unknown): BuildingType {
   if (/guild.?hall|guild.?house/.test(s)) return 'guildhall';
   if (/goblin|warren|kobold|orc.?(camp|lair|den)|monster.?(lair|den)|lair|den/.test(s)) return 'goblin_warren';
   if (/manor|estate|mansion|villa|chateau/.test(s)) return 'manor';
+  if (/tomb|mausoleum|crypt|sepulchre|sepulcher|barrow|catacomb/.test(s)) return 'tomb';
+  if (/court.?house|court.?room|moot.?hall|town.?hall|magistrate/.test(s)) return 'courthouse';
+  if (/workshop|carpenter|joiner|cooper|wright|fletcher/.test(s)) return 'workshop';
+  if (/curio|pawn.?shop|oddities|curiosity|fence/.test(s)) return 'curio';
   if (/general.?store|provisioner|trading.?post|apothecary|emporium|sundr/.test(s)) return 'general_store';
   if (/shop|store|market|bakery|stall|butcher|tailor/.test(s)) return 'shop';
   if ((BUILDING_TYPES as readonly string[]).includes(s)) return s as BuildingType;

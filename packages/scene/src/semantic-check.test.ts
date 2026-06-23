@@ -323,3 +323,57 @@ describe('semantic invariants — building:manor is a grand residence (no focal 
     expect(r.buildings).toBe(0);
   });
 });
+
+// ── P2 batch (atmosphere / economy / civic). Reuse-only props. courthouse/workshop/curio are exact-100%;
+// tomb has the usual tiny-footprint tail. (The infirmary/healer's house was deferred — beds conflate with a
+// barracks and an altar with a temple, with no distinct healing prop to gate on; revisit when art lands.)
+
+describe('semantic invariants — building:tomb reads as a crypt (rows of sarcophagi)', () => {
+  it('reads as a tomb on ≥88% of seeds (a tiny crypt can\'t host 2 sarcophagi — graceful)', () => {
+    let clean = 0;
+    for (let s = 1; s <= 150; s++) if (checkSemantics(buildComponentSheet('building:tomb', 6, s), 'tomb').clean) clean++;
+    expect(clean / 150).toBeGreaterThanOrEqual(0.88);
+  });
+  it('catches a broken tomb (the sarcophagi removed → missingFocal)', () => {
+    const m = buildComponentSheet('building:tomb', 6, 1);
+    expect(checkSemantics({ ...m, objects: m.objects.filter((o) => o.tag !== 'sarcophagus') }, 'tomb').missingFocal).toBeGreaterThan(0);
+  });
+});
+
+describe('semantic invariants — building:courthouse reads as a moot hall (magistrate\'s seat + bench gallery)', () => {
+  it('has ZERO semantic defects across 150 seeds', () => {
+    const dirty: number[] = [];
+    for (let s = 1; s <= 150; s++) if (!checkSemantics(buildComponentSheet('building:courthouse', 6, s), 'courthouse').clean && dirty.length < 8) dirty.push(s);
+    expect(dirty).toEqual([]);
+  });
+  it('catches a broken courthouse (the seat removed → missingFocal; gallery removed → understocked)', () => {
+    const m = buildComponentSheet('building:courthouse', 6, 1);
+    expect(checkSemantics({ ...m, objects: m.objects.filter((o) => o.tag !== 'throne') }, 'courthouse').missingFocal).toBeGreaterThan(0);
+    expect(checkSemantics({ ...m, objects: m.objects.filter((o) => o.tag !== 'stone_bench') }, 'courthouse').understocked).toBeGreaterThan(0);
+  });
+  it('a courthouse is NOT a keep and NOT a goblin warren — the throne-types have distinct contracts (benches, not feast chairs or cages)', () => {
+    let confused = 0;
+    for (let s = 1; s <= 60; s++) { const m = buildComponentSheet('building:courthouse', 6, s); if (checkSemantics(m, 'courthouse').clean && (checkSemantics(m, 'keep').clean || checkSemantics(m, 'goblin_warren').clean)) confused++; }
+    expect(confused).toBe(0);
+  });
+});
+
+describe('semantic invariants — building:curio reads as a curio shop (a service counter, packed with bric-a-brac)', () => {
+  it('has ZERO semantic defects across 150 seeds', () => {
+    const dirty: number[] = [];
+    for (let s = 1; s <= 150; s++) if (!checkSemantics(buildComponentSheet('building:curio', 6, s), 'curio').clean && dirty.length < 8) dirty.push(s);
+    expect(dirty).toEqual([]);
+  });
+  it('catches a broken curio shop (the counter removed → missingFocal)', () => {
+    const m = buildComponentSheet('building:curio', 6, 1);
+    expect(checkSemantics({ ...m, objects: m.objects.filter((o) => o.tag !== 'bar_counter') }, 'curio').missingFocal).toBeGreaterThan(0);
+  });
+});
+
+describe('semantic invariants — building:workshop is a carpenter\'s shop (no focal spec, like house/manor)', () => {
+  it('is vacuously clean (its read is the workbench + lumber clutter, not a single mandated focal)', () => {
+    const r = checkSemantics(buildComponentSheet('building:workshop', 6, 1), 'workshop');
+    expect(r.clean).toBe(true);
+    expect(r.buildings).toBe(0);
+  });
+});

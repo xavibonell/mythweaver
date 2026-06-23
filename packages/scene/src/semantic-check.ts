@@ -74,6 +74,15 @@ export const BUILDING_SEMANTICS: Record<string, BuildingSemanticSpec> = {
   // Goblin warren: the chief's crude seat (a throne) + a prisoner CAGE — the lair marker that tells it from a keep.
   goblin_warren: { focal: 'throne', seating: { tag: 'cage', min: 1 } },
   // (manor has NO spec — a grand multi-room residence, vacuously clean like house.)
+  // P2 batch.
+  // Tomb: stone sarcophagi are the focal; ≥2 = a mausoleum/crypt.
+  tomb: { focal: 'sarcophagus', seating: { tag: 'sarcophagus', min: 2 } },
+  // Courthouse: a magistrate's seat (throne) facing a GALLERY of benches (≥4 — a keep's feast hall has only the odd
+  // incidental bench from its dining, so the higher bar keeps the two throne-types distinct). Warren has cages, not benches.
+  courthouse: { focal: 'throne', seating: { tag: 'stone_bench', min: 4 } },
+  // Curio shop: a service counter with the shopkeeper behind it (the read is the bric-a-brac the recipe piles on).
+  curio: { focal: 'bar_counter', focalRun: 2, keeperAtFocal: true },
+  // (workshop has NO spec — a carpenter's shop reads from its workbench + lumber clutter, like house/manor.)
 };
 
 export interface SemanticReport {
