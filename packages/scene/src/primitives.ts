@@ -707,7 +707,7 @@ export function compound(cv: Canvas, region: Rect, type: BuildingType, opts: { d
   const doorList = [{ c: ed.dC, r: ed.dR }, ...archAt];
   const approachCells = new Set<string>(); // every room cell touching a door — must stay clear, and is no place to relocate a focal prop to
   for (const d of doorList) for (const [dc, dr] of N4) approachCells.add(`${d.c + dc},${d.r + dr}`);
-  const FOCAL = new Set(['altar', 'forge']); // a type's wall-backed centrepiece must NEVER be deleted by clearance — relocate it instead
+  const FOCAL = new Set(['altar', 'forge', 'throne', 'banner']); // a type's wall-backed centrepiece (esp. the ones centred OPPOSITE the door, where arches get carved) must NEVER be deleted by clearance — relocate it instead
   const wallAdj = (c: number, r: number) => N4.some(([dc, dr]) => (cv.tileAt(c + dc, r + dr) ?? '').startsWith('wall'));
   const relocateFocal = (o: { col: number; row: number }): boolean => { // slide it to the nearest free wall cell that isn't a door approach
     for (let rad = 1; rad <= 4; rad++) for (let dr = -rad; dr <= rad; dr++) for (let dc = -rad; dc <= rad; dc++) {
@@ -730,7 +730,7 @@ export function compound(cv: Canvas, region: Rect, type: BuildingType, opts: { d
   {
     // PROTECTED props are a type's focal/station/seating pieces — the carve routes AROUND them (never clears
     // them to make a path), so connecting a pocket can't break a forge/altar/bar/shop station.
-    const PROTECT = new Set(['altar', 'forge', 'anvil', 'bar_counter', 'shelf_wares', 'stone_bench', 'candelabra']);
+    const PROTECT = new Set(['altar', 'forge', 'anvil', 'bar_counter', 'shelf_wares', 'stone_bench', 'candelabra', 'throne', 'banner']); // single-instance centrepieces; multi-instance stock (shelves/chests/racks) is intentionally clearable (the carve removes one to open a path; the count still passes)
     const isCounter = new Set(cv.objects.filter((o) => o.tag === 'bar_counter').map((o) => `${o.col},${o.row}`));
     const isProtected = new Set(cv.objects.filter((o) => o.kind === 'prop' && PROTECT.has(o.tag)).map((o) => `${o.col},${o.row}`));
     const staff = (c: number, r: number) => N4.some(([dc, dr]) => isCounter.has(`${c + dc},${r + dr}`) && (cv.tileAt(c - dc, r - dr) ?? '').startsWith('wall'));

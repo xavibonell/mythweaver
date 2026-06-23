@@ -227,3 +227,99 @@ describe('semantic invariants — building:vault reads as a vault (a hoard of st
     expect(checkSemantics({ ...m, objects: m.objects.filter((o) => o.tag !== 'chest') }, 'vault').missingFocal).toBeGreaterThan(0);
   });
 });
+
+// ── P1 batch (faction / military / intrigue / lair). Same kernel; all reuse-only props. keep/library/barracks/
+// guildhall/goblin_warren are exact-100% over 150 seeds; armory has the usual tiny-footprint tail. manor is a
+// grand multi-room residence with NO focal spec (vacuously clean, like house) — its read comes from the recipe.
+
+describe('semantic invariants — building:keep reads as a great hall (a throne + feast seating)', () => {
+  it('reads as a keep on ≥90% of seeds (tiny great halls degrade)', () => {
+    let clean = 0;
+    for (let s = 1; s <= 150; s++) if (checkSemantics(buildComponentSheet('building:keep', 6, s), 'keep').clean) clean++;
+    expect(clean / 150).toBeGreaterThanOrEqual(0.9);
+  });
+  it('catches a broken keep (the throne removed → missingFocal)', () => {
+    const m = buildComponentSheet('building:keep', 6, 1);
+    expect(checkSemantics({ ...m, objects: m.objects.filter((o) => o.tag !== 'throne') }, 'keep').missingFocal).toBeGreaterThan(0);
+  });
+  it('a keep does NOT read as a goblin warren — the two throne-types have distinct contracts (no cage in a keep)', () => {
+    // a clean keep (throne + feast chairs, no cage) must FAIL the warren contract, else the checker can't tell a palace from a lair.
+    let confused = 0;
+    for (let s = 1; s <= 60; s++) { const m = buildComponentSheet('building:keep', 6, s); if (checkSemantics(m, 'keep').clean && checkSemantics(m, 'goblin_warren').clean) confused++; }
+    expect(confused).toBe(0);
+  });
+});
+
+describe('semantic invariants — building:library reads as a library (rows of full bookshelves)', () => {
+  it('has ZERO semantic defects across 150 seeds', () => {
+    const dirty: number[] = [];
+    for (let s = 1; s <= 150; s++) if (!checkSemantics(buildComponentSheet('building:library', 6, s), 'library').clean && dirty.length < 8) dirty.push(s);
+    expect(dirty).toEqual([]);
+  });
+  it('catches a broken library (shelves removed → missingFocal)', () => {
+    const m = buildComponentSheet('building:library', 6, 1);
+    expect(checkSemantics({ ...m, objects: m.objects.filter((o) => o.tag !== 'bookshelf_full') }, 'library').missingFocal).toBeGreaterThan(0);
+  });
+});
+
+describe('semantic invariants — building:armory reads as an arsenal (ranks of weapon racks)', () => {
+  it('reads as an armory on ≥97% of seeds (tiny footprints can\'t host 2 racks — graceful)', () => {
+    let clean = 0;
+    for (let s = 1; s <= 150; s++) if (checkSemantics(buildComponentSheet('building:armory', 6, s), 'armory').clean) clean++;
+    expect(clean / 150).toBeGreaterThanOrEqual(0.97);
+  });
+  it('catches a broken armory (the weapon racks removed → missingFocal)', () => {
+    const m = buildComponentSheet('building:armory', 6, 1);
+    expect(checkSemantics({ ...m, objects: m.objects.filter((o) => o.tag !== 'weapon_rack') }, 'armory').missingFocal).toBeGreaterThan(0);
+  });
+});
+
+describe('semantic invariants — building:barracks reads as a dormitory (rows of bunks)', () => {
+  it('has ZERO semantic defects across 150 seeds', () => {
+    const dirty: number[] = [];
+    for (let s = 1; s <= 150; s++) if (!checkSemantics(buildComponentSheet('building:barracks', 6, s), 'barracks').clean && dirty.length < 8) dirty.push(s);
+    expect(dirty).toEqual([]);
+  });
+  it('catches a broken barracks (all bunks removed → missingFocal)', () => {
+    const m = buildComponentSheet('building:barracks', 6, 1);
+    expect(checkSemantics({ ...m, objects: m.objects.filter((o) => !o.tag.startsWith('bed')) }, 'barracks').missingFocal).toBeGreaterThan(0);
+  });
+});
+
+describe('semantic invariants — building:guildhall reads as a guildhall (the guild crest + meeting table)', () => {
+  it('has ZERO semantic defects across 150 seeds', () => {
+    const dirty: number[] = [];
+    for (let s = 1; s <= 150; s++) if (!checkSemantics(buildComponentSheet('building:guildhall', 6, s), 'guildhall').clean && dirty.length < 8) dirty.push(s);
+    expect(dirty).toEqual([]);
+  });
+  it('catches a broken guildhall (the crest removed → missingFocal)', () => {
+    const m = buildComponentSheet('building:guildhall', 6, 1);
+    expect(checkSemantics({ ...m, objects: m.objects.filter((o) => o.tag !== 'banner') }, 'guildhall').missingFocal).toBeGreaterThan(0);
+  });
+});
+
+describe('semantic invariants — building:goblin_warren reads as a lair (chief\'s seat + a prisoner cage)', () => {
+  it('reads as a warren on ≥93% of seeds (tiny lairs degrade)', () => {
+    let clean = 0;
+    for (let s = 1; s <= 150; s++) if (checkSemantics(buildComponentSheet('building:goblin_warren', 6, s), 'goblin_warren').clean) clean++;
+    expect(clean / 150).toBeGreaterThanOrEqual(0.93);
+  });
+  it('catches a broken warren (chief\'s seat removed → missingFocal; cages removed → understocked)', () => {
+    const m = buildComponentSheet('building:goblin_warren', 6, 1);
+    expect(checkSemantics({ ...m, objects: m.objects.filter((o) => o.tag !== 'throne') }, 'goblin_warren').missingFocal).toBeGreaterThan(0);
+    expect(checkSemantics({ ...m, objects: m.objects.filter((o) => o.tag !== 'cage') }, 'goblin_warren').understocked).toBeGreaterThan(0);
+  });
+  it('a goblin warren does NOT read as a keep — a lair (with cages, no feast chairs) is not a great hall', () => {
+    let confused = 0;
+    for (let s = 1; s <= 60; s++) { const m = buildComponentSheet('building:goblin_warren', 6, s); if (checkSemantics(m, 'goblin_warren').clean && checkSemantics(m, 'keep').clean) confused++; }
+    expect(confused).toBe(0);
+  });
+});
+
+describe('semantic invariants — building:manor is a grand residence (no focal spec, like house)', () => {
+  it('is vacuously clean (a residence has no single mandated focal — its read is the multi-room recipe)', () => {
+    const r = checkSemantics(buildComponentSheet('building:manor', 6, 1), 'manor');
+    expect(r.clean).toBe(true);
+    expect(r.buildings).toBe(0);
+  });
+});

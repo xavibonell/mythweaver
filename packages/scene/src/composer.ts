@@ -292,9 +292,16 @@ const BUILDING_TAG_TYPE: [RegExp, BuildingType][] = [
   [/temple|shrine|church|chapel|sanctuary/, 'temple'],
   [/jail|gaol|prison|cell.?block|gallows/, 'jail'],
   [/vault|treasury|strong.?room|hoard|reliquary/, 'vault'],
+  [/keep|castle|fortress|citadel|great.?hall|throne/, 'keep'],
+  [/library|archive|scriptorium|bookshop/, 'library'],
+  [/armou?ry|arsenal|guard.?house|watch.?post/, 'armory'],
+  [/barracks|garrison|dormitory|bunk/, 'barracks'],
+  [/guild.?hall|guild.?house/, 'guildhall'],
+  [/goblin|warren|kobold|monster.?(lair|den)|lair|den/, 'goblin_warren'],
+  [/manor|estate|mansion|villa|chateau/, 'manor'],
   [/general.?store|provisioner|trading.?post|apothecary|emporium|sundr/, 'general_store'],
-  [/shop|store|market.?house|bakery|butcher|tailor|bank|guildhall/, 'shop'],
-  [/house|home|cottage|hut|cabin|hovel|shack|dwelling|residence|longhouse|manor|hall|farmhouse|barn|mill|tower/, 'house'],
+  [/shop|store|market.?house|bakery|butcher|tailor|bank/, 'shop'],
+  [/house|home|cottage|hut|cabin|hovel|shack|dwelling|residence|longhouse|farmhouse|barn|mill|tower/, 'house'],
 ];
 function buildingTypeOf(tag: string): BuildingType | null {
   const r = tag.toLowerCase().replace(/_/g, ' ');

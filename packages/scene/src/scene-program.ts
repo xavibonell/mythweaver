@@ -320,8 +320,15 @@ function buildingTypeFor(v: unknown): BuildingType {
   if (/temple|shrine|chapel|church|sanctuary|altar/.test(s)) return 'temple';
   if (/jail|gaol|prison|cell.?block/.test(s)) return 'jail';
   if (/vault|treasury|strong.?room|hoard|reliquary/.test(s)) return 'vault';
+  if (/keep|castle|fortress|citadel|great.?hall|throne/.test(s)) return 'keep';
+  if (/library|archive|scriptorium|bookshop|study/.test(s)) return 'library';
+  if (/armou?ry|arsenal|guard.?house|watch.?post/.test(s)) return 'armory';
+  if (/barracks|garrison|dormitory|bunk/.test(s)) return 'barracks';
+  if (/guild.?hall|guild.?house/.test(s)) return 'guildhall';
+  if (/goblin|warren|kobold|orc.?(camp|lair|den)|monster.?(lair|den)|lair|den/.test(s)) return 'goblin_warren';
+  if (/manor|estate|mansion|villa|chateau/.test(s)) return 'manor';
   if (/general.?store|provisioner|trading.?post|apothecary|emporium|sundr/.test(s)) return 'general_store';
-  if (/shop|store|market|bakery|guildhall|stall|butcher|tailor/.test(s)) return 'shop';
+  if (/shop|store|market|bakery|stall|butcher|tailor/.test(s)) return 'shop';
   if ((BUILDING_TYPES as readonly string[]).includes(s)) return s as BuildingType;
   return 'house';
 }

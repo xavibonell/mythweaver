@@ -60,6 +60,20 @@ export const BUILDING_SEMANTICS: Record<string, BuildingSemanticSpec> = {
   jail: { focal: 'cage', seating: { tag: 'cage', min: 2 } },
   // Vault: a strongbox is the focal; ≥2 chests = a hoard.
   vault: { focal: 'chest', seating: { tag: 'chest', min: 2 } },
+  // P1 batch.
+  // Keep: a throne on the dais + feast-hall seating (chairs) — distinguishes the great hall from a goblin lair.
+  keep: { focal: 'throne', seating: { tag: 'chair', min: 2 } },
+  // Library: full bookshelves are the focal; ≥3 shelves = a library (not just a study).
+  library: { focal: 'bookshelf_full', seating: { tag: 'bookshelf', min: 3 } },
+  // Armory: a weapon rack is the focal; ≥2 racks = an arsenal.
+  armory: { focal: 'weapon_rack', seating: { tag: 'weapon_rack', min: 2 } },
+  // Barracks: rows of cots — a bed is the focal, ≥3 = a dormitory (vs an inn/bedroom's 2).
+  barracks: { focal: 'bed', seating: { tag: 'bed', min: 3 } },
+  // Guildhall: the guild banner/crest is the focal; a meeting table's chairs are the supporting seating.
+  guildhall: { focal: 'banner', seating: { tag: 'chair', min: 2 } },
+  // Goblin warren: the chief's crude seat (a throne) + a prisoner CAGE — the lair marker that tells it from a keep.
+  goblin_warren: { focal: 'throne', seating: { tag: 'cage', min: 1 } },
+  // (manor has NO spec — a grand multi-room residence, vacuously clean like house.)
 };
 
 export interface SemanticReport {
@@ -142,7 +156,8 @@ export function checkSemantics(map: SceneMap, type: string): SemanticReport {
 
   for (const [bldgKey, props] of byBldg) {
     rep.buildings++;
-    const focals = props.filter((p) => p.tag === spec.focal);
+    // match the focal tag exactly OR a per-orientation variant (bed → bed_down/bed_blue/bed_right, for a barracks).
+    const focals = props.filter((p) => p.tag === spec.focal || p.tag.startsWith(spec.focal + '_'));
     if (focals.length === 0) { rep.missingFocal++; continue; }
     const focal = focals[0]!;
     if (spec.focalRun) {

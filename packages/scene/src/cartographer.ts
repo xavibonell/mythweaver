@@ -55,6 +55,14 @@ export const BUILDING_TEMPLATES: Record<BuildingType, RoomTemplate> = {
   cathedral: { floor: 'stone', wall: 'stone', occupant: 'wizard', carpet: true, items: [{ tag: 'altar', where: 'back' }, { tag: 'statue', where: 'back' }, { tag: 'candelabra_large', where: 'back', count: 2 }, { tag: 'stone_bench', where: 'around', count: 4 }] },
   jail: { floor: 'stone', wall: 'stone', occupant: 'villager', items: [{ tag: 'cage', where: 'wall', count: 3 }, { tag: 'desk', where: 'center' }, { tag: 'chair', where: 'around' }, { tag: 'barrel', where: 'corner' }] },
   vault: { floor: 'stone', wall: 'stone', occupant: 'villager', items: [{ tag: 'chest', where: 'wall', count: 4 }, { tag: 'barrel', where: 'corner', count: 2 }, { tag: 'crate', where: 'corner' }] },
+  // P1 batch.
+  keep: { floor: 'stone', wall: 'stone', occupant: 'villager', carpet: true, items: [{ tag: 'throne', where: 'back' }, { tag: 'brazier', where: 'back', count: 2 }, { tag: 'table', where: 'center' }, { tag: 'stone_bench', where: 'around', count: 4 }] },
+  library: { floor: 'wood_floor', wall: 'wood', occupant: 'wizard', carpet: true, items: [{ tag: 'bookshelf_full', where: 'wall', count: 4 }, { tag: 'desk', where: 'center' }, { tag: 'chair', where: 'around', count: 2 }, { tag: 'table', where: 'center' }] },
+  armory: { floor: 'stone', wall: 'stone', occupant: 'villager', items: [{ tag: 'weapon_rack', where: 'wall', count: 3 }, { tag: 'desk', where: 'center' }, { tag: 'barrel', where: 'corner' }, { tag: 'crate', where: 'corner' }] },
+  barracks: { floor: 'wood_floor', wall: 'wood', occupant: 'villager', items: [{ tag: 'bed', where: 'wall', count: 4 }, { tag: 'chest', where: 'corner' }, { tag: 'barrel', where: 'corner' }] },
+  guildhall: { floor: 'wood_floor', wall: 'wood', occupant: 'villager', carpet: true, items: [{ tag: 'banner', where: 'back' }, { tag: 'table', where: 'center' }, { tag: 'chair', where: 'around', count: 3 }, { tag: 'chest', where: 'corner' }] },
+  goblin_warren: { floor: 'stone', wall: 'stone', occupant: '', items: [{ tag: 'throne', where: 'back' }, { tag: 'brazier', where: 'center' }, { tag: 'bones', where: 'scatter', count: 3 }, { tag: 'cage', where: 'wall' }, { tag: 'crate', where: 'corner' }] },
+  manor: { floor: 'wood_floor', wall: 'wood', occupant: 'villager', carpet: true, items: [{ tag: 'table_round', where: 'center' }, { tag: 'chair', where: 'around', count: 4 }, { tag: 'candelabra_large', where: 'wall' }, { tag: 'bookshelf', where: 'wall' }, { tag: 'bed', where: 'corner' }] },
 };
 
 /**
@@ -66,7 +74,7 @@ export const BUILDING_TEMPLATES: Record<BuildingType, RoomTemplate> = {
  * primary room); only `carpet` + `items` are function-specific. Reuses the same FurnSpec selectors as
  * BUILDING_TEMPLATES (back = counter/altar along the back wall, around = seating ringing the centre).
  */
-export type RoomFunction = 'bar' | 'dining' | 'kitchen' | 'bedroom' | 'storeroom' | 'shopfront' | 'parlor' | 'nave' | 'vestry' | 'forge' | 'apse' | 'cellblock' | 'strongroom' | 'innfront';
+export type RoomFunction = 'bar' | 'dining' | 'kitchen' | 'bedroom' | 'storeroom' | 'shopfront' | 'parlor' | 'nave' | 'vestry' | 'forge' | 'apse' | 'cellblock' | 'strongroom' | 'innfront' | 'greathall' | 'readinghall' | 'armory' | 'barracks' | 'guildhall' | 'warrenhall';
 export const ROOM_TEMPLATES: Record<RoomFunction, RoomTemplate> = {
   bar: { floor: 'wood_floor', wall: 'wood', occupant: 'villager_woman', items: [{ tag: 'table', where: 'back', count: 4 }, { tag: 'shelf_wares', where: 'back' }, { tag: 'barrel', where: 'corner', count: 2 }, { tag: 'crate', where: 'corner' }, { tag: 'candelabra', where: 'wall' }, { tag: 'chair', where: 'around', count: 2 }] },
   dining: { floor: 'wood_floor', wall: 'wood', occupant: '', carpet: true, items: [{ tag: 'table', where: 'center' }, { tag: 'chair', where: 'around', count: 4 }, { tag: 'candelabra', where: 'wall' }, { tag: 'barrel', where: 'corner' }] },
@@ -86,6 +94,14 @@ export const ROOM_TEMPLATES: Record<RoomFunction, RoomTemplate> = {
   apse: { floor: 'stone', wall: 'stone', occupant: 'wizard', carpet: true, items: [{ tag: 'altar', where: 'back' }, { tag: 'statue', where: 'back' }, { tag: 'candelabra_large', where: 'back', count: 2 }, { tag: 'stone_bench', where: 'around', count: 4 }] },
   cellblock: { floor: 'stone', wall: 'stone', occupant: 'villager', items: [{ tag: 'cage', where: 'wall', count: 3 }, { tag: 'desk', where: 'center' }, { tag: 'chair', where: 'around' }] },
   strongroom: { floor: 'stone', wall: 'stone', occupant: 'villager', items: [{ tag: 'chest', where: 'wall', count: 4 }, { tag: 'barrel', where: 'corner', count: 2 }] },
+  // P1 batch room functions: greathall (keep — a throne), readinghall (library — shelves), armory (weapon racks),
+  // barracks (rows of bunks), guildhall (a banner crest + meeting table), warrenhall (goblin lair — chief's seat + cookfire).
+  greathall: { floor: 'stone', wall: 'stone', occupant: 'villager', carpet: true, items: [{ tag: 'throne', where: 'back' }, { tag: 'brazier', where: 'back', count: 2 }, { tag: 'table', where: 'center' }, { tag: 'stone_bench', where: 'around', count: 4 }] },
+  readinghall: { floor: 'wood_floor', wall: 'wood', occupant: 'wizard', carpet: true, items: [{ tag: 'bookshelf_full', where: 'wall', count: 4 }, { tag: 'desk', where: 'center' }, { tag: 'chair', where: 'around', count: 2 }] },
+  armory: { floor: 'stone', wall: 'stone', occupant: 'villager', items: [{ tag: 'weapon_rack', where: 'wall', count: 3 }, { tag: 'desk', where: 'center' }, { tag: 'crate', where: 'corner' }] },
+  barracks: { floor: 'wood_floor', wall: 'wood', occupant: 'villager', items: [{ tag: 'bed', where: 'wall', count: 4 }, { tag: 'chest', where: 'corner' }] },
+  guildhall: { floor: 'wood_floor', wall: 'wood', occupant: 'villager', carpet: true, items: [{ tag: 'banner', where: 'back' }, { tag: 'table', where: 'center' }, { tag: 'chair', where: 'around', count: 3 }] },
+  warrenhall: { floor: 'stone', wall: 'stone', occupant: '', items: [{ tag: 'throne', where: 'back' }, { tag: 'brazier', where: 'center' }, { tag: 'bones', where: 'scatter', count: 3 }, { tag: 'cage', where: 'wall' }] },
 };
 
 /** Per-building-type ROOM PROGRAM: the ordered room functions a compound contains. Index 0 is the
@@ -105,6 +121,14 @@ export const ROOM_PROGRAMS: Record<BuildingType, RoomFunction[]> = {
   cathedral: ['apse', 'vestry', 'bedroom'],
   jail: ['cellblock', 'storeroom'],
   vault: ['strongroom', 'strongroom'], // both rooms are chest hoards — a treasury reads as chests, not generic crates
+  // P1 batch.
+  keep: ['greathall', 'kitchen', 'bedroom'],
+  library: ['readinghall', 'vestry'],
+  armory: ['armory', 'storeroom'],
+  barracks: ['barracks', 'storeroom'],
+  guildhall: ['guildhall', 'storeroom'],
+  goblin_warren: ['warrenhall', 'storeroom'],
+  manor: ['parlor', 'dining', 'vestry', 'bedroom'], // a grand multi-room residence (a study sets it apart from a plain house)
 };
 
 /** Per-room-FUNCTION furniture RECIPE: a short list of relational GROUPS (see furnishRoom's group
@@ -126,6 +150,12 @@ export const ROOM_RECIPES: Record<RoomFunction, string[]> = {
   apse: ['apse'],               // altar + flanking deity statue + ranked pews = a cathedral (statue distinguishes it from a temple)
   cellblock: ['cells', 'study'], // a row of caged cells + a jailer's desk post
   strongroom: ['hoard', 'hoard'], // a hoard of strongboxes (chest-dominant — a treasury, not a storeroom)
+  greathall: ['throne', 'dining', 'dining', 'hearth'], // a throne on the dais + feast tables = a castle great hall
+  readinghall: ['shelving', 'shelving', 'study'], // rows of full bookshelves + reading desks = a library
+  armory: ['weapons', 'weapons', 'weapons', 'storage'], // ranks of weapon racks
+  barracks: ['bunks', 'bunks', 'storage'], // rows of identical cots
+  guildhall: ['crest', 'dining', 'storage'], // the guild banner/crest + a meeting table
+  warrenhall: ['throne', 'warren', 'storage'], // a crude chief's seat + a cookfire, bones, a prisoner cage
 };
 
 interface Rect {
@@ -404,10 +434,10 @@ export function furnishRoom(
     // against a wall, a corner of crates) instead of independent items, so rooms read as composed.
     const ORTH4 = [[1, 0], [-1, 0], [0, 1], [0, -1]] as const;
     const free = (c: number, r: number) => c >= ix && c < ix + iw && r >= iy && r < iy + ih && r * cols + c !== keepClear && !occ[r]![c] && walkable[r]![c];
-    const put = (c: number, r: number, tag: string): boolean => {
+    const put = (c: number, r: number, tag: string, facing: 'up' | 'down' | 'left' | 'right' = 'down'): boolean => {
       if (placedFurn >= budget || !free(c, r)) return false;
       occ[r]![c] = true; if (propDef(tag)?.blocks ?? true) walkable[r]![c] = false;
-      objects.push({ id: `prop:${safe}#${(furnSeq++).toString().padStart(2, '0')}`, kind: 'prop', tag, col: c, row: r, footprint: { w: 1, h: 1 }, facing: 'down', visible: true, group: groupId });
+      objects.push({ id: `prop:${safe}#${(furnSeq++).toString().padStart(2, '0')}`, kind: 'prop', tag, col: c, row: r, footprint: { w: 1, h: 1 }, facing, visible: true, group: groupId });
       placedFurn++; return true;
     };
     const pick = (pool: string[]) => pool[Math.floor(rand() * pool.length)]!;
@@ -604,8 +634,46 @@ export function furnishRoom(
       for (const p of byBack(interior)) { if (placed >= 6) break; if (free(p.c, p.r) && put(p.c, p.r, 'chest')) placed++; }
       for (const p of byWall(interior)) { if (placed >= 4) break; if (free(p.c, p.r) && put(p.c, p.r, 'chest')) placed++; } // ensure ≥2 chests = a hoard
     };
+    // P1 STATIONS (reuse-only props).
+    // throne — a seat of power centred on the wall opposite the door, braziers flanking it (keep great hall + goblin warren).
+    const throne = () => {
+      const dTop = dR === ry, dLeft = dC === rx, dRight = dC === rx + rw - 1;
+      const horiz = dLeft || dRight;
+      const line: { c: number; r: number }[] = [];
+      if (horiz) { const fc = dLeft ? ix + iw - 1 : ix; for (let r = iy; r <= iy + ih - 1; r++) line.push({ c: fc, r }); }
+      else { const fr = dTop ? iy + ih - 1 : iy; for (let c = ix; c <= ix + iw - 1; c++) line.push({ c, r: fr }); }
+      const midOf = horiz ? midY : midX;
+      line.sort((a, b) => Math.abs((horiz ? a.r : a.c) - midOf) - Math.abs((horiz ? b.r : b.c) - midOf));
+      const t = line.find((p) => free(p.c, p.r)) ?? byBack(interior).find((p) => free(p.c, p.r)) ?? wallFree()[0];
+      if (!t) return;
+      const side = wallAt(t.c, t.r - 1) ? 'top' : wallAt(t.c, t.r + 1) ? 'bottom' : wallAt(t.c - 1, t.r) ? 'left' : 'right';
+      const faceIn = side === 'top' ? 'down' : side === 'bottom' ? 'up' : side === 'left' ? 'right' : 'left'; // the throne faces INTO the hall, never into the wall behind it
+      if (!put(t.c, t.r, 'throne', faceIn)) return;
+      if (side === 'top' || side === 'bottom') { put(t.c - 1, t.r, 'brazier'); put(t.c + 1, t.r, 'brazier'); } else { put(t.c, t.r - 1, 'brazier'); put(t.c, t.r + 1, 'brazier'); }
+      // reserve a clear standing space in front of the throne (occupied so feast tables / lair clutter can't block it,
+      //   but kept WALKABLE so the throne reads as prominent + approachable).
+      const into: readonly [number, number] = side === 'top' ? [0, 1] : side === 'bottom' ? [0, -1] : side === 'left' ? [1, 0] : [-1, 0];
+      if (free(t.c + into[0], t.r + into[1])) occ[t.r + into[1]]![t.c + into[0]] = true;
+    };
+    // shelving — a LIBRARY: ranks of full bookshelves along the walls.
+    const shelving = () => alongWall(['bookshelf_full'], 4);
+    // bunks — a BARRACKS: rows of identical cots, each oriented to its wall (not capped like a bedroom).
+    const bunks = () => { let k = 0; for (const p of byWall(interior)) { if (k >= 6) break; const s = bedSideOf(p.c, p.r); if (s && free(p.c, p.r) && put(p.c, p.r, BED_TAG[s])) k++; } };
+    // crest — a GUILDHALL: the guild banner on the wall opposite the door + a central meeting table with chairs.
+    const crest = () => {
+      const b = byBack(interior).find((p) => free(p.c, p.r)) ?? wallFree()[0]; if (b) put(b.c, b.r, 'banner');
+      const t = byCenter(interior).find((p) => free(p.c, p.r)); if (t) { put(t.c, t.r, 'table'); let k = 0; for (const [dx, dy] of ORTH4) { if (k >= 3) break; if (free(t.c + dx, t.r + dy) && put(t.c + dx, t.r + dy, 'chair')) k++; } }
+    };
+    // warren — a GOBLIN LAIR: prisoner CAGES (the lair marker — TWO so the read survives a path-carve deleting one),
+    //   a central cookfire (brazier), gnawed bones. (throne = the chief's seat.)
+    const warren = () => {
+      let cages = 0; for (const p of byWall(interior)) { if (cages >= 2) break; if (free(p.c, p.r) && put(p.c, p.r, 'cage')) cages++; }
+      if (cages === 0) { const any = interior.find((p) => free(p.c, p.r)); if (any) put(any.c, any.r, 'cage'); }
+      const f = byCenter(interior).find((p) => free(p.c, p.r)); if (f) put(f.c, f.r, 'brazier');
+      let b = 0; for (const p of interior) { if (b >= 3) break; if (free(p.c, p.r) && rand() < 0.4 && put(p.c, p.r, rand() < 0.5 ? 'bones' : 'skeleton')) b++; }
+    };
     const GROUPS: Record<string, () => void> = {
-      dining, bed, hearth, counter, bar, shopfront, checkin, study, altar, benches, nave, forge, storage, apse, cells, hoard,
+      dining, bed, hearth, counter, bar, shopfront, checkin, study, altar, benches, nave, forge, storage, apse, cells, hoard, throne, shelving, bunks, crest, warren,
       shelf: () => alongWall(['shelf', 'shelf_food'], 2), books: () => alongWall(['bookshelf_full', 'books'], 3), pantry: () => { alongWall(['shelf_food', 'shelf'], 2); storage(); }, wares: () => alongWall(['shelf_wares', 'pot', 'jar'], 2), weapons: () => alongWall(['weapon_rack'], 1),
     };
     for (const g of tmpl.groups) { if (placedFurn >= budget) break; (GROUPS[g] ?? (() => {}))(); }
