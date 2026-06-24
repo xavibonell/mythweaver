@@ -18,6 +18,7 @@ import { type SceneMap } from '@mythweaver/shared';
 import { bspRooms, building, Canvas, cave, clearing, clumpScatter, compound, fill, finalize, maze, place, plaza, poissonScatter, vignette, type Rect } from './primitives.js';
 import { GENERATORS, type Contents } from './archetypes.js';
 import { precinctSquare } from './precinct.js';
+import { blockCottage, blockTown } from './blocks.js';
 import { THEMES } from './themes.js';
 import { type ShapeKind } from './footprint.js';
 
@@ -33,6 +34,8 @@ export const COMPONENT_KINDS = [
   'clearing', 'cave', 'rooms', 'maze',
   'town', 'village', // full procedural settlements (townGen) — seed-varied, for assessing town COMPOSITION
   'precinct', // a single hand-designed PRECINCT (central square) — the pattern-vault prototype, frontage-packed
+  'block:cottage', // hand-authored BLOCK composition (cottage + garden + path + life) — the block-vault proof
+  'blocktown', // a NEIGHBOURHOOD: hand-authored blocks stitched into a road grid — the vault at town scale
 ] as const;
 export type ComponentKind = (typeof COMPONENT_KINDS)[number];
 
@@ -149,6 +152,12 @@ function specFor(kind: string): CellSpec {
     case 'precinct':
       // The CENTRAL SQUARE precinct — the pattern-vault prototype. A big cell so the packed belt + parks fit.
       return { cw: 78, ch: 70, render: (cv, rect, i) => precinctSquare(cv, rect, `loc:lab-precinct-${i}`) };
+    case 'block:cottage':
+      // A hand-authored residential BLOCK (cottage + garden + path + life) — the block-vault proof.
+      return { cw: 19, ch: 17, render: (cv, rect, i) => blockCottage(cv, rect, `loc:lab-block-${i}`) };
+    case 'blocktown':
+      // A NEIGHBOURHOOD stitched from hand-authored blocks — the vault at town scale.
+      return { cw: 84, ch: 74, render: (cv, rect, i) => blockTown(cv, rect, `loc:lab-blocktown-${i}`) };
     default:
       return { cw: 16, ch: 14, render: (cv, rect, i) => { void i; building(cv, { x: rect.x + 1, y: rect.y + 1, w: rect.w - 2, h: rect.h - 2 }, 'house', { door: 'south', id: 'bldg:fallback' }); } };
   }

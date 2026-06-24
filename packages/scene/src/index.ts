@@ -10,4 +10,5 @@ export { THEMES, THEME_NAMES, themeNameFor, type Theme } from './themes.js';
 export { type SceneComposer, FakeSceneComposer, LlmSceneComposer } from './composer.js';
 export { loadAssetLibrary, type AssetLibrary, type AssetEntry, type AssetKind } from './asset-library.js';
 export { renderSceneMapToPng } from './headless-render.js';
+export { blockCottage, blockPlaza, blockTown } from './blocks.js';
 export * from './catalog.js';
