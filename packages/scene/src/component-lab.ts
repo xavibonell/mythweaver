@@ -153,11 +153,12 @@ function specFor(kind: string): CellSpec {
       // The CENTRAL SQUARE precinct — the pattern-vault prototype. A big cell so the packed belt + parks fit.
       return { cw: 78, ch: 70, render: (cv, rect, i) => precinctSquare(cv, rect, `loc:lab-precinct-${i}`) };
     case 'block:cottage':
-      // A hand-authored residential BLOCK (cottage + garden + path + life) — the block-vault proof.
-      return { cw: 19, ch: 17, render: (cv, rect, i) => blockCottage(cv, rect, `loc:lab-block-${i}`) };
+      // A hand-authored residential BLOCK (cottage + garden + path + life) — the block-vault proof. Big enough that
+      // building SHAPES (L/T/U/compose) fit and vary cell-to-cell.
+      return { cw: 22, ch: 21, render: (cv, rect, i) => blockCottage(cv, rect, `loc:lab-block-${i}`) };
     case 'blocktown':
-      // A NEIGHBOURHOOD stitched from hand-authored blocks — the vault at town scale.
-      return { cw: 84, ch: 74, render: (cv, rect, i) => blockTown(cv, rect, `loc:lab-blocktown-${i}`) };
+      // A NEIGHBOURHOOD stitched from hand-authored blocks — the vault at town scale. Extra margin for a forest surround.
+      return { cw: 100, ch: 90, render: (cv, rect, i) => blockTown(cv, rect, `loc:lab-blocktown-${i}`) };
     default:
       return { cw: 16, ch: 14, render: (cv, rect, i) => { void i; building(cv, { x: rect.x + 1, y: rect.y + 1, w: rect.w - 2, h: rect.h - 2 }, 'house', { door: 'south', id: 'bldg:fallback' }); } };
   }
@@ -176,5 +177,6 @@ export function buildComponentSheet(kind: string, count: number, seed: number): 
     const gx = i % cols, gy = Math.floor(i / cols);
     render(cv, { x: gut + gx * (cw + gut), y: gut + gy * (ch + gut), w: cw, h: ch }, i);
   }
-  return finalize(cv, { locationId: 'loc:lab-component', biome: 'village', lighting: 'day', grammar: 'open-outdoor', outdoor: true, skipReachability: true, skipDecals: kind === 'precinct' });
+  // the precinct + block kinds do their OWN deliberate planting → skip the uniform ground-decal sprinkle (noise).
+  return finalize(cv, { locationId: 'loc:lab-component', biome: 'village', lighting: 'day', grammar: 'open-outdoor', outdoor: true, skipReachability: true, skipDecals: kind === 'precinct' || kind.startsWith('block') });
 }

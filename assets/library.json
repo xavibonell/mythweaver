@@ -337,7 +337,7 @@
     {
       "kind": "terrain",
       "tag": "road",
-      "desc": "homogeneous grey cobbled street/plaza paving \u2014 ONE clean tile, no blue-tinted accent variants",
+      "desc": "homogeneous grey cobbled street \u2014 clean horizontal-staggered courses (no vertical-line edge tiles)",
       "walkable": true,
       "biomes": [
         "town",
@@ -345,12 +345,12 @@
       ],
       "variants": [
         {
-          "art": "/assets/dawnlike/terrain/stone0.png",
+          "art": "/assets/dawnlike/terrain/stone2.png",
           "from": {
             "pack": "DawnLike",
             "crop": "Objects/Floor.png",
             "rect": [
-              32,
+              80,
               112,
               16,
               16

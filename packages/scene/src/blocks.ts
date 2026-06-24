@@ -17,7 +17,7 @@ import { SHAPE_MIN, type ShapeKind } from './footprint.js';
 import type { BuildingType } from '@mythweaver/shared';
 
 const slug = (s: string) => (s || 'x').replace(/[^a-z0-9]+/gi, '-').toLowerCase().replace(/^-+|-+$/g, '') || 'x';
-const TREES = ['tree_oak', 'tree', 'tree_pine', 'tree_dark', 'tree_autumn'] as const;
+const TREE = 'tree'; // ONE tree type (the standard leafy tree), instanced gracefully — not mixed types in random clumps
 const FLOWERS = ['flowers', 'flowers_blue', 'flowers_yellow', 'flowers_red'] as const;
 const SHAPES: ShapeKind[] = ['compose', 'ell', 'tee', 'you', 'rect', 'ell', 'compose'];
 const pickShape = (rng: () => number, w: number, h: number): ShapeKind => {
@@ -36,7 +36,6 @@ export function blockCottage(cv: Canvas, region: Rect, locationId: string, type:
   const actor = (tag: string, c: number, r: number) => { if (cv.inB(c, r) && cv.isFree(c, r)) place(cv, { id: `npc:${loc}-${pid++}`, tag, kind: 'actor', role: 'npc', at: { c, r } }); };
   const carve = (x: number, y: number, w: number, h: number, tag: string, walk = true) => { if (w > 0 && h > 0) fill(cv, { x, y, w, h }, tag, walk); };
   const isGrass = (c: number, r: number) => cv.inB(c, r) && cv.tileAt(c, r) === 'grass';
-  const clump = (cx: number, cy: number, rad: number) => { for (let r = cy - rad; r <= cy + rad; r++) for (let c = cx - rad; c <= cx + rad; c++) if (isGrass(c, r) && Math.hypot(c - cx, r - cy) <= rad - 0.2) prop(TREES[Math.floor(rng() * TREES.length)]!, c, r); };
 
   fill(cv, R, 'grass', true);
 
@@ -47,15 +46,15 @@ export function blockCottage(cv: Canvas, region: Rect, locationId: string, type:
 
   // COTTAGE: set back, upper-centre, door to the street. Size + silhouette VARY per block (a manor fills its plot,
   // a cottage leaves a big garden) so a street of blocks reads varied, not a grid of clones.
-  const scale = 0.55 + rng() * 0.45;
-  const hw = Math.max(6, Math.min(Math.round((R.w - 3) * scale), R.w - 3));
-  const hh = Math.max(5, Math.min(Math.round((R.h - 6) * scale), R.h - 6));
+  const scale = 0.6 + rng() * 0.4;
+  const hw = Math.max(7, Math.min(Math.round((R.w - 3) * scale), R.w - 3));
+  const hh = Math.max(6, Math.min(Math.round((R.h - 7) * scale), R.h - 6));
   const hx = R.x + Math.floor((R.w - hw) / 2), hy = R.y + 2;
   compound(cv, { x: hx, y: hy, w: hw, h: hh }, type, { door: 'south', shape: pickShape(rng, hw, hh), locationId, id: `bldg:${loc}-0` });
   const doorC = hx + Math.floor(hw / 2);
 
-  // ENTRY PATH: a 2-wide dirt walkway from the door down to the street.
-  for (let r = hy + hh; r < roadY; r++) for (const pc of [doorC - 1, doorC]) { const t = cv.tileAt(pc, r); if (t === 'grass' || t === 'dirt') carve(pc, r, 1, 1, 'dirt', true); }
+  // ENTRY PATH: a clear 3-wide dirt walkway joining the door to the street.
+  for (let r = hy + hh; r < roadY; r++) for (const pc of [doorC - 1, doorC, doorC + 1]) { const t = cv.tileAt(pc, r); if (t === 'grass' || t === 'dirt') carve(pc, r, 1, 1, 'dirt', true); }
 
   // FRONT GARDEN (left of the path): a fenced flower plot with a tree + a gardener.
   const gx = R.x + 1, gy = hy + hh + 1, gw = doorC - 2 - (R.x + 1), gh = roadY - 1 - gy;
@@ -63,7 +62,7 @@ export function blockCottage(cv: Canvas, region: Rect, locationId: string, type:
     for (let r = gy; r < gy + gh; r++) { prop('fence', gx, r); prop('fence', gx + gw - 1, r); }
     for (let c = gx; c < gx + gw; c++) prop('fence', c, gy + gh - 1);
     for (let r = gy + 1; r < gy + gh - 1; r++) for (let c = gx + 1; c < gx + gw - 1; c++) if (isGrass(c, r) && rng() < 0.55) prop(FLOWERS[Math.floor(rng() * FLOWERS.length)]!, c, r);
-    prop('tree_oak', gx + 1, gy + 1);
+    prop(TREE, gx + 1, gy + 1);
     actor('villager_woman', gx + gw - 2, gy + 1);
   }
   // RIGHT of the path: homestead props + a roadside bench + a signpost.
@@ -71,8 +70,9 @@ export function blockCottage(cv: Canvas, region: Rect, locationId: string, type:
   prop('stone_bench', doorC + 2, roadY - 2);
   prop('signpost', doorC + 2, roadY - 1);
 
-  // BACKYARD: a wooded backdrop (solid tree clumps) wrapping the house + a hen and a dog for life.
-  clump(R.x + 2, R.y + 2, 2); clump(R.x + R.w - 3, R.y + 2, 2); clump(R.x + R.w - 3, R.y + Math.floor(R.h / 2) + 1, 2);
+  // A couple of backyard trees behind the house (one type) — NOT a hedge on every edge (that reads as uniform
+  // scatter town-wide); the concentrated greenery is the forest surround the stitcher adds.
+  prop(TREE, R.x + 1, R.y); prop(TREE, R.x + R.w - 2, R.y);
   actor('chicken', doorC + 3, hy + hh + 2);
   actor('dog', gx + 1, gy + gh);
 
@@ -102,7 +102,7 @@ export function blockPlaza(cv: Canvas, region: Rect, locationId: string): void {
   propOn('fountain', cc, cr);
   for (let c = bx; c < bx + BW; c += 3) { prop('stone_bench', c, by - 2); prop('stone_bench', c, by + BH + 1); }
   for (let k = 0; k < 3; k++) prop('market_stall', bx - 2, by + 1 + k);
-  for (const [tx, ty] of [[R.x + 2, R.y + 2], [R.x + R.w - 3, R.y + 2], [R.x + 2, R.y + R.h - 3], [R.x + R.w - 3, R.y + R.h - 3]] as const) prop('tree_oak', tx, ty);
+  for (const [tx, ty] of [[R.x + 2, R.y + 2], [R.x + R.w - 3, R.y + 2], [R.x + 2, R.y + R.h - 3], [R.x + R.w - 3, R.y + R.h - 3]] as const) prop(TREE, tx, ty);
   actor('villager', cc - 2, by + BH + 2); actor('villager_woman', cc + 2, by - 3);
 }
 
@@ -114,17 +114,29 @@ export function blockTown(cv: Canvas, region: Rect, locationId: string): void {
   const R = region;
   const loc = slug(locationId);
   fill(cv, R, 'grass', true);
-  const BW = 21, BH = 18; // a block plot (incl. its own south street) + a 2-wide vertical street between columns
-  const cols = Math.max(1, Math.floor((R.w - 1) / BW)), rows = Math.max(1, Math.floor((R.h - 1) / BH));
+  const BW = 24, BH = 22; // a block plot (big enough for shape-varied buildings) + its south street + a 2-wide vertical street between columns
+  const cols = Math.max(1, Math.min(3, Math.floor((R.w - 1) / BW))), rows = Math.max(1, Math.min(3, Math.floor((R.h - 1) / BH))); // cap at 3×3 so a forest margin surrounds the town
+  const gridW = cols * BW, gridH = rows * BH;
+  const ox = R.x + Math.floor((R.w - gridW) / 2), oy = R.y + Math.floor((R.h - gridH) / 2); // centre the town so a forest can surround it
   const midx = Math.floor(cols / 2), midy = Math.floor(rows / 2);
   let i = 0;
   for (let gy = 0; gy < rows; gy++) for (let gx = 0; gx < cols; gx++) {
-    const x = R.x + gx * BW, y = R.y + gy * BH, plot: Rect = { x, y, w: BW - 2, h: BH };
+    const x = ox + gx * BW, y = oy + gy * BH, plot: Rect = { x, y, w: BW - 2, h: BH };
     // pass a VALID "loc:<slug>" id through (building entrances copy it; a bare slug fails validation)
     const id = `loc:${loc}-${gx}-${gy}`;
     if (gx === midx && gy === midy) blockPlaza(cv, plot, `loc:${loc}-plaza`);             // civic centre
     else blockCottage(cv, plot, id, BLOCK_TYPES[i++ % BLOCK_TYPES.length]!);
   }
   // VERTICAL streets in the 2-wide gaps between block columns (the blocks' south edges give the horizontal streets).
-  for (let gx = 1; gx < cols; gx++) fill(cv, { x: R.x + gx * BW - 2, y: R.y, w: 2, h: rows * BH }, 'road', true);
+  for (let gx = 1; gx < cols; gx++) fill(cv, { x: ox + gx * BW - 2, y: oy, w: 2, h: gridH }, 'road', true);
+
+  // COUNTRYSIDE FOREST: a dense ONE-type tree mass filling the grass that SURROUNDS the town — concentrated,
+  // intentional green (a town in a forest clearing), not a uniform sprinkle across the built area.
+  const isGrass = (c: number, r: number) => cv.inB(c, r) && cv.tileAt(c, r) === 'grass';
+  let fid = 0;
+  for (let r = R.y; r < R.y + R.h; r++) for (let c = R.x; c < R.x + R.w; c++) {
+    if (!isGrass(c, r)) continue;
+    const edge = Math.min(c - R.x, r - R.y, R.x + R.w - 1 - c, R.y + R.h - 1 - r);
+    if (edge < 3 && cv.rng() < 0.5 && cv.isFree(c, r)) place(cv, { id: `prop:${slug(locationId)}-f${fid++}`, tag: TREE, kind: 'prop', at: { c, r } }); // a light treeline at the precinct edge
+  }
 }
