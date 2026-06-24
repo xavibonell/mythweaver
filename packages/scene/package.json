@@ -17,6 +17,10 @@
   },
   "dependencies": {
     "@mythweaver/shared": "*",
-    "@mythweaver/llm": "*"
+    "@mythweaver/llm": "*",
+    "pngjs": "^7.0.0"
+  },
+  "devDependencies": {
+    "@types/pngjs": "^6.0.5"
   }
 }
