@@ -17,19 +17,18 @@ const lerp = (a, b, t) => a.map((v, i) => Math.round(v + (b[i] - v) * t));
 /** A 16×16 water tile. `deep` = darker palette; `edges` = which sides get a lighter "lap/foam" band. */
 function waterTile(deep, edges) {
   const png = new PNG({ width: S, height: S });
-  const dark = deep ? [22, 54, 92] : [38, 92, 150];
-  const mid = deep ? [32, 72, 116] : [52, 116, 178];
-  const lite = deep ? [50, 98, 142] : [92, 158, 212];
-  const foam = deep ? [56, 104, 148] : [104, 168, 218]; // a SUBTLE lap (close to lite), not bright foam that reads as noise
+  const dark = deep ? [14, 36, 68] : [22, 56, 100];
+  const mid = deep ? [22, 54, 92] : [44, 100, 158];   // lit water surface
+  const lite = deep ? [40, 80, 120] : [92, 162, 216];  // bright ripples/reflections (high contrast = reads as water)
+  const foam = deep ? [8, 22, 46] : [12, 30, 58];      // VERY dark rim shadow = the basin wall in deep shadow (sunken read)
   const seed = deep ? 7 : 3;
+  const isEdge = edges.size > 0; // an edge tile IS the basin wall seen in deep shadow → render the whole cell dark
   for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
     const i = (y * S + x) << 2;
     const n = noise(x, y, seed);
-    // a CLEAN, near-uniform surface: mostly mid blue with only sparse, subtle ripples (busy noise reads as a "splotch")
-    let col = n > 0.92 ? lite : n < 0.10 ? lerp(mid, dark, 0.6) : mid;
-    const nf = 1;
-    const onEdge = (edges.has('t') && y < nf) || (edges.has('b') && y >= S - nf) || (edges.has('l') && x < nf) || (edges.has('r') && x >= S - nf);
-    if (onEdge) col = foam;
+    const col = isEdge
+      ? (n > 0.82 ? lerp(foam, dark, 0.5) : foam)                   // a full dark cell — a THICK visible depth ring
+      : (n > 0.80 ? lite : n < 0.18 ? lerp(mid, dark, 0.55) : mid); // lit, rippled open-water surface
     png.data[i] = col[0]; png.data[i + 1] = col[1]; png.data[i + 2] = col[2]; png.data[i + 3] = 255;
   }
   return PNG.sync.write(png);

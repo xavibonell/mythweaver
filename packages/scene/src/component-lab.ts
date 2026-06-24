@@ -167,5 +167,5 @@ export function buildComponentSheet(kind: string, count: number, seed: number): 
     const gx = i % cols, gy = Math.floor(i / cols);
     render(cv, { x: gut + gx * (cw + gut), y: gut + gy * (ch + gut), w: cw, h: ch }, i);
   }
-  return finalize(cv, { locationId: 'loc:lab-component', biome: 'village', lighting: 'day', grammar: 'open-outdoor', outdoor: true, skipReachability: true });
+  return finalize(cv, { locationId: 'loc:lab-component', biome: 'village', lighting: 'day', grammar: 'open-outdoor', outdoor: true, skipReachability: true, skipDecals: kind === 'precinct' });
 }

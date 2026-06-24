@@ -1,13 +1,15 @@
 /**
- * PRECINCT VAULT — the pattern layer for believable town COMPOSITION. Where townGen subdivides land and floats
- * one building per parcel (isolated boxes in grass moats), a precinct is a hand-DESIGNED dense "place".
+ * PRECINCT VAULT — the pattern layer for believable town COMPOSITION.
  *
- * v6 — PAVE-THEN-PACK (the inversion). The town CORE is paved stone first; then irregular compound buildings
- * (L/T/U/cross/compose, biggest first) are packed densely ONTO the pavement. The leftover stone between their
- * irregular masses IS the street/alley network — winding because the buildings are irregular — so nothing can
- * sit in a "grass moat" and the streets are defined BY the buildings. A central plaza (blue water pool framed by
- * brick) and a few winding main streets are kept open; a handful of grass GARDEN pockets and a grassy COUNTRYSIDE
- * edge (clustered groves) supply greenery without uniform scatter. Grand houses cluster by the plaza (uptown).
+ * v7 — GRASS-BASE + COBBLED ROADS (the reference model). The world is GRASS; a homogeneous grey cobbled `road`
+ * network is laid ON TOP, with an EARTHEN (dirt) rim where stone meets grass (the transition that sells it). The
+ * roads frame a central PLAZA holding a sunken WATER BASIN (water with a dark rim shadow + a stone-brick lip — a
+ * filled hole, not a flat blob; no fountain icon). Large IRREGULAR compound buildings (L/T/U/cross/compose) are
+ * packed into the grass blocks FRONTING the roads; trees, fenced gardens and flower beds landscape the grass
+ * between them, and the town fades into wooded countryside at the edges.
+ *
+ * `road` is a single clean tile (DawnLike `stone` has blue-tinted accent variants that scatter as visual noise —
+ * we never use `stone`/`stone_brick` for open paving except the basin lip).
  */
 
 import { Canvas, compound, fill, place, type Rect } from './primitives.js';
@@ -18,77 +20,42 @@ const slug = (s: string) => (s || 'x').replace(/[^a-z0-9]+/gi, '-').toLowerCase(
 
 export function precinctSquare(cv: Canvas, region: Rect, locationId: string): void {
   const R = region;
-  if (R.w < 40 || R.h < 36) { fill(cv, R, 'grass', true); return; }
+  if (R.w < 44 || R.h < 40) { fill(cv, R, 'grass', true); return; }
   const rng = () => cv.rng();
   const loc = slug(locationId);
-  const PAVE = 'stone';
-  const RIM = 'stone_brick';
+  const PAVE = 'road';       // homogeneous grey cobble (single tile)
+  const RIM = 'stone_brick'; // the basin lip
+  const DIRT = 'dirt';
   let pid = 0, bi = 0;
   const prop = (tag: string, c: number, r: number) => { if (cv.inB(c, r) && cv.isFree(c, r)) place(cv, { id: `prop:${loc}-p${pid++}`, tag, kind: 'prop', at: { c, r } }); };
-  const propOn = (tag: string, c: number, r: number) => { if (cv.inB(c, r)) place(cv, { id: `prop:${loc}-p${pid++}`, tag, kind: 'prop', at: { c, r } }); };
-  const carve = (x: number, y: number, w: number, h: number, tag = PAVE, walk = true) => { if (w > 0 && h > 0) fill(cv, { x, y, w, h }, tag, walk); };
+  const carve = (x: number, y: number, w: number, h: number, tag: string, walk = true) => { if (w > 0 && h > 0) fill(cv, { x, y, w, h }, tag, walk); };
+  const isGrass = (c: number, r: number) => cv.inB(c, r) && cv.tileAt(c, r) === 'grass';
+  const isRoad = (c: number, r: number) => cv.inB(c, r) && cv.tileAt(c, r) === PAVE;
 
   fill(cv, R, 'grass', true);
 
-  // ── PAVE THE CORE (the town); a grassy countryside margin rings it.
-  const M = 4;
-  const core: Rect = { x: R.x + M, y: R.y + M, w: R.w - 2 * M, h: R.h - 2 * M };
-  carve(core.x, core.y, core.w, core.h, PAVE, true);
+  // ── COBBLED ROAD GRID (straight, homogeneous) laid on the grass. Two verticals + two horizontals (jittered,
+  //    uneven spacing) bound a central plaza block; all four run off-frame like real streets.
+  const jit = () => Math.floor((rng() - 0.5) * 5);
+  const RW = 2; // thinner roads — the reference is a GRASS world with cobble laid on top, not a stone slab
+  const vx1 = R.x + Math.floor(R.w * 0.30) + jit(), vx2 = R.x + Math.floor(R.w * 0.64) + jit();
+  const hy1 = R.y + Math.floor(R.h * 0.30) + jit(), hy2 = R.y + Math.floor(R.h * 0.64) + jit();
+  carve(vx1, R.y, RW, R.h, PAVE); carve(vx2, R.y, RW, R.h, PAVE);
+  carve(R.x, hy1, R.w, RW, PAVE); carve(R.x, hy2, R.w, RW, PAVE);
 
-  // `protect` = paved cells that must stay OPEN (plaza + main streets) — the packer never builds on them.
-  const protect = new Set<string>();
-  const protectBlob = (x: number, y: number, w: number) => {
-    for (let r = Math.round(y - w / 2); r < Math.round(y - w / 2) + w; r++) for (let c = Math.round(x - w / 2); c < Math.round(x - w / 2) + w; c++)
-      if (cv.inB(c, r) && cv.tileAt(c, r) === PAVE) protect.add(`${c},${r}`);
-  };
-
-  // ── CENTRAL PLAZA (kept open) with a blue water pool framed by brick, stalls + planted beds.
-  const PWd = Math.max(16, Math.floor(core.w * 0.24)), PHd = Math.max(14, Math.floor(core.h * 0.24));
-  const Pl: Rect = { x: core.x + Math.floor((core.w - PWd) / 2), y: core.y + Math.floor((core.h - PHd) / 2), w: PWd, h: PHd };
-  carve(Pl.x, Pl.y, Pl.w, Pl.h, RIM, true); // a distinct stone-BRICK floor sets the civic square apart from the stone alleys
-  for (let r = Pl.y; r < Pl.y + Pl.h; r++) for (let c = Pl.x; c < Pl.x + Pl.w; c++) protect.add(`${c},${r}`);
+  // ── PLAZA: the central block, with a sunken water basin (no fountain icon).
+  const Pl: Rect = { x: vx1 + RW, y: hy1 + RW, w: vx2 - (vx1 + RW), h: hy2 - (hy1 + RW) };
+  carve(Pl.x, Pl.y, Pl.w, Pl.h, PAVE);
   const cc = Pl.x + Math.floor(Pl.w / 2), cr = Pl.y + Math.floor(Pl.h / 2);
-  const PW = Math.max(5, Math.min(8, Pl.w - 10)), PH = Math.max(4, Math.min(6, Pl.h - 10));
+  const PW = Math.max(10, Math.min(14, Pl.w - 6)), PH = Math.max(7, Math.min(10, Pl.h - 6));
   const px = cc - Math.floor(PW / 2), py = cr - Math.floor(PH / 2);
-  carve(px - 1, py - 1, PW + 2, PH + 2, RIM, true);
-  carve(px, py, PW, PH, 'water', false);
-  carve(cc, cr, 1, 1, RIM, true);
-  propOn('fountain', cc, cr);
-  for (const [bx, by] of [[px - 3, cr], [px + PW + 2, cr], [cc, py - 3], [cc, py + PH + 2]] as const) prop('stone_bench', bx, by);
-  for (const bx of [Pl.x + 2, Pl.x + Pl.w - 4]) { carve(bx, cr - 1, 2, 2, 'grass', true); prop('tree_oak', bx, cr - 1); prop('flowers', bx + 1, cr); }
-  for (let k = 0; k < 3; k++) prop('market_stall', Pl.x + 1, Pl.y + 3 + k * 2); // stalls on the WEST edge — clear of the pool↔south flow
-  // FRAME the square: trees lining the N/S edges + benches on the E/W edges, so it reads as a designed civic space.
-  for (let c = Pl.x + 2; c < Pl.x + Pl.w - 2; c += 3) { prop('tree_oak', c, Pl.y + 1); prop('tree_oak', c, Pl.y + Pl.h - 2); }
-  for (let r = Pl.y + 3; r < Pl.y + Pl.h - 3; r += 4) prop('stone_bench', Pl.x + Pl.w - 2, r);
+  carve(px - 2, py - 2, PW + 4, PH + 4, RIM);   // a 2-cell brick lip frames the basin
+  carve(px, py, PW, PH, 'water', false);         // the basin — deep water + dark rim shadow reads as a filled hole
+  for (const [tx, ty] of [[Pl.x + 1, Pl.y + 1], [Pl.x + Pl.w - 2, Pl.y + 1], [Pl.x + 1, Pl.y + Pl.h - 2], [Pl.x + Pl.w - 2, Pl.y + Pl.h - 2]] as const) prop('tree_oak', tx, ty); // corner trees
+  for (let c = px; c < px + PW; c += 3) { prop('stone_bench', c, py - 3); prop('stone_bench', c, py + PH + 2); } // benches face the basin
+  for (let k = 0; k < 4; k++) prop('market_stall', px - 3, py + k); // a tidy market-stall row just west of the basin
 
-  // ── MAIN STREETS (kept open): a few winding corridors from the plaza out to the core edge.
-  const carveStreet = (sx: number, sy: number, dx: number, dy: number, w: number) => {
-    let x = sx, y = sy;
-    for (let s = 0; s < Math.max(R.w, R.h); s++) {
-      protectBlob(x, y, w);
-      x += dx; y += dy;
-      if (rng() < 0.5) { const j = rng() < 0.5 ? 1 : -1; x += -dy * j; y += dx * j; } // serpentine
-      if (x < core.x || x > core.x + core.w || y < core.y || y > core.y + core.h) break;
-    }
-  };
-  carveStreet(cc, Pl.y, 0, -1, 3); carveStreet(cc, Pl.y + Pl.h, 0, 1, 3);
-  carveStreet(Pl.x, cr, -1, 0, 3); carveStreet(Pl.x + Pl.w, cr, 1, 0, 3);
-  carveStreet(Pl.x + Math.floor(Pl.w * 0.3), Pl.y, -0.5, -1, 2); carveStreet(Pl.x + Math.floor(Pl.w * 0.7), Pl.y + Pl.h, 0.5, 1, 2);
-
-  // ── GARDEN POCKETS (kept open as grass): a few small planted plots inside the town.
-  const gardens: { x: number; y: number; w: number; h: number }[] = [];
-  for (let g = 0; g < 6; g++) { // a FEW big, deliberate garden parks in the town core (not many small sprinkles)
-    const sz = rng() < 0.5 ? 8 : 6;
-    let gx = 0, gy = 0, ok = false;
-    for (let t = 0; t < 36 && !ok; t++) {
-      gx = core.x + 2 + Math.floor(rng() * (core.w - sz - 4)); gy = core.y + 2 + Math.floor(rng() * (core.h - sz - 4));
-      ok = true;
-      for (let r = gy - 1; r <= gy + sz && ok; r++) for (let c = gx - 1; c <= gx + sz; c++) if (cv.tileAt(c, r) !== PAVE || protect.has(`${c},${r}`)) { ok = false; break; }
-    }
-    if (ok) { carve(gx, gy, sz, sz, 'grass', true); gardens.push({ x: gx, y: gy, w: sz, h: sz }); }
-  }
-
-  // ── PACK irregular buildings ONTO the pavement (biggest first). The leftover stone is the alley network.
+  // ── BUILDINGS: large irregular compounds packed into the grass blocks, FRONTING the roads.
   const GRAND: BuildingType[] = ['manor', 'manor', 'cathedral', 'guildhall'];
   const TRADE: BuildingType[] = ['shop', 'general_store', 'tavern', 'curio', 'smithy', 'inn', 'workshop', 'library', 'shop', 'tavern'];
   const HOUSES: BuildingType[] = ['house', 'house', 'house', 'shop', 'tavern', 'curio', 'general_store'];
@@ -99,81 +66,90 @@ export function precinctSquare(cv: Canvas, region: Rect, locationId: string): vo
     if (!fits.length || rng() < 0.08) return 'rect';
     return fits[Math.floor(rng() * fits.length)]!;
   };
-  // A lot is buildable iff every cell is plain pavement and none is protected (plaza/street) — so buildings
-  // pack onto stone, never on the plaza/streets/gardens/pool, and the gaps between them stay paved = alleys.
-  const clear = (lot: Rect) => {
-    if (lot.x < core.x || lot.y < core.y || lot.x + lot.w > core.x + core.w || lot.y + lot.h > core.y + core.h) return false;
-    for (let r = lot.y; r < lot.y + lot.h; r++) for (let c = lot.x; c < lot.x + lot.w; c++) {
-      if (cv.tileAt(c, r) !== PAVE || protect.has(`${c},${r}`)) return false;
-    }
+  const lotGrass = (lot: Rect) => {
+    if (lot.x < R.x + 1 || lot.y < R.y + 1 || lot.x + lot.w > R.x + R.w - 1 || lot.y + lot.h > R.y + R.h - 1) return false;
+    for (let r = lot.y; r < lot.y + lot.h; r++) for (let c = lot.x; c < lot.x + lot.w; c++) if (!isGrass(c, r)) return false;
     return true;
   };
-  const nearPlaza = Math.min(core.w, core.h) * 0.34;
-  const typeFor = (dist: number, dim: number): BuildingType => {
-    if (dist < nearPlaza) return dim >= 11 ? pick(GRAND) : pick(TRADE);
-    return dim >= 10 ? pick(TRADE) : pick(HOUSES);
+  const frontRoad = (lot: Rect): 'north' | 'south' | 'east' | 'west' | null => {
+    let n = 0, s = 0, e = 0, w = 0;
+    for (let c = lot.x; c < lot.x + lot.w; c++) { if (isRoad(c, lot.y - 1)) n++; if (isRoad(c, lot.y + lot.h)) s++; }
+    for (let r = lot.y; r < lot.y + lot.h; r++) { if (isRoad(lot.x - 1, r)) w++; if (isRoad(lot.x + lot.w, r)) e++; }
+    const best = Math.max(n, s, e, w); if (best === 0) return null;
+    return n === best ? 'north' : s === best ? 'south' : e === best ? 'east' : 'west';
   };
+  const nearPlaza = Math.max(R.w, R.h) * 0.30;
+  const typeFor = (dist: number, dim: number): BuildingType => {
+    if (dist < nearPlaza) return dim >= 12 ? pick(GRAND) : pick(TRADE);
+    return dim >= 11 ? pick(TRADE) : pick(HOUSES);
+  };
+  const CAP = Math.round((R.w * R.h) / 320); // ~19 large buildings on an 82×74 precinct → grass-dominant but with real frontage
   const packPass = (lo: number, hi: number) => {
-    for (let r = core.y; r < core.y + core.h; r += 1) for (let c = core.x; c < core.x + core.w; c += 1) {
-      if (cv.tileAt(c, r) !== PAVE || protect.has(`${c},${r}`)) continue;
+    for (let r = R.y + 1; r < R.y + R.h - 1; r += 2) for (let c = R.x + 1; c < R.x + R.w - 1; c += 2) { // step 2 → roomier, more grass for landscaping
+      if (bi >= CAP) return;
+      if (!isGrass(c, r)) continue;
       const w = lo + Math.floor(rng() * (hi - lo + 1)), h = lo + Math.floor(rng() * (hi - lo + 1));
       const lot: Rect = { x: c, y: r, w, h };
-      if (!clear(lot)) continue;
+      if (!lotGrass(lot)) continue;
+      const door = frontRoad(lot); if (!door) continue; // must address a road — no isolated boxes in grass moats
       const dist = Math.hypot(c + w / 2 - cc, r + h / 2 - cr);
-      compound(cv, lot, typeFor(dist, Math.max(w, h)), { door: (['north', 'south', 'east', 'west'] as const)[Math.floor(rng() * 4)], shape: chooseShape(w, h), locationId, id: `bldg:${loc}-${bi++}` });
+      compound(cv, lot, typeFor(dist, Math.max(w, h)), { door, shape: chooseShape(w, h), locationId, id: `bldg:${loc}-${bi++}` });
     }
   };
-  // FRAME the plaza first: a tight ring of grand buildings facing it (gaps only where the main streets cross),
-  // so the civic square reads as one BOUNDED space, not paving that bleeds into the alleys.
-  const framePlaza = () => {
-    const d = 8;
-    for (const side of ['north', 'south', 'west', 'east'] as const) {
-      const horiz = side === 'north' || side === 'south';
-      const aEnd = horiz ? Pl.x + Pl.w : Pl.y + Pl.h;
-      let a = horiz ? Pl.x : Pl.y;
-      while (a < aEnd - 4) {
-        const len = Math.min(5 + Math.floor(rng() * 5), aEnd - a);
-        const lot: Rect = side === 'north' ? { x: a, y: Pl.y - d, w: len, h: d }
-          : side === 'south' ? { x: a, y: Pl.y + Pl.h, w: len, h: d }
-          : side === 'west' ? { x: Pl.x - d, y: a, w: d, h: len }
-          : { x: Pl.x + Pl.w, y: a, w: d, h: len };
-        const door = side === 'north' ? 'south' : side === 'south' ? 'north' : side === 'west' ? 'east' : 'west';
-        if (len >= 4 && clear(lot)) compound(cv, lot, rng() < 0.5 ? pick(GRAND) : pick(TRADE), { door, shape: chooseShape(lot.w, lot.h), locationId, id: `bldg:${loc}-${bi++}` });
-        a += len + 1;
-      }
-    }
-  };
-  framePlaza();
-  for (const [lo, hi] of [[16, 20], [12, 16], [9, 12], [7, 9], [6, 7]] as const) packPass(lo, hi); // a few big civic blocks → many small infill → wide massing range (min 6 so a keeper always fits)
+  for (const [lo, hi] of [[15, 19], [11, 15], [9, 11]] as const) packPass(lo, hi); // only LARGE buildings (capped) → spaced on grass like the reference, not packed
 
-  // ── GREENERY: dense in the garden pockets; clustered groves in the grassy countryside margin. No field scatter.
-  const isGrass = (c: number, r: number) => cv.inB(c, r) && cv.tileAt(c, r) === 'grass';
+  // ── DIRT RIM: a BROKEN earthen border where open cobble meets grass (the reference's thin "stone on soil"
+  //    transition — sparse, not a solid orange apron).
+  const rim: [number, number][] = [];
+  for (let r = R.y; r < R.y + R.h; r++) for (let c = R.x; c < R.x + R.w; c++) {
+    if (cv.tileAt(c, r) !== 'grass') continue;
+    if (isRoad(c - 1, r) || isRoad(c + 1, r) || isRoad(c, r - 1) || isRoad(c, r + 1)) rim.push([c, r]);
+  }
+  for (const [c, r] of rim) if (rng() < 0.6) carve(c, r, 1, 1, DIRT, true);
+
+  // ── LANDSCAPE the grass: fenced garden parks fronting the roads + tree groves; the edges go wooded countryside.
+  const gardens: Rect[] = [];
+  for (let g = 0; g < 9; g++) { // more fenced garden parks — the most clearly "deliberate" greenery
+    const sz = rng() < 0.5 ? 7 : 5;
+    let gx = 0, gy = 0, ok = false;
+    for (let t = 0; t < 40 && !ok; t++) {
+      gx = R.x + 2 + Math.floor(rng() * (R.w - sz - 4)); gy = R.y + 2 + Math.floor(rng() * (R.h - sz - 4));
+      ok = true;
+      for (let r = gy - 1; r <= gy + sz && ok; r++) for (let c = gx - 1; c <= gx + sz; c++) if (!isGrass(c, r)) { ok = false; break; }
+      if (ok) { ok = false; for (let c = gx; c < gx + sz; c++) if (isRoad(c, gy - 1) || isRoad(c, gy + sz)) ok = true; for (let r = gy; r < gy + sz; r++) if (isRoad(gx - 1, r) || isRoad(gx + sz, r)) ok = true; } // must front a road
+    }
+    if (ok) gardens.push({ x: gx, y: gy, w: sz, h: sz });
+  }
   for (const gd of gardens) {
-    // A deliberate fenced garden: a fence border (with one gap for an entrance), densely planted inside.
-    const gap = gd.x + 1 + Math.floor(rng() * (gd.w - 2)); // entrance column on the south fence
+    const gap = gd.x + 1 + Math.floor(rng() * (gd.w - 2));
     for (let r = gd.y; r < gd.y + gd.h; r++) for (let c = gd.x; c < gd.x + gd.w; c++) {
       if (!isGrass(c, r)) continue;
       const edge = r === gd.y || r === gd.y + gd.h - 1 || c === gd.x || c === gd.x + gd.w - 1;
       if (edge) { if (!(r === gd.y + gd.h - 1 && c === gap)) prop('fence', c, r); }
-      else if (rng() < 0.8) prop((['tree_oak', 'tree', 'tree_pine', 'tree_dark'] as const)[Math.floor(rng() * 4)]!, c, r);
+      else if (rng() < 0.78) prop((['tree_oak', 'tree', 'tree_pine'] as const)[Math.floor(rng() * 3)]!, c, r);
       else prop((['flowers', 'flowers_blue', 'bush'] as const)[Math.floor(rng() * 3)]!, c, r);
     }
-    prop('statue', gd.x + Math.floor(gd.w / 2), gd.y + Math.floor(gd.h / 2)); // a centrepiece reads as designed
+    prop('statue', gd.x + Math.floor(gd.w / 2), gd.y + Math.floor(gd.h / 2));
   }
-  for (let g = 0; g < 13; g++) { // DENSE groves ringing the town like parkland/forest (clustered, not sprinkled)
-    let gx = 0, gy = 0, ok = false;
-    for (let t = 0; t < 40 && !ok; t++) { gx = R.x + 1 + Math.floor(rng() * (R.w - 2)); gy = R.y + 1 + Math.floor(rng() * (R.h - 2)); ok = isGrass(gx, gy); }
-    if (!ok) continue;
+  // TREE GROVES: a few SOLID tree masses (trees only — flowers read as speckle) in open grass, leaving bare grass
+  // between them. Seeded only where a full grass disc fits, so a grove is a clear clump, never a sprinkle.
+  for (let g = 0; g < 9; g++) {
     const rad = 3 + Math.floor(rng() * 3);
+    let gx = 0, gy = 0, ok = false;
+    for (let t = 0; t < 50 && !ok; t++) {
+      gx = R.x + rad + Math.floor(rng() * (R.w - 2 * rad)); gy = R.y + rad + Math.floor(rng() * (R.h - 2 * rad));
+      let g2 = 0;
+      for (let r = gy - rad; r <= gy + rad; r++) for (let c = gx - rad; c <= gx + rad; c++) if (isGrass(c, r)) g2++;
+      ok = g2 > rad * rad * 2.6;
+    }
+    if (!ok) continue;
     for (let r = gy - rad; r <= gy + rad; r++) for (let c = gx - rad; c <= gx + rad; c++) {
       if (!isGrass(c, r)) continue;
-      if (rng() < 0.9 - Math.hypot(c - gx, r - gy) * 0.13) prop(rng() < 0.8 ? (['tree_oak', 'tree', 'tree_pine', 'tree_dark'] as const)[Math.floor(rng() * 4)]! : (['flowers', 'bush', 'grass_tuft'] as const)[Math.floor(rng() * 3)]!, c, r);
+      if (rng() < 1.0 - Math.hypot(c - gx, r - gy) * 0.13) prop((['tree_oak', 'tree', 'tree_pine', 'tree_dark'] as const)[Math.floor(rng() * 4)]!, c, r);
     }
   }
 
-  // Safety net: across hundreds of packed buildings, compound can rarely seat a station-keeper on a wall in an
-  // odd shape/door combo. Drop any actor left on a non-walkable cell so the scene validates (one missing keeper
-  // among ~hundreds of buildings is invisible).
+  // Safety net: drop any station-keeper compound rarely seated on a wall, so the scene validates.
   for (let i = cv.objects.length - 1; i >= 0; i--) {
     const o = cv.objects[i]!;
     if (o.kind === 'actor' && !(cv.inB(o.col, o.row) && cv.walkable[o.row]![o.col])) cv.objects.splice(i, 1);

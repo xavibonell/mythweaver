@@ -1042,14 +1042,16 @@ export function entrance(cv: Canvas, at: Pt, toLocationId: string): void {
  *  decal scatter (interiors skip them). reachabilityCarve is the LAST-RESORT safety net only. */
 export function finalize(
   cv: Canvas,
-  meta: { locationId: string; biome: string; lighting: Lighting; grammar: LayoutGrammar; outdoor: boolean; skipReachability?: boolean },
+  meta: { locationId: string; biome: string; lighting: Lighting; grammar: LayoutGrammar; outdoor: boolean; skipReachability?: boolean; skipDecals?: boolean },
 ): SceneMap {
   // skipReachability: the component contact-sheet packs intentionally DISCONNECTED cells — carving
   // corridors between them would mangle the gallery. Real scenes leave it on (the rare safety net).
   if (!meta.skipReachability) reachabilityCarve(cv.tiles, cv.walkable, cv.cols, cv.rows, cv.objects, cv.entrances); // safety net; primitives are connectivity-correct so this rarely fires
   bakeWoodWalls(cv.tiles, cv.cols, cv.rows); // neighbour-autotile wood walls → correct edges/corners on any shape (incl. L-footprints + partitions)
   if (meta.outdoor) {
-    scatterGroundDecals(cv.tiles, cv.walkable, cv.occ, cv.cols, cv.rows, cv.ambiance, cv.rng);
+    // skipDecals: a generator that does its OWN deliberate landscaping (e.g. the precinct) opts out of the
+    // uniform ground-decal sprinkle, which otherwise reads as procedural speckle over its composed greenery.
+    if (!meta.skipDecals) scatterGroundDecals(cv.tiles, cv.walkable, cv.occ, cv.cols, cv.rows, cv.ambiance, cv.rng);
     bakeAutoTiles(cv.tiles, cv.cols, cv.rows);
   }
   return {

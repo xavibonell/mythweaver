@@ -1,5 +1,5 @@
 {
-  "$comment": "THE asset library — single source of truth for the visual layer. One record flows to the Scene Director's vocabulary (packages/scene/src/catalog.ts), the renderer (apps/web fetches GET /assets/library), and the extractor (scripts/extract-assets.py produces the served PNG from each `from`). To ADD an asset: add a record (with a `from`), then `npm run assets:extract`. INTERIM library: CC0 Kenney 'Tiny' trio (Tiny Town, Tiny Dungeon) + Tiny Creatures (CC0) — all 16x16, mutually cohesive. Pixel Crawler kept under raw-packs/pixel-crawler for future cherry-picking. Swappable for a paid pack later with no contract change (tags are stable; only `art`/`from`/geometry move).",
+  "$comment": "THE asset library \u2014 single source of truth for the visual layer. One record flows to the Scene Director's vocabulary (packages/scene/src/catalog.ts), the renderer (apps/web fetches GET /assets/library), and the extractor (scripts/extract-assets.py produces the served PNG from each `from`). To ADD an asset: add a record (with a `from`), then `npm run assets:extract`. INTERIM library: CC0 Kenney 'Tiny' trio (Tiny Town, Tiny Dungeon) + Tiny Creatures (CC0) \u2014 all 16x16, mutually cohesive. Pixel Crawler kept under raw-packs/pixel-crawler for future cherry-picking. Swappable for a paid pack later with no contract change (tags are stable; only `art`/`from`/geometry move).",
   "tile": 16,
   "maxZoom": 3,
   "assets": [
@@ -336,8 +336,35 @@
     },
     {
       "kind": "terrain",
+      "tag": "road",
+      "desc": "homogeneous grey cobbled street/plaza paving \u2014 ONE clean tile, no blue-tinted accent variants",
+      "walkable": true,
+      "biomes": [
+        "town",
+        "village"
+      ],
+      "variants": [
+        {
+          "art": "/assets/dawnlike/terrain/stone0.png",
+          "from": {
+            "pack": "DawnLike",
+            "crop": "Objects/Floor.png",
+            "rect": [
+              32,
+              112,
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0)"
+    },
+    {
+      "kind": "terrain",
       "tag": "lava",
-      "desc": "molten lava — a glowing hazard, IMPASSABLE",
+      "desc": "molten lava \u2014 a glowing hazard, IMPASSABLE",
       "walkable": false,
       "biomes": [
         "dungeon",
@@ -362,7 +389,7 @@
     {
       "kind": "terrain",
       "tag": "lava_t",
-      "desc": "lava rim — t",
+      "desc": "lava rim \u2014 t",
       "walkable": false,
       "internal": true,
       "variants": [
@@ -384,7 +411,7 @@
     {
       "kind": "terrain",
       "tag": "lava_b",
-      "desc": "lava rim — b",
+      "desc": "lava rim \u2014 b",
       "walkable": false,
       "internal": true,
       "variants": [
@@ -406,7 +433,7 @@
     {
       "kind": "terrain",
       "tag": "lava_l",
-      "desc": "lava rim — l",
+      "desc": "lava rim \u2014 l",
       "walkable": false,
       "internal": true,
       "variants": [
@@ -428,7 +455,7 @@
     {
       "kind": "terrain",
       "tag": "lava_r",
-      "desc": "lava rim — r",
+      "desc": "lava rim \u2014 r",
       "walkable": false,
       "internal": true,
       "variants": [
@@ -450,7 +477,7 @@
     {
       "kind": "terrain",
       "tag": "lava_tl",
-      "desc": "lava rim — tl",
+      "desc": "lava rim \u2014 tl",
       "walkable": false,
       "internal": true,
       "variants": [
@@ -472,7 +499,7 @@
     {
       "kind": "terrain",
       "tag": "lava_tr",
-      "desc": "lava rim — tr",
+      "desc": "lava rim \u2014 tr",
       "walkable": false,
       "internal": true,
       "variants": [
@@ -494,7 +521,7 @@
     {
       "kind": "terrain",
       "tag": "lava_bl",
-      "desc": "lava rim — bl",
+      "desc": "lava rim \u2014 bl",
       "walkable": false,
       "internal": true,
       "variants": [
@@ -516,7 +543,7 @@
     {
       "kind": "terrain",
       "tag": "lava_br",
-      "desc": "lava rim — br",
+      "desc": "lava rim \u2014 br",
       "walkable": false,
       "internal": true,
       "variants": [
@@ -662,7 +689,7 @@
     {
       "kind": "terrain",
       "tag": "water",
-      "desc": "water, sea, river or fen — IMPASSABLE",
+      "desc": "water, sea, river or fen \u2014 IMPASSABLE",
       "walkable": false,
       "biomes": [
         "coast",
@@ -690,7 +717,7 @@
     {
       "kind": "terrain",
       "tag": "water_deep",
-      "desc": "deep / dark water — a dread zone, IMPASSABLE",
+      "desc": "deep / dark water \u2014 a dread zone, IMPASSABLE",
       "walkable": false,
       "biomes": [
         "coast",
@@ -1141,7 +1168,7 @@
     {
       "kind": "terrain",
       "tag": "wall",
-      "desc": "a solid wall / cliff — IMPASSABLE (dungeon/interior borders)",
+      "desc": "a solid wall / cliff \u2014 IMPASSABLE (dungeon/interior borders)",
       "walkable": false,
       "biomes": [
         "dungeon",
@@ -1167,7 +1194,7 @@
     {
       "kind": "terrain",
       "tag": "wall_tl",
-      "desc": "wall — top-left corner",
+      "desc": "wall \u2014 top-left corner",
       "walkable": false,
       "internal": true,
       "variants": [
@@ -1189,7 +1216,7 @@
     {
       "kind": "terrain",
       "tag": "wall_t",
-      "desc": "wall — top edge",
+      "desc": "wall \u2014 top edge",
       "walkable": false,
       "internal": true,
       "variants": [
@@ -1211,7 +1238,7 @@
     {
       "kind": "terrain",
       "tag": "wall_tr",
-      "desc": "wall — top-right corner",
+      "desc": "wall \u2014 top-right corner",
       "walkable": false,
       "internal": true,
       "variants": [
@@ -1233,7 +1260,7 @@
     {
       "kind": "terrain",
       "tag": "wall_l",
-      "desc": "wall — left edge",
+      "desc": "wall \u2014 left edge",
       "walkable": false,
       "internal": true,
       "variants": [
@@ -1255,7 +1282,7 @@
     {
       "kind": "terrain",
       "tag": "wall_r",
-      "desc": "wall — right edge",
+      "desc": "wall \u2014 right edge",
       "walkable": false,
       "internal": true,
       "variants": [
@@ -1277,7 +1304,7 @@
     {
       "kind": "terrain",
       "tag": "wall_bl",
-      "desc": "wall — bottom-left corner",
+      "desc": "wall \u2014 bottom-left corner",
       "walkable": false,
       "internal": true,
       "variants": [
@@ -1299,7 +1326,7 @@
     {
       "kind": "terrain",
       "tag": "wall_b",
-      "desc": "wall — bottom edge",
+      "desc": "wall \u2014 bottom edge",
       "walkable": false,
       "internal": true,
       "variants": [
@@ -1321,7 +1348,7 @@
     {
       "kind": "terrain",
       "tag": "wall_br",
-      "desc": "wall — bottom-right corner",
+      "desc": "wall \u2014 bottom-right corner",
       "walkable": false,
       "internal": true,
       "variants": [
@@ -2566,7 +2593,7 @@
     {
       "kind": "prop",
       "tag": "brazier",
-      "desc": "a glowing fire / brazier — a light source",
+      "desc": "a glowing fire / brazier \u2014 a light source",
       "art": "/assets/dawnlike/props/brazier.png",
       "frameW": 16,
       "frameH": 16,
@@ -2684,7 +2711,7 @@
     {
       "kind": "prop",
       "tag": "boat",
-      "desc": "a wooden boat / raft — a PLATFORM the party can stand on (floats on water)",
+      "desc": "a wooden boat / raft \u2014 a PLATFORM the party can stand on (floats on water)",
       "art": "/assets/dawnlike/props/boat.png",
       "frameW": 48,
       "frameH": 32,
@@ -3088,7 +3115,7 @@
     {
       "kind": "prop",
       "tag": "candle",
-      "desc": "a single lit candle — a small light source",
+      "desc": "a single lit candle \u2014 a small light source",
       "art": "/assets/dawnlike/props/candle.png",
       "frameW": 16,
       "frameH": 16,
@@ -3122,7 +3149,7 @@
     {
       "kind": "prop",
       "tag": "candelabra_large",
-      "desc": "a many-armed candelabra ablaze with candles — a light source",
+      "desc": "a many-armed candelabra ablaze with candles \u2014 a light source",
       "art": "/assets/dawnlike/props/candelabra_large.png",
       "frameW": 16,
       "frameH": 16,
@@ -3154,7 +3181,7 @@
     {
       "kind": "prop",
       "tag": "torch_wall",
-      "desc": "a wall torch with a cold blue flame — a light source",
+      "desc": "a wall torch with a cold blue flame \u2014 a light source",
       "art": "/assets/dawnlike/props/torch_wall.png",
       "frameW": 16,
       "frameH": 16,
@@ -3876,7 +3903,7 @@
     {
       "kind": "prop",
       "tag": "fountain",
-      "desc": "a stone fountain with water — a town-square centerpiece (2 tiles)",
+      "desc": "a stone fountain with water \u2014 a town-square centerpiece (2 tiles)",
       "art": "/assets/dawnlike/buildings/fountain.png",
       "frameW": 16,
       "frameH": 16,
@@ -4065,7 +4092,7 @@
     {
       "kind": "character",
       "tag": "orc",
-      "desc": "green orc — a monstrous foe",
+      "desc": "green orc \u2014 a monstrous foe",
       "art": "/assets/dawnlike/char/orc.png",
       "frameW": 16,
       "frameH": 16,
@@ -4121,7 +4148,7 @@
     {
       "kind": "character",
       "tag": "skeleton",
-      "desc": "undead skeleton — a monstrous foe",
+      "desc": "undead skeleton \u2014 a monstrous foe",
       "art": "/assets/dawnlike/char/skeleton.png",
       "frameW": 16,
       "frameH": 16,
@@ -4612,7 +4639,7 @@
     {
       "kind": "prop",
       "tag": "platino",
-      "desc": "(bundled DawnLike Platino sprite — license requires it ships)",
+      "desc": "(bundled DawnLike Platino sprite \u2014 license requires it ships)",
       "art": "/assets/dawnlike/char/platino.png",
       "frameW": 16,
       "frameH": 16,

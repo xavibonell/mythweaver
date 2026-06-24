@@ -66,6 +66,10 @@ const model = arg('model');
 const rubricKey = arg('rubric', 'building');
 const RUBRIC = RUBRICS[rubricKey] ?? RUBRICS.building;
 const DIMS = RUBRIC.dimensions;
+// Optional REFERENCE image to compare against: --ref <path>, else auto-use refs/<rubric>.png if present.
+const refDefault = new URL(`../apps/server/src/scene-eval/refs/${rubricKey}.png`, import.meta.url).pathname;
+const refImg = arg('ref') ?? (existsSync(refDefault) ? refDefault : undefined);
+if (refImg) console.log(`${C.dim}comparing against reference: ${refImg}${C.reset}`);
 
 // Direct construction so we can raise retries (the judge isn't latency-sensitive; ride out 429/529).
 const llm = new AnthropicProvider({ retries: 5, timeoutMs: 90_000 });
@@ -74,7 +78,7 @@ console.log(`${C.dim}judging ${img} — ${mode}${repeat > 1 ? ` ×${repeat}` : '
 const runs = [];
 for (let i = 0; i < repeat; i++) {
   if (repeat > 1) process.stdout.write(`${C.dim}  run ${i + 1}/${repeat} …${C.reset}\n`);
-  runs.push(await runVisualJudge(llm, { imagePath: img, subject, tilePx, model, rubric: rubricKey }));
+  runs.push(await runVisualJudge(llm, { imagePath: img, subject, tilePx, model, rubric: rubricKey, refImagePath: refImg }));
 }
 
 // Aggregate dimension scores across runs: mean + spread (max−min, the judge's run-to-run noise).

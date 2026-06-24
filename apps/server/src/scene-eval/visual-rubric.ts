@@ -199,6 +199,18 @@ export const COMPOSITION_LENSES: JudgeLens[] = [
   { key: 'gestalt', focus: 'GREENERY and the WHOLE — is greenery intentional (groves/parks/lining) rather than uniform noise? does the whole read as a believable hand-built town slice, not a procedural fill or one mislabelled building?' },
 ];
 
+/** The TARGET the town composition is measured against — a hand-crafted top-down RPG town (CrossCode /
+ *  Zelda: A Link to the Past style). Baked into the judge prompt so it scores the gap to THIS, not an abstraction. */
+export const TOWN_REFERENCE =
+  'TARGET REFERENCE (what an excellent result looks like — a hand-crafted top-down RPG town, CrossCode / Zelda:LttP style):\n' +
+  '- The world is GRASS. Grey COBBLED-STONE roads are laid ON TOP of the grass (the ground is NOT one big stone slab).\n' +
+  '- Where a stone road meets grass there is an EARTHEN / DIRT rim (a thin brown transition band) — this sells the "stone laid on soil" look.\n' +
+  '- Roads are HOMOGENEOUS clean cobble — one consistent tile, no busy/speckled/blue-tinted patchwork.\n' +
+  '- Large, detailed buildings FRONT the roads (door onto the road), with TREES, fenced GARDENS and flower beds landscaping the grass between and around them.\n' +
+  '- A central plaza holds a WATER feature that reads as a real sunken basin (depth/rim visible), not a flat blue rectangle.\n' +
+  '- The whole reads as a lived-in place with greenery woven through, fading to wooded countryside at the edges.\n' +
+  'Score how close the image is to THIS, and in defects call out SPECIFICALLY where it diverges (e.g. all-stone ground with no grass; speckled/non-homogeneous road tiles; missing dirt rim; a flat water blob; buildings isolated in bare grass; greenery as uniform noise).';
+
 /** A rubric BUNDLE: the dimensions + the lens panel + the calibration list, selectable by key. */
 export interface Rubric {
   key: string;
@@ -206,10 +218,12 @@ export interface Rubric {
   dimensions: readonly { key: string; label: string; desc: string }[];
   lenses: JudgeLens[];
   notDefects: string[];
+  /** Optional explicit target description injected into the prompt (the "compare against this" reference). */
+  reference?: string;
 }
 
 export const BUILDING_RUBRIC: Rubric = { key: 'building', label: 'Building interior', dimensions: VISUAL_RUBRIC, lenses: JUDGE_LENSES, notDefects: NOT_DEFECTS };
-export const TOWN_RUBRIC: Rubric = { key: 'town', label: 'Town composition', dimensions: COMPOSITION_RUBRIC, lenses: COMPOSITION_LENSES, notDefects: COMPOSITION_NOT_DEFECTS };
+export const TOWN_RUBRIC: Rubric = { key: 'town', label: 'Town composition', dimensions: COMPOSITION_RUBRIC, lenses: COMPOSITION_LENSES, notDefects: COMPOSITION_NOT_DEFECTS, reference: TOWN_REFERENCE };
 export const RUBRICS: Record<string, Rubric> = { building: BUILDING_RUBRIC, town: TOWN_RUBRIC };
 
 const SEVERITIES: DefectSeverity[] = ['critical', 'major', 'minor'];
@@ -232,7 +246,7 @@ export function buildVisualJudgePrompt(ctx: VisualJudgeContext, lens: JudgeLens,
 
 Your sharpest focus this pass: ${lens.focus}
 (Still score every dimension and report defects you notice outside that focus too.)
-
+${rubric.reference ? `\n${rubric.reference}\n` : ''}
 Score each dimension 0 (broken) to 5 (excellent). Be critical; reserve 5 for genuinely excellent. Then list EVERY visible defect, each pinned to its UNIT (which building — count left→right, top row first — e.g. "#3") and a coarse REGION within it (nw…se, or "whole"). Use the SAME counting so your locations are comparable. Do not invent defects you cannot actually see; do not soften real ones. Unfinished corners, doors opening onto a wall, and holes in walls without a door are exactly the kind of thing to catch.
 
 These are INTENTIONAL — do NOT report them as defects:

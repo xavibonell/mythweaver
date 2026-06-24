@@ -62,6 +62,8 @@ export interface RunVisualJudgeOptions {
   model?: string;
   /** Which rubric to score against: 'building' (default) or 'town' (settlement composition). */
   rubric?: string;
+  /** Optional REFERENCE image (a known-good target) attached alongside, so the judge compares against it. */
+  refImagePath?: string;
   /** Override the default panel (e.g. a single lens for a cheap smoke test). */
   lenses?: JudgeLens[];
 }
@@ -118,24 +120,17 @@ function sumUsage(results: LensResult[]): LlmUsage {
   );
 }
 
-/** Run one lens: attach the image + the lens prompt, parse the JSON verdict. */
-async function runLens(llm: LlmProvider, dataBase64: string, ctx: VisualJudgeContext, lens: JudgeLens, model: string, rubric: Rubric): Promise<LensResult> {
-  const res = await llm.complete({
-    model,
-    system: JUDGE_SYSTEM,
-    temperature: 0,
-    maxTokens: 3000,
-    cacheSystemPrompt: false,
-    messages: [
-      {
-        role: 'user',
-        content: [
-          { type: 'image', mediaType: 'image/png', dataBase64 },
-          { type: 'text', text: buildVisualJudgePrompt(ctx, lens, rubric) },
-        ],
-      },
-    ],
-  });
+/** Run one lens: attach the image (+ optional reference) + the lens prompt, parse the JSON verdict. */
+async function runLens(llm: LlmProvider, dataBase64: string, ctx: VisualJudgeContext, lens: JudgeLens, model: string, rubric: Rubric, refBase64?: string): Promise<LensResult> {
+  const content: ({ type: 'image'; mediaType: 'image/png'; dataBase64: string } | { type: 'text'; text: string })[] = [];
+  if (refBase64) {
+    content.push({ type: 'text', text: 'REFERENCE IMAGE — a known-good target of the quality to aim for. Compare the rendered scene against it:' });
+    content.push({ type: 'image', mediaType: 'image/png', dataBase64: refBase64 });
+    content.push({ type: 'text', text: 'The image to JUDGE follows:' });
+  }
+  content.push({ type: 'image', mediaType: 'image/png', dataBase64 });
+  content.push({ type: 'text', text: buildVisualJudgePrompt(ctx, lens, rubric) });
+  const res = await llm.complete({ model, system: JUDGE_SYSTEM, temperature: 0, maxTokens: 3000, cacheSystemPrompt: false, messages: [{ role: 'user', content }] });
   return { lens: lens.key, verdict: parseVisualVerdict(res.text, rubric), model: res.model, usage: res.usage };
 }
 
@@ -146,9 +141,10 @@ export async function runVisualJudge(llm: LlmProvider, opts: RunVisualJudgeOptio
   const rubric = (opts.rubric && RUBRICS[opts.rubric]) || BUILDING_RUBRIC;
   const lenses = opts.lenses ?? rubric.lenses;
   const model = opts.model ?? 'claude-opus-4-8';
+  const refBase64 = opts.refImagePath ? (await readFile(opts.refImagePath)).toString('base64') : undefined;
 
   // allSettled, not all: a panel that loses one lens to a transient API error still gives a verdict.
-  const settled = await Promise.allSettled(lenses.map((lens) => runLens(llm, dataBase64, ctx, lens, model, rubric)));
+  const settled = await Promise.allSettled(lenses.map((lens) => runLens(llm, dataBase64, ctx, lens, model, rubric, refBase64)));
   const results = settled.filter((s): s is PromiseFulfilledResult<LensResult> => s.status === 'fulfilled').map((s) => s.value);
   const failed = settled.length - results.length;
   if (!results.length) {
