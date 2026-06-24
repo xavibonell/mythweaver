@@ -85,12 +85,21 @@ export function precinctSquare(cv: Canvas, region: Rect, locationId: string): vo
     for (let r = lot.y; r < lot.y + lot.h; r++) for (let c = lot.x; c < lot.x + lot.w; c++) if (!isGrass(c, r)) return false;
     return true;
   };
-  const frontRoad = (lot: Rect): 'north' | 'south' | 'east' | 'west' | null => {
-    let n = 0, s = 0, e = 0, w = 0;
-    for (let c = lot.x; c < lot.x + lot.w; c++) { if (isRoad(c, lot.y - 1)) n++; if (isRoad(c, lot.y + lot.h)) s++; }
-    for (let r = lot.y; r < lot.y + lot.h; r++) { if (isRoad(lot.x - 1, r)) w++; if (isRoad(lot.x + lot.w, r)) e++; }
-    const best = Math.max(n, s, e, w); if (best === 0) return null;
-    return n === best ? 'north' : s === best ? 'south' : e === best ? 'east' : 'west';
+  // The nearest road within reach (buildings sit SET BACK in green, like the reference, then an entry path bridges
+  // the gap to the street — not flush to the cobble). Returns the side facing the closest road, or null if none near.
+  const nearestRoadDir = (lot: Rect): 'north' | 'south' | 'east' | 'west' | null => {
+    const dist = (side: 'north' | 'south' | 'east' | 'west'): number => {
+      for (let d = 1; d <= 6; d++) {
+        if (side === 'north') { for (let c = lot.x; c < lot.x + lot.w; c++) if (isRoad(c, lot.y - d)) return d; }
+        else if (side === 'south') { for (let c = lot.x; c < lot.x + lot.w; c++) if (isRoad(c, lot.y + lot.h - 1 + d)) return d; }
+        else if (side === 'west') { for (let r = lot.y; r < lot.y + lot.h; r++) if (isRoad(lot.x - d, r)) return d; }
+        else { for (let r = lot.y; r < lot.y + lot.h; r++) if (isRoad(lot.x + lot.w - 1 + d, r)) return d; }
+      }
+      return 99;
+    };
+    const ds: ['north' | 'south' | 'east' | 'west', number][] = [['north', dist('north')], ['south', dist('south')], ['east', dist('east')], ['west', dist('west')]];
+    ds.sort((a, b) => a[1] - b[1]);
+    return ds[0]![1] <= 6 ? ds[0]![0] : null;
   };
   const nearPlaza = Math.max(R.w, R.h) * 0.30;
   const typeFor = (dist: number, dim: number): BuildingType => {
@@ -104,7 +113,7 @@ export function precinctSquare(cv: Canvas, region: Rect, locationId: string): vo
     let dr = door === 'south' ? lot.y + lot.h : door === 'north' ? lot.y - 1 : lot.y + Math.floor(lot.h / 2);
     const dx = door === 'east' ? 1 : door === 'west' ? -1 : 0, dy = door === 'south' ? 1 : door === 'north' ? -1 : 0;
     const px = dy !== 0 ? 1 : 0, py = dx !== 0 ? 1 : 0; // perpendicular → 2-wide
-    for (let k = 0; k < 7; k++) {
+    for (let k = 0; k < 8; k++) {
       if (!cv.inB(dc, dr) || isRoad(dc, dr)) break;
       for (const [wc, wr] of [[dc, dr], [dc + px, dr + py]] as const) {
         const t = cv.tileAt(wc, wr);
@@ -113,22 +122,23 @@ export function precinctSquare(cv: Canvas, region: Rect, locationId: string): vo
       dc += dx; dr += dy;
     }
   };
-  // Pack DENSELY (step 1, no global cap) so buildings ABUT their neighbours and address the street — the reference
-  // is tight terraced frontage, not boxes in moats. Green comes from the COUNTRYSIDE ring the road grid leaves
-  // unbuilt at the edges + the garden parks, not from spacing every building apart.
+  // Place buildings SET BACK in the green near a road, then carve a dirt entry path to the street (the reference
+  // look: houses in greenery, connected by paths — not flush boxes). Capped so green + trees breathe between them.
+  const CAP = Math.round((R.w * R.h) / 360); // ~17 buildings on an 82×74 precinct
   const packPass = (lo: number, hi: number) => {
-    for (let r = R.y + 1; r < R.y + R.h - 1; r += 1) for (let c = R.x + 1; c < R.x + R.w - 1; c += 1) {
+    for (let r = R.y + 1; r < R.y + R.h - 1; r += 2) for (let c = R.x + 1; c < R.x + R.w - 1; c += 2) {
+      if (bi >= CAP) return;
       if (!isGrass(c, r)) continue;
       const w = lo + Math.floor(rng() * (hi - lo + 1)), h = lo + Math.floor(rng() * (hi - lo + 1));
       const lot: Rect = { x: c, y: r, w, h };
       if (!lotGrass(lot)) continue;
-      const door = frontRoad(lot); if (!door) continue; // must address a road — no isolated boxes in grass moats
+      const door = nearestRoadDir(lot); if (!door) continue; // must be able to reach a road (then a path bridges it)
       const dist = Math.hypot(c + w / 2 - cc, r + h / 2 - cr);
       compound(cv, lot, typeFor(dist, Math.max(w, h)), { door, shape: chooseShape(w, h), locationId, id: `bldg:${loc}-${bi++}` });
-      entryPath(lot, door); // a dirt walkway from the door to the street
+      entryPath(lot, door); // a dirt walkway from the door to the street it faces
     }
   };
-  for (const [lo, hi] of [[15, 19], [11, 15], [9, 11]] as const) packPass(lo, hi); // only LARGE buildings (capped) → spaced on grass like the reference, not packed
+  for (const [lo, hi] of [[15, 19], [11, 15], [9, 11]] as const) packPass(lo, hi);
 
   // ── DIRT RIM: a BROKEN earthen border where open cobble meets grass (the reference's thin "stone on soil"
   //    transition — sparse, not a solid orange apron).
@@ -165,20 +175,28 @@ export function precinctSquare(cv: Canvas, region: Rect, locationId: string): vo
   }
   // TREE GROVES: a few SOLID tree masses (trees only — flowers read as speckle) in open grass, leaving bare grass
   // between them. Seeded only where a full grass disc fits, so a grove is a clear clump, never a sprinkle.
-  for (let g = 0; g < 20; g++) {
-    const rad = 2 + Math.floor(rng() * 3);
+  for (let g = 0; g < 16; g++) {
+    const rad = 3 + Math.floor(rng() * 3);
     let gx = 0, gy = 0, ok = false;
     for (let t = 0; t < 50 && !ok; t++) {
       gx = R.x + rad + Math.floor(rng() * (R.w - 2 * rad)); gy = R.y + rad + Math.floor(rng() * (R.h - 2 * rad));
       let g2 = 0;
       for (let r = gy - rad; r <= gy + rad; r++) for (let c = gx - rad; c <= gx + rad; c++) if (isGrass(c, r)) g2++;
-      ok = g2 > rad * rad * 1.6; // more permissive → groves actually fill the countryside ring + gaps
+      ok = g2 > rad * rad * 1.8;
     }
     if (!ok) continue;
+    // SOLID canopy: every grass cell within the disc gets a tree, so adjacent trees merge into a forest mass
+    // (the reference's look with the SAME sprites) instead of dotted singles. Bare grass stays between groves.
     for (let r = gy - rad; r <= gy + rad; r++) for (let c = gx - rad; c <= gx + rad; c++) {
-      if (!isGrass(c, r)) continue;
-      if (rng() < 1.0 - Math.hypot(c - gx, r - gy) * 0.16) prop((['tree_oak', 'tree', 'tree_pine', 'tree_dark'] as const)[Math.floor(rng() * 4)]!, c, r);
+      if (isGrass(c, r) && Math.hypot(c - gx, r - gy) <= rad - 0.3) prop((['tree_oak', 'tree', 'tree_pine', 'tree_dark'] as const)[Math.floor(rng() * 4)]!, c, r);
     }
+  }
+  // FLOWER BEDS: a few clustered patches of flowers in open grass (the reference's flower diamonds), deliberate not scattered.
+  for (let g = 0; g < 6; g++) {
+    let fx = 0, fy = 0, ok = false;
+    for (let t = 0; t < 30 && !ok; t++) { fx = R.x + 2 + Math.floor(rng() * (R.w - 4)); fy = R.y + 2 + Math.floor(rng() * (R.h - 4)); ok = isGrass(fx, fy) && isGrass(fx + 1, fy) && isGrass(fx, fy + 1); }
+    if (!ok) continue;
+    for (let r = fy - 1; r <= fy + 1; r++) for (let c = fx - 1; c <= fx + 1; c++) if (isGrass(c, r) && rng() < 0.7) prop((['flowers', 'flowers_blue', 'flowers_yellow'] as const)[Math.floor(rng() * 3)]!, c, r);
   }
 
   // Safety net: drop any station-keeper compound rarely seated on a wall, so the scene validates.
