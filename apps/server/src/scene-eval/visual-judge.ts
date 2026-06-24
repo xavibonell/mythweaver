@@ -13,10 +13,11 @@ import { readFile } from 'node:fs/promises';
 import type { LlmProvider, LlmUsage } from '@mythweaver/llm';
 import {
   buildVisualJudgePrompt,
-  JUDGE_LENSES,
   parseVisualVerdict,
-  VISUAL_RUBRIC,
+  RUBRICS,
+  BUILDING_RUBRIC,
   type JudgeLens,
+  type Rubric,
   type VisualDefect,
   type VisualJudgeContext,
   type VisualScores,
@@ -42,6 +43,8 @@ export interface MergedDefect extends VisualDefect {
 export interface VisualJudgeReport {
   subject: string;
   imagePath: string;
+  /** Which rubric scored this image ('building' | 'town'). */
+  rubric: string;
   lenses: LensResult[];
   /** Per-dimension median across the lenses. */
   scores: VisualScores;
@@ -57,6 +60,8 @@ export interface RunVisualJudgeOptions {
   subject: string;
   tilePx?: number;
   model?: string;
+  /** Which rubric to score against: 'building' (default) or 'town' (settlement composition). */
+  rubric?: string;
   /** Override the default panel (e.g. a single lens for a cheap smoke test). */
   lenses?: JudgeLens[];
 }
@@ -114,7 +119,7 @@ function sumUsage(results: LensResult[]): LlmUsage {
 }
 
 /** Run one lens: attach the image + the lens prompt, parse the JSON verdict. */
-async function runLens(llm: LlmProvider, dataBase64: string, ctx: VisualJudgeContext, lens: JudgeLens, model: string): Promise<LensResult> {
+async function runLens(llm: LlmProvider, dataBase64: string, ctx: VisualJudgeContext, lens: JudgeLens, model: string, rubric: Rubric): Promise<LensResult> {
   const res = await llm.complete({
     model,
     system: JUDGE_SYSTEM,
@@ -126,23 +131,24 @@ async function runLens(llm: LlmProvider, dataBase64: string, ctx: VisualJudgeCon
         role: 'user',
         content: [
           { type: 'image', mediaType: 'image/png', dataBase64 },
-          { type: 'text', text: buildVisualJudgePrompt(ctx, lens) },
+          { type: 'text', text: buildVisualJudgePrompt(ctx, lens, rubric) },
         ],
       },
     ],
   });
-  return { lens: lens.key, verdict: parseVisualVerdict(res.text), model: res.model, usage: res.usage };
+  return { lens: lens.key, verdict: parseVisualVerdict(res.text, rubric), model: res.model, usage: res.usage };
 }
 
 export async function runVisualJudge(llm: LlmProvider, opts: RunVisualJudgeOptions): Promise<VisualJudgeReport> {
   const bytes = await readFile(opts.imagePath);
   const dataBase64 = bytes.toString('base64');
   const ctx: VisualJudgeContext = { subject: opts.subject, tilePx: opts.tilePx ?? 16 };
-  const lenses = opts.lenses ?? JUDGE_LENSES;
+  const rubric = (opts.rubric && RUBRICS[opts.rubric]) || BUILDING_RUBRIC;
+  const lenses = opts.lenses ?? rubric.lenses;
   const model = opts.model ?? 'claude-opus-4-8';
 
   // allSettled, not all: a panel that loses one lens to a transient API error still gives a verdict.
-  const settled = await Promise.allSettled(lenses.map((lens) => runLens(llm, dataBase64, ctx, lens, model)));
+  const settled = await Promise.allSettled(lenses.map((lens) => runLens(llm, dataBase64, ctx, lens, model, rubric)));
   const results = settled.filter((s): s is PromiseFulfilledResult<LensResult> => s.status === 'fulfilled').map((s) => s.value);
   const failed = settled.length - results.length;
   if (!results.length) {
@@ -152,8 +158,8 @@ export async function runVisualJudge(llm: LlmProvider, opts: RunVisualJudgeOptio
   if (failed) console.warn(`visual judge: ${failed}/${settled.length} lens(es) failed; reporting from the ${results.length} that succeeded`);
 
   const scores = {} as VisualScores;
-  for (const d of VISUAL_RUBRIC) scores[d.key] = median(results.map((r) => r.verdict.scores[d.key]));
-  const meanScore = Math.round((VISUAL_RUBRIC.reduce((s, d) => s + scores[d.key], 0) / VISUAL_RUBRIC.length) * 100) / 100;
+  for (const d of rubric.dimensions) scores[d.key] = median(results.map((r) => r.verdict.scores[d.key]!));
+  const meanScore = Math.round((rubric.dimensions.reduce((s, d) => s + scores[d.key]!, 0) / rubric.dimensions.length) * 100) / 100;
 
-  return { subject: opts.subject, imagePath: opts.imagePath, lenses: results, scores, meanScore, defects: mergeDefects(results), usage: sumUsage(results) };
+  return { subject: opts.subject, imagePath: opts.imagePath, rubric: rubric.key, lenses: results, scores, meanScore, defects: mergeDefects(results), usage: sumUsage(results) };
 }

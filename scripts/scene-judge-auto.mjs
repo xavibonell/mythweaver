@@ -45,7 +45,14 @@ for (let i = 2; i < process.argv.length; i++) {
   passthrough.push(a);
 }
 if (!passthrough.includes('--name')) passthrough.push('--name', name);
+// Auto-select the rubric by kind: settlement compositions get the town rubric, single buildings the building one.
+if (!passthrough.includes('--rubric')) {
+  const isTown = /precinct|town|village|city/.test(kind);
+  passthrough.push('--rubric', isTown ? 'town' : 'building');
+}
 if (!passthrough.includes('--subject') && !passthrough.includes('--gate') && !passthrough.includes('--baseline'))
-  passthrough.push('--subject', `a rendered top-down RPG scene "${kind}" (seed ${seed})`);
+  passthrough.push('--subject', /precinct|town|village|city/.test(kind)
+    ? `a rendered top-down slice of a town/settlement ("${kind}", seed ${seed})`
+    : `a rendered top-down RPG scene "${kind}" (seed ${seed})`);
 const res = spawnSync('node', [new URL('./visual-judge.mjs', import.meta.url).pathname, ...passthrough], { stdio: 'inherit' });
 process.exit(res.status ?? 0);

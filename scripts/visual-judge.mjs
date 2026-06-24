@@ -24,7 +24,7 @@ try {
 const { AnthropicProvider } = await import('@mythweaver/llm');
 const { runVisualJudge } = await import('../apps/server/dist/scene-eval/visual-judge.js');
 const { capturePath } = await import('../apps/server/dist/scene-eval/capture.js');
-const { VISUAL_RUBRIC } = await import('../apps/server/dist/scene-eval/visual-rubric.js');
+const { RUBRICS } = await import('../apps/server/dist/scene-eval/visual-rubric.js');
 
 const arg = (name, fallback) => {
   const i = process.argv.indexOf(`--${name}`);
@@ -63,6 +63,9 @@ if ((mode === 'gate' || mode === 'baseline') && !name) {
 const subject = arg('subject') ?? (name ? `a rendered scene "${name}"` : 'a rendered top-down RPG scene');
 const tilePx = Number(arg('tile', '16'));
 const model = arg('model');
+const rubricKey = arg('rubric', 'building');
+const RUBRIC = RUBRICS[rubricKey] ?? RUBRICS.building;
+const DIMS = RUBRIC.dimensions;
 
 // Direct construction so we can raise retries (the judge isn't latency-sensitive; ride out 429/529).
 const llm = new AnthropicProvider({ retries: 5, timeoutMs: 90_000 });
@@ -71,12 +74,12 @@ console.log(`${C.dim}judging ${img} — ${mode}${repeat > 1 ? ` ×${repeat}` : '
 const runs = [];
 for (let i = 0; i < repeat; i++) {
   if (repeat > 1) process.stdout.write(`${C.dim}  run ${i + 1}/${repeat} …${C.reset}\n`);
-  runs.push(await runVisualJudge(llm, { imagePath: img, subject, tilePx, model }));
+  runs.push(await runVisualJudge(llm, { imagePath: img, subject, tilePx, model, rubric: rubricKey }));
 }
 
 // Aggregate dimension scores across runs: mean + spread (max−min, the judge's run-to-run noise).
 const dimMean = {}, dimSpread = {};
-for (const d of VISUAL_RUBRIC) {
+for (const d of DIMS) {
   const xs = runs.map((r) => r.scores[d.key]);
   dimMean[d.key] = mean(xs);
   dimSpread[d.key] = Math.max(...xs) - Math.min(...xs);
@@ -88,7 +91,7 @@ const last = runs[runs.length - 1];
 console.log(`\n${C.bold}VISUAL JUDGE${C.reset} — ${last.subject}`);
 console.log(`${C.dim}${last.imagePath} · panel: ${last.lenses.map((l) => l.lens).join(', ')} · model: ${last.lenses[0]?.model ?? '?'}${repeat > 1 ? ` · ${repeat} runs` : ''}${C.reset}\n`);
 console.log(`${C.bold}Scores (0–5)${C.reset}              ${C.dim}${repeat > 1 ? 'mean  spread' : 'median'}${C.reset}`);
-for (const d of VISUAL_RUBRIC) {
+for (const d of DIMS) {
   const m = dimMean[d.key];
   const spread = repeat > 1 ? `  ${C.dim}±${dimSpread[d.key]}${C.reset}` : '';
   console.log(`  ${d.label.padEnd(24)} ${bar(m)} ${m}${spread}`);
@@ -129,7 +132,7 @@ if (mode === 'gate') {
   }
   console.log(`\n${C.bold}Regression gate${C.reset} ${C.dim}(baseline pinned ${base.updatedAt})${C.reset}`);
   let failed = false;
-  for (const d of VISUAL_RUBRIC) {
+  for (const d of DIMS) {
     const cur = dimMean[d.key], baseVal = base.scores[d.key] ?? 0;
     // A regression must exceed the judge's own noise (baseline spread) plus a margin.
     const margin = Math.max(0.6, (base.spread?.[d.key] ?? 0) + 0.3);
