@@ -148,7 +148,7 @@ function specFor(kind: string): CellSpec {
     }
     case 'precinct':
       // The CENTRAL SQUARE precinct — the pattern-vault prototype. A big cell so the packed belt + parks fit.
-      return { cw: 48, ch: 42, render: (cv, rect, i) => precinctSquare(cv, rect, `loc:lab-precinct-${i}`) };
+      return { cw: 58, ch: 50, render: (cv, rect, i) => precinctSquare(cv, rect, `loc:lab-precinct-${i}`) };
     default:
       return { cw: 16, ch: 14, render: (cv, rect, i) => { void i; building(cv, { x: rect.x + 1, y: rect.y + 1, w: rect.w - 2, h: rect.h - 2 }, 'house', { door: 'south', id: 'bldg:fallback' }); } };
   }

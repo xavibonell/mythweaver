@@ -203,6 +203,7 @@ export default function SceneCanvas({ data, freeCamera = false, fitNonce = 0 }: 
         backgroundColor: '#0d0b0a',
         pixelArt: true,
         roundPixels: true,
+        render: { preserveDrawingBuffer: true }, // keep the WebGL buffer so canvas.toDataURL() captures real pixels (visual-judge pipeline)
         loader: { maxParallelDownloads: 256 }, // load all tiles in one batch (Phaser refill stalls otherwise)
         scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
         scene: {
@@ -245,6 +246,10 @@ export default function SceneCanvas({ data, freeCamera = false, fitNonce = 0 }: 
           },
         },
       });
+      // Expose a real pixel capture for the visual-judge pipeline. Phaser's renderer.snapshot() reads the
+      // framebuffer reliably (canvas.toDataURL() returns black on the WebGL canvas), giving the PNG the judge scores.
+      (window as unknown as { __captureScene?: () => Promise<string> }).__captureScene = () =>
+        new Promise((resolve) => { const g = bridge.game; if (!g) return resolve(''); g.renderer.snapshot((img: HTMLImageElement) => resolve(img.src)); });
     })();
     return () => {
       cancelled = true;
