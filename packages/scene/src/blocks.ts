@@ -39,10 +39,10 @@ export function blockCottage(cv: Canvas, region: Rect, locationId: string, type:
 
   fill(cv, R, 'grass', true);
 
-  // STREET along the south edge (the stitcher aligns these into one road) + a broken earthen rim.
+  // STREET along the south edge (the stitcher aligns these into one road) + a thin broken earthen rim.
   const roadY = R.y + R.h - 2;
   carve(R.x, roadY, R.w, 2, 'road', true);
-  for (let c = R.x; c < R.x + R.w; c++) if (isGrass(c, roadY - 1) && rng() < 0.7) carve(c, roadY - 1, 1, 1, 'dirt', true);
+  for (let c = R.x; c < R.x + R.w; c++) if (isGrass(c, roadY - 1) && rng() < 0.4) carve(c, roadY - 1, 1, 1, 'dirt', true);
 
   // COTTAGE: set back, upper-centre, door to the street. Size + silhouette VARY per block (a manor fills its plot,
   // a cottage leaves a big garden) so a street of blocks reads varied, not a grid of clones.
@@ -53,11 +53,13 @@ export function blockCottage(cv: Canvas, region: Rect, locationId: string, type:
   compound(cv, { x: hx, y: hy, w: hw, h: hh }, type, { door: 'south', shape: pickShape(rng, hw, hh), locationId, id: `bldg:${loc}-0` });
   const doorC = hx + Math.floor(hw / 2);
 
-  // ENTRY PATH: a clear 3-wide dirt walkway joining the door to the street.
-  for (let r = hy + hh; r < roadY; r++) for (const pc of [doorC - 1, doorC, doorC + 1]) { const t = cv.tileAt(pc, r); if (t === 'grass' || t === 'dirt') carve(pc, r, 1, 1, 'dirt', true); }
+  // ENTRY PATH: a clear DIRT walkway — a small apron at the door, then a 2-wide path to the street, surrounded by
+  // grass so it reads as a deliberate custom path (not a dirt blob blending into the yard).
+  carve(doorC - 2, hy + hh, 5, 2, 'dirt', true);                                            // door apron
+  for (let r = hy + hh + 2; r <= roadY; r++) for (const pc of [doorC - 1, doorC]) if (cv.tileAt(pc, r) === 'grass') carve(pc, r, 1, 1, 'dirt', true);
 
-  // FRONT GARDEN (left of the path): a fenced flower plot with a tree + a gardener.
-  const gx = R.x + 1, gy = hy + hh + 1, gw = doorC - 2 - (R.x + 1), gh = roadY - 1 - gy;
+  // FRONT GARDEN (left of the path): a fenced flower plot + a tree + a gardener.
+  const gx = R.x + 1, gy = hy + hh + 1, gw = doorC - 3 - (R.x + 1), gh = roadY - 1 - gy;
   if (gw >= 3 && gh >= 3) {
     for (let r = gy; r < gy + gh; r++) { prop('fence', gx, r); prop('fence', gx + gw - 1, r); }
     for (let c = gx; c < gx + gw; c++) prop('fence', c, gy + gh - 1);
@@ -65,16 +67,15 @@ export function blockCottage(cv: Canvas, region: Rect, locationId: string, type:
     prop(TREE, gx + 1, gy + 1);
     actor('villager_woman', gx + gw - 2, gy + 1);
   }
-  // RIGHT of the path: homestead props + a roadside bench + a signpost.
-  prop('barrel', doorC + 2, hy + hh + 1);
+  // RIGHT YARD: a graceful ORCHARD — one tree type on a loose even lattice (not a dense random clump) + a bench.
+  for (let r = hy + hh + 1; r < roadY - 1; r++) for (let c = doorC + 3; c < R.x + R.w - 1; c++) if (isGrass(c, r) && (c - R.x) % 2 === 0 && (r - R.y) % 2 === 0) prop(TREE, c, r);
   prop('stone_bench', doorC + 2, roadY - 2);
   prop('signpost', doorC + 2, roadY - 1);
 
-  // A couple of backyard trees behind the house (one type) — NOT a hedge on every edge (that reads as uniform
-  // scatter town-wide); the concentrated greenery is the forest surround the stitcher adds.
+  // BEHIND the house: a couple of trees + a hen; a dog by the path.
   prop(TREE, R.x + 1, R.y); prop(TREE, R.x + R.w - 2, R.y);
-  actor('chicken', doorC + 3, hy + hh + 2);
-  actor('dog', gx + 1, gy + gh);
+  actor('chicken', R.x + 2, R.y + 1);
+  actor('dog', doorC + 2, roadY - 2);
 
   // Safety: drop any keeper compound seated on a wall, so the scene validates.
   for (let i = cv.objects.length - 1; i >= 0; i--) { const o = cv.objects[i]!; if (o.kind === 'actor' && !(cv.inB(o.col, o.row) && cv.walkable[o.row]![o.col])) cv.objects.splice(i, 1); }
