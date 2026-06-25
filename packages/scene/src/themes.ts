@@ -17,12 +17,12 @@ export interface Theme {
 }
 
 export const THEMES: Record<string, Theme> = {
-  village: { ground: 'grass', path: 'dirt', plaza: 'stone', wallMat: 'wood' },
+  village: { ground: 'grass', path: 'dirt', plaza: 'road', wallMat: 'wood' }, // plaza = the unified cobble (road)
   forest: { ground: 'grass', path: 'dirt', plaza: 'grass', wallMat: 'wood' },
   swamp: { ground: 'grass', path: 'dirt', plaza: 'dirt', wallMat: 'wood' },
   dungeon: { ground: 'stone', path: 'stone', plaza: 'flagstone', wallMat: 'stone' },
   crypt: { ground: 'stone_brick', path: 'stone', plaza: 'flagstone', wallMat: 'stone' },
-  cave: { ground: 'dirt', path: 'dirt', plaza: 'stone', wallMat: 'stone' },
+  cave: { ground: 'dirt', path: 'dirt', plaza: 'road', wallMat: 'stone' }, // outdoor-ish square → unified cobble
   desert: { ground: 'sand', path: 'dirt', plaza: 'sand', wallMat: 'stone' },
   lava: { ground: 'stone_brick', path: 'stone', plaza: 'flagstone', wallMat: 'stone' },
 };

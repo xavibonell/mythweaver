@@ -103,7 +103,7 @@ function specFor(kind: string): CellSpec {
         cw: 13, ch: 11,
         render: (cv, rect, i) => {
           const pr: Rect = { x: rect.x + 1, y: rect.y + 1, w: rect.w - 2, h: rect.h - 2 };
-          plaza(cv, pr, 'stone');
+          plaza(cv, pr, 'road');
           vignette(cv, { c: rect.x + Math.floor(rect.w / 2), r: rect.y + Math.floor(rect.h / 2) }, i % 2 ? 'market' : 'well', `plaza${i}`);
           place(cv, { id: `prop:bench${i}a`, tag: 'stone_bench', kind: 'prop', at: { c: pr.x + 1, r: pr.y + 1 } });
           place(cv, { id: `prop:bench${i}b`, tag: 'stone_bench', kind: 'prop', at: { c: pr.x + pr.w - 2, r: pr.y + pr.h - 2 } });
@@ -113,11 +113,11 @@ function specFor(kind: string): CellSpec {
       return {
         cw: 16, ch: 14,
         render: (cv, rect, i) => {
-          fill(cv, { x: rect.x, y: rect.y + Math.floor(rect.h / 2) - 1, w: rect.w, h: 2 }, 'cobblestone', true); // cobble artery
+          fill(cv, { x: rect.x, y: rect.y + Math.floor(rect.h / 2) - 1, w: rect.w, h: 2 }, 'road', true); // cobble artery
           fill(cv, { x: rect.x + Math.floor(rect.w / 2), y: rect.y, w: 1, h: rect.h }, 'dirt', true); // dirt alley
           poissonScatter(cv, rect, { tags: ['tree', 'bush'], r: 3, blocks: true, filter: (c, r) => onGrass(cv, c, r) });
           clumpScatter(cv, rect, { tags: ['flowers', 'grass_tuft'], freq: 0.2, threshold: 0.5, seedOffset: 0x33 + i, blocks: false, filter: (c, r) => onGrass(cv, c, r) });
-          poissonScatter(cv, rect, { tags: ['signpost', 'fence', 'barrel', 'crate'], r: 4, blocks: true, max: 4, filter: (c, r) => onGrass(cv, c, r) && nearTile(cv, c, r, 'cobblestone') });
+          poissonScatter(cv, rect, { tags: ['signpost', 'fence', 'barrel', 'crate'], r: 4, blocks: true, max: 4, filter: (c, r) => onGrass(cv, c, r) && nearTile(cv, c, r, 'road') });
         },
       };
     case 'clearing':

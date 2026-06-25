@@ -61,7 +61,7 @@ function townGen(cv: Canvas, ctx: GenContext): void {
   const { theme, contents, locationId } = ctx;
   const B = ctx.bounds;
   const path = theme.path, ground = theme.ground;
-  const ARTERY = 'cobblestone'; // main streets are paved cobble; narrow alleys stay dirt (theme.path)
+  const ARTERY = 'road'; // main streets are paved cobble (the unified `road` cobble + curb autotile); alleys stay dirt
 
   // STAGE 0 — BOUNDARY. Ground the whole bounds, then work inside an IRREGULARLY inset interior (a
   // per-edge jittered margin) so the town is not a full rectangle. A wall ring (if asked) takes the rim.
