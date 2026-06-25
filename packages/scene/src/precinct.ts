@@ -39,7 +39,7 @@ export function precinctSquare(cv: Canvas, region: Rect, locationId: string): vo
   // ── COBBLED ROAD GRID (straight, homogeneous) laid on the grass. Two verticals + two horizontals (jittered,
   //    uneven spacing) bound a central plaza block; all four run off-frame like real streets.
   const jit = () => Math.floor((rng() - 0.5) * 5);
-  const RW = 2; // thinner roads — the reference is a GRASS world with cobble laid on top, not a stone slab
+  const RW = 3; // 3-wide so a road has a brick interior + lined curbs (a 2-wide road is all-edge → all lined)
   const vx1 = R.x + Math.floor(R.w * 0.30) + jit(), vx2 = R.x + Math.floor(R.w * 0.64) + jit();
   const hy1 = R.y + Math.floor(R.h * 0.30) + jit(), hy2 = R.y + Math.floor(R.h * 0.64) + jit();
   carve(vx1, R.y, RW, R.h, PAVE); carve(vx2, R.y, RW, R.h, PAVE);

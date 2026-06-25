@@ -241,8 +241,8 @@ export function makeRng(seed: number): () => number {
  *  only insofar as *_edge tags aren't EDGED — so re-baking a stitched grid needs base tags (see
  *  city.ts, which strips suffixes before calling this). */
 export function bakeAutoTiles(tiles: string[][], cols: number, rows: number): void {
-  const FAMILY: Record<string, string> = { grass: 'grass', water: 'water', water_deep: 'water', lava: 'lava' };
-  const EDGED = new Set(['grass', 'water', 'water_deep', 'lava']);
+  const FAMILY: Record<string, string> = { grass: 'grass', water: 'water', water_deep: 'water', lava: 'lava', road: 'road' };
+  const EDGED = new Set(['grass', 'water', 'water_deep', 'lava', 'road']); // road too → brick interior, lined-brick border tiles only at the limits
   const orig = tiles.map((row) => row.slice());
   const famOf = (t: string) => FAMILY[t] ?? t;
   const sameFam = (c: number, r: number, f: string) => c < 0 || r < 0 || c >= cols || r >= rows || famOf(orig[r]![c]!) === f;

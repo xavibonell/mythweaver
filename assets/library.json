@@ -363,6 +363,190 @@
     },
     {
       "kind": "terrain",
+      "tag": "road_t",
+      "desc": "cobbled-road border (lined grey brick) \u2014 only at the limits of a paved area",
+      "walkable": true,
+      "variants": [
+        {
+          "art": "/assets/dawnlike/terrain/stone0.png",
+          "from": {
+            "pack": "DawnLike",
+            "crop": "Objects/Floor.png",
+            "rect": [
+              32,
+              112,
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "road_b",
+      "desc": "cobbled-road border (lined grey brick) \u2014 only at the limits of a paved area",
+      "walkable": true,
+      "variants": [
+        {
+          "art": "/assets/dawnlike/terrain/stone0.png",
+          "from": {
+            "pack": "DawnLike",
+            "crop": "Objects/Floor.png",
+            "rect": [
+              32,
+              112,
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "road_l",
+      "desc": "cobbled-road border (lined grey brick) \u2014 only at the limits of a paved area",
+      "walkable": true,
+      "variants": [
+        {
+          "art": "/assets/dawnlike/terrain/stone0.png",
+          "from": {
+            "pack": "DawnLike",
+            "crop": "Objects/Floor.png",
+            "rect": [
+              32,
+              112,
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "road_r",
+      "desc": "cobbled-road border (lined grey brick) \u2014 only at the limits of a paved area",
+      "walkable": true,
+      "variants": [
+        {
+          "art": "/assets/dawnlike/terrain/stone0.png",
+          "from": {
+            "pack": "DawnLike",
+            "crop": "Objects/Floor.png",
+            "rect": [
+              32,
+              112,
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "road_tl",
+      "desc": "cobbled-road border (lined grey brick) \u2014 only at the limits of a paved area",
+      "walkable": true,
+      "variants": [
+        {
+          "art": "/assets/dawnlike/terrain/stone0.png",
+          "from": {
+            "pack": "DawnLike",
+            "crop": "Objects/Floor.png",
+            "rect": [
+              32,
+              112,
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "road_tr",
+      "desc": "cobbled-road border (lined grey brick) \u2014 only at the limits of a paved area",
+      "walkable": true,
+      "variants": [
+        {
+          "art": "/assets/dawnlike/terrain/stone0.png",
+          "from": {
+            "pack": "DawnLike",
+            "crop": "Objects/Floor.png",
+            "rect": [
+              32,
+              112,
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "road_bl",
+      "desc": "cobbled-road border (lined grey brick) \u2014 only at the limits of a paved area",
+      "walkable": true,
+      "variants": [
+        {
+          "art": "/assets/dawnlike/terrain/stone0.png",
+          "from": {
+            "pack": "DawnLike",
+            "crop": "Objects/Floor.png",
+            "rect": [
+              32,
+              112,
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "road_br",
+      "desc": "cobbled-road border (lined grey brick) \u2014 only at the limits of a paved area",
+      "walkable": true,
+      "variants": [
+        {
+          "art": "/assets/dawnlike/terrain/stone0.png",
+          "from": {
+            "pack": "DawnLike",
+            "crop": "Objects/Floor.png",
+            "rect": [
+              32,
+              112,
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0)"
+    },
+    {
+      "kind": "terrain",
       "tag": "lava",
       "desc": "molten lava \u2014 a glowing hazard, IMPASSABLE",
       "walkable": false,

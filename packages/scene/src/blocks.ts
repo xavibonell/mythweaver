@@ -39,9 +39,9 @@ export function blockCottage(cv: Canvas, region: Rect, locationId: string, type:
 
   fill(cv, R, 'grass', true);
 
-  // STREET along the south edge (the stitcher aligns these into one road) + a thin broken earthen rim.
-  const roadY = R.y + R.h - 2;
-  carve(R.x, roadY, R.w, 2, 'road', true);
+  // STREET along the south edge (3-wide so it gets a brick interior + lined curbs) + a thin broken earthen rim.
+  const roadY = R.y + R.h - 3;
+  carve(R.x, roadY, R.w, 3, 'road', true);
   for (let c = R.x; c < R.x + R.w; c++) if (isGrass(c, roadY - 1) && rng() < 0.4) carve(c, roadY - 1, 1, 1, 'dirt', true);
 
   // COTTAGE: set back, upper-centre, door to the street. Size + silhouette VARY per block (a manor fills its plot,
@@ -126,14 +126,14 @@ export function blockTown(cv: Canvas, region: Rect, locationId: string): void {
   const midx = Math.floor(cols / 2), midy = Math.floor(rows / 2);
   let i = 0;
   for (let gy = 0; gy < rows; gy++) for (let gx = 0; gx < cols; gx++) {
-    const x = ox + gx * BW, y = oy + gy * BH, plot: Rect = { x, y, w: BW - 2, h: BH };
+    const x = ox + gx * BW, y = oy + gy * BH, plot: Rect = { x, y, w: BW - 3, h: BH };
     // pass a VALID "loc:<slug>" id through (building entrances copy it; a bare slug fails validation)
     const id = `loc:${loc}-${gx}-${gy}`;
     if (gx === midx && gy === midy) blockPlaza(cv, plot, `loc:${loc}-plaza`);             // civic centre
     else blockCottage(cv, plot, id, BLOCK_TYPES[i++ % BLOCK_TYPES.length]!);
   }
   // VERTICAL streets in the 2-wide gaps between block columns (the blocks' south edges give the horizontal streets).
-  for (let gx = 1; gx < cols; gx++) fill(cv, { x: ox + gx * BW - 2, y: oy, w: 2, h: gridH }, 'road', true);
+  for (let gx = 1; gx < cols; gx++) fill(cv, { x: ox + gx * BW - 3, y: oy, w: 3, h: gridH }, 'road', true);
 
   // COUNTRYSIDE FOREST: a dense ONE-type tree mass filling the grass that SURROUNDS the town — concentrated,
   // intentional green (a town in a forest clearing), not a uniform sprinkle across the built area.
