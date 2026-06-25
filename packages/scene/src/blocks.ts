@@ -50,13 +50,17 @@ export function blockCottage(cv: Canvas, region: Rect, locationId: string, type:
   const hw = Math.max(7, Math.min(Math.round((R.w - 3) * scale), R.w - 3));
   const hh = Math.max(6, Math.min(Math.round((R.h - 7) * scale), R.h - 6));
   const hx = R.x + Math.floor((R.w - hw) / 2), hy = R.y + 2;
+  const ambBefore = cv.ambiance.length;
   compound(cv, { x: hx, y: hy, w: hw, h: hh }, type, { door: 'south', shape: pickShape(rng, hw, hh), locationId, id: `bldg:${loc}-0` });
-  const doorC = hx + Math.floor(hw / 2);
 
-  // ENTRY PATH: a clear DIRT walkway — a small apron at the door, then a 2-wide path to the street, surrounded by
-  // grass so it reads as a deliberate custom path (not a dirt blob blending into the yard).
-  carve(doorC - 2, hy + hh, 5, 2, 'dirt', true);                                            // door apron
-  for (let r = hy + hh + 2; r <= roadY; r++) for (const pc of [doorC - 1, doorC]) if (cv.tileAt(pc, r) === 'grass') carve(pc, r, 1, 1, 'dirt', true);
+  // ENTRY PATH: anchor it to the ACTUAL doorway compound placed (a shaped building puts the door off-centre, so a
+  // path at the geometric centre would miss it and read as an unframed wall gap). compound pushes a `door_house`
+  // sprite at the door — find it, then run a clean 2-wide dirt walkway (with a 3-wide apron) from it to the street.
+  const door = cv.ambiance.slice(ambBefore).find((a) => a.tag === 'door_house');
+  const doorC = door ? door.col : hx + Math.floor(hw / 2);
+  const doorR = door ? door.row : hy + hh - 1;
+  carve(doorC - 1, doorR + 1, 3, 1, 'dirt', true);                                          // a small apron right at the door
+  for (let r = doorR + 2; r <= roadY; r++) for (const pc of [doorC - 1, doorC]) if (cv.tileAt(pc, r) === 'grass') carve(pc, r, 1, 1, 'dirt', true);
 
   // FRONT GARDEN (left of the path): a fenced flower plot + a tree + a gardener.
   const gx = R.x + 1, gy = hy + hh + 1, gw = doorC - 3 - (R.x + 1), gh = roadY - 1 - gy;
