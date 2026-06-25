@@ -140,14 +140,8 @@ export function precinctSquare(cv: Canvas, region: Rect, locationId: string): vo
   };
   for (const [lo, hi] of [[15, 19], [11, 15], [9, 11]] as const) packPass(lo, hi);
 
-  // ── DIRT RIM: a BROKEN earthen border where open cobble meets grass (the reference's thin "stone on soil"
-  //    transition — sparse, not a solid orange apron).
-  const rim: [number, number][] = [];
-  for (let r = R.y; r < R.y + R.h; r++) for (let c = R.x; c < R.x + R.w; c++) {
-    if (cv.tileAt(c, r) !== 'grass') continue;
-    if (isRoad(c - 1, r) || isRoad(c + 1, r) || isRoad(c, r - 1) || isRoad(c, r + 1)) rim.push([c, r]);
-  }
-  for (const [c, r] of rim) if (rng() < 0.6) carve(c, r, 1, 1, DIRT, true);
+  // (No dirt rim around roads — it fragmented the paving: it made interior cells "border dirt" and turn into the
+  // lined border tile. The cobble now meets grass directly, and the autotiler frames that edge with the lined rim.)
 
   // ── LANDSCAPE the grass: fenced garden parks fronting the roads + tree groves; the edges go wooded countryside.
   const gardens: Rect[] = [];

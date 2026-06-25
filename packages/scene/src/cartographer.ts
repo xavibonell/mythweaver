@@ -242,16 +242,22 @@ export function makeRng(seed: number): () => number {
  *  city.ts, which strips suffixes before calling this). */
 export function bakeAutoTiles(tiles: string[][], cols: number, rows: number): void {
   const FAMILY: Record<string, string> = { grass: 'grass', water: 'water', water_deep: 'water', lava: 'lava', road: 'road' };
-  const EDGED = new Set(['grass', 'water', 'water_deep', 'lava', 'road']); // road too → brick interior, lined-brick border tiles only at the limits
+  const EDGED = new Set(['grass', 'water', 'water_deep', 'lava', 'road']);
   const orig = tiles.map((row) => row.slice());
   const famOf = (t: string) => FAMILY[t] ?? t;
   const sameFam = (c: number, r: number, f: string) => c < 0 || r < 0 || c >= cols || r >= rows || famOf(orig[r]![c]!) === f;
+  // A road is a UNIFIED brick body with a lined rim ONLY where it meets open GRASS — NOT at internal junctions
+  // (against building walls, dirt paths, the basin lip, off-grid). Those keep the brick body, so the lines never
+  // invade the interior. grass/water still fringe against any different family.
+  const grassN = (c: number, r: number) => c >= 0 && r >= 0 && c < cols && r < rows && orig[r]![c] === 'grass';
   for (let r = 0; r < rows; r++)
     for (let c = 0; c < cols; c++) {
       const base = orig[r]![c]!;
       if (!EDGED.has(base)) continue;
       const f = famOf(base);
-      const suf = edgeSuffix(!sameFam(c, r - 1, f), !sameFam(c + 1, r, f), !sameFam(c, r + 1, f), !sameFam(c - 1, r, f));
+      const suf = base === 'road'
+        ? edgeSuffix(grassN(c, r - 1), grassN(c + 1, r), grassN(c, r + 1), grassN(c - 1, r)) // rim only against grass
+        : edgeSuffix(!sameFam(c, r - 1, f), !sameFam(c + 1, r, f), !sameFam(c, r + 1, f), !sameFam(c - 1, r, f));
       if (suf) tiles[r]![c] = `${base}${suf}`;
     }
 }

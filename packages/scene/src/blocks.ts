@@ -39,10 +39,10 @@ export function blockCottage(cv: Canvas, region: Rect, locationId: string, type:
 
   fill(cv, R, 'grass', true);
 
-  // STREET along the south edge (3-wide so it gets a brick interior + lined curbs) + a thin broken earthen rim.
+  // STREET along the south edge (3-wide so it gets a brick interior + lined curbs). No dirt rim — the cobble meets
+  // grass directly and the autotiler frames that edge with the lined border tile.
   const roadY = R.y + R.h - 3;
   carve(R.x, roadY, R.w, 3, 'road', true);
-  for (let c = R.x; c < R.x + R.w; c++) if (isGrass(c, roadY - 1) && rng() < 0.4) carve(c, roadY - 1, 1, 1, 'dirt', true);
 
   // COTTAGE: set back, upper-centre, door to the street. Size + silhouette VARY per block (a manor fills its plot,
   // a cottage leaves a big garden) so a street of blocks reads varied, not a grid of clones.
