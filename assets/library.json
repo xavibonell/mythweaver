@@ -345,17 +345,7 @@
       ],
       "variants": [
         {
-          "art": "/assets/dawnlike/terrain/stone2.png",
-          "from": {
-            "pack": "DawnLike",
-            "crop": "Objects/Floor.png",
-            "rect": [
-              80,
-              112,
-              16,
-              16
-            ]
-          }
+          "art": "/assets/dawnlike/terrain/cobble.png"
         }
       ],
       "license": "CC-BY-4.0",
@@ -368,17 +358,7 @@
       "walkable": true,
       "variants": [
         {
-          "art": "/assets/dawnlike/terrain/stone0.png",
-          "from": {
-            "pack": "DawnLike",
-            "crop": "Objects/Floor.png",
-            "rect": [
-              32,
-              112,
-              16,
-              16
-            ]
-          }
+          "art": "/assets/dawnlike/terrain/cobble_t.png"
         }
       ],
       "license": "CC-BY-4.0",
@@ -391,17 +371,7 @@
       "walkable": true,
       "variants": [
         {
-          "art": "/assets/dawnlike/terrain/stone0.png",
-          "from": {
-            "pack": "DawnLike",
-            "crop": "Objects/Floor.png",
-            "rect": [
-              32,
-              112,
-              16,
-              16
-            ]
-          }
+          "art": "/assets/dawnlike/terrain/cobble_b.png"
         }
       ],
       "license": "CC-BY-4.0",
@@ -414,17 +384,7 @@
       "walkable": true,
       "variants": [
         {
-          "art": "/assets/dawnlike/terrain/stone0.png",
-          "from": {
-            "pack": "DawnLike",
-            "crop": "Objects/Floor.png",
-            "rect": [
-              32,
-              112,
-              16,
-              16
-            ]
-          }
+          "art": "/assets/dawnlike/terrain/cobble_l.png"
         }
       ],
       "license": "CC-BY-4.0",
@@ -437,17 +397,7 @@
       "walkable": true,
       "variants": [
         {
-          "art": "/assets/dawnlike/terrain/stone0.png",
-          "from": {
-            "pack": "DawnLike",
-            "crop": "Objects/Floor.png",
-            "rect": [
-              32,
-              112,
-              16,
-              16
-            ]
-          }
+          "art": "/assets/dawnlike/terrain/cobble_r.png"
         }
       ],
       "license": "CC-BY-4.0",
@@ -460,17 +410,7 @@
       "walkable": true,
       "variants": [
         {
-          "art": "/assets/dawnlike/terrain/stone0.png",
-          "from": {
-            "pack": "DawnLike",
-            "crop": "Objects/Floor.png",
-            "rect": [
-              32,
-              112,
-              16,
-              16
-            ]
-          }
+          "art": "/assets/dawnlike/terrain/cobble_tl.png"
         }
       ],
       "license": "CC-BY-4.0",
@@ -483,17 +423,7 @@
       "walkable": true,
       "variants": [
         {
-          "art": "/assets/dawnlike/terrain/stone0.png",
-          "from": {
-            "pack": "DawnLike",
-            "crop": "Objects/Floor.png",
-            "rect": [
-              32,
-              112,
-              16,
-              16
-            ]
-          }
+          "art": "/assets/dawnlike/terrain/cobble_tr.png"
         }
       ],
       "license": "CC-BY-4.0",
@@ -506,17 +436,7 @@
       "walkable": true,
       "variants": [
         {
-          "art": "/assets/dawnlike/terrain/stone0.png",
-          "from": {
-            "pack": "DawnLike",
-            "crop": "Objects/Floor.png",
-            "rect": [
-              32,
-              112,
-              16,
-              16
-            ]
-          }
+          "art": "/assets/dawnlike/terrain/cobble_bl.png"
         }
       ],
       "license": "CC-BY-4.0",
@@ -529,17 +449,7 @@
       "walkable": true,
       "variants": [
         {
-          "art": "/assets/dawnlike/terrain/stone0.png",
-          "from": {
-            "pack": "DawnLike",
-            "crop": "Objects/Floor.png",
-            "rect": [
-              32,
-              112,
-              16,
-              16
-            ]
-          }
+          "art": "/assets/dawnlike/terrain/cobble_br.png"
         }
       ],
       "license": "CC-BY-4.0",
