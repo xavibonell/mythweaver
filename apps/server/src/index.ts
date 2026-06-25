@@ -217,11 +217,12 @@ app.post('/scene/component', async (req, reply) => {
 // Scene Lab — CITY MESH BLUEPRINT (the "Blueprint" tab): the float Voronoi ward mesh + the structures
 // derivable from it (wall/streets/skeleton). Deterministic, $0 — for iterating the layout core in isolation.
 app.get('/scene/citymesh', async (req, reply) => {
-  const q = (req.query ?? {}) as { seed?: string; nPatches?: string };
+  const q = (req.query ?? {}) as { seed?: string; nPatches?: string; wall?: string };
   const seed = Number.isFinite(Number(q.seed)) ? Number(q.seed) : 1;
   const nPatches = Number.isFinite(Number(q.nPatches)) ? Number(q.nPatches) : 15;
+  const wall = q.wall !== '0' && q.wall !== 'false'; // walled by default; ?wall=0 for an open settlement
   try {
-    return cityMeshBlueprint(seed, { nPatches });
+    return cityMeshBlueprint(seed, { nPatches, wall });
   } catch (err) {
     app.log.error(err, 'scene citymesh blueprint failed');
     reply.code(502);
