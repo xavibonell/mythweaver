@@ -194,23 +194,77 @@ function fillCoreCell(cv: Canvas, w: Ward, info: CellInfo, nid: number[][], loc:
     poissonScatter(cv, rectOf(info), { tags: ['flowers', 'grass_tuft', 'stone_bench'], r: 2, max: 6, blocks: false, filter: (c, r) => inCell(c, r) && cv.tileAt(c, r) === 'grass' && cv.isFree(c, r) });
     return;
   }
-  // Greedy-pack 1–3 buildings: the ward's signature first (varied shape if the lot is roomy), then smaller
-  // secondaries in the leftover space, each kept a tile apart → big nodes hold a cluster, small ones a house.
+  // Lot subdivision (Step 2): reserve a 1-tile setback against the cobble seams (apron room), then
+  // repeatedly take the fattest buildable rect — a GRAND ward gets one dominant landmark; everyone else
+  // TERRACES into a row of street-facing plots. Rear slabs, concave arms, and slivers become gardens.
+  // Min lot 5×5 (no tiny houses); GAP=1 (independent walls, no fused rings); doors face the street.
+  const MIN = 5, GAP = 1, RING = 6;
+  const grand = propClass(w) === 'grand';
   const used = new Set<string>();
-  const buildable = (c: number, r: number) => inCell(c, r) && cv.tileAt(c, r) === 'grass' && !used.has(`${c},${r}`);
-  const secondary: BuildingType[] = propClass(w) === 'craft' ? ['workshop', 'house'] : ['house', 'house'];
-  for (let n = 0; n < 3; n++) {
-    const rect = maxRect(buildable, info.x0, info.y0, info.x1, info.y1);
-    if (!rect || rect.w < 4 || rect.h < 4) break;
+  const k = (c: number, r: number) => `${c},${r}`;
+  const streetAdj = (c: number, r: number) => cv.tileAt(c, r - 1) === 'road' || cv.tileAt(c, r + 1) === 'road' || cv.tileAt(c - 1, r) === 'road' || cv.tileAt(c + 1, r) === 'road';
+  const buildable = (c: number, r: number) => inCell(c, r) && cv.tileAt(c, r) === 'grass' && !used.has(k(c, r));
+  const claim = (R: { x: number; y: number; w: number; h: number }) => { for (let r = R.y - 1; r <= R.y + R.h; r++) for (let c = R.x - 1; c <= R.x + R.w; c++) used.add(k(c, r)); };
+  const rectFree = (R: { x: number; y: number; w: number; h: number }) => { for (let r = R.y; r < R.y + R.h; r++) for (let c = R.x; c < R.x + R.w; c++) if (!buildable(c, r)) return false; return true; };
+  const secondary: BuildingType[] = grand || propClass(w) === 'craft' ? ['house', 'workshop'] : ['house', 'house'];
+  for (let r = info.y0; r <= info.y1; r++) for (let c = info.x0; c <= info.x1; c++) if (inCell(c, r) && cv.tileAt(c, r) === 'grass' && streetAdj(c, r)) used.add(k(c, r)); // setback ring
+  const sideCounts = (R: { x: number; y: number; w: number; h: number }) => {
+    const s = { north: 0, south: 0, east: 0, west: 0 };
+    for (let x = R.x; x < R.x + R.w; x++) for (let d = 1; d <= 2; d++) { if (cv.tileAt(x, R.y - d) === 'road') s.north++; if (cv.tileAt(x, R.y + R.h - 1 + d) === 'road') s.south++; }
+    for (let y = R.y; y < R.y + R.h; y++) for (let d = 1; d <= 2; d++) { if (cv.tileAt(R.x - d, y) === 'road') s.west++; if (cv.tileAt(R.x + R.w - 1 + d, y) === 'road') s.east++; }
+    return s;
+  };
+  const clampDepth = (R: { x: number; y: number; w: number; h: number }, side: 'north' | 'south' | 'east' | 'west') => {
+    if (side === 'north') return { x: R.x, y: R.y, w: R.w, h: Math.min(R.h, RING) };
+    if (side === 'south') { const h = Math.min(R.h, RING); return { x: R.x, y: R.y + R.h - h, w: R.w, h }; }
+    if (side === 'west') return { x: R.x, y: R.y, w: Math.min(R.w, RING), h: R.h };
+    const wv = Math.min(R.w, RING); return { x: R.x + R.w - wv, y: R.y, w: wv, h: R.h };
+  };
+  let n = 0;
+  const emit = (lot: { x: number; y: number; w: number; h: number }, door: 'north' | 'south' | 'east' | 'west') => {
+    if (lot.w < 4 || lot.h < 4) { claim(lot); return; }
     const type: BuildingType = n === 0 ? (w as BuildingType) : (secondary[(n - 1) % secondary.length] ?? 'house');
-    const door = pickDoor(cv, rect);
-    if (rect.w >= 5 && rect.h >= 5) compound(cv, rect, type, { shape: pickShape(rect, n === 0, cv.rng), door, locationId: loc, id: `bldg:${loc}-${id}-${n}` });
-    else building(cv, rect, 'house', { door, locationId: loc, id: `bldg:${loc}-${id}-${n}` });
-    carveFront(cv, rect, door);
-    for (let r = rect.y - 1; r <= rect.y + rect.h; r++) for (let c = rect.x - 1; c <= rect.x + rect.w; c++) used.add(`${c},${r}`);
+    if (lot.w >= 5 && lot.h >= 5) compound(cv, lot, type, { shape: pickShape(lot, n === 0 && grand, cv.rng), door, locationId: loc, id: `bldg:${loc}-${id}-${n}` });
+    else building(cv, lot, 'house', { door, locationId: loc, id: `bldg:${loc}-${id}-${n}` });
+    carveFront(cv, lot, door);
+    claim(lot); n++;
+  };
+  // Lay a terraced row of plots along one street-facing side of R (corner overlaps skipped via rectFree).
+  const layRow = (R: { x: number; y: number; w: number; h: number }, side: 'north' | 'south' | 'east' | 'west') => {
+    const horiz = side === 'north' || side === 'south';
+    const span = horiz ? R.w : R.h;
+    const depth = Math.min(horiz ? R.h : R.w, RING);
+    if (span < MIN || depth < MIN) return;
+    const nLots = span >= 2 * MIN + GAP ? Math.floor((span + GAP) / (MIN + GAP)) : 1;
+    const base = Math.floor((span - (nLots - 1) * GAP) / nLots);
+    const extra = span - (nLots - 1) * GAP - base * nLots;
+    let cursor = 0;
+    for (let i = 0; i < nLots; i++) {
+      const wl = base + (i < extra ? 1 : 0);
+      const lot = side === 'north' ? { x: R.x + cursor, y: R.y, w: wl, h: depth }
+        : side === 'south' ? { x: R.x + cursor, y: R.y + R.h - depth, w: wl, h: depth }
+          : side === 'west' ? { x: R.x, y: R.y + cursor, w: depth, h: wl }
+            : { x: R.x + R.w - depth, y: R.y + cursor, w: depth, h: wl };
+      if (rectFree(lot)) emit(lot, side);
+      cursor += wl + GAP;
+    }
+  };
+  for (let guard = 0; guard < 24; guard++) {
+    const big = maxRect(buildable, info.x0, info.y0, info.x1, info.y1);
+    if (!big || big.w < MIN || big.h < MIN) break;
+    const cnt = sideCounts(big);
+    const sides = (['north', 'south', 'east', 'west'] as const).filter((x) => cnt[x] > 0).sort((a, b) => cnt[b] - cnt[a]);
+    if (!sides.length) { claim(big); continue; } // interior rect → courtyard / garden
+    if (n === 0 && grand) { emit(Math.min(big.w, big.h) < 11 ? clampDepth(big, sides[0]!) : big, sides[0]!); claim(big); continue; }
+    for (const side of sides) layRow(big, side); // a terraced row on every street-facing side → a perimeter block
+    claim(big); // the inner courtyard becomes garden
   }
-  // a garden / yard around the buildings — ward-flavoured, on the leftover grass
-  poissonScatter(cv, rectOf(info), { tags: WARD_PROPS[propClass(w)]!, r: 2, max: 4, blocks: true, filter: (c, r) => inCell(c, r) && cv.tileAt(c, r) === 'grass' && cv.isFree(c, r) });
+  if (n === 0) { // small-cell fallback: one cottage on the largest grass rect
+    const r2 = maxRect((c, r) => inCell(c, r) && cv.tileAt(c, r) === 'grass', info.x0, info.y0, info.x1, info.y1);
+    if (r2 && r2.w >= 4 && r2.h >= 4) building(cv, { x: r2.x, y: r2.y, w: Math.min(6, r2.w), h: Math.min(6, r2.h) }, 'house', { door: pickDoor(cv, r2), locationId: loc, id: `bldg:${loc}-${id}-0` });
+  }
+  // gardens/yards on the leftover grass (rear slabs, arms, slivers, the setback band)
+  poissonScatter(cv, rectOf(info), { tags: WARD_PROPS[propClass(w)]!, r: 2, max: 5, blocks: true, filter: (c, r) => inCell(c, r) && cv.tileAt(c, r) === 'grass' && cv.isFree(c, r) });
 }
 
 /** The preserved extramural ring → flavour: farmsteads, a camp by a gate, a roadside vendor. */
