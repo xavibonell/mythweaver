@@ -246,17 +246,19 @@ export function bakeAutoTiles(tiles: string[][], cols: number, rows: number): vo
   const orig = tiles.map((row) => row.slice());
   const famOf = (t: string) => FAMILY[t] ?? t;
   const sameFam = (c: number, r: number, f: string) => c < 0 || r < 0 || c >= cols || r >= rows || famOf(orig[r]![c]!) === f;
-  // A road is a UNIFIED brick body with a lined rim ONLY where it meets open GRASS — NOT at internal junctions
-  // (against building walls, dirt paths, the basin lip, off-grid). Those keep the brick body, so the lines never
-  // invade the interior. grass/water still fringe against any different family.
-  const grassN = (c: number, r: number) => c >= 0 && r >= 0 && c < cols && r < rows && orig[r]![c] === 'grass';
+  // A road is a UNIFIED brick body with a lined rim where it meets open UNPAVED ground (grass/dirt/sand) —
+  // NOT at internal junctions (against building walls, the basin lip, off-grid, or other paving). That gives
+  // every cobbled street a curb on its earth/grass edges while the interior stays brick. grass/water still
+  // fringe against any different family.
+  const OPEN_GROUND = new Set(['grass', 'dirt', 'sand']);
+  const openN = (c: number, r: number) => c >= 0 && r >= 0 && c < cols && r < rows && OPEN_GROUND.has(orig[r]![c]!);
   for (let r = 0; r < rows; r++)
     for (let c = 0; c < cols; c++) {
       const base = orig[r]![c]!;
       if (!EDGED.has(base)) continue;
       const f = famOf(base);
       const suf = base === 'road'
-        ? edgeSuffix(grassN(c, r - 1), grassN(c + 1, r), grassN(c, r + 1), grassN(c - 1, r)) // rim only against grass
+        ? edgeSuffix(openN(c, r - 1), openN(c + 1, r), openN(c, r + 1), openN(c - 1, r)) // curb where cobble meets unpaved ground
         : edgeSuffix(!sameFam(c, r - 1, f), !sameFam(c + 1, r, f), !sameFam(c, r + 1, f), !sameFam(c - 1, r, f));
       if (suf) tiles[r]![c] = `${base}${suf}`;
     }

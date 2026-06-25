@@ -40,11 +40,11 @@ describe('town archetype generator — the organic-layout fix', () => {
     expect(roomCount(m)).toBeGreaterThan(b); // some buildings have >1 furnished room → compounds, not boxes
   });
 
-  it('lays a cobbled street network + a stone plaza (not a flat dirt lot)', () => {
+  it('lays a cobbled street network + a cobbled plaza (not a flat dirt lot)', () => {
     const m = runProgram(townProgram(717));
-    expect(tiles(m, (t) => t === 'cobblestone' || t === 'dirt')).toBeGreaterThan(40); // paved arteries + dirt alleys
-    expect(tiles(m, (t) => t === 'cobblestone')).toBeGreaterThan(10); // arteries are actually cobbled, not all mud
-    expect(tiles(m, (t) => t === 'stone')).toBeGreaterThan(20); // the central plaza
+    // arteries + plaza are the unified `road` cobble (autotiled into road/road_t/…); alleys stay dirt.
+    expect(tiles(m, (t) => t.startsWith('road') || t === 'dirt')).toBeGreaterThan(40); // paved arteries + dirt alleys
+    expect(tiles(m, (t) => t.startsWith('road'))).toBeGreaterThan(30); // arteries + plaza are actually cobbled, not all mud
   });
 
   it('dresses the scene with two-texture density (blue-noise + clumps), not a bare field', () => {

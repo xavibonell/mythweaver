@@ -13,6 +13,7 @@
  */
 import { Canvas, building, compound, finalize, place, poissonScatter, vignette } from './primitives.js';
 import { buildCityMesh, type CityMeshOpts, type Vec2, type Zone } from './citymesh.js';
+import type { ShapeKind } from './footprint.js';
 import type { BuildingType, SceneMap } from '@mythweaver/shared';
 
 const ZONE_GROUND: Record<Zone, string> = { core: 'dirt', extramural: 'grass', rural: 'grass' };
@@ -149,6 +150,15 @@ function placeActors(cv: Canvas, info: CellInfo, inCell: (c: number, r: number) 
 
 function rectOf(i: CellInfo) { return { x: i.x0, y: i.y0, w: i.x1 - i.x0 + 1, h: i.y1 - i.y0 + 1 }; }
 
+/** A footprint shape sized to the lot: only the roomy SIGNATURE building gets an L/T/U/+ silhouette
+ *  (maskFor falls back to rect if it doesn't fit); secondaries and tight lots stay rectangular. */
+function pickShape(rect: { w: number; h: number }, primary: boolean, rng: () => number): ShapeKind {
+  const m = Math.min(rect.w, rect.h);
+  if (!primary || m < 11) return 'rect';
+  const pool: ShapeKind[] = m >= 13 ? ['plus', 'compose', 'you', 'tee', 'ell', 'rect'] : ['tee', 'ell', 'rect'];
+  return pool[Math.floor(rng() * pool.length)]!;
+}
+
 function fillCoreCell(cv: Canvas, w: Ward, info: CellInfo, nid: number[][], loc: string) {
   const id = info.id;
   const inCell = (c: number, r: number) => cv.inB(c, r) && nid[r]?.[c] === id;
@@ -159,10 +169,20 @@ function fillCoreCell(cv: Canvas, w: Ward, info: CellInfo, nid: number[][], loc:
     placeActors(cv, info, inCell, 'road', ['villager', 'villager_woman', 'dog'], 3, `npc:${loc}-plaza`);
     return;
   }
-  const rect = maxRect((c, r) => inCell(c, r) && cv.tileAt(c, r) === 'dirt', info.x0, info.y0, info.x1, info.y1);
-  if (rect && rect.w >= 5 && rect.h >= 5) compound(cv, rect, w as BuildingType, { door: pickDoor(cv, rect), locationId: loc, id: `bldg:${loc}-${id}` });
-  else if (rect && rect.w >= 4 && rect.h >= 4) building(cv, rect, 'house', { door: pickDoor(cv, rect), locationId: loc, id: `bldg:${loc}-${id}` });
-  poissonScatter(cv, rectOf(info), { tags: WARD_PROPS[propClass(w)]!, r: 2, max: 4, blocks: true, filter: (c, r) => inCell(c, r) && cv.tileAt(c, r) === 'dirt' && cv.isFree(c, r) });
+  // Greedy-pack 1–3 buildings: the ward's signature first (varied shape if the lot is roomy), then smaller
+  // secondaries in the leftover space, each kept a tile apart → big nodes hold a cluster, small ones a house.
+  const used = new Set<string>();
+  const buildable = (c: number, r: number) => inCell(c, r) && cv.tileAt(c, r) === 'dirt' && !used.has(`${c},${r}`);
+  const secondary: BuildingType[] = propClass(w) === 'craft' ? ['workshop', 'house'] : ['house', 'house'];
+  for (let n = 0; n < 3; n++) {
+    const rect = maxRect(buildable, info.x0, info.y0, info.x1, info.y1);
+    if (!rect || rect.w < 4 || rect.h < 4) break;
+    const type: BuildingType = n === 0 ? (w as BuildingType) : (secondary[(n - 1) % secondary.length] ?? 'house');
+    if (rect.w >= 5 && rect.h >= 5) compound(cv, rect, type, { shape: pickShape(rect, n === 0, cv.rng), door: pickDoor(cv, rect), locationId: loc, id: `bldg:${loc}-${id}-${n}` });
+    else building(cv, rect, 'house', { door: pickDoor(cv, rect), locationId: loc, id: `bldg:${loc}-${id}-${n}` });
+    for (let r = rect.y - 1; r <= rect.y + rect.h; r++) for (let c = rect.x - 1; c <= rect.x + rect.w; c++) used.add(`${c},${r}`);
+  }
+  poissonScatter(cv, rectOf(info), { tags: WARD_PROPS[propClass(w)]!, r: 2, max: 3, blocks: true, filter: (c, r) => inCell(c, r) && cv.tileAt(c, r) === 'dirt' && cv.isFree(c, r) });
 }
 
 /** The preserved extramural ring → flavour: farmsteads, a camp by a gate, a roadside vendor. */
