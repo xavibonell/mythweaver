@@ -140,7 +140,7 @@ export default function CityMeshBlueprint({ server }: { server: string }) {
             {tileBusy && <div style={{ position: 'absolute', top: 8, left: 10, fontSize: '0.72rem', color: '#9a8f7d', background: 'rgba(13,11,10,0.6)', padding: '3px 8px', borderRadius: 4 }}>rasterizing…</div>}
             {tileMap && (
               <div style={{ position: 'absolute', left: 10, bottom: 8, fontSize: '0.72rem', color: '#9a8f7d', fontFamily: 'monospace', background: 'rgba(13,11,10,0.6)', padding: '3px 8px', borderRadius: 4 }}>
-                tiles {tileMap.grid.cols}×{tileMap.grid.rows} · seed {seed} · {walled ? 'walled' : 'open'} · structure only (no buildings yet)
+                tiles {tileMap.grid.cols}×{tileMap.grid.rows} · seed {seed} · {walled ? 'walled' : 'open'} · {tileMap.objects.length} objects · {tileMap.ambiance.length} ambiance
               </div>
             )}
           </>

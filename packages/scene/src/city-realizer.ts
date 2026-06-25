@@ -16,10 +16,12 @@ import { buildCityMesh, type CityMeshOpts, type Vec2, type Zone } from './cityme
 import type { ShapeKind } from './footprint.js';
 import type { BuildingType, SceneMap } from '@mythweaver/shared';
 
-const ZONE_GROUND: Record<Zone, string> = { core: 'dirt', extramural: 'grass', rural: 'grass' };
+// Grass-first: the whole settlement sits on grass (like the cottage examples) — the city reads through
+// its cobble streets, buildings, and wall, NOT a dirt footprint. Buildings get a thin earthen apron.
+const ZONE_GROUND: Record<Zone, string> = { core: 'grass', extramural: 'grass', rural: 'grass' };
 
 interface CellInfo { id: number; x0: number; y0: number; x1: number; y1: number; area: number; cc: number; cr: number; d: number; wallAdj: boolean; nearGate: number }
-type Ward = 'plaza' | BuildingType;
+type Ward = 'plaza' | 'park' | BuildingType;
 
 // Ward → a prop palette that dresses the cell's leftover ground so a block feels inhabited, not bare.
 const WARD_PROPS: Record<string, string[]> = {
@@ -129,6 +131,8 @@ function assignWards(m: ReturnType<typeof buildCityMesh>, infos: Map<number, Cel
   sig(pick((i) => i.d < 0.55, (i) => i.area), 'manor'); // a noble's seat near the centre
   sig(pick((i) => i.d < 0.65, (i) => i.area), 'guildhall');
   sig(pick((i) => i.d < 0.5, (i) => i.area), 'courthouse');
+  sig(pick((i) => i.d > 0.38 && i.d < 0.72, () => rng()), 'park'); // a green square mid-town
+  if (free.size > 9) sig(pick((i) => i.d > 0.45, () => rng()), 'park'); // a second park in bigger cities
   for (const id of free) {
     const i = infos.get(id)!;
     const pool: BuildingType[] = i.nearGate < 0.22 ? ['smithy', 'tavern', 'general_store', 'inn']
@@ -159,30 +163,54 @@ function pickShape(rect: { w: number; h: number }, primary: boolean, rng: () => 
   return pool[Math.floor(rng() * pool.length)]!;
 }
 
+/** A short earthen apron from a building's door side out to the nearest cobble — so a house on grass
+ *  reads as connected to the street (the cottage's entry-path trick), not marooned in a moat. */
+function carveFront(cv: Canvas, rect: { x: number; y: number; w: number; h: number }, side: 'north' | 'south' | 'east' | 'west') {
+  let c = rect.x + Math.floor(rect.w / 2), r = rect.y + Math.floor(rect.h / 2), dc = 0, dr = 0;
+  if (side === 'north') { r = rect.y - 1; dr = -1; } else if (side === 'south') { r = rect.y + rect.h; dr = 1; } else if (side === 'west') { c = rect.x - 1; dc = -1; } else { c = rect.x + rect.w; dc = 1; }
+  for (let i = 0; i < 4; i++) {
+    if (!cv.inB(c, r)) break;
+    const t = cv.tileAt(c, r);
+    if (t === 'road') break; // reached the street
+    if (t === 'grass') cv.set(c, r, 'dirt', true);
+    c += dc; r += dr;
+  }
+}
+
 function fillCoreCell(cv: Canvas, w: Ward, info: CellInfo, nid: number[][], loc: string) {
   const id = info.id;
   const inCell = (c: number, r: number) => cv.inB(c, r) && nid[r]?.[c] === id;
   if (w === 'plaza') {
-    for (let r = info.y0; r <= info.y1; r++) for (let c = info.x0; c <= info.x1; c++) if (inCell(c, r) && cv.tileAt(c, r) === 'dirt') cv.set(c, r, 'road', true);
+    for (let r = info.y0; r <= info.y1; r++) for (let c = info.x0; c <= info.x1; c++) if (inCell(c, r) && cv.tileAt(c, r) === 'grass') cv.set(c, r, 'road', true);
     if (cv.inB(info.cc, info.cr)) place(cv, { id: `prop:${loc}-fountain`, tag: 'fountain', kind: 'prop', at: { c: info.cc, r: info.cr } });
     poissonScatter(cv, rectOf(info), { tags: ['market_stall', 'crate', 'barrel', 'sack'], r: 2, max: 6, blocks: true, filter: (c, r) => inCell(c, r) && cv.tileAt(c, r) === 'road' && cv.isFree(c, r) });
     placeActors(cv, info, inCell, 'road', ['villager', 'villager_woman', 'dog'], 3, `npc:${loc}-plaza`);
     return;
   }
+  if (w === 'park') {
+    // a green square: a small grove + flowers + benches around a centrepiece, no buildings
+    if (cv.inB(info.cc, info.cr)) place(cv, { id: `prop:${loc}-park-${id}`, tag: 'statue', kind: 'prop', at: { c: info.cc, r: info.cr } });
+    poissonScatter(cv, rectOf(info), { tags: ['tree', 'tree_autumn', 'bush'], r: 3, max: 7, blocks: true, filter: (c, r) => inCell(c, r) && cv.tileAt(c, r) === 'grass' && cv.isFree(c, r) });
+    poissonScatter(cv, rectOf(info), { tags: ['flowers', 'grass_tuft', 'stone_bench'], r: 2, max: 6, blocks: false, filter: (c, r) => inCell(c, r) && cv.tileAt(c, r) === 'grass' && cv.isFree(c, r) });
+    return;
+  }
   // Greedy-pack 1–3 buildings: the ward's signature first (varied shape if the lot is roomy), then smaller
   // secondaries in the leftover space, each kept a tile apart → big nodes hold a cluster, small ones a house.
   const used = new Set<string>();
-  const buildable = (c: number, r: number) => inCell(c, r) && cv.tileAt(c, r) === 'dirt' && !used.has(`${c},${r}`);
+  const buildable = (c: number, r: number) => inCell(c, r) && cv.tileAt(c, r) === 'grass' && !used.has(`${c},${r}`);
   const secondary: BuildingType[] = propClass(w) === 'craft' ? ['workshop', 'house'] : ['house', 'house'];
   for (let n = 0; n < 3; n++) {
     const rect = maxRect(buildable, info.x0, info.y0, info.x1, info.y1);
     if (!rect || rect.w < 4 || rect.h < 4) break;
     const type: BuildingType = n === 0 ? (w as BuildingType) : (secondary[(n - 1) % secondary.length] ?? 'house');
-    if (rect.w >= 5 && rect.h >= 5) compound(cv, rect, type, { shape: pickShape(rect, n === 0, cv.rng), door: pickDoor(cv, rect), locationId: loc, id: `bldg:${loc}-${id}-${n}` });
-    else building(cv, rect, 'house', { door: pickDoor(cv, rect), locationId: loc, id: `bldg:${loc}-${id}-${n}` });
+    const door = pickDoor(cv, rect);
+    if (rect.w >= 5 && rect.h >= 5) compound(cv, rect, type, { shape: pickShape(rect, n === 0, cv.rng), door, locationId: loc, id: `bldg:${loc}-${id}-${n}` });
+    else building(cv, rect, 'house', { door, locationId: loc, id: `bldg:${loc}-${id}-${n}` });
+    carveFront(cv, rect, door);
     for (let r = rect.y - 1; r <= rect.y + rect.h; r++) for (let c = rect.x - 1; c <= rect.x + rect.w; c++) used.add(`${c},${r}`);
   }
-  poissonScatter(cv, rectOf(info), { tags: WARD_PROPS[propClass(w)]!, r: 2, max: 3, blocks: true, filter: (c, r) => inCell(c, r) && cv.tileAt(c, r) === 'dirt' && cv.isFree(c, r) });
+  // a garden / yard around the buildings — ward-flavoured, on the leftover grass
+  poissonScatter(cv, rectOf(info), { tags: WARD_PROPS[propClass(w)]!, r: 2, max: 4, blocks: true, filter: (c, r) => inCell(c, r) && cv.tileAt(c, r) === 'grass' && cv.isFree(c, r) });
 }
 
 /** The preserved extramural ring → flavour: farmsteads, a camp by a gate, a roadside vendor. */
@@ -214,6 +242,8 @@ function fillExtramural(cv: Canvas, m: ReturnType<typeof buildCityMesh>, nid: nu
       if (cv.inB(c, r) && cv.tileAt(c, r) === 'grass' && cv.isFree(c, r)) { place(cv, { id: `prop:${loc}-vendor`, tag: 'market_stall', kind: 'prop', at: { c, r } }); if (cv.inB(c + 1, r) && cv.isFree(c + 1, r)) place(cv, { id: `npc:${loc}-vendor`, tag: 'villager', kind: 'actor', role: 'npc', at: { c: c + 1, r } }); break; }
     }
   }
+  // a forest framing the countryside (dense at the rural edge — deliberate, not a uniform field scatter)
+  poissonScatter(cv, { x: 0, y: 0, w: GRID, h: GRID }, { tags: ['tree', 'tree_pine', 'tree_autumn', 'bush'], r: 2, max: 400, blocks: true, filter: (c, r) => m.patches[nid[r]?.[c] ?? -1]?.zone === 'rural' && cv.tileAt(c, r) === 'grass' && cv.isFree(c, r) });
 }
 
 const cellMapHalf = (m: ReturnType<typeof buildCityMesh>) => m.viewExtent * 1.1;
@@ -266,8 +296,11 @@ export function realizeCityMesh(seed: number, opts: CityMeshOpts = {}): SceneMap
   const wards = assignWards(m, core, cv.rng);
   for (const [id, info] of core) fillCoreCell(cv, wards.get(id) ?? 'house', info, nid, loc);
 
-  // 5. Extramural flavour (farms, camp, vendor).
+  // 5. Extramural flavour (farms, camp, vendor) + the rural treeline.
   fillExtramural(cv, m, nid, GRID, loc, cv.rng);
+
+  // 5b. Tree-lined lanes: a sparse row of trees on the grass beside core streets.
+  poissonScatter(cv, { x: 0, y: 0, w: GRID, h: GRID }, { tags: ['tree', 'tree_autumn', 'bush'], r: 4, max: 50, blocks: true, filter: (c, r) => zoneOf(nid[r]![c]!) === 'core' && cv.tileAt(c, r) === 'grass' && cv.isFree(c, r) && ([[1, 0], [-1, 0], [0, 1], [0, -1]] as const).some(([dc, dr]) => cv.tileAt(c + dc, r + dr) === 'road') });
 
   // 6. A few folk wandering the streets.
   const roads: { c: number; r: number }[] = [];
