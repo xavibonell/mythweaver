@@ -5,7 +5,7 @@ import { randomUUID } from 'node:crypto';
 import Fastify, { type FastifyReply } from 'fastify';
 import { Engine, createInitialState } from '@mythweaver/engine';
 import { createProvider } from '@mythweaver/llm';
-import { CHARACTERS, FakeSceneComposer, LlmSceneComposer, PROPS, TERRAINS, buildSceneMap, loadAssetLibrary } from '@mythweaver/scene';
+import { CHARACTERS, FakeSceneComposer, LlmSceneComposer, PROPS, TERRAINS, buildSceneMap, cityMeshBlueprint, loadAssetLibrary } from '@mythweaver/scene';
 import { BIOMES, classToSpriteTag, validateEstablishScene, type EstablishScene } from '@mythweaver/shared';
 import { Db } from './db.js';
 import { loadScenario, readScenarioRaw, writeScenarioRaw, parseScenario, loadSharedParty, loadSharedBestiary, resolveParty } from './content.js';
@@ -209,6 +209,21 @@ app.post('/scene/component', async (req, reply) => {
     return labBuildComponent(kind, count, seed);
   } catch (err) {
     app.log.error(err, 'scene component build failed');
+    reply.code(502);
+    return { error: (err as Error).message };
+  }
+});
+
+// Scene Lab — CITY MESH BLUEPRINT (the "Blueprint" tab): the float Voronoi ward mesh + the structures
+// derivable from it (wall/streets/skeleton). Deterministic, $0 — for iterating the layout core in isolation.
+app.get('/scene/citymesh', async (req, reply) => {
+  const q = (req.query ?? {}) as { seed?: string; nPatches?: string };
+  const seed = Number.isFinite(Number(q.seed)) ? Number(q.seed) : 1;
+  const nPatches = Number.isFinite(Number(q.nPatches)) ? Number(q.nPatches) : 15;
+  try {
+    return cityMeshBlueprint(seed, { nPatches });
+  } catch (err) {
+    app.log.error(err, 'scene citymesh blueprint failed');
     reply.code(502);
     return { error: (err as Error).message };
   }

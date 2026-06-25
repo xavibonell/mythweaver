@@ -19,8 +19,6 @@ import { bspRooms, building, Canvas, cave, clearing, clumpScatter, compound, fil
 import { GENERATORS, type Contents } from './archetypes.js';
 import { precinctSquare } from './precinct.js';
 import { blockCottage, blockTown } from './blocks.js';
-import { buildCityMesh } from './citymesh.js';
-import { rasterizeWardsDebug } from './city-realizer.js';
 import { THEMES } from './themes.js';
 import { type ShapeKind } from './footprint.js';
 
@@ -38,7 +36,6 @@ export const COMPONENT_KINDS = [
   'precinct', // a single hand-designed PRECINCT (central square) — the pattern-vault prototype, frontage-packed
   'block:cottage', // hand-authored BLOCK composition (cottage + garden + path + life) — the block-vault proof
   'blocktown', // a NEIGHBOURHOOD: hand-authored blocks stitched into a road grid — the vault at town scale
-  'citymesh', // M0: block-centric Voronoi ward mesh — flat ward-colour fills, the anti-grid falsification
 ] as const;
 export type ComponentKind = (typeof COMPONENT_KINDS)[number];
 
@@ -162,10 +159,6 @@ function specFor(kind: string): CellSpec {
     case 'blocktown':
       // A NEIGHBOURHOOD stitched from hand-authored blocks — the vault at town scale. Extra margin for a forest surround.
       return { cw: 100, ch: 90, render: (cv, rect, i) => blockTown(cv, rect, `loc:lab-blocktown-${i}`) };
-    case 'citymesh':
-      // M0 — the block-centric Voronoi ward mesh, rasterized as flat ward-colour fills (no buildings/walls/streets).
-      // The cheap falsification: do irregular wards alone kill the grid look? Big cell so the whole city fits.
-      return { cw: 80, ch: 72, render: (cv, rect, i) => rasterizeWardsDebug(cv, rect, buildCityMesh(cv.seed + i * 1009, { nPatches: 15 })) };
     default:
       return { cw: 16, ch: 14, render: (cv, rect, i) => { void i; building(cv, { x: rect.x + 1, y: rect.y + 1, w: rect.w - 2, h: rect.h - 2 }, 'house', { door: 'south', id: 'bldg:fallback' }); } };
   }
@@ -185,5 +178,5 @@ export function buildComponentSheet(kind: string, count: number, seed: number): 
     render(cv, { x: gut + gx * (cw + gut), y: gut + gy * (ch + gut), w: cw, h: ch }, i);
   }
   // the precinct + block kinds do their OWN deliberate planting → skip the uniform ground-decal sprinkle (noise).
-  return finalize(cv, { locationId: 'loc:lab-component', biome: 'village', lighting: 'day', grammar: 'open-outdoor', outdoor: true, skipReachability: true, skipDecals: kind === 'precinct' || kind === 'citymesh' || kind.startsWith('block') });
+  return finalize(cv, { locationId: 'loc:lab-component', biome: 'village', lighting: 'day', grammar: 'open-outdoor', outdoor: true, skipReachability: true, skipDecals: kind === 'precinct' || kind.startsWith('block') });
 }

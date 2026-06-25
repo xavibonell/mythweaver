@@ -9,6 +9,7 @@
 
 import { useState } from 'react';
 import SceneCanvas from '../play/SceneCanvas';
+import CityMeshBlueprint from './CityMeshBlueprint';
 
 const SERVER = process.env.NEXT_PUBLIC_SERVER_URL ?? 'http://localhost:6984';
 
@@ -51,12 +52,12 @@ export default function LabPage() {
   // The build MODE (one selector, mutually exclusive — replaces the old look-alike checkboxes):
   //  primitives = G1b LLM-composes-a-program (the new path, default) · classic = old DM→Director→3-grammar
   //  pipeline · city = district stitcher · large = classic but floored to a big grid (perf/zoom test).
-  const [mode, setMode] = useState<'primitives' | 'classic' | 'city' | 'large' | 'component'>('primitives');
+  const [mode, setMode] = useState<'primitives' | 'classic' | 'city' | 'large' | 'component' | 'blueprint'>('primitives');
   const [cityCount, setCityCount] = useState(6); // number of districts to stitch (city mode)
   const [fitNonce, setFitNonce] = useState(0); // bump to re-frame the whole scene in the free camera
   // Component mode — a contact sheet of N seed-varied instances of ONE micro-generator, for isolated
   // iteration. Mirrors COMPONENT_KINDS on the server (packages/scene/src/component-lab.ts).
-  const COMPONENT_KINDS = ['building:tavern', 'building:temple', 'building:smithy', 'building:shop', 'building:house', 'building:inn', 'building:general_store', 'building:cathedral', 'building:jail', 'building:vault', 'building:keep', 'building:library', 'building:armory', 'building:barracks', 'building:guildhall', 'building:goblin_warren', 'building:manor', 'building:tomb', 'building:courthouse', 'building:workshop', 'building:curio', 'shape:rect', 'shape:ell', 'shape:tee', 'shape:you', 'shape:plus', 'shape:compose', 'shape:compose:temple', 'shape:compose:tavern', 'shape:compose:smithy', 'shape:compose:shop', 'vignette:market', 'vignette:forge', 'vignette:shrine', 'vignette:well', 'vignette:camp', 'vignette:graveyard', 'plaza', 'streets', 'density:trees', 'density:flowers', 'density:furniture', 'clearing', 'cave', 'rooms', 'maze', 'town', 'village', 'precinct', 'block:cottage', 'blocktown', 'citymesh'];
+  const COMPONENT_KINDS = ['building:tavern', 'building:temple', 'building:smithy', 'building:shop', 'building:house', 'building:inn', 'building:general_store', 'building:cathedral', 'building:jail', 'building:vault', 'building:keep', 'building:library', 'building:armory', 'building:barracks', 'building:guildhall', 'building:goblin_warren', 'building:manor', 'building:tomb', 'building:courthouse', 'building:workshop', 'building:curio', 'shape:rect', 'shape:ell', 'shape:tee', 'shape:you', 'shape:plus', 'shape:compose', 'shape:compose:temple', 'shape:compose:tavern', 'shape:compose:smithy', 'shape:compose:shop', 'vignette:market', 'vignette:forge', 'vignette:shrine', 'vignette:well', 'vignette:camp', 'vignette:graveyard', 'plaza', 'streets', 'density:trees', 'density:flowers', 'density:furniture', 'clearing', 'cave', 'rooms', 'maze', 'town', 'village', 'precinct', 'block:cottage', 'blocktown'];
   const [componentKind, setComponentKind] = useState('building:tavern');
   const [componentCount, setComponentCount] = useState(6);
   const [componentSeed, setComponentSeed] = useState(1);
@@ -64,6 +65,7 @@ export default function LabPage() {
   const city = mode === 'city';
   const large = mode === 'large';
   const component = mode === 'component';
+  const blueprint = mode === 'blueprint';
 
   // City build — district stitcher. Empty brief → deterministic roster ($0). A brief in the box →
   // the V3 macro planner designs the districts (one LLM call), then the same deterministic stitcher.
@@ -222,8 +224,12 @@ export default function LabPage() {
       </div>
 
       <div style={{ flex: 1, minHeight: 0, background: '#0d0b0a', position: 'relative' }}>
-        <SceneCanvas data={m ?? null} freeCamera fitNonce={fitNonce} />
-        {m && (
+        {blueprint ? (
+          <CityMeshBlueprint server={SERVER} />
+        ) : (
+          <SceneCanvas data={m ?? null} freeCamera fitNonce={fitNonce} />
+        )}
+        {!blueprint && m && (
           <div style={{ position: 'absolute', top: 8, right: 8, display: 'flex', gap: 8, alignItems: 'center', background: 'rgba(13,11,10,0.7)', padding: '4px 8px', borderRadius: 6, fontSize: '0.78rem', color: '#b8ad99' }}>
             <span style={{ opacity: 0.7 }}>drag = pan · wheel = zoom</span>
             <button onClick={() => setFitNonce((n) => n + 1)} style={{ fontSize: '0.78rem', padding: '2px 8px', background: '#241f1a', color: '#c9a227', border: '1px solid #2a241f', borderRadius: 4, cursor: 'pointer' }}>
@@ -231,7 +237,7 @@ export default function LabPage() {
             </button>
           </div>
         )}
-        {!m && (
+        {!blueprint && !m && (
           <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#5c544a', pointerEvents: 'none' }}>
             {busy ? 'The DM is imagining the scene…' : 'Describe a place below and build it.'}
           </div>
@@ -261,6 +267,7 @@ export default function LabPage() {
               ['city', 'City', 'District stitcher. Empty box = sample roster ($0); a brief = the planner designs districts.'],
               ['large', 'Large (classic)', 'Classic pipeline floored to a big grid — a perf/zoom test, not a new layout.'],
               ['component', 'Component', 'Contact sheet of N seed-varied instances of ONE micro-generator (a building, vignette, density, street, plaza…) — iterate a component in isolation. $0.'],
+              ['blueprint', 'Blueprint', 'The block-centric CityMesh layout core (town/city rewrite): Voronoi ward cells + the derivable wall / streets / skeleton. Toggle layers, reseed, dial ward count. $0.'],
             ] as const).map(([val, label, tip]) => (
               <label key={val} title={tip} style={{ fontSize: '0.72rem', color: mode === val ? '#e8dfce' : '#9a8f7d', display: 'flex', gap: 5, alignItems: 'center', cursor: 'pointer' }}>
                 <input type="radio" name="lab-mode" checked={mode === val} onChange={() => setMode(val)} />

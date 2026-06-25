@@ -123,3 +123,35 @@ export function buildCityMesh(seed: number, opts: CityMeshOpts = {}): CityMesh {
 
   return { patches, inner, center, cityRadius, viewExtent: viewExtent || cityRadius || 1, seed, find: (x, y) => del.find(x, y) };
 }
+
+// --- blueprint payload (for the Scene Lab "Blueprint" tab) -------------------
+
+export interface BlueprintPatch { c: 0 | 1; poly: [number, number][]; st: [number, number] }
+export interface CityBlueprint {
+  seed: number;
+  nPatches: number;
+  center: [number, number];
+  viewExtent: number;
+  patches: BlueprintPatch[];
+  adj: [[number, number], [number, number]][]; // core centroid↔centroid links (the street skeleton)
+}
+
+/**
+ * A compact, integer-rounded snapshot of the mesh for the Blueprint inspector: the cells near the city
+ * (core flagged), the seed points, and the core adjacency graph. The client derives the wall (boundary
+ * edges) and street corridors (shared edges) from the polygons — proving they fall out of the mesh.
+ */
+export function cityMeshBlueprint(seed: number, opts: CityMeshOpts = {}): CityBlueprint {
+  const m = buildCityMesh(seed, opts);
+  const R = Math.round;
+  const innerSet = new Set(m.inner);
+  const [cx, cy] = [m.center.x, m.center.y];
+  const lim = m.viewExtent * 1.45; // core + one ring of countryside for context
+  const patches: BlueprintPatch[] = m.patches
+    .filter((p) => Math.hypot(p.centroid.x - cx, p.centroid.y - cy) <= lim)
+    .map((p) => ({ c: p.withinCity ? 1 : 0, poly: p.poly.map((v) => [R(v.x), R(v.y)] as [number, number]), st: [R(p.site.x), R(p.site.y)] }));
+  const adj: [[number, number], [number, number]][] = [];
+  for (const id of m.inner) for (const nb of m.patches[id]!.neighbours)
+    if (innerSet.has(nb) && id < nb) adj.push([[R(m.patches[id]!.centroid.x), R(m.patches[id]!.centroid.y)], [R(m.patches[nb]!.centroid.x), R(m.patches[nb]!.centroid.y)]]);
+  return { seed, nPatches: m.inner.length, center: [R(cx), R(cy)], viewExtent: R(m.viewExtent), patches, adj };
+}
