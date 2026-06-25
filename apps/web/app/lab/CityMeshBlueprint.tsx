@@ -11,6 +11,7 @@
  * later stages can fill it with flavour — scattered farms, a roadside vendor, a camp.
  */
 import { useCallback, useEffect, useState } from 'react';
+import SceneCanvas from '../play/SceneCanvas';
 
 type Pt = [number, number];
 type Zone = 'core' | 'extramural' | 'rural';
@@ -47,8 +48,12 @@ export default function CityMeshBlueprint({ server }: { server: string }) {
   const [seed, setSeed] = useState(1);
   const [nPatches, setNPatches] = useState(15);
   const [walled, setWalled] = useState(true);
+  const [view, setView] = useState<'plan' | 'tiles'>('plan');
   const [data, setData] = useState<CityBlueprint | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [tileMap, setTileMap] = useState<any>(null);
   const [busy, setBusy] = useState(false);
+  const [tileBusy, setTileBusy] = useState(false);
   const [error, setError] = useState('');
   const [layers, setLayers] = useState<Layers>({ cells: true, zones: true, streets: true, skeleton: false, seeds: false });
 
@@ -61,7 +66,17 @@ export default function CityMeshBlueprint({ server }: { server: string }) {
     } catch (e) { setError((e as Error).message); } finally { setBusy(false); }
   }, [server]);
 
+  const loadTiles = useCallback(async (s: number, n: number, w: boolean) => {
+    setTileBusy(true); setError('');
+    try {
+      const res = await fetch(`${server}/scene/citymesh/render?seed=${s}&nPatches=${n}&wall=${w ? 1 : 0}`);
+      const d = await res.json();
+      if (!res.ok) setError(d.error ?? `error ${res.status}`); else setTileMap(d.sceneMap);
+    } catch (e) { setError((e as Error).message); } finally { setTileBusy(false); }
+  }, [server]);
+
   useEffect(() => { load(seed, nPatches, walled); }, [load, seed, nPatches, walled]);
+  useEffect(() => { if (view === 'tiles') loadTiles(seed, nPatches, walled); }, [view, seed, nPatches, walled, loadTiles]);
 
   // Fit the shown cells into the viewBox (flip Y so north is up).
   let fit: { s: number; minX: number; maxY: number; ox: number; oy: number } | null = null;
@@ -87,6 +102,11 @@ export default function CityMeshBlueprint({ server }: { server: string }) {
     <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', color: '#cdc4b4' }}>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, alignItems: 'center', padding: '8px 12px', borderBottom: '1px solid #2a241f', fontSize: '0.78rem', flex: '0 0 auto' }}>
         <span style={{ color: '#c9a227' }}>City mesh blueprint</span>
+        <span style={{ display: 'inline-flex', border: '1px solid #2a241f', borderRadius: 5, overflow: 'hidden' }}>
+          {(['plan', 'tiles'] as const).map((v) => (
+            <button key={v} onClick={() => setView(v)} style={{ padding: '3px 12px', fontSize: '0.74rem', cursor: 'pointer', border: 'none', background: view === v ? '#c9a227' : '#15120f', color: view === v ? '#15120f' : '#9a8f7d' }}>{v}</button>
+          ))}
+        </span>
         <span style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
           seed
           <input type="number" value={seed} onChange={(e) => setSeed(Number(e.target.value) || 0)} style={{ ...inp, width: 64 }} />
@@ -114,6 +134,18 @@ export default function CityMeshBlueprint({ server }: { server: string }) {
       </div>
 
       <div style={{ flex: 1, minHeight: 0, position: 'relative' }}>
+        {view === 'tiles' && (
+          <>
+            <SceneCanvas data={tileMap ?? null} freeCamera />
+            {tileBusy && <div style={{ position: 'absolute', top: 8, left: 10, fontSize: '0.72rem', color: '#9a8f7d', background: 'rgba(13,11,10,0.6)', padding: '3px 8px', borderRadius: 4 }}>rasterizing…</div>}
+            {tileMap && (
+              <div style={{ position: 'absolute', left: 10, bottom: 8, fontSize: '0.72rem', color: '#9a8f7d', fontFamily: 'monospace', background: 'rgba(13,11,10,0.6)', padding: '3px 8px', borderRadius: 4 }}>
+                tiles {tileMap.grid.cols}×{tileMap.grid.rows} · seed {seed} · {walled ? 'walled' : 'open'} · structure only (no buildings yet)
+              </div>
+            )}
+          </>
+        )}
+        {view === 'plan' && (<>
         <svg viewBox={`0 0 ${VB.w} ${VB.h}`} preserveAspectRatio="xMidYMid meet" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}>
           <rect x={0} y={0} width={VB.w} height={VB.h} fill="#12100d" />
           {data?.patches.map((p, i) => shown(p.z) ? (
@@ -132,6 +164,7 @@ export default function CityMeshBlueprint({ server }: { server: string }) {
             seed {data.seed} · {data.nPatches} core wards · {data.wall ? `${data.wall.gates.length} gates` : 'no wall'} · {streets.length} street edges · {data.patches.filter((p) => p.z === 'extramural').length} outer-zone cells
           </div>
         )}
+        </>)}
       </div>
     </div>
   );

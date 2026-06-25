@@ -12,4 +12,5 @@ export { loadAssetLibrary, type AssetLibrary, type AssetEntry, type AssetKind } 
 export { renderSceneMapToPng } from './headless-render.js';
 export { blockCottage, blockPlaza, blockTown } from './blocks.js';
 export { buildCityMesh, cityMeshBlueprint, type CityMesh, type CityBlueprint, type BlueprintPatch, type Patch, type Zone } from './citymesh.js';
+export { realizeCityMesh } from './city-realizer.js';
 export * from './catalog.js';

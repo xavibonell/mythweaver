@@ -5,7 +5,7 @@ import { randomUUID } from 'node:crypto';
 import Fastify, { type FastifyReply } from 'fastify';
 import { Engine, createInitialState } from '@mythweaver/engine';
 import { createProvider } from '@mythweaver/llm';
-import { CHARACTERS, FakeSceneComposer, LlmSceneComposer, PROPS, TERRAINS, buildSceneMap, cityMeshBlueprint, loadAssetLibrary } from '@mythweaver/scene';
+import { CHARACTERS, FakeSceneComposer, LlmSceneComposer, PROPS, TERRAINS, buildSceneMap, cityMeshBlueprint, loadAssetLibrary, realizeCityMesh } from '@mythweaver/scene';
 import { BIOMES, classToSpriteTag, validateEstablishScene, type EstablishScene } from '@mythweaver/shared';
 import { Db } from './db.js';
 import { loadScenario, readScenarioRaw, writeScenarioRaw, parseScenario, loadSharedParty, loadSharedBestiary, resolveParty } from './content.js';
@@ -225,6 +225,22 @@ app.get('/scene/citymesh', async (req, reply) => {
     return cityMeshBlueprint(seed, { nPatches, wall });
   } catch (err) {
     app.log.error(err, 'scene citymesh blueprint failed');
+    reply.code(502);
+    return { error: (err as Error).message };
+  }
+});
+
+// Scene Lab — CITY MESH realized to TILES (the Blueprint tab's "tiles" view): rasterizes the mesh into a
+// real SceneMap (ground by zone + cobble street seams + curtain wall/gates). Structure only, no buildings yet.
+app.get('/scene/citymesh/render', async (req, reply) => {
+  const q = (req.query ?? {}) as { seed?: string; nPatches?: string; wall?: string };
+  const seed = Number.isFinite(Number(q.seed)) ? Number(q.seed) : 1;
+  const nPatches = Number.isFinite(Number(q.nPatches)) ? Number(q.nPatches) : 15;
+  const wall = q.wall !== '0' && q.wall !== 'false';
+  try {
+    return { sceneMap: realizeCityMesh(seed, { nPatches, wall }) };
+  } catch (err) {
+    app.log.error(err, 'scene citymesh render failed');
     reply.code(502);
     return { error: (err as Error).message };
   }
