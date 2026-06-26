@@ -12,7 +12,8 @@
  * Deterministic from the seed.
  */
 import { Canvas, building, compound, finalize, place, poissonScatter, vignette } from './primitives.js';
-import { buildCityMesh, type CityMeshOpts, type Vec2, type Zone } from './citymesh.js';
+import { buildCityMesh, type CityMesh, type CityMeshOpts, type Vec2, type Zone } from './citymesh.js';
+import { buildCityBsp } from './citybsp.js';
 import type { ShapeKind } from './footprint.js';
 import type { BuildingType, SceneMap } from '@mythweaver/shared';
 
@@ -288,11 +289,19 @@ function fillExtramural(cv: Canvas, m: ReturnType<typeof buildCityMesh>, nid: nu
   poissonScatter(cv, { x: 0, y: 0, w: GRID, h: GRID }, { tags: ['tree', 'tree_pine', 'tree_autumn', 'bush'], r: 2, max: 400, blocks: true, filter: (c, r) => m.patches[nid[r]?.[c] ?? -1]?.zone === 'rural' && cv.tileAt(c, r) === 'grass' && cv.isFree(c, r) });
 }
 
-const cellMapHalf = (m: ReturnType<typeof buildCityMesh>) => m.viewExtent * 1.1;
+const cellMapHalf = (m: CityMesh) => m.viewExtent * 1.1;
 
-/** Build a tiled, lived-in SceneMap from the block-centric mesh. */
+/** Voronoi engine (organic wards). */
 export function realizeCityMesh(seed: number, opts: CityMeshOpts = {}): SceneMap {
-  const m = buildCityMesh(seed, opts);
+  return realizeLayout(buildCityMesh(seed, opts), seed);
+}
+/** Orthogonal engine (BSP rectangular blocks). Same fill/realizer, different layout. */
+export function realizeCityBsp(seed: number, opts: CityMeshOpts = {}): SceneMap {
+  return realizeLayout(buildCityBsp(seed, opts), seed);
+}
+
+/** Build a tiled, lived-in SceneMap from any block layout (Voronoi or BSP) — shared by both engines. */
+function realizeLayout(m: CityMesh, seed: number): SceneMap {
   const half = cellMapHalf(m);
   const GRID = Math.max(60, Math.min(160, Math.round(2 * half * 0.9)));
   const SCALE = GRID / (2 * half);
@@ -302,7 +311,8 @@ export function realizeCityMesh(seed: number, opts: CityMeshOpts = {}): SceneMap
   const toTile = (p: Vec2) => ({ c: Math.round((p.x - (m.center.x - half)) * SCALE - 0.5), r: Math.round(((m.center.y + half) - p.y) * SCALE - 0.5) });
   const zoneOf = (id: number): Zone => m.patches[id]?.zone ?? 'rural';
 
-  // 1. Nearest patch per tile → ground + street seams.
+  // 1. Cell per tile via the layout's own `find` (Voronoi = L1-metric nearest seed; BSP = rect containment)
+  //    → drives ground + street seams. Both produce axis-aligned-ish seams that the cobble renders cleanly.
   const nid: number[][] = Array.from({ length: GRID }, () => new Array<number>(GRID));
   for (let r = 0; r < GRID; r++) for (let c = 0; c < GRID; c++) { const { wx, wy } = tileWorld(c, r); nid[r]![c] = m.find(wx, wy); }
   for (let r = 0; r < GRID; r++) for (let c = 0; c < GRID; c++) cv.set(c, r, ZONE_GROUND[zoneOf(nid[r]![c]!)]);

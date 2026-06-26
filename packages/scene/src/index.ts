@@ -11,6 +11,7 @@ export { type SceneComposer, FakeSceneComposer, LlmSceneComposer } from './compo
 export { loadAssetLibrary, type AssetLibrary, type AssetEntry, type AssetKind } from './asset-library.js';
 export { renderSceneMapToPng } from './headless-render.js';
 export { blockCottage, blockPlaza, blockTown } from './blocks.js';
-export { buildCityMesh, cityMeshBlueprint, type CityMesh, type CityBlueprint, type BlueprintPatch, type Patch, type Zone } from './citymesh.js';
-export { realizeCityMesh } from './city-realizer.js';
+export { buildCityMesh, cityMeshBlueprint, meshBlueprint, coreWall, type CityMesh, type CityBlueprint, type BlueprintPatch, type Patch, type Zone } from './citymesh.js';
+export { buildCityBsp, cityBspBlueprint } from './citybsp.js';
+export { realizeCityMesh, realizeCityBsp } from './city-realizer.js';
 export * from './catalog.js';

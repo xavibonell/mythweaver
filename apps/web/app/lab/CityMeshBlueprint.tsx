@@ -48,6 +48,7 @@ export default function CityMeshBlueprint({ server }: { server: string }) {
   const [seed, setSeed] = useState(1);
   const [nPatches, setNPatches] = useState(15);
   const [walled, setWalled] = useState(true);
+  const [engine, setEngine] = useState<'voronoi' | 'orthogonal'>('voronoi');
   const [view, setView] = useState<'plan' | 'tiles'>('plan');
   const [data, setData] = useState<CityBlueprint | null>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -57,26 +58,26 @@ export default function CityMeshBlueprint({ server }: { server: string }) {
   const [error, setError] = useState('');
   const [layers, setLayers] = useState<Layers>({ cells: true, zones: true, streets: true, skeleton: false, seeds: false });
 
-  const load = useCallback(async (s: number, n: number, w: boolean) => {
+  const load = useCallback(async (s: number, n: number, w: boolean, eng: string) => {
     setBusy(true); setError('');
     try {
-      const res = await fetch(`${server}/scene/citymesh?seed=${s}&nPatches=${n}&wall=${w ? 1 : 0}`, { cache: 'no-store' });
+      const res = await fetch(`${server}/scene/citymesh?seed=${s}&nPatches=${n}&wall=${w ? 1 : 0}&engine=${eng}`, { cache: 'no-store' });
       const d = await res.json();
       if (!res.ok) setError(d.error ?? `error ${res.status}`); else setData(d);
     } catch (e) { setError((e as Error).message); } finally { setBusy(false); }
   }, [server]);
 
-  const loadTiles = useCallback(async (s: number, n: number, w: boolean) => {
+  const loadTiles = useCallback(async (s: number, n: number, w: boolean, eng: string) => {
     setTileBusy(true); setError('');
     try {
-      const res = await fetch(`${server}/scene/citymesh/render?seed=${s}&nPatches=${n}&wall=${w ? 1 : 0}`, { cache: 'no-store' });
+      const res = await fetch(`${server}/scene/citymesh/render?seed=${s}&nPatches=${n}&wall=${w ? 1 : 0}&engine=${eng}`, { cache: 'no-store' });
       const d = await res.json();
       if (!res.ok) setError(d.error ?? `error ${res.status}`); else setTileMap(d.sceneMap);
     } catch (e) { setError((e as Error).message); } finally { setTileBusy(false); }
   }, [server]);
 
-  useEffect(() => { load(seed, nPatches, walled); }, [load, seed, nPatches, walled]);
-  useEffect(() => { if (view === 'tiles') loadTiles(seed, nPatches, walled); }, [view, seed, nPatches, walled, loadTiles]);
+  useEffect(() => { load(seed, nPatches, walled, engine); }, [load, seed, nPatches, walled, engine]);
+  useEffect(() => { if (view === 'tiles') loadTiles(seed, nPatches, walled, engine); }, [view, seed, nPatches, walled, engine, loadTiles]);
 
   // Fit the shown cells into the viewBox (flip Y so north is up).
   let fit: { s: number; minX: number; maxY: number; ox: number; oy: number } | null = null;
@@ -105,6 +106,11 @@ export default function CityMeshBlueprint({ server }: { server: string }) {
         <span style={{ display: 'inline-flex', border: '1px solid #2a241f', borderRadius: 5, overflow: 'hidden' }}>
           {(['plan', 'tiles'] as const).map((v) => (
             <button key={v} onClick={() => setView(v)} style={{ padding: '3px 12px', fontSize: '0.74rem', cursor: 'pointer', border: 'none', background: view === v ? '#c9a227' : '#15120f', color: view === v ? '#15120f' : '#9a8f7d' }}>{v}</button>
+          ))}
+        </span>
+        <span style={{ display: 'inline-flex', border: '1px solid #2a241f', borderRadius: 5, overflow: 'hidden' }} title="layout engine: organic Voronoi wards vs orthogonal BSP rectangular blocks">
+          {([['voronoi', 'organic'], ['orthogonal', 'orthogonal']] as const).map(([v, label]) => (
+            <button key={v} onClick={() => setEngine(v)} style={{ padding: '3px 12px', fontSize: '0.74rem', cursor: 'pointer', border: 'none', background: engine === v ? '#5a8f3a' : '#15120f', color: engine === v ? '#0d0b0a' : '#9a8f7d' }}>{label}</button>
           ))}
         </span>
         <span style={{ display: 'flex', gap: 6, alignItems: 'center' }}>

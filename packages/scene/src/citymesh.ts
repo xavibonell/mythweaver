@@ -143,6 +143,16 @@ function gatesOf(ring: Vec2[], junctions: Set<string>): Vec2[] {
   return keep;
 }
 
+/** A curtain wall traced around the union of the `inner` (core) patches: the boundary ordered into a
+ *  loop, optionally Chaikin-smoothed (Voronoi → curved; BSP → keep rectilinear), with gates at junctions.
+ *  Shared by both blueprint engines. */
+export function coreWall(patches: Patch[], inner: number[], smooth: boolean): { ring: Vec2[]; gates: Vec2[] } | undefined {
+  const { boundary, junctions } = coreEdgeSets(patches, inner);
+  const raw = orderRing(boundary);
+  if (raw.length < 3) return undefined;
+  return { ring: smooth ? chaikin(raw, 2) : raw, gates: gatesOf(raw, junctions) };
+}
+
 /**
  * Build the layout mesh: spiral-seed a point field (dense center, loose fringe), Voronoi it, relax the
  * central cells (3 Lloyd passes) so they read hand-placed, then classify the nPatches nearest cells as
@@ -208,14 +218,17 @@ export function buildCityMesh(seed: number, opts: CityMeshOpts = {}): CityMesh {
 
   // Curtain wall (optional) — a smoothed ring around the CORE ONLY, with gates where streets meet it.
   // Without a wall the extramural ring is just open outskirts; the zoning is unchanged either way.
-  let wall: CityMesh['wall'];
-  if (opts.wall !== false) {
-    const { boundary, junctions } = coreEdgeSets(patches, inner);
-    const raw = orderRing(boundary);
-    if (raw.length >= 3) wall = { ring: chaikin(raw, 2), gates: gatesOf(raw, junctions) };
-  }
+  const wall = opts.wall !== false ? coreWall(patches, inner, true) : undefined;
 
-  return { patches, inner, center, cityRadius, viewExtent: viewExtent || cityRadius || 1, seed, wall, find: (x, y) => del.find(x, y) };
+  // Tile assignment uses the L1 / MANHATTAN metric (not Euclidean d3.find): under L1 the bisector between
+  // two sites is axis-aligned + 45° only, so the rasterized cell seams collapse to H/V/45° runs and the
+  // cobble streets render far cleaner than arbitrary-angle staircases.
+  const find = (x: number, y: number) => {
+    let best = 0, bd = Infinity;
+    for (let i = 0; i < sites.length; i++) { const s = sites[i]!; const d = Math.abs(s.x - x) + Math.abs(s.y - y); if (d < bd) { bd = d; best = i; } }
+    return best;
+  };
+  return { patches, inner, center, cityRadius, viewExtent: viewExtent || cityRadius || 1, seed, wall, find };
 }
 
 // --- blueprint payload (for the Scene Lab "Blueprint" tab) -------------------
@@ -236,8 +249,7 @@ export interface CityBlueprint {
  * (core flagged), the seed points, and the core adjacency graph. The client derives the wall (boundary
  * edges) and street corridors (shared edges) from the polygons — proving they fall out of the mesh.
  */
-export function cityMeshBlueprint(seed: number, opts: CityMeshOpts = {}): CityBlueprint {
-  const m = buildCityMesh(seed, opts);
+export function meshBlueprint(m: CityMesh): CityBlueprint {
   const R = Math.round;
   const innerSet = new Set(m.inner);
   const [cx, cy] = [m.center.x, m.center.y];
@@ -249,5 +261,9 @@ export function cityMeshBlueprint(seed: number, opts: CityMeshOpts = {}): CityBl
   for (const id of m.inner) for (const nb of m.patches[id]!.neighbours)
     if (innerSet.has(nb) && id < nb) adj.push([[R(m.patches[id]!.centroid.x), R(m.patches[id]!.centroid.y)], [R(m.patches[nb]!.centroid.x), R(m.patches[nb]!.centroid.y)]]);
   const wall = m.wall ? { ring: m.wall.ring.map((v) => [R(v.x), R(v.y)] as [number, number]), gates: m.wall.gates.map((v) => [R(v.x), R(v.y)] as [number, number]) } : undefined;
-  return { seed, nPatches: m.inner.length, center: [R(cx), R(cy)], viewExtent: R(m.viewExtent), patches, adj, wall };
+  return { seed: m.seed, nPatches: m.inner.length, center: [R(cx), R(cy)], viewExtent: R(m.viewExtent), patches, adj, wall };
+}
+
+export function cityMeshBlueprint(seed: number, opts: CityMeshOpts = {}): CityBlueprint {
+  return meshBlueprint(buildCityMesh(seed, opts));
 }
