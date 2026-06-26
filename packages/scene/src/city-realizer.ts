@@ -11,7 +11,7 @@
  * farmsteads, a camp by a gate, a roadside vendor — and a few NPCs (gate guards, folk) bring it alive.
  * Deterministic from the seed.
  */
-import { Canvas, building, compound, finalize, place, poissonScatter, vignette } from './primitives.js';
+import { Canvas, building, clumpScatter, compound, finalize, place, poissonScatter, vignette } from './primitives.js';
 import { buildCityMesh, type CityMesh, type CityMeshOpts, type Vec2, type Zone } from './citymesh.js';
 import { buildCityBsp } from './citybsp.js';
 import type { ShapeKind } from './footprint.js';
@@ -40,6 +40,39 @@ function propClass(w: Ward): keyof typeof WARD_PROPS {
   if (['courthouse', 'library', 'jail'].includes(w)) return 'civic';
   if (w === 'house') return 'residential';
   return 'default';
+}
+
+// A ward → a SIGNATURE prop cluster dropped on the grass flanking that ward's landmark door, so the
+// trade reads at a glance (a forge by the smithy, stalls by the shop, an altar by the temple). These
+// pull from library props that otherwise never appear (anvil/weapon_rack/altar/candelabra/banner).
+const SIGNATURE: Partial<Record<Ward, string[]>> = {
+  cathedral: ['altar', 'candelabra', 'brazier', 'statue'],
+  temple: ['altar', 'candelabra', 'brazier'],
+  keep: ['statue', 'banner', 'brazier', 'stone_bench'],
+  manor: ['statue', 'banner', 'stone_bench'],
+  smithy: ['anvil', 'weapon_rack', 'woodpile', 'barrel'],
+  workshop: ['anvil', 'woodpile', 'crate', 'barrel'],
+  armory: ['weapon_rack', 'anvil', 'crate'],
+  barracks: ['weapon_rack', 'banner', 'crate'],
+  guildhall: ['banner', 'crate', 'stone_bench'],
+  shop: ['market_stall', 'crate', 'barrel', 'banner'],
+  general_store: ['market_stall', 'crate', 'sack', 'barrel'],
+  inn: ['market_stall', 'barrel', 'banner'],
+  tavern: ['barrel', 'crate', 'market_stall'],
+  courthouse: ['statue', 'signpost', 'stone_bench'],
+  library: ['statue', 'signpost', 'stone_bench'],
+  jail: ['weapon_rack', 'signpost', 'barrel'],
+};
+
+/** Drop a ward's signature cluster on the grass flanking a landmark's door. Grass-only (never the dirt
+ *  door-apron) so the building stays reachable; a small blue-noise spray that reads as "the trade out front." */
+function signature(cv: Canvas, lot: { x: number; y: number; w: number; h: number }, side: 'north' | 'south' | 'east' | 'west', w: Ward, inCell: (c: number, r: number) => boolean, idp: string) {
+  const tags = SIGNATURE[w];
+  if (!tags) return;
+  let x0 = lot.x - 2, y0 = lot.y - 2, x1 = lot.x + lot.w + 1, y1 = lot.y + lot.h + 1;
+  if (side === 'north') y1 = lot.y - 1; else if (side === 'south') y0 = lot.y + lot.h; else if (side === 'west') x1 = lot.x - 1; else x0 = lot.x + lot.w;
+  poissonScatter(cv, { x: x0, y: y0, w: x1 - x0 + 1, h: y1 - y0 + 1 }, { tags, r: 1, max: 3, blocks: true, filter: (c, r) => inCell(c, r) && cv.tileAt(c, r) === 'grass' && cv.isFree(c, r) });
+  void idp;
 }
 
 // --- tile helpers -----------------------------------------------------------
@@ -161,7 +194,7 @@ function rectOf(i: CellInfo) { return { x: i.x0, y: i.y0, w: i.x1 - i.x0 + 1, h:
 function pickShape(rect: { w: number; h: number }, _primary: boolean, rng: () => number): ShapeKind {
   const m = Math.min(rect.w, rect.h);
   if (m < 11) return 'rect';
-  const pool: ShapeKind[] = m >= 13 ? ['plus', 'compose', 'you', 'tee', 'ell', 'ell', 'tee'] : ['tee', 'ell', 'ell'];
+  const pool: ShapeKind[] = m >= 13 ? ['plus', 'plus', 'compose', 'compose', 'you', 'tee', 'ell'] : ['tee', 'ell', 'ell', 'you'];
   return pool[Math.floor(rng() * pool.length)]!;
 }
 
@@ -183,10 +216,17 @@ function fillCoreCell(cv: Canvas, w: Ward, info: CellInfo, nid: number[][], loc:
   const id = info.id;
   const inCell = (c: number, r: number) => cv.inB(c, r) && nid[r]?.[c] === id;
   if (w === 'plaza') {
-    for (let r = info.y0; r <= info.y1; r++) for (let c = info.x0; c <= info.x1; c++) if (inCell(c, r) && cv.tileAt(c, r) === 'grass') cv.set(c, r, 'road', true);
+    // A proper market square: pave a CENTRED square (capped so an oversized block doesn't become a grey
+    // runway), ring the fountain with benches + stalls + folk, and frame the rest of the cell in greenery.
+    const hw = Math.min(6, (info.x1 - info.x0) >> 1), hh = Math.min(6, (info.y1 - info.y0) >> 1);
+    const px0 = info.cc - hw, px1 = info.cc + hw, py0 = info.cr - hh, py1 = info.cr + hh;
+    for (let r = py0; r <= py1; r++) for (let c = px0; c <= px1; c++) if (inCell(c, r) && cv.tileAt(c, r) === 'grass') cv.set(c, r, 'road', true);
     if (cv.inB(info.cc, info.cr)) place(cv, { id: `prop:${loc}-fountain`, tag: 'fountain', kind: 'prop', at: { c: info.cc, r: info.cr } });
-    poissonScatter(cv, rectOf(info), { tags: ['market_stall', 'crate', 'barrel', 'sack'], r: 2, max: 6, blocks: true, filter: (c, r) => inCell(c, r) && cv.tileAt(c, r) === 'road' && cv.isFree(c, r) });
-    placeActors(cv, info, inCell, 'road', ['villager', 'villager_woman', 'dog'], 3, `npc:${loc}-plaza`);
+    for (const [dc, dr] of [[-2, 0], [2, 0], [0, -2], [0, 2]] as const) { const c = info.cc + dc, r = info.cr + dr; if (cv.inB(c, r) && cv.tileAt(c, r) === 'road' && cv.isFree(c, r)) place(cv, { id: `prop:${loc}-pbench-${c}-${r}`, tag: 'stone_bench', kind: 'prop', at: { c, r } }); }
+    poissonScatter(cv, rectOf(info), { tags: ['market_stall', 'market_stall', 'crate', 'barrel', 'sack'], r: 2, max: 8, blocks: true, filter: (c, r) => inCell(c, r) && cv.tileAt(c, r) === 'road' && cv.isFree(c, r) });
+    placeActors(cv, info, inCell, 'road', ['villager', 'villager_woman', 'dog'], 4, `npc:${loc}-plaza`);
+    poissonScatter(cv, rectOf(info), { tags: ['tree', 'tree_autumn', 'bush'], r: 2, max: 12, blocks: true, filter: (c, r) => inCell(c, r) && cv.tileAt(c, r) === 'grass' && cv.isFree(c, r) });
+    poissonScatter(cv, rectOf(info), { tags: ['flowers', 'flowers_blue', 'flowers_yellow', 'grass_tuft'], r: 1, max: 18, blocks: false, filter: (c, r) => inCell(c, r) && cv.tileAt(c, r) === 'grass' && cv.isFree(c, r) });
     return;
   }
   if (w === 'park') {
@@ -205,14 +245,15 @@ function fillCoreCell(cv: Canvas, w: Ward, info: CellInfo, nid: number[][], loc:
   // buildable rect, clamp it to a sensible footprint anchored to its street side, and drop a SHAPED
   // compound (L/T/U/+ whenever ≥11). Repeat for the next big rect, capped at MAXB. The leftover (arms,
   // rear, slivers, the courtyard) becomes the tended garden. Doors face the street.
-  const MIN = 7, MAXW = 16, MAXH = 14, MAXB = 3;
-  const grand = propClass(w) === 'grand';
+  const MIN = 7, MAXB = 3;
+  const pc = propClass(w);
   const used = new Set<string>();
   const k = (c: number, r: number) => `${c},${r}`;
   const streetAdj = (c: number, r: number) => cv.tileAt(c, r - 1) === 'road' || cv.tileAt(c, r + 1) === 'road' || cv.tileAt(c - 1, r) === 'road' || cv.tileAt(c + 1, r) === 'road';
   const buildable = (c: number, r: number) => inCell(c, r) && cv.tileAt(c, r) === 'grass' && !used.has(k(c, r));
   const claim = (R: { x: number; y: number; w: number; h: number }) => { for (let r = R.y - 1; r <= R.y + R.h; r++) for (let c = R.x - 1; c <= R.x + R.w; c++) used.add(k(c, r)); };
-  const secondary: BuildingType[] = grand || propClass(w) === 'craft' ? ['house', 'workshop'] : ['house', 'house'];
+  // Secondary buildings draw from the WARD's trade, not just houses → a craft block reads [smithy, workshop, house].
+  const secondary: BuildingType[] = pc === 'market' ? ['shop', 'inn', 'house'] : pc === 'craft' ? ['workshop', 'smithy', 'house'] : pc === 'grand' ? ['house', 'manor'] : pc === 'civic' ? ['house', 'library'] : ['house', 'house', 'shop'];
   for (let r = info.y0; r <= info.y1; r++) for (let c = info.x0; c <= info.x1; c++) if (inCell(c, r) && cv.tileAt(c, r) === 'grass' && streetAdj(c, r)) used.add(k(c, r)); // setback ring
   const bestSide = (R: { x: number; y: number; w: number; h: number }): 'north' | 'south' | 'east' | 'west' | null => {
     const s = { north: 0, south: 0, east: 0, west: 0 };
@@ -221,19 +262,24 @@ function fillCoreCell(cv: Canvas, w: Ward, info: CellInfo, nid: number[][], loc:
     const [side, v] = Object.entries(s).sort((a, b) => b[1] - a[1])[0]!;
     return v > 0 ? (side as 'north' | 'south' | 'east' | 'west') : null;
   };
+  // Per-TYPE footprint ceiling → a cathedral/keep towers over a cottage (visual scale hierarchy).
+  const footFor = (t: BuildingType): [number, number] => t === 'cathedral' ? [20, 16] : t === 'keep' ? [18, 16] : (t === 'manor' || t === 'guildhall' || t === 'courthouse') ? [18, 14] : t === 'house' ? [13, 12] : [16, 14];
   // Clamp a big rect to a building footprint, anchored to its street side (centred on the other axis).
-  const clampLot = (big: { x: number; y: number; w: number; h: number }, side: 'north' | 'south' | 'east' | 'west') => {
-    const W = Math.min(big.w, MAXW), H = Math.min(big.h, MAXH);
+  const clampLot = (big: { x: number; y: number; w: number; h: number }, side: 'north' | 'south' | 'east' | 'west', mw: number, mh: number) => {
+    const W = Math.min(big.w, mw), H = Math.min(big.h, mh);
     let x = big.x + ((big.w - W) >> 1), y = big.y + ((big.h - H) >> 1);
     if (side === 'north') y = big.y; else if (side === 'south') y = big.y + big.h - H; else if (side === 'west') x = big.x; else x = big.x + big.w - W;
     return { x, y, w: W, h: H };
   };
   let n = 0;
-  const emit = (lot: { x: number; y: number; w: number; h: number }, door: 'north' | 'south' | 'east' | 'west') => {
-    if (lot.w < 5 || lot.h < 5) { claim(lot); return; }
+  const emit = (big: { x: number; y: number; w: number; h: number }, door: 'north' | 'south' | 'east' | 'west') => {
     const type: BuildingType = n === 0 ? (w as BuildingType) : (secondary[(n - 1) % secondary.length] ?? 'house');
+    const [mw, mh] = footFor(type);
+    const lot = clampLot(big, door, mw, mh);
+    if (lot.w < 5 || lot.h < 5) { claim(lot); return; }
     compound(cv, lot, type, { shape: pickShape(lot, true, cv.rng), door, locationId: loc, id: `bldg:${loc}-${id}-${n}` });
     carveFront(cv, lot, door);
+    if (n === 0) signature(cv, lot, door, w, inCell, `${loc}-${id}`); // landmark gets a trade-signature cluster
     claim(lot); n++;
   };
   for (let guard = 0; guard < 8 && n < MAXB; guard++) {
@@ -241,7 +287,7 @@ function fillCoreCell(cv: Canvas, w: Ward, info: CellInfo, nid: number[][], loc:
     if (!big || big.w < MIN || big.h < MIN) break;
     const side = bestSide(big);
     if (!side) { claim(big); continue; } // interior rect → tended garden
-    emit(clampLot(big, side), side); // one big shaped building; leftover re-picked for the next or a garden
+    emit(big, side); // one big shaped building; leftover re-picked for the next or a garden
   }
   if (n === 0) { // small-cell fallback: one cottage on the largest grass rect
     const r2 = maxRect((c, r) => inCell(c, r) && cv.tileAt(c, r) === 'grass', info.x0, info.y0, info.x1, info.y1);
@@ -250,9 +296,10 @@ function fillCoreCell(cv: Canvas, w: Ward, info: CellInfo, nid: number[][], loc:
   // TENDED courtyard/garden on the leftover grass (block interiors, rear slabs, arms, the setback band) —
   // a kitchen-garden so a node never reads as bare grass: a well/fountain focal point, then dense planting
   // (bushes/crops/fences/a few trees) + flower beds.
-  if (cv.inB(info.cc, info.cr) && cv.isFree(info.cc, info.cr) && cv.tileAt(info.cc, info.cr) === 'grass' && cv.rng() < 0.45)
+  if (cv.inB(info.cc, info.cr) && cv.isFree(info.cc, info.cr) && cv.tileAt(info.cc, info.cr) === 'grass' && cv.rng() < 0.65)
     place(cv, { id: `prop:${loc}-yard-${id}`, tag: 'fountain', kind: 'prop', at: { c: info.cc, r: info.cr } });
-  poissonScatter(cv, rectOf(info), { tags: ['bush', 'bush', 'fence', 'woodpile', 'tree', ...WARD_PROPS[propClass(w)]!], r: 2, max: 9, blocks: true, filter: (c, r) => inCell(c, r) && cv.tileAt(c, r) === 'grass' && cv.isFree(c, r) });
+  // Planting in clumped BEDS/thickets (not an even sprinkle) → reads as a designed kitchen-garden, never bare.
+  clumpScatter(cv, rectOf(info), { tags: ['bush', 'bush', 'fence', 'woodpile', 'tree', ...WARD_PROPS[propClass(w)]!], freq: 0.18, threshold: 0.5, max: 12, blocks: true, filter: (c, r) => inCell(c, r) && cv.tileAt(c, r) === 'grass' && cv.isFree(c, r) });
   poissonScatter(cv, rectOf(info), { tags: ['flowers', 'flowers_blue', 'flowers_yellow', 'grass_tuft', 'mushroom'], r: 1, max: 14, blocks: false, filter: (c, r) => inCell(c, r) && cv.tileAt(c, r) === 'grass' && cv.isFree(c, r) });
 }
 
@@ -360,6 +407,13 @@ function realizeLayout(m: CityMesh, seed: number): SceneMap {
   for (let i = roads.length - 1; i > 0; i--) { const j = Math.floor(cv.rng() * (i + 1)); [roads[i], roads[j]] = [roads[j]!, roads[i]!]; }
   const folk = ['villager', 'villager_woman', 'ranger', 'dog'];
   for (let k = 0; k < Math.min(6, roads.length); k++) place(cv, { id: `npc:${loc}-folk-${k}`, tag: folk[k % folk.length]!, kind: 'actor', role: 'npc', at: roads[k]! });
+
+  // 7. Civic square: re-skin the PLAZA cell's cobble to formal FLAGSTONE so the town's heart reads as a
+  //    proper paved square, while every street stays the beloved curbed cobble. Street detection above ran
+  //    on 'road', so this cosmetic pass runs last; road↔flagstone is curbless (curbs bake only vs grass).
+  const plazaId = [...wards].find(([, ward]) => ward === 'plaza')?.[0];
+  if (plazaId !== undefined) for (let r = 0; r < GRID; r++) for (let c = 0; c < GRID; c++)
+    if (nid[r]![c] === plazaId && cv.tileAt(c, r) === 'road') cv.set(c, r, 'flagstone', true);
 
   return finalize(cv, { locationId: loc, biome: 'village', lighting: 'day', grammar: 'town-square', outdoor: true, skipReachability: true, skipDecals: true });
 }
