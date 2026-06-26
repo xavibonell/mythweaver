@@ -188,17 +188,21 @@ function fillCoreCell(cv: Canvas, w: Ward, info: CellInfo, nid: number[][], loc:
     return;
   }
   if (w === 'park') {
-    // a green square: a small grove + flowers + benches around a centrepiece, no buildings
-    if (cv.inB(info.cc, info.cr)) place(cv, { id: `prop:${loc}-park-${id}`, tag: 'statue', kind: 'prop', at: { c: info.cc, r: info.cr } });
-    poissonScatter(cv, rectOf(info), { tags: ['tree', 'tree_autumn', 'bush'], r: 3, max: 7, blocks: true, filter: (c, r) => inCell(c, r) && cv.tileAt(c, r) === 'grass' && cv.isFree(c, r) });
-    poissonScatter(cv, rectOf(info), { tags: ['flowers', 'grass_tuft', 'stone_bench'], r: 2, max: 6, blocks: false, filter: (c, r) => inCell(c, r) && cv.tileAt(c, r) === 'grass' && cv.isFree(c, r) });
+    // a DESIGNED green: a fountain/statue centrepiece, benches around it, framing trees + flower beds and
+    // a couple of strollers — a town park, never bare grass.
+    const cc = info.cc, cr = info.cr;
+    if (cv.inB(cc, cr) && cv.isFree(cc, cr)) place(cv, { id: `prop:${loc}-park-${id}`, tag: cv.rng() < 0.5 ? 'fountain' : 'statue', kind: 'prop', at: { c: cc, r: cr } });
+    for (const [dc, dr] of [[-2, 0], [2, 0], [0, -2], [0, 2]] as const) { const c = cc + dc, r = cr + dr; if (cv.inB(c, r) && inCell(c, r) && cv.tileAt(c, r) === 'grass' && cv.isFree(c, r)) place(cv, { id: `prop:${loc}-pb-${id}-${c}-${r}`, tag: 'stone_bench', kind: 'prop', at: { c, r } }); }
+    poissonScatter(cv, rectOf(info), { tags: ['tree', 'tree_autumn', 'tree_pine', 'bush'], r: 2, max: 10, blocks: true, filter: (c, r) => inCell(c, r) && cv.tileAt(c, r) === 'grass' && cv.isFree(c, r) });
+    poissonScatter(cv, rectOf(info), { tags: ['flowers', 'flowers_blue', 'flowers_yellow', 'flowers_red', 'grass_tuft'], r: 1, max: 16, blocks: false, filter: (c, r) => inCell(c, r) && cv.tileAt(c, r) === 'grass' && cv.isFree(c, r) });
+    placeActors(cv, info, inCell, 'grass', ['villager', 'villager_woman', 'dog'], 2, `npc:${loc}-park`);
     return;
   }
   // Lot subdivision (Step 2): reserve a 1-tile setback against the cobble seams (apron room), then
   // repeatedly take the fattest buildable rect — a GRAND ward gets one dominant landmark; everyone else
   // TERRACES into a row of street-facing plots. Rear slabs, concave arms, and slivers become gardens.
-  // Min lot 5×5 (no tiny houses); GAP=1 (independent walls, no fused rings); doors face the street.
-  const MIN = 5, GAP = 1, RING = 6;
+  // Lots aim for ~TARGET-wide with jitter (min MIN) so houses are decently sized + varied, never tiny.
+  const MIN = 6, GAP = 1, RING = 7, TARGET = 8;
   const grand = propClass(w) === 'grand';
   const used = new Set<string>();
   const k = (c: number, r: number) => `${c},${r}`;
@@ -235,12 +239,13 @@ function fillCoreCell(cv: Canvas, w: Ward, info: CellInfo, nid: number[][], loc:
     const span = horiz ? R.w : R.h;
     const depth = Math.min(horiz ? R.h : R.w, RING);
     if (span < MIN || depth < MIN) return;
-    const nLots = span >= 2 * MIN + GAP ? Math.floor((span + GAP) / (MIN + GAP)) : 1;
-    const base = Math.floor((span - (nLots - 1) * GAP) / nLots);
-    const extra = span - (nLots - 1) * GAP - base * nLots;
     let cursor = 0;
-    for (let i = 0; i < nLots; i++) {
-      const wl = base + (i < extra ? 1 : 0);
+    while (span - cursor >= MIN) {
+      let wl = TARGET + Math.floor(cv.rng() * 5) - 2; // ~6–10 wide, jittered → varied, decently-sized houses
+      const rem = span - cursor;
+      if (rem - wl < MIN) wl = rem; // absorb a small remainder rather than leave a sub-MIN sliver
+      wl = Math.min(wl, rem);
+      if (wl < MIN) break;
       const lot = side === 'north' ? { x: R.x + cursor, y: R.y, w: wl, h: depth }
         : side === 'south' ? { x: R.x + cursor, y: R.y + R.h - depth, w: wl, h: depth }
           : side === 'west' ? { x: R.x, y: R.y + cursor, w: depth, h: wl }
@@ -263,8 +268,13 @@ function fillCoreCell(cv: Canvas, w: Ward, info: CellInfo, nid: number[][], loc:
     const r2 = maxRect((c, r) => inCell(c, r) && cv.tileAt(c, r) === 'grass', info.x0, info.y0, info.x1, info.y1);
     if (r2 && r2.w >= 4 && r2.h >= 4) building(cv, { x: r2.x, y: r2.y, w: Math.min(6, r2.w), h: Math.min(6, r2.h) }, 'house', { door: pickDoor(cv, r2), locationId: loc, id: `bldg:${loc}-${id}-0` });
   }
-  // gardens/yards on the leftover grass (rear slabs, arms, slivers, the setback band)
-  poissonScatter(cv, rectOf(info), { tags: WARD_PROPS[propClass(w)]!, r: 2, max: 5, blocks: true, filter: (c, r) => inCell(c, r) && cv.tileAt(c, r) === 'grass' && cv.isFree(c, r) });
+  // TENDED courtyard/garden on the leftover grass (block interiors, rear slabs, arms, the setback band) —
+  // a kitchen-garden so a node never reads as bare grass: a well/fountain focal point, then dense planting
+  // (bushes/crops/fences/a few trees) + flower beds.
+  if (cv.inB(info.cc, info.cr) && cv.isFree(info.cc, info.cr) && cv.tileAt(info.cc, info.cr) === 'grass' && cv.rng() < 0.45)
+    place(cv, { id: `prop:${loc}-yard-${id}`, tag: 'fountain', kind: 'prop', at: { c: info.cc, r: info.cr } });
+  poissonScatter(cv, rectOf(info), { tags: ['bush', 'bush', 'fence', 'woodpile', 'tree', ...WARD_PROPS[propClass(w)]!], r: 2, max: 9, blocks: true, filter: (c, r) => inCell(c, r) && cv.tileAt(c, r) === 'grass' && cv.isFree(c, r) });
+  poissonScatter(cv, rectOf(info), { tags: ['flowers', 'flowers_blue', 'flowers_yellow', 'grass_tuft', 'mushroom'], r: 1, max: 14, blocks: false, filter: (c, r) => inCell(c, r) && cv.tileAt(c, r) === 'grass' && cv.isFree(c, r) });
 }
 
 /** The preserved extramural ring → flavour: farmsteads, a camp by a gate, a roadside vendor. */
