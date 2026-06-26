@@ -60,7 +60,7 @@ export default function CityMeshBlueprint({ server }: { server: string }) {
   const load = useCallback(async (s: number, n: number, w: boolean) => {
     setBusy(true); setError('');
     try {
-      const res = await fetch(`${server}/scene/citymesh?seed=${s}&nPatches=${n}&wall=${w ? 1 : 0}`);
+      const res = await fetch(`${server}/scene/citymesh?seed=${s}&nPatches=${n}&wall=${w ? 1 : 0}`, { cache: 'no-store' });
       const d = await res.json();
       if (!res.ok) setError(d.error ?? `error ${res.status}`); else setData(d);
     } catch (e) { setError((e as Error).message); } finally { setBusy(false); }
@@ -69,7 +69,7 @@ export default function CityMeshBlueprint({ server }: { server: string }) {
   const loadTiles = useCallback(async (s: number, n: number, w: boolean) => {
     setTileBusy(true); setError('');
     try {
-      const res = await fetch(`${server}/scene/citymesh/render?seed=${s}&nPatches=${n}&wall=${w ? 1 : 0}`);
+      const res = await fetch(`${server}/scene/citymesh/render?seed=${s}&nPatches=${n}&wall=${w ? 1 : 0}`, { cache: 'no-store' });
       const d = await res.json();
       if (!res.ok) setError(d.error ?? `error ${res.status}`); else setTileMap(d.sceneMap);
     } catch (e) { setError((e as Error).message); } finally { setTileBusy(false); }

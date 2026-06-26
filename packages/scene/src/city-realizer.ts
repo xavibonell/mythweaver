@@ -154,12 +154,13 @@ function placeActors(cv: Canvas, info: CellInfo, inCell: (c: number, r: number) 
 
 function rectOf(i: CellInfo) { return { x: i.x0, y: i.y0, w: i.x1 - i.x0 + 1, h: i.y1 - i.y0 + 1 }; }
 
-/** A footprint shape sized to the lot: only the roomy SIGNATURE building gets an L/T/U/+ silhouette
- *  (maskFor falls back to rect if it doesn't fit); secondaries and tight lots stay rectangular. */
-function pickShape(rect: { w: number; h: number }, primary: boolean, rng: () => number): ShapeKind {
+/** A footprint shape sized to the lot. Any lot roomy enough (≥11) gets an irregular L/T/U/+ silhouette —
+ *  we WANT shaped buildings, not squares; only genuinely small lots (<11, maskFor would fall back) stay
+ *  rectangular. The occasional small rect is fine; the norm should be shaped. */
+function pickShape(rect: { w: number; h: number }, _primary: boolean, rng: () => number): ShapeKind {
   const m = Math.min(rect.w, rect.h);
-  if (!primary || m < 11) return 'rect';
-  const pool: ShapeKind[] = m >= 13 ? ['plus', 'compose', 'you', 'tee', 'ell', 'rect'] : ['tee', 'ell', 'rect'];
+  if (m < 11) return 'rect';
+  const pool: ShapeKind[] = m >= 13 ? ['plus', 'compose', 'you', 'tee', 'ell', 'ell', 'tee'] : ['tee', 'ell', 'ell'];
   return pool[Math.floor(rng() * pool.length)]!;
 }
 
@@ -198,71 +199,48 @@ function fillCoreCell(cv: Canvas, w: Ward, info: CellInfo, nid: number[][], loc:
     placeActors(cv, info, inCell, 'grass', ['villager', 'villager_woman', 'dog'], 2, `npc:${loc}-park`);
     return;
   }
-  // Lot subdivision (Step 2): reserve a 1-tile setback against the cobble seams (apron room), then
-  // repeatedly take the fattest buildable rect — a GRAND ward gets one dominant landmark; everyone else
-  // TERRACES into a row of street-facing plots. Rear slabs, concave arms, and slivers become gardens.
-  // Lots aim for ~TARGET-wide with jitter (min MIN) so houses are decently sized + varied, never tiny.
-  const MIN = 6, GAP = 1, RING = 7, TARGET = 8;
+  // Fill a node with a FEW big, irregular-shaped buildings (fewer-but-bigger, not many tiny squares):
+  // reserve a 1-tile setback against the cobble seams (apron room), then greedily take the fattest
+  // buildable rect, clamp it to a sensible footprint anchored to its street side, and drop a SHAPED
+  // compound (L/T/U/+ whenever ≥11). Repeat for the next big rect, capped at MAXB. The leftover (arms,
+  // rear, slivers, the courtyard) becomes the tended garden. Doors face the street.
+  const MIN = 7, MAXW = 16, MAXH = 14, MAXB = 3;
   const grand = propClass(w) === 'grand';
   const used = new Set<string>();
   const k = (c: number, r: number) => `${c},${r}`;
   const streetAdj = (c: number, r: number) => cv.tileAt(c, r - 1) === 'road' || cv.tileAt(c, r + 1) === 'road' || cv.tileAt(c - 1, r) === 'road' || cv.tileAt(c + 1, r) === 'road';
   const buildable = (c: number, r: number) => inCell(c, r) && cv.tileAt(c, r) === 'grass' && !used.has(k(c, r));
   const claim = (R: { x: number; y: number; w: number; h: number }) => { for (let r = R.y - 1; r <= R.y + R.h; r++) for (let c = R.x - 1; c <= R.x + R.w; c++) used.add(k(c, r)); };
-  const rectFree = (R: { x: number; y: number; w: number; h: number }) => { for (let r = R.y; r < R.y + R.h; r++) for (let c = R.x; c < R.x + R.w; c++) if (!buildable(c, r)) return false; return true; };
   const secondary: BuildingType[] = grand || propClass(w) === 'craft' ? ['house', 'workshop'] : ['house', 'house'];
   for (let r = info.y0; r <= info.y1; r++) for (let c = info.x0; c <= info.x1; c++) if (inCell(c, r) && cv.tileAt(c, r) === 'grass' && streetAdj(c, r)) used.add(k(c, r)); // setback ring
-  const sideCounts = (R: { x: number; y: number; w: number; h: number }) => {
+  const bestSide = (R: { x: number; y: number; w: number; h: number }): 'north' | 'south' | 'east' | 'west' | null => {
     const s = { north: 0, south: 0, east: 0, west: 0 };
     for (let x = R.x; x < R.x + R.w; x++) for (let d = 1; d <= 2; d++) { if (cv.tileAt(x, R.y - d) === 'road') s.north++; if (cv.tileAt(x, R.y + R.h - 1 + d) === 'road') s.south++; }
     for (let y = R.y; y < R.y + R.h; y++) for (let d = 1; d <= 2; d++) { if (cv.tileAt(R.x - d, y) === 'road') s.west++; if (cv.tileAt(R.x + R.w - 1 + d, y) === 'road') s.east++; }
-    return s;
+    const [side, v] = Object.entries(s).sort((a, b) => b[1] - a[1])[0]!;
+    return v > 0 ? (side as 'north' | 'south' | 'east' | 'west') : null;
   };
-  const clampDepth = (R: { x: number; y: number; w: number; h: number }, side: 'north' | 'south' | 'east' | 'west') => {
-    if (side === 'north') return { x: R.x, y: R.y, w: R.w, h: Math.min(R.h, RING) };
-    if (side === 'south') { const h = Math.min(R.h, RING); return { x: R.x, y: R.y + R.h - h, w: R.w, h }; }
-    if (side === 'west') return { x: R.x, y: R.y, w: Math.min(R.w, RING), h: R.h };
-    const wv = Math.min(R.w, RING); return { x: R.x + R.w - wv, y: R.y, w: wv, h: R.h };
+  // Clamp a big rect to a building footprint, anchored to its street side (centred on the other axis).
+  const clampLot = (big: { x: number; y: number; w: number; h: number }, side: 'north' | 'south' | 'east' | 'west') => {
+    const W = Math.min(big.w, MAXW), H = Math.min(big.h, MAXH);
+    let x = big.x + ((big.w - W) >> 1), y = big.y + ((big.h - H) >> 1);
+    if (side === 'north') y = big.y; else if (side === 'south') y = big.y + big.h - H; else if (side === 'west') x = big.x; else x = big.x + big.w - W;
+    return { x, y, w: W, h: H };
   };
   let n = 0;
   const emit = (lot: { x: number; y: number; w: number; h: number }, door: 'north' | 'south' | 'east' | 'west') => {
-    if (lot.w < 4 || lot.h < 4) { claim(lot); return; }
+    if (lot.w < 5 || lot.h < 5) { claim(lot); return; }
     const type: BuildingType = n === 0 ? (w as BuildingType) : (secondary[(n - 1) % secondary.length] ?? 'house');
-    if (lot.w >= 5 && lot.h >= 5) compound(cv, lot, type, { shape: pickShape(lot, n === 0 && grand, cv.rng), door, locationId: loc, id: `bldg:${loc}-${id}-${n}` });
-    else building(cv, lot, 'house', { door, locationId: loc, id: `bldg:${loc}-${id}-${n}` });
+    compound(cv, lot, type, { shape: pickShape(lot, true, cv.rng), door, locationId: loc, id: `bldg:${loc}-${id}-${n}` });
     carveFront(cv, lot, door);
     claim(lot); n++;
   };
-  // Lay a terraced row of plots along one street-facing side of R (corner overlaps skipped via rectFree).
-  const layRow = (R: { x: number; y: number; w: number; h: number }, side: 'north' | 'south' | 'east' | 'west') => {
-    const horiz = side === 'north' || side === 'south';
-    const span = horiz ? R.w : R.h;
-    const depth = Math.min(horiz ? R.h : R.w, RING);
-    if (span < MIN || depth < MIN) return;
-    let cursor = 0;
-    while (span - cursor >= MIN) {
-      let wl = TARGET + Math.floor(cv.rng() * 5) - 2; // ~6–10 wide, jittered → varied, decently-sized houses
-      const rem = span - cursor;
-      if (rem - wl < MIN) wl = rem; // absorb a small remainder rather than leave a sub-MIN sliver
-      wl = Math.min(wl, rem);
-      if (wl < MIN) break;
-      const lot = side === 'north' ? { x: R.x + cursor, y: R.y, w: wl, h: depth }
-        : side === 'south' ? { x: R.x + cursor, y: R.y + R.h - depth, w: wl, h: depth }
-          : side === 'west' ? { x: R.x, y: R.y + cursor, w: depth, h: wl }
-            : { x: R.x + R.w - depth, y: R.y + cursor, w: depth, h: wl };
-      if (rectFree(lot)) emit(lot, side);
-      cursor += wl + GAP;
-    }
-  };
-  for (let guard = 0; guard < 24; guard++) {
+  for (let guard = 0; guard < 8 && n < MAXB; guard++) {
     const big = maxRect(buildable, info.x0, info.y0, info.x1, info.y1);
     if (!big || big.w < MIN || big.h < MIN) break;
-    const cnt = sideCounts(big);
-    const sides = (['north', 'south', 'east', 'west'] as const).filter((x) => cnt[x] > 0).sort((a, b) => cnt[b] - cnt[a]);
-    if (!sides.length) { claim(big); continue; } // interior rect → courtyard / garden
-    if (n === 0 && grand) { emit(Math.min(big.w, big.h) < 11 ? clampDepth(big, sides[0]!) : big, sides[0]!); claim(big); continue; }
-    for (const side of sides) layRow(big, side); // a terraced row on every street-facing side → a perimeter block
-    claim(big); // the inner courtyard becomes garden
+    const side = bestSide(big);
+    if (!side) { claim(big); continue; } // interior rect → tended garden
+    emit(clampLot(big, side), side); // one big shaped building; leftover re-picked for the next or a garden
   }
   if (n === 0) { // small-cell fallback: one cottage on the largest grass rect
     const r2 = maxRect((c, r) => inCell(c, r) && cv.tileAt(c, r) === 'grass', info.x0, info.y0, info.x1, info.y1);
