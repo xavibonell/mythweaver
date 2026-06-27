@@ -179,11 +179,11 @@ export const SHAPE_GENS: Record<ShapeKind, (lot: Rect, rng: () => number) => Foo
 /** Smallest lot (w×h incl. the wall ring) each shape needs to be legible; below this, fall back to rect. */
 export const SHAPE_MIN: Record<ShapeKind, { w: number; h: number }> = {
   rect: { w: 7, h: 7 },
-  ell: { w: 11, h: 11 },
-  tee: { w: 11, h: 11 },
-  you: { w: 13, h: 11 },
-  plus: { w: 13, h: 13 },
-  compose: { w: 13, h: 12 },
+  ell: { w: 9, h: 9 }, // an L only needs ~7 of interior — small blocks should still read as SHAPED, not squares
+  tee: { w: 9, h: 9 },
+  you: { w: 11, h: 9 },
+  plus: { w: 12, h: 12 },
+  compose: { w: 12, h: 11 },
 };
 
 /** Build a validated mask for a shape on a lot, falling back to rect if the shape doesn't fit or fails. */

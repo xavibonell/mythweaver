@@ -193,8 +193,8 @@ function rectOf(i: CellInfo) { return { x: i.x0, y: i.y0, w: i.x1 - i.x0 + 1, h:
  *  rectangular. The occasional small rect is fine; the norm should be shaped. */
 function pickShape(rect: { w: number; h: number }, _primary: boolean, rng: () => number): ShapeKind {
   const m = Math.min(rect.w, rect.h);
-  if (m < 11) return 'rect';
-  const pool: ShapeKind[] = m >= 13 ? ['plus', 'plus', 'compose', 'compose', 'you', 'tee', 'ell'] : ['tee', 'ell', 'ell', 'you'];
+  if (m < 9) return 'rect'; // below this even an L can't form; but the fill won't emit lots this small anyway
+  const pool: ShapeKind[] = m >= 12 ? ['plus', 'plus', 'compose', 'compose', 'you', 'tee', 'ell'] : ['tee', 'ell', 'ell']; // big lots → big multishapes; small lots → L/T (still shaped, never a square)
   return pool[Math.floor(rng() * pool.length)]!;
 }
 
@@ -245,15 +245,22 @@ function fillCoreCell(cv: Canvas, w: Ward, info: CellInfo, nid: number[][], loc:
   // buildable rect, clamp it to a sensible footprint anchored to its street side, and drop a SHAPED
   // compound (L/T/U/+ whenever ≥11). Repeat for the next big rect, capped at MAXB. The leftover (arms,
   // rear, slivers, the courtyard) becomes the tended garden. Doors face the street.
-  const MIN = 7, MAXB = 3;
   const pc = propClass(w);
+  // Secondary buildings draw from the WARD's trade, not just houses → a craft block reads [smithy, workshop, house].
+  const secondary: BuildingType[] = pc === 'market' ? ['shop', 'inn', 'house'] : pc === 'craft' ? ['workshop', 'smithy', 'house'] : pc === 'grand' ? ['house', 'manor'] : pc === 'civic' ? ['house', 'library'] : ['house', 'house', 'shop'];
+  // Per-TYPE footprint floor → a cathedral/keep towers over a cottage (visual scale hierarchy).
+  const footFor = (t: BuildingType): [number, number] => t === 'cathedral' ? [20, 16] : t === 'keep' ? [18, 16] : (t === 'manor' || t === 'guildhall' || t === 'courthouse') ? [18, 14] : t === 'house' ? [13, 12] : [16, 14];
+  const clampLot = (big: { x: number; y: number; w: number; h: number }, side: 'north' | 'south' | 'east' | 'west', mw: number, mh: number) => {
+    const W = Math.min(big.w, mw), H = Math.min(big.h, mh);
+    let x = big.x + ((big.w - W) >> 1), y = big.y + ((big.h - H) >> 1);
+    if (side === 'north') y = big.y; else if (side === 'south') y = big.y + big.h - H; else if (side === 'west') x = big.x; else x = big.x + big.w - W;
+    return { x, y, w: W, h: H };
+  };
   const used = new Set<string>();
   const k = (c: number, r: number) => `${c},${r}`;
   const streetAdj = (c: number, r: number) => cv.tileAt(c, r - 1) === 'road' || cv.tileAt(c, r + 1) === 'road' || cv.tileAt(c - 1, r) === 'road' || cv.tileAt(c + 1, r) === 'road';
   const buildable = (c: number, r: number) => inCell(c, r) && cv.tileAt(c, r) === 'grass' && !used.has(k(c, r));
   const claim = (R: { x: number; y: number; w: number; h: number }) => { for (let r = R.y - 1; r <= R.y + R.h; r++) for (let c = R.x - 1; c <= R.x + R.w; c++) used.add(k(c, r)); };
-  // Secondary buildings draw from the WARD's trade, not just houses → a craft block reads [smithy, workshop, house].
-  const secondary: BuildingType[] = pc === 'market' ? ['shop', 'inn', 'house'] : pc === 'craft' ? ['workshop', 'smithy', 'house'] : pc === 'grand' ? ['house', 'manor'] : pc === 'civic' ? ['house', 'library'] : ['house', 'house', 'shop'];
   for (let r = info.y0; r <= info.y1; r++) for (let c = info.x0; c <= info.x1; c++) if (inCell(c, r) && cv.tileAt(c, r) === 'grass' && streetAdj(c, r)) used.add(k(c, r)); // setback ring
   const bestSide = (R: { x: number; y: number; w: number; h: number }): 'north' | 'south' | 'east' | 'west' | null => {
     const s = { north: 0, south: 0, east: 0, west: 0 };
@@ -262,36 +269,28 @@ function fillCoreCell(cv: Canvas, w: Ward, info: CellInfo, nid: number[][], loc:
     const [side, v] = Object.entries(s).sort((a, b) => b[1] - a[1])[0]!;
     return v > 0 ? (side as 'north' | 'south' | 'east' | 'west') : null;
   };
-  // Per-TYPE footprint ceiling → a cathedral/keep towers over a cottage (visual scale hierarchy).
-  const footFor = (t: BuildingType): [number, number] => t === 'cathedral' ? [20, 16] : t === 'keep' ? [18, 16] : (t === 'manor' || t === 'guildhall' || t === 'courthouse') ? [18, 14] : t === 'house' ? [13, 12] : [16, 14];
-  // Clamp a big rect to a building footprint, anchored to its street side (centred on the other axis).
-  const clampLot = (big: { x: number; y: number; w: number; h: number }, side: 'north' | 'south' | 'east' | 'west', mw: number, mh: number) => {
-    const W = Math.min(big.w, mw), H = Math.min(big.h, mh);
-    let x = big.x + ((big.w - W) >> 1), y = big.y + ((big.h - H) >> 1);
-    if (side === 'north') y = big.y; else if (side === 'south') y = big.y + big.h - H; else if (side === 'west') x = big.x; else x = big.x + big.w - W;
-    return { x, y, w: W, h: H };
-  };
+  // THE CRAMP GRADIENT lives here: in the heart a building FILLS its cell (big cap → minimal garden = packed,
+  // cramped); toward the rim it's clamped small so an airy garden rings it (sparse). The garden auto-scales
+  // with the leftover, so the heart reads built-up and the edge reads green — a natural man-built town.
+  const cap = info.d < 0.4 ? 22 : info.d < 0.72 ? 17 : 13;
+  const MAXB = info.d < 0.55 ? 3 : 2;
   let n = 0;
   const emit = (big: { x: number; y: number; w: number; h: number }, door: 'north' | 'south' | 'east' | 'west') => {
     const type: BuildingType = n === 0 ? (w as BuildingType) : (secondary[(n - 1) % secondary.length] ?? 'house');
-    const [mw, mh] = footFor(type);
-    const lot = clampLot(big, door, mw, mh);
-    if (lot.w < 5 || lot.h < 5) { claim(lot); return; }
+    const [fw, fh] = footFor(type);
+    const lot = clampLot(big, door, Math.max(fw, cap), Math.max(fh, cap)); // landmarks keep their size; others fill up to cap
+    if (lot.w < 9 || lot.h < 9) { claim(lot); return; } // too small even for an L → garden, never a tiny box
     compound(cv, lot, type, { shape: pickShape(lot, true, cv.rng), door, locationId: loc, id: `bldg:${loc}-${id}-${n}` });
     carveFront(cv, lot, door);
     if (n === 0) signature(cv, lot, door, w, inCell, `${loc}-${id}`); // landmark gets a trade-signature cluster
     claim(lot); n++;
   };
-  for (let guard = 0; guard < 8 && n < MAXB; guard++) {
+  for (let guard = 0; guard < 12 && n < MAXB; guard++) {
     const big = maxRect(buildable, info.x0, info.y0, info.x1, info.y1);
-    if (!big || big.w < MIN || big.h < MIN) break;
-    const side = bestSide(big);
-    if (!side) { claim(big); continue; } // interior rect → tended garden
-    emit(big, side); // one big shaped building; leftover re-picked for the next or a garden
-  }
-  if (n === 0) { // small-cell fallback: one cottage on the largest grass rect
-    const r2 = maxRect((c, r) => inCell(c, r) && cv.tileAt(c, r) === 'grass', info.x0, info.y0, info.x1, info.y1);
-    if (r2 && r2.w >= 4 && r2.h >= 4) building(cv, { x: r2.x, y: r2.y, w: Math.min(6, r2.w), h: Math.min(6, r2.h) }, 'house', { door: pickDoor(cv, r2), locationId: loc, id: `bldg:${loc}-${id}-0` });
+    if (!big || big.w < 9 || big.h < 9) break;
+    const side = bestSide(big) ?? (info.d < 0.55 ? pickDoor(cv, big) : null); // pack interior lots in the heart
+    if (!side) { claim(big); continue; }
+    emit(big, side);
   }
   // TENDED courtyard/garden on the leftover grass (block interiors, rear slabs, arms, the setback band) —
   // a kitchen-garden so a node never reads as bare grass: a well/fountain focal point, then dense planting
