@@ -145,6 +145,27 @@ describe('town routing — settlements go through the generator, not LLM-placed 
     expect(validateSceneMap(runProgram(prog))).toEqual({ ok: true, violations: [] });
   });
 
+  it('BRIEF_BUILDS net: every establishment the brief NAMES survives, even when the model drops it', () => {
+    // The model emitted only generic houses — but the brief names a temple, a smithy and a manor. The
+    // harvest's completeness net must add all three deterministically (the twin of BRIEF_CREATURES).
+    const prog = normalizeProgram(
+      {
+        cols: 44, rows: 28, theme: 'village', grammar: 'town-square', outdoor: true,
+        ops: [
+          { op: 'building', type: 'house', region: { x: 4, y: 3, w: 10, h: 8 }, id: 'bldg:h1' },
+          { op: 'building', type: 'house', region: { x: 28, y: 3, w: 10, h: 8 }, id: 'bldg:h2' },
+        ],
+      },
+      'a village with a temple, a smithy and a manor house on the hill',
+    );
+    const op = prog.ops.find((o) => o.op === 'archetype');
+    expect(op).toBeTruthy();
+    if (op && op.op === 'archetype') {
+      const types = new Set<string>(op.contents.buildings.map((b) => b.type));
+      for (const t of ['temple', 'smithy', 'manor']) expect(types.has(t), t).toBe(true);
+    }
+  });
+
   it('does NOT route a water-dominant village (geometry matters there) to the town generator', () => {
     const prog = normalizeProgram(
       { cols: 40, rows: 26, theme: 'forest', grammar: 'open-outdoor', outdoor: true, ops: [{ op: 'fill', region: 'all', tag: 'water' }, { op: 'island', region: { x: 4, y: 4, w: 12, h: 10 } }] },

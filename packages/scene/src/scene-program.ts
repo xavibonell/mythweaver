@@ -237,7 +237,7 @@ OPS (compose 4-12; later ops draw OVER earlier ones):
 - {"op":"cave","region":R} — an ORGANIC cavern with irregular rock walls + open floor (cellular-automata). USE THIS for caves / caverns / grottos / mines / underground lairs instead of rooms — it gives natural rocky shapes, not rectangles.
 - {"op":"clearing","region":R} — a FOREST CLEARING: a dense feathered treeline ringing an OPEN centre (with a bushy fringe). USE THIS for forest clearings / glades / groves / camps in the woods — then put the bonfire/landmark + party in the open centre (NOT a uniform tree scatter). Pair with a "vignette":"camp" at the centre for a campfire.
 - {"op":"rooms","region":R,"count":6,"wall":"wall","floor":"stone"} — connected ROOMS + corridors (a dungeon / building interior).
-- {"op":"building","type":"tavern","region":{"x":,"y":,"w":,"h":},"door":"south"} — a FURNISHED walled building. type is one of: house, shop, tavern, temple, smithy. The engine fills it with the RIGHT furniture (tables/beds/shelves/altar/forge/carpet) + a seated keeper, all in ONE consistent material. USE THIS for ANY structure, home, shop, temple, forge, or distinct furnished chamber — give it a rect region (min ~6x6).
+- {"op":"building","type":"tavern","region":{"x":,"y":,"w":,"h":},"door":"south"} — a FURNISHED walled building. type is one of: house, shop, tavern, inn, temple, cathedral, smithy, workshop, general_store, library, courthouse, jail, keep, barracks, armory, guildhall, manor, vault, tomb, curio, goblin_warren. The engine fills each with its DEFINING furniture (altar/forge/bar/bookshelves/cells/throne/racks…) + a keeper. USE THIS for ANY structure, home, shop, temple, forge, or distinct furnished chamber — give it a rect region (min ~6x6). Use the EXACT type for every establishment the brief names (church/chapel→temple, blacksmith→smithy, town hall→courthouse, castle/fort→keep) — NEVER substitute a generic house/shop for a named establishment.
 - {"op":"vignette","type":"market","at":P} — an authored SET-PIECE cluster (type: market | forge | camp | shrine | well | graveyard): the engine drops a coherent mini-scene (market = stalls+crates+barrels+a vendor; forge = fire+workbench+weapon-rack+smith; camp = fire+bedrolls+supplies; shrine = altar+candles+statues; well = well+bench; graveyard = tombstones+bones). Use these for open-area focal points — do NOT hand-scatter loose props to fake them.
 - {"op":"wallRing","mat":"stone"} — an outer defensive wall with gates (a walled town/fort).
 - {"op":"place","id":"prop:NAME","tag":TAG,"kind":"prop","at":P,"name":"..."} — ONE landmark/object (or kind "actor","role":"npc"|"mob" for one creature).
@@ -257,7 +257,7 @@ CREATURE tags (kind actor): skeleton, zombie, goblin, orc, slime, spider, wolf, 
 
 RULES:
 - HONOR THE BRIEF literally: pick ONE dominant topology op for the GROUND (maze for labyrinths; fill water + island + bridge for lakes/coasts; grass/dirt + streets for towns; one big rooms op for a sprawling many-cell dungeon), THEN place FURNISHED structures with "building" ops, layer landmarks via place, creatures via scatter, paths, and the entrance where stated.
-- BUILDINGS/CHAMBERS — THIS IS HOW YOU GET FURNISHED INTERIORS: every named building, home, shop, temple, forge, hut, OR distinct furnished room/chamber MUST be a "building" op with a rect region (it comes furnished + a keeper). A settlement = 3-8 "building" ops (tavern/shop/house/temple/smithy) spread on a grass field with dirt streets between them, optionally a wallRing — NOT bare rooms/fills (those are empty boxes). A multi-chamber temple/crypt = several "building" ops (e.g. type temple/house as the chambers) connected by paths. Reserve the bare "rooms" op for a LARGE sprawling dungeon backbone only.
+- BUILDINGS/CHAMBERS — THIS IS HOW YOU GET FURNISHED INTERIORS: every named building, home, shop, temple, forge, hut, OR distinct furnished room/chamber MUST be a "building" op with a rect region (it comes furnished + a keeper). A settlement = 3-8 "building" ops spread on a grass field with dirt streets between them, optionally a wallRing — NOT bare rooms/fills (those are empty boxes). Every establishment the brief NAMES gets its own building op with its EXACT type (a library brief → type "library", a courthouse → "courthouse", a keep → "keep"); fill remaining slots with house/shop/tavern flavour. A multi-chamber temple/crypt = several "building" ops (e.g. type temple/house as the chambers) connected by paths. Reserve the bare "rooms" op for a LARGE sprawling dungeon backbone only.
 - INCLUDE EVERY creature and landmark the brief names — never drop them. Each creature is an op with a "mob:"/"npc:" id (hostiles = mob:, friendlies = npc:); each landmark a "place" with a "prop:" id. If the brief says "crocodiles and a cultist", you MUST emit a scatter "mob:crocodile" AND a place "npc:cultist".
 - HAZARD terrain (water, lava) is IMPASSABLE. Keep the MAJORITY of the map WALKABLE — hazard should cover at most ~40% of the grid. For a "flooded"/"lake"/"swamp" scene, make the islands LARGE and MANY (land covers most of the map), with water only in the channels between them, and bridges across. Never strand the entrance, a landmark, or the creatures on hazard — they need walkable ground.
 - For an INTERIOR (crypt/dungeon/temple/cave/vault) set "outdoor":false and grammar "enclosed-interior". For "interconnected rooms/chambers" prefer SEVERAL "building" ops (furnished chambers, type temple/house/shop) connected by "path" ops — that gives furnished rooms with keepers. Only for a HUGE sprawling maze-dungeon use one big "rooms" op as the backbone. Do NOT fill big "plaza"/open areas over your rooms (that erases them into an empty hall).
@@ -457,6 +457,30 @@ function normalizeOp(raw: unknown, seen: Set<string>): SceneOp | null {
 
 /** Brief keyword → (catalog creature tag, hostility). Used by the completeness net: if the LLM names
  *  creatures in the brief but forgets to emit ops for them, we inject them so they ALWAYS appear. */
+// The BUILDING completeness net (the twin of BRIEF_CREATURES): if the brief NAMES an establishment and
+// the model's program lacks it, the harvest adds it deterministically — a DM's "a village with a temple,
+// a smithy and a manor" can never lose a named building to LLM variance. Conservative patterns only
+// (tighter than buildingTypeFor's coercion — no den/fence/study foot-guns that misfire on scenery prose).
+const BRIEF_BUILDS: [RegExp, BuildingType][] = [
+  [/\b(inn|hostel)\b/, 'inn'],
+  [/tavern|alehouse|\bpub\b|tap.?house/, 'tavern'],
+  [/smithy|blacksmith|\bforge\b|foundry/, 'smithy'],
+  [/cathedral|minster|basilica|abbey|monastery/, 'cathedral'],
+  [/temple|shrine|chapel|church|sanctuary/, 'temple'],
+  [/\bjail\b|gaol|prison/, 'jail'],
+  [/vault|treasury|strong.?room/, 'vault'],
+  [/\bkeep\b|castle|fortress|citadel/, 'keep'],
+  [/library|archive|scriptorium/, 'library'],
+  [/armou?ry|arsenal/, 'armory'],
+  [/barracks|garrison/, 'barracks'],
+  [/guild.?hall/, 'guildhall'],
+  [/manor|mansion|estate\b|villa\b/, 'manor'],
+  [/court.?house|town.?hall|magistrate/, 'courthouse'],
+  [/general.?store|provisioner|trading.?post|emporium/, 'general_store'],
+  [/workshop|carpenter/, 'workshop'],
+  [/curio|pawn.?shop|oddities/, 'curio'],
+];
+
 const BRIEF_CREATURES: [RegExp, string, 'mob' | 'npc'][] = [
   [/skeleton|skeletal/, 'skeleton', 'mob'],
   [/goblin/, 'goblin', 'mob'],
@@ -507,6 +531,9 @@ function harvestTownContents(ops: SceneOp[], lcb: string): Contents {
     else if (o.op === 'scatter' && o.kind === 'actor') { if (o.role === 'mob') mobs.push({ tag: o.tags[0]!, count: o.count }); else for (const t of o.tags) npcs.push({ tag: t }); }
     else if (o.op === 'vignette') landmarks.push({ tag: o.type === 'well' ? 'fountain' : o.type });
   }
+  // Completeness nets — anything the brief NAMES that the model's ops missed is added deterministically.
+  const haveBuild = new Set<string>(buildings.map((b) => b.type));
+  for (const [re, t] of BRIEF_BUILDS) if (re.test(lcb) && !haveBuild.has(t) && buildings.length < 24) { buildings.push({ type: t }); haveBuild.add(t); }
   const haveActor = new Set<string>([...npcs.map((n) => n.tag), ...mobs.map((m) => m.tag)]);
   for (const [re, tag, role] of BRIEF_CREATURES) if (re.test(lcb) && !haveActor.has(tag)) { if (role === 'mob') mobs.push({ tag, count: 6 }); else npcs.push({ tag }); haveActor.add(tag); }
   if (!buildings.length) buildings.push({ type: 'tavern' }, { type: 'shop' }, { type: 'house' }, { type: 'house' }, { type: 'house' }, { type: 'house' });
