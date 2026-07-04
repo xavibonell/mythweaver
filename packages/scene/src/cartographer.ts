@@ -50,7 +50,7 @@ export const BUILDING_TEMPLATES: Record<BuildingType, RoomTemplate> = {
   smithy: { floor: 'stone', wall: 'stone', occupant: 'dwarf', items: [{ tag: 'brazier', where: 'back' }, { tag: 'table', where: 'center' }, { tag: 'barrel', where: 'corner' }, { tag: 'crate', where: 'corner' }] },
   house: { floor: 'wood_floor', wall: 'wood', occupant: 'villager', items: [{ tag: 'bed', where: 'corner' }, { tag: 'table', where: 'center' }, { tag: 'chair', where: 'around', count: 2 }, { tag: 'pot', where: 'wall' }] },
   // P0 batch — town/site location types added on the focal-station kernel (reuse-only props).
-  inn: { floor: 'wood_floor', wall: 'wood', occupant: 'villager_woman', carpet: true, items: [{ tag: 'table', where: 'back', count: 2 }, { tag: 'bed', where: 'corner', count: 2 }, { tag: 'chair', where: 'around', count: 2 }, { tag: 'candelabra', where: 'wall' }] },
+  inn: { floor: 'wood_floor', wall: 'wood', occupant: 'villager_woman', carpet: true, items: [{ tag: 'bed', where: 'corner', count: 2 }, { tag: 'table', where: 'back', count: 2 }, { tag: 'chair', where: 'around', count: 2 }, { tag: 'candelabra', where: 'wall' }] }, // beds FIRST — the defining stock must land before flavour exhausts a tiny room's budget
   general_store: { floor: 'wood_floor', wall: 'wood', occupant: 'villager', items: [{ tag: 'table', where: 'back', count: 2 }, { tag: 'shelf_wares', where: 'wall', count: 3 }, { tag: 'sack', where: 'corner', count: 2 }, { tag: 'barrel', where: 'corner', count: 2 }, { tag: 'crate', where: 'corner' }] },
   cathedral: { floor: 'stone', wall: 'stone', occupant: 'wizard', carpet: true, items: [{ tag: 'altar', where: 'back' }, { tag: 'statue', where: 'back' }, { tag: 'candelabra_large', where: 'back', count: 2 }, { tag: 'stone_bench', where: 'around', count: 4 }] },
   jail: { floor: 'stone', wall: 'stone', occupant: 'villager', items: [{ tag: 'cage', where: 'wall', count: 3 }, { tag: 'desk', where: 'center' }, { tag: 'chair', where: 'around' }, { tag: 'barrel', where: 'corner' }] },
@@ -93,9 +93,11 @@ export const ROOM_TEMPLATES: Record<RoomFunction, RoomTemplate> = {
   forge: { floor: 'stone', wall: 'stone', occupant: 'dwarf', items: [{ tag: 'brazier', where: 'back' }, { tag: 'table', where: 'center' }, { tag: 'weapon_rack', where: 'wall' }, { tag: 'barrel', where: 'corner' }, { tag: 'crate', where: 'corner' }, { tag: 'woodpile', where: 'corner' }] },
   // P0 batch room functions: apse (cathedral focal — altar + deity statue), cellblock (jail — caged cells +
   // a jailer's desk), strongroom (vault — a hoard of chests). occupant/material set per-building by compound.
-  // innfront — the inn's primary room: a check-in counter AND a couple of beds, so even a single-room inn
-  //   reads as an inn (lodging), not a tavern. Bigger footprints add dedicated bedroom rooms on top.
-  innfront: { floor: 'wood_floor', wall: 'wood', occupant: 'villager_woman', carpet: true, items: [{ tag: 'table', where: 'back', count: 2 }, { tag: 'bed', where: 'corner', count: 2 }, { tag: 'chair', where: 'around', count: 2 }] },
+  // innfront — the inn's primary room: the check-in counter + common-room tables. NO beds here: guests
+  //   sleep in the dedicated bedroom rooms (depth-cast puts them deepest); a bed beside the check-in
+  //   counter is the beds-at-the-bar incoherence. (A SINGLE-room inn uses the `inn` template above,
+  //   which keeps its sleeping-hall beds — there's no counter room to collide with.)
+  innfront: { floor: 'wood_floor', wall: 'wood', occupant: 'villager_woman', carpet: true, items: [{ tag: 'table', where: 'back', count: 2 }, { tag: 'barrel', where: 'corner' }, { tag: 'chair', where: 'around', count: 2 }] },
   apse: { floor: 'stone', wall: 'stone', occupant: 'wizard', carpet: true, items: [{ tag: 'altar', where: 'back' }, { tag: 'statue', where: 'back' }, { tag: 'candelabra_large', where: 'back', count: 2 }, { tag: 'stone_bench', where: 'around', count: 4 }] },
   cellblock: { floor: 'stone', wall: 'stone', occupant: 'villager', items: [{ tag: 'cage', where: 'wall', count: 3 }, { tag: 'desk', where: 'center' }, { tag: 'chair', where: 'around' }] },
   strongroom: { floor: 'stone', wall: 'stone', occupant: 'villager', items: [{ tag: 'chest', where: 'wall', count: 4 }, { tag: 'barrel', where: 'corner', count: 2 }] },
@@ -162,7 +164,7 @@ export const ROOM_RECIPES: Record<RoomFunction, string[]> = {
   nave: ['nave'],
   vestry: ['study', 'books'],
   forge: ['forge', 'weapons', 'storage'],
-  innfront: ['checkin', 'bed', 'bed', 'bed'], // a LEAN check-in counter (keeper behind) + beds in the common room
+  innfront: ['checkin', 'dining', 'dining', 'shelf'], // a LEAN check-in counter (keeper behind) + common-room tables — guests SLEEP in the bedroom rooms, never beside the counter (the beds-at-the-bar incoherence was authored right here)
   apse: ['apse'],               // altar + flanking deity statue + ranked pews = a cathedral (statue distinguishes it from a temple)
   cellblock: ['cells', 'study'], // a row of caged cells + a jailer's desk post
   strongroom: ['hoard', 'hoard'], // a hoard of strongboxes (chest-dominant — a treasury, not a storeroom)
@@ -493,7 +495,7 @@ export function furnishRoom(
       const sides = ORTH4.filter(([dx, dy]) => free(t.c + dx, t.r + dy));
       for (let s = sides.length - 1; s > 0; s--) { const j = Math.floor(rand() * (s + 1)); const tmp = sides[s]!; sides[s] = sides[j]!; sides[j] = tmp; }
       const n = Math.min(sides.length, 1 + Math.floor(rand() * 2) + (rand() < 0.18 ? 1 : 0));
-      for (let i = 0; i < n; i++) { const [dx, dy] = sides[i]!; put(t.c + dx, t.r + dy, rand() < 0.15 ? 'stone_bench' : 'chair'); }
+      for (let i = 0; i < n; i++) { const [dx, dy] = sides[i]!; put(t.c + dx, t.r + dy, i === 0 ? 'chair' : rand() < 0.15 ? 'stone_bench' : 'chair'); } // seat #1 is ALWAYS a chair — the tavern's ≥2-chairs contract holds by construction, benches stay flavour
     };
     // BEDS — against a wall, HEADBOARD on it (BED_TAG/bedSideOf, hoisted above). Every bed in the room shares
     // ONE wall+orientation (locked in by the first bed) so a 2-bed room never mixes directions.
@@ -502,12 +504,28 @@ export function furnishRoom(
     const bed = () => {
       if (bedsPlaced >= 2) return; // never more than two beds in one room
       const slots = interior.filter((p) => free(p.c, p.r) && bedSideOf(p.c, p.r) !== null); // any free floor cell ACTUALLY against a wall
-      const head = (bedSide ? slots.filter((p) => bedSideOf(p.c, p.r) === bedSide) : slots)[0];
+      // DEEP-CORNER bias: beds take the wall slot FARTHEST from the room's door (prospect-refuge — a bed
+      // never sits in the doorway to the public side; stable sort keeps the shuffled order among ties).
+      // The FIRST bed also picks a wall side that can host the whole pair (the one-wall-per-room rule would
+      // otherwise strand bed #2 when the deepest slot sits on a short wall with a single slot).
+      slots.sort((a, b) => (b.c - door.c) ** 2 + (b.r - door.r) ** 2 - ((a.c - door.c) ** 2 + (a.r - door.r) ** 2));
+      const pool = bedSide ? slots.filter((p) => bedSideOf(p.c, p.r) === bedSide) : slots;
+      const onSide = (s: keyof typeof BED_TAG | null) => pool.filter((q) => bedSideOf(q.c, q.r) === s);
+      // The first bed picks the deepest slot on a wall side that can host the PAIR (+ a nightstand): ≥3
+      // same-side slots preferred, ≥2 acceptable — else the one-wall-per-room rule strands the second bed.
+      const head = (!bedSide && pool.length > 1
+        ? pool.find((p) => onSide(bedSideOf(p.c, p.r)).length >= 3) ?? pool.find((p) => onSide(bedSideOf(p.c, p.r)).length >= 2)
+        : undefined) ?? pool[0];
       if (!head) return; // no slot left on the established wall → skip rather than break orientation consistency
       bedSide ??= bedSideOf(head.c, head.r);
       if (!put(head.c, head.r, BED_TAG[bedSide!])) return;
       bedsPlaced++;
-      if (bedsPlaced === 1) for (const [dx, dy] of ORTH4) if (rand() < 0.5 && put(head.c + dx, head.r + dy, pick(['pot', 'jar', 'chest', 'candle']))) break; // a nightstand beside the first bed
+      if (bedsPlaced === 1) {
+        // nightstand beside the first bed — but never on the side's remaining bed slot (it would strand bed #2)
+        const sideSlots = onSide(bedSide).filter((p) => free(p.c, p.r));
+        const dirs = [...ORTH4].sort((a, b) => +sideSlots.some((p) => p.c === head.c + a[0] && p.r === head.r + a[1]) - +sideSlots.some((p) => p.c === head.c + b[0] && p.r === head.r + b[1]));
+        for (const [dx, dy] of dirs) if (rand() < 0.5 && put(head.c + dx, head.r + dy, pick(['pot', 'jar', 'chest', 'candle']))) break;
+      }
     };
     const hearth = () => { const b = byBack(interior).find((p) => free(p.c, p.r)) ?? wallFree()[0]; if (b) put(b.c, b.r, rand() < 0.3 ? 'candelabra_large' : 'brazier'); };
     const counter = () => { let k = 0; for (const p of byBack(interior)) { if (k >= 4) break; if (free(p.c, p.r) && put(p.c, p.r, 'table')) k++; } if (k < 2) alongWall(['table'], 2); for (const p of byBack(interior)) if (rand() < 0.3 && put(p.c, p.r, pick(['jar', 'pot', 'urn', 'candle']))) break; };
@@ -720,7 +738,7 @@ export function furnishRoom(
     };
     const GROUPS: Record<string, () => void> = {
       dining, bed, hearth, counter, bar, shopfront, checkin, study, altar, benches, nave, forge, storage, apse, cells, hoard, throne, shelving, bunks, crest, warren, sarcophagi, workbench, oddments,
-      shelf: () => alongWall(['shelf', 'shelf_food'], 2), books: () => alongWall(['bookshelf_full', 'books'], 3), pantry: () => { alongWall(['shelf_food', 'shelf'], 2); storage(); }, wares: () => alongWall(['shelf_wares', 'pot', 'jar'], 2), weapons: () => alongWall(['weapon_rack'], 1),
+      shelf: () => alongWall(['shelf', 'shelf_food'], 2), books: () => alongWall(['bookshelf_full', 'books'], 3), pantry: () => { alongWall(['shelf_food', 'shelf'], 2); storage(); }, wares: () => { alongWall(['shelf_wares'], 1); alongWall(['shelf_wares', 'pot', 'jar'], 1); }, weapons: () => alongWall(['weapon_rack'], 1), // each wares call GUARANTEES a display shelf (the ≥2-shelves contract must hold by construction, not by dice), then one flavour piece
     };
     for (const g of tmpl.groups) { if (placedFurn >= budget) break; (GROUPS[g] ?? (() => {}))(); }
     // CLUTTER — a couple of small props (tins/jars/chests/books) on free wall-adjacent cells for richness.

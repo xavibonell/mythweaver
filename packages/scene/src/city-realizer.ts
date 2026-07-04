@@ -11,7 +11,7 @@
  * farmsteads, a camp by a gate, a roadside vendor — and a few NPCs (gate guards, folk) bring it alive.
  * Deterministic from the seed.
  */
-import { Canvas, building, clumpScatter, compound, finalize, place, poissonScatter, vignette } from './primitives.js';
+import { CLAIM_CIRCULATION, Canvas, building, clumpScatter, compound, doorSideOf, finalize, place, poissonScatter, vignette, type RealizedDoor } from './primitives.js';
 import { buildCityMesh, type CityMesh, type CityMeshOpts, type Vec2, type Zone } from './citymesh.js';
 import { buildCityBsp } from './citybsp.js';
 import type { ShapeKind } from './footprint.js';
@@ -198,13 +198,16 @@ function pickShape(rect: { w: number; h: number }, _primary: boolean, rng: () =>
   return pool[Math.floor(rng() * pool.length)]!;
 }
 
-/** A short earthen apron from a building's door side out to the nearest cobble — so a house on grass
- *  reads as connected to the street (the cottage's entry-path trick), not marooned in a moat. */
-function carveFront(cv: Canvas, rect: { x: number; y: number; w: number; h: number }, side: 'north' | 'south' | 'east' | 'west') {
-  let c = rect.x + Math.floor(rect.w / 2), r = rect.y + Math.floor(rect.h / 2), dc = 0, dr = 0;
-  if (side === 'north') { r = rect.y - 1; dr = -1; } else if (side === 'south') { r = rect.y + rect.h; dr = 1; } else if (side === 'west') { c = rect.x - 1; dc = -1; } else { c = rect.x + rect.w; dc = 1; }
+/** A short earthen apron from a building's REALIZED door out to the nearest cobble — so a house on grass
+ *  reads as connected to the street, not marooned in a moat. Starts at the door's actual outside cell
+ *  (never a lot-midpoint guess — the repair pass may have moved the door) and claims the walked corridor
+ *  as CIRCULATION so no later pass parks a prop on it. */
+function carveFront(cv: Canvas, door: RealizedDoor) {
+  let { oC: c, oR: r } = door;
+  const dc = door.oC - door.c, dr = door.oR - door.r;
   for (let i = 0; i < 4; i++) {
     if (!cv.inB(c, r)) break;
+    cv.stampClaim(c, r, CLAIM_CIRCULATION);
     const t = cv.tileAt(c, r);
     if (t === 'road') break; // reached the street
     if (t === 'grass') cv.set(c, r, 'dirt', true);
@@ -259,7 +262,9 @@ function fillCoreCell(cv: Canvas, w: Ward, info: CellInfo, nid: number[][], loc:
   const used = new Set<string>();
   const k = (c: number, r: number) => `${c},${r}`;
   const streetAdj = (c: number, r: number) => cv.tileAt(c, r - 1) === 'road' || cv.tileAt(c, r + 1) === 'road' || cv.tileAt(c - 1, r) === 'road' || cv.tileAt(c + 1, r) === 'road';
-  const buildable = (c: number, r: number) => inCell(c, r) && cv.tileAt(c, r) === 'grass' && !used.has(k(c, r));
+  // isFree too (occ): a cell holding a scattered prop is NOT buildable — a later maxRect must never select
+  // it and floor OVER the prop (the "market stall entombed inside a wall" class).
+  const buildable = (c: number, r: number) => inCell(c, r) && cv.tileAt(c, r) === 'grass' && cv.isFree(c, r) && !used.has(k(c, r));
   const claim = (R: { x: number; y: number; w: number; h: number }) => { for (let r = R.y - 1; r <= R.y + R.h; r++) for (let c = R.x - 1; c <= R.x + R.w; c++) used.add(k(c, r)); };
   for (let r = info.y0; r <= info.y1; r++) for (let c = info.x0; c <= info.x1; c++) if (inCell(c, r) && cv.tileAt(c, r) === 'grass' && streetAdj(c, r)) used.add(k(c, r)); // setback ring
   const bestSide = (R: { x: number; y: number; w: number; h: number }): 'north' | 'south' | 'east' | 'west' | null => {
@@ -280,9 +285,11 @@ function fillCoreCell(cv: Canvas, w: Ward, info: CellInfo, nid: number[][], loc:
     const [fw, fh] = footFor(type);
     const lot = clampLot(big, door, Math.max(fw, cap), Math.max(fh, cap)); // landmarks keep their size; others fill up to cap
     if (lot.w < 9 || lot.h < 9) { claim(lot); return; } // too small even for an L → garden, never a tiny box
-    compound(cv, lot, type, { shape: pickShape(lot, true, cv.rng), door, locationId: loc, id: `bldg:${loc}-${id}-${n}` });
-    carveFront(cv, lot, door);
-    if (n === 0) signature(cv, lot, door, w, inCell, `${loc}-${id}`); // landmark gets a trade-signature cluster
+    const rd = compound(cv, lot, type, { shape: pickShape(lot, true, cv.rng), door, locationId: loc, id: `bldg:${loc}-${id}-${n}` });
+    if (rd) {
+      carveFront(cv, rd); // apron from the REALIZED door (repair may have moved it off the requested side)
+      if (n === 0) signature(cv, lot, doorSideOf(rd), w, inCell, `${loc}-${id}`); // trade cluster flanks the real door side
+    }
     claim(lot); n++;
   };
   for (let guard = 0; guard < 12 && n < MAXB; guard++) {
@@ -363,7 +370,8 @@ function realizeLayout(m: CityMesh, seed: number): SceneMap {
   for (let r = 0; r < GRID; r++) for (let c = 0; c < GRID; c++) { const { wx, wy } = tileWorld(c, r); nid[r]![c] = m.find(wx, wy); }
   for (let r = 0; r < GRID; r++) for (let c = 0; c < GRID; c++) cv.set(c, r, ZONE_GROUND[zoneOf(nid[r]![c]!)]);
 
-  // 2. Streets: a core tile on a seam between two core cells → cobble.
+  // 2. Streets: a core tile on a seam between two core cells → cobble, CLAIMED as circulation so no
+  //    later pass (props, trees, stalls) may block the public way.
   for (let r = 0; r < GRID; r++) for (let c = 0; c < GRID; c++) {
     const id = nid[r]![c]!;
     if (zoneOf(id) !== 'core') continue;
@@ -371,7 +379,7 @@ function realizeLayout(m: CityMesh, seed: number): SceneMap {
       const c2 = c + dc, r2 = r + dr;
       if (c2 < 0 || r2 < 0 || c2 >= GRID || r2 >= GRID) continue;
       const id2 = nid[r2]![c2]!;
-      if (id2 !== id && zoneOf(id2) === 'core') { cv.set(c, r, 'road', true); break; }
+      if (id2 !== id && zoneOf(id2) === 'core') { cv.set(c, r, 'road', true); cv.stampClaim(c, r, CLAIM_CIRCULATION); break; }
     }
   }
 
@@ -382,7 +390,7 @@ function realizeLayout(m: CityMesh, seed: number): SceneMap {
     const ctr = toTile(m.center);
     m.wall.gates.forEach((gate, gi) => {
       const t = toTile(gate);
-      for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) if (cv.inB(t.c + dc, t.r + dr)) cv.set(t.c + dc, t.r + dr, 'road', true);
+      for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) if (cv.inB(t.c + dc, t.r + dr)) { cv.set(t.c + dc, t.r + dr, 'road', true); cv.stampClaim(t.c + dc, t.r + dr, CLAIM_CIRCULATION); }
       const ic = Math.sign(ctr.c - t.c), ir = Math.sign(ctr.r - t.r); // one step inward
       const gc = t.c + ic, gr = t.r + ir;
       if (cv.inB(gc, gr) && cv.isFree(gc, gr)) place(cv, { id: `npc:${loc}-gate-${gi}`, tag: 'knight', kind: 'actor', role: 'npc', at: { c: gc, r: gr } });

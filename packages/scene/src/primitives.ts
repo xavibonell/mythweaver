@@ -13,7 +13,7 @@
  */
 
 import { FEET_PER_TILE, type AmbianceItem, type BuildingType, type Entrance, type LayoutGrammar, type Lighting, type MapObject, type SceneMap } from '@mythweaver/shared';
-import { bakeAutoTiles, bakeWoodWalls, BUILDING_TEMPLATES, furnishRoom, makeRng, reachabilityCarve, ROOM_PROGRAMS, ROOM_RECIPES, ROOM_TEMPLATES, scatterGroundDecals, wallTagFor, type RoomTemplate } from './cartographer.js';
+import { bakeAutoTiles, bakeWoodWalls, BUILDING_TEMPLATES, furnishRoom, makeRng, reachabilityCarve, ROOM_PROGRAMS, ROOM_RECIPES, ROOM_TEMPLATES, scatterGroundDecals, wallTagFor, type RoomFunction, type RoomTemplate } from './cartographer.js';
 import { isCharacter, propDef, terrainWalkable } from './catalog.js';
 import { inside, maskFor, ringCells, type ShapeKind } from './footprint.js';
 
@@ -29,10 +29,20 @@ export interface Rect {
 }
 
 /** The mutable scene under construction. Primitives read/write its grids + registries. */
+// CLAIM bits (the Contract Layer, P1) — tile-level SEMANTIC reservations beyond walkable/occ. A claimed
+// cell stays walk-THROUGH (characters pass) but is off-limits to BLOCKING placements: the door writer
+// claims its approach, the street bake claims circulation, and every placer respects the claim. This is
+// what breaks the "free apron cell attracts props into the doorway" trap: free-but-claimed.
+export const CLAIM_CIRCULATION = 1; // streets, gate runways, door→street aprons
+export const CLAIM_APPROACH = 2; // the immediate corridor of a specific door
+export const CLAIM_STAGE = 4; // a vignette's composed interior (reserved for P3)
+const CLAIM_NOBUILD = CLAIM_CIRCULATION | CLAIM_APPROACH | CLAIM_STAGE;
+
 export class Canvas {
   readonly tiles: string[][];
   readonly walkable: boolean[][];
   readonly occ: boolean[][]; // reserved cells (so later primitives don't stack placements)
+  readonly claim: number[][]; // CLAIM_* bitmask per cell (semantic reservations; see above)
   readonly objects: MapObject[] = [];
   readonly ambiance: AmbianceItem[] = [];
   readonly entrances: Entrance[] = [];
@@ -42,6 +52,7 @@ export class Canvas {
     this.tiles = Array.from({ length: rows }, () => Array.from({ length: cols }, () => base));
     this.walkable = Array.from({ length: rows }, () => Array.from({ length: cols }, () => terrainWalkable(base)));
     this.occ = Array.from({ length: rows }, () => Array.from({ length: cols }, () => false));
+    this.claim = Array.from({ length: rows }, () => Array.from({ length: cols }, () => 0));
     this.rng = makeRng(seed);
   }
 
@@ -65,6 +76,14 @@ export class Canvas {
   }
   reserve(c: number, r: number): void {
     if (this.inB(c, r)) this.occ[r]![c] = true;
+  }
+  /** Stamp a semantic claim bit (rng-free by contract — claims must never consume the stream). */
+  stampClaim(c: number, r: number, bit: number): void {
+    if (this.inB(c, r)) this.claim[r]![c] = this.claim[r]![c]! | bit;
+  }
+  /** Is the cell claimed by any of the masked bits? (default: any claim that forbids blocking placements) */
+  claimed(c: number, r: number, mask: number = CLAIM_NOBUILD): boolean {
+    return this.inB(c, r) && (this.claim[r]![c]! & mask) !== 0;
   }
   center(): Pt {
     return { c: Math.floor(this.cols / 2), r: Math.floor(this.rows / 2) };
@@ -350,18 +369,35 @@ export function wallRing(cv: Canvas, mat: 'wood' | 'stone' = 'stone', gateLocId?
   }
 }
 
+/** The FINAL (post-repair) exterior door of a building/compound: the door cell + its outside cell.
+ *  Returned by building()/compound() so downstream passes (aprons, signatures) work from the REAL door,
+ *  never a guess — the repair pass may have relocated it to a different side than requested. */
+export interface RealizedDoor { c: number; r: number; oC: number; oR: number }
+export const doorSideOf = (d: RealizedDoor): 'north' | 'south' | 'east' | 'west' =>
+  d.oR < d.r ? 'north' : d.oR > d.r ? 'south' : d.oC < d.c ? 'west' : 'east';
+
+/** Claim the door's APPROACH corridor at the source of truth: the door cell, one cell inside, and up to
+ *  three cells straight outward (stopping at bounds). Walk-through, prop-blocking — the anti-fountain. */
+function stampApproach(cv: Canvas, d: RealizedDoor): void {
+  cv.stampClaim(d.c, d.r, CLAIM_APPROACH);
+  cv.stampClaim(2 * d.c - d.oC, 2 * d.r - d.oR, CLAIM_APPROACH); // one inside
+  const dc = d.oC - d.c, dr = d.oR - d.r;
+  for (let i = 1; i <= 3; i++) cv.stampClaim(d.c + dc * i, d.r + dr * i, CLAIM_APPROACH);
+}
+
 /**
  * A FURNISHED walled building/room — the MODULE unit that restores rich interiors on the general path:
  * a wall ring + floor (ONE material, so it never reads noisy), one door, and interior furniture + a
  * seated keeper via the SHARED furnishRoom (identical to the classic carveBuildings). `id` must be
  * unique per call (it namespaces the furniture + keeper ids).
+ * Returns the realized door (null when the region was too small to build a walled room).
  */
-export function building(cv: Canvas, region: Rect, type: BuildingType, opts: { door?: 'north' | 'south' | 'east' | 'west'; locationId?: string; name?: string; id?: string } = {}): void {
+export function building(cv: Canvas, region: Rect, type: BuildingType, opts: { door?: 'north' | 'south' | 'east' | 'west'; locationId?: string; name?: string; id?: string } = {}): RealizedDoor | null {
   const tmpl = BUILDING_TEMPLATES[type] ?? BUILDING_TEMPLATES.house;
   const R = clampRect(cv, region);
   if (R.w < 4 || R.h < 4) {
     fill(cv, R, tmpl.floor, true); // too small to furnish — just a floor patch
-    return;
+    return null;
   }
   const { x: rx, y: ry, w: rw, h: rh } = R;
   for (let y = ry; y < ry + rh; y++)
@@ -391,6 +427,9 @@ export function building(cv: Canvas, region: Rect, type: BuildingType, opts: { d
   const safe = (opts.id && opts.id.includes(':') ? opts.id.slice(opts.id.indexOf(':') + 1) : opts.id ?? type).replace(/[^a-z0-9_-]/gi, '-').toLowerCase() || type;
   if (opts.locationId) cv.entrances.push({ toLocationId: opts.locationId, col: door.dC, row: door.dR, ...(opts.id ? { fixtureId: opts.id } : {}) });
   furnishRoom(cv.tiles, cv.walkable, cv.occ, cv.objects, R, tmpl, { c: door.dC, r: door.dR }, cv.rng, cv.cols, safe, `bldg:${safe}`, 0, opts.name);
+  const rd: RealizedDoor = { c: door.dC, r: door.dR, oC: door.oC, oR: door.oR };
+  stampApproach(cv, rd); // claim the approach at the source of truth (the door is final here)
+  return rd;
 }
 
 /**
@@ -402,9 +441,9 @@ export function building(cv: Canvas, region: Rect, type: BuildingType, opts: { d
  * back to a single furnished room. This is what makes interiors read as real homes/shops (separate
  * rooms with the right furniture each) instead of one open box.
  */
-export function compound(cv: Canvas, region: Rect, type: BuildingType, opts: { door?: 'north' | 'south' | 'east' | 'west'; locationId?: string; name?: string; id?: string; shape?: ShapeKind } = {}): void {
+export function compound(cv: Canvas, region: Rect, type: BuildingType, opts: { door?: 'north' | 'south' | 'east' | 'west'; locationId?: string; name?: string; id?: string; shape?: ShapeKind } = {}): RealizedDoor | null {
   const R = clampRect(cv, region);
-  if (R.w < 7 || R.h < 7) { building(cv, R, type, opts); return; } // too small to partition → single room
+  if (R.w < 7 || R.h < 7) return building(cv, R, type, opts); // too small to partition → single room
   const base = BUILDING_TEMPLATES[type] ?? BUILDING_TEMPLATES.house;
   const mat = base.wall;
   const wallBase = mat === 'wood' ? 'wall_wood' : 'wall';
@@ -487,7 +526,21 @@ export function compound(cv: Canvas, region: Rect, type: BuildingType, opts: { d
     }
     return out;
   };
-  const pickDoor = (pref: string) => { const cs = ringDoorCands(); for (const s of [pref, 'south', 'north', 'east', 'west']) { const d = cs.find((e) => e.side === s); if (d) return d; } return cs[0]; };
+  // The door prefers the requested side AND, on that side, the face opening into the LARGEST leaf — the
+  // entrance room hosts the keeper + the type's focal station (bar RUN / altar / forge), which needs space;
+  // entering into a sliver room starves the station (the F4/composed-footprint failure mode).
+  const leafArea = (c: number, r: number) => { for (const lf of leaves) if (c >= lf.x && c < lf.x + lf.w && r >= lf.y && r < lf.y + lf.h) return lf.w * lf.h; return 0; };
+  const pickDoor = (pref: string) => {
+    const cs = ringDoorCands();
+    if (!cs.length) return undefined;
+    // The door opens into the LARGEST leaf, side preference only breaking ties among its faces: the entrance
+    // room is the primary (keeper + focal station + stock) and starving it fails every semantic contract.
+    // You enter the main hall; the street-facing side is honoured whenever the big room touches it.
+    const globalBest = cs.reduce((m, e) => Math.max(m, leafArea(e.iC, e.iR)), 0);
+    const into = cs.filter((e) => leafArea(e.iC, e.iR) === globalBest);
+    for (const s of [pref, 'south', 'north', 'east', 'west']) { const d = into.find((e) => e.side === s); if (d) return d; }
+    return into[0];
+  };
   const pick0 = pickDoor(opts.door ?? 'south');
   let ed = pick0 ? { dC: pick0.dC, dR: pick0.dR, oC: pick0.oC, oR: pick0.oR } : { dC: rx + Math.floor(rw / 2), dR: ry + rh - 1, oC: rx + Math.floor(rw / 2), oR: ry + rh };
   cv.set(ed.dC, ed.dR, floor, true); cv.occ[ed.dR]![ed.dC] = true;
@@ -500,8 +553,43 @@ export function compound(cv: Canvas, region: Rect, type: BuildingType, opts: { d
   //   Tie-broken toward the leaf holding the entrance, so you tend to enter into the main hall.
   const inLeaf = (lf: Rect, c: number, r: number) => c >= lf.x && c < lf.x + lf.w && r >= lf.y && r < lf.y + lf.h;
   const inIC0 = 2 * ed.dC - ed.oC, inIR0 = 2 * ed.dR - ed.oR; // the floor cell just inside the entrance
-  leaves.sort((a, b) => (b.w * b.h + (inLeaf(b, inIC0, inIR0) ? 0.5 : 0)) - (a.w * a.h + (inLeaf(a, inIC0, inIR0) ? 0.5 : 0)));
+  // DEPTH-CAST (space-syntax privacy gradient): the ENTRANCE leaf is the primary/public room; every other
+  // leaf is ranked by walking DEPTH from it over the leaf graph (BSP doorways + part seams, which CONNECT
+  // will arch), and functions are dealt by PRIVACY RANK — service one step in, bedrooms in the DEEPEST
+  // leaves. "You enter an inn through a bedroom" and "the bedroom opens off the taproom" both become
+  // unrepresentable at assignment; the two-tier repair guard below keeps CONNECT from undoing it.
+  const leafIdxAt = (c: number, r: number) => leaves.findIndex((lf) => inLeaf(lf, c, r));
+  const ladj: Set<number>[] = leaves.map(() => new Set<number>());
+  for (const dd of doors) {
+    const [ac, ar, bc, br] = dd.horiz ? [dd.c - 1, dd.r, dd.c + 1, dd.r] : [dd.c, dd.r - 1, dd.c, dd.r + 1];
+    const a = leafIdxAt(ac, ar), b = leafIdxAt(bc, br);
+    if (a >= 0 && b >= 0 && a !== b) { ladj[a]!.add(b); ladj[b]!.add(a); }
+  }
+  if (mask.parts.length > 1) // cross-part seams: CONNECT arches wherever parts abut → potential edges
+    for (let a = 0; a < leaves.length; a++) for (let b = a + 1; b < leaves.length; b++) {
+      const la = leaves[a]!, lb = leaves[b]!;
+      if (partIdOf(la.x, la.y) === partIdOf(lb.x, lb.y)) continue;
+      if (la.x - 2 <= lb.x + lb.w - 1 && lb.x - 2 <= la.x + la.w - 1 && la.y - 2 <= lb.y + lb.h - 1 && lb.y - 2 <= la.y + la.h - 1) { ladj[a]!.add(b); ladj[b]!.add(a); }
+    }
+  let entLeaf = leafIdxAt(inIC0, inIR0);
+  if (entLeaf < 0) { let ba = -1; entLeaf = 0; leaves.forEach((lf, i) => { const ar = lf.w * lf.h; if (ar > ba) { ba = ar; entLeaf = i; } }); }
+  const ldepth = new Array<number>(leaves.length).fill(Infinity);
+  ldepth[entLeaf] = 0;
+  const dq = [entLeaf];
+  while (dq.length) { const i = dq.shift()!; for (const j of ladj[i]!) if (ldepth[j]! > ldepth[i]! + 1) { ldepth[j] = ldepth[i]! + 1; dq.push(j); } }
+  const maxLd = Math.max(0, ...ldepth.filter((d) => d !== Infinity));
+  for (let i = 0; i < ldepth.length; i++) if (ldepth[i] === Infinity) ldepth[i] = maxLd + 1; // severed leaf → treat as deepest
+  const order = leaves.map((_, i) => i).sort((a, b) => (a === entLeaf ? -1 : b === entLeaf ? 1 : ldepth[a]! - ldepth[b]! || leaves[b]!.w * leaves[b]!.h - leaves[a]!.w * leaves[a]!.h || a - b));
+  const ordered = order.map((i) => leaves[i]!);
+  leaves.length = 0; leaves.push(...ordered);
   const program = ROOM_PROGRAMS[type] ?? ROOM_PROGRAMS.house;
+  // Privacy rank per room FUNCTION (0 = public front, 1 = service, 2 = private sleeping). The program still
+  // decides WHICH rooms exist — the exact multiset the pre-depth-cast code produced (truncate/repeat-last),
+  // so an inn with two rooms keeps its defining bedroom — and the rank sort only decides WHERE each goes:
+  // service in the shallow leaves, bedrooms in the deepest.
+  const PRIV: Record<string, number> = { dining: 1, kitchen: 1, storeroom: 1, vestry: 1, bedroom: 2 };
+  const rest = leaves.slice(1).map((_, j) => program[Math.min(j + 1, program.length - 1)]!).sort((a, b) => (PRIV[a] ?? 0) - (PRIV[b] ?? 0));
+  const fnForLeaf = (i: number): RoomFunction => (i === 0 ? program[0]! : (rest[i - 1] ?? program[0]!));
   const safe = (opts.id && opts.id.includes(':') ? opts.id.slice(opts.id.indexOf(':') + 1) : opts.id ?? type).replace(/[^a-z0-9_-]/gi, '-').toLowerCase() || type;
   // (entrance record is pushed AFTER the repair pass, so it reflects the final door position.)
   const onBorder = (lf: Rect, p: { c: number; r: number }) => p.c >= lf.x && p.c <= lf.x + lf.w - 1 && p.r >= lf.y && p.r <= lf.y + lf.h - 1 && (p.c === lf.x || p.c === lf.x + lf.w - 1 || p.r === lf.y || p.r === lf.y + lf.h - 1);
@@ -527,6 +615,7 @@ export function compound(cv: Canvas, region: Rect, type: BuildingType, opts: { d
     for (let i = 1; i < leaves.length; i++) { const lf = leaves[i]!; const a = lf.w * lf.h; if (a > bestA && Math.min(lf.w, lf.h) >= 6 && interiorLeaf(lf)) { bestA = a; courtyardIdx = i; } }
   }
   const GARDEN = ['flowers', 'flowers_blue', 'flowers_yellow', 'flowers_red', 'bush', 'grass_tuft', 'mushroom', 'tree_oak', 'tree_autumn']; // varied garden planting
+  const roomFnRects: { lf: Rect; fn: RoomFunction }[] = []; // realized room functions — read by the repair guard
   leaves.forEach((lf, i) => {
     if (i === courtyardIdx) {
       // OPEN garden — clear the whole room (incl. its bounding walls) to grass and RING it with a low
@@ -543,8 +632,13 @@ export function compound(cv: Canvas, region: Rect, type: BuildingType, opts: { d
       for (let y = lf.y + 1; y < lf.y + lf.h - 1; y++) for (let x = lf.x + 1; x < lf.x + lf.w - 1; x++) if (cv.isFree(x, y) && cv.rng() < 0.45) { const tag = GARDEN[Math.floor(cv.rng() * GARDEN.length)]!; cv.reserve(x, y); if (tag.startsWith('tree')) cv.walkable[y]![x] = false; cv.ambiance.push({ tag, col: x, row: y }); }
       return;
     }
-    const fn = program[Math.min(i, program.length - 1)]!;
-    const tmpl: RoomTemplate = { ...ROOM_TEMPLATES[fn], floor, wall: mat, occupant: i === 0 ? base.occupant : '', groups: ROOM_RECIPES[fn] };
+    const fn = fnForLeaf(i);
+    roomFnRects.push({ lf, fn });
+    // Context-aware innfront: with NO bedroom room anywhere (a single-hall inn), the front room doubles as
+    // the sleeping hall (check-in + beds — the historical common room). With bedrooms present, the front
+    // stays bed-free (beds beside the check-in counter is the beds-at-the-bar incoherence).
+    const groups = fn === 'innfront' && !rest.includes('bedroom') ? ['checkin', 'bed', 'bed', 'shelf'] : ROOM_RECIPES[fn];
+    const tmpl: RoomTemplate = { ...ROOM_TEMPLATES[fn], floor, wall: mat, occupant: i === 0 ? base.occupant : '', groups };
     // furnishRoom's contract is a WALL-INCLUSIVE rect (it insets 1 to find the interior). A leaf `lf` is pure
     // FLOOR (walls are the ring derived OUTSIDE the mask), so expand it by 1 to put the surrounding wall on the
     // rect border. Without this, furnishRoom double-insets: every wall-hugging item (beds, shelves, counters,
@@ -629,19 +723,32 @@ export function compound(cv: Canvas, region: Rect, type: BuildingType, opts: { d
   //   ring (can't breach the envelope). Repeat until every room is connected — no fill, so no orphan walls.
   const onOuterRingC = onRing; // never tunnel through the derived outer ring (can't breach the envelope)
   runBfs(); // seed the reached set before connecting
-  // (a) cheap pass: carve a single partition wall wherever a reached region abuts an unreached room.
-  for (let guard2 = 0; guard2 < 40; guard2++) {
-    let carved = false;
-    for (let r = ry + 1; r < ry + rh - 1 && !carved; r++)
-      for (let c = rx + 1; c < rx + rw - 1 && !carved; c++) {
-        if (!(cv.tileAt(c, r) ?? '').startsWith('wall')) continue;
-        const pairs: [number, number, number, number][] = [[c - 1, r, c + 1, r], [c + 1, r, c - 1, r], [c, r - 1, c, r + 1], [c, r + 1, c, r - 1]];
-        for (const [ac, ar, bc, br] of pairs)
-          if (reached.has(`${ac},${ar}`) && roomFloor(bc, br) && !reached.has(`${bc},${br}`)) { cv.set(c, r, floor, true); cv.occ[r]![c] = true; sanctioned.add(`${c},${r}`); archAt.push({ c, r }); carved = true; break; }
-        if (carved) break;
-      }
-    if (!carved) break;
-    runBfs();
+  // REPAIR GUARD: an arch must not void the privacy gradient — never carve a PUBLIC room (rank 0: the
+  // bar/shopfront/nave...) straight into a BEDROOM while any function-compatible partition exists. Tier 1
+  // carves compatible partitions only; tier 2 (last resort, so connectivity always wins) allows anything.
+  const fnAt = (c: number, r: number): RoomFunction | null => { for (const rr of roomFnRects) if (inLeaf(rr.lf, c, r)) return rr.fn; return null; };
+  const incompat = (a: RoomFunction | null, b: RoomFunction | null): boolean => !!a && !!b && ((a === 'bedroom' && (PRIV[b] ?? 0) === 0) || (b === 'bedroom' && (PRIV[a] ?? 0) === 0));
+  // (a) cheap pass: carve a single partition wall wherever a reached region abuts an unreached room —
+  // choosing, per iteration, the candidate whose flanking cells are FURNITURE-FREE (the door-clearance
+  // pass deletes whatever flanks a new arch; carving beside a bed/shelf silently unfurnishes the room).
+  for (const allowIncompat of [false, true] as const) {
+    for (let guard2 = 0; guard2 < 40; guard2++) {
+      let best: { c: number; r: number; score: number } | null = null;
+      for (let r = ry + 1; r < ry + rh - 1; r++)
+        for (let c = rx + 1; c < rx + rw - 1; c++) {
+          if (!(cv.tileAt(c, r) ?? '').startsWith('wall')) continue;
+          const pairs: [number, number, number, number][] = [[c - 1, r, c + 1, r], [c + 1, r, c - 1, r], [c, r - 1, c, r + 1], [c, r + 1, c, r - 1]];
+          for (const [ac, ar, bc, br] of pairs)
+            if (reached.has(`${ac},${ar}`) && roomFloor(bc, br) && !reached.has(`${bc},${br}`) && (allowIncompat || !incompat(fnAt(ac, ar), fnAt(bc, br)))) {
+              const score = (cv.occ[ar]?.[ac] ? 0 : 1) + (cv.occ[br]?.[bc] ? 0 : 1); // prefer both flanks clear
+              if (!best || score > best.score) best = { c, r, score };
+              break;
+            }
+        }
+      if (!best) break;
+      cv.set(best.c, best.r, floor, true); cv.occ[best.r]![best.c] = true; sanctioned.add(`${best.c},${best.r}`); archAt.push({ c: best.c, r: best.r });
+      runBfs();
+    }
   }
   // (b) fallback: a room with no partition to a reached region (severed by a yard) gets a minimal tunnel
   //   of carved doorways along the shortest interior-wall path to the reached set.
@@ -685,8 +792,11 @@ export function compound(cv: Canvas, region: Rect, type: BuildingType, opts: { d
     }
   }
 
-  // Entrance record — pushed here so it reflects the final, repaired door position.
+  // Entrance record — pushed here so it reflects the final, repaired door position — and the APPROACH
+  // claim, stamped at the source of truth (never a downstream guess of where the door ended up).
   if (opts.locationId) cv.entrances.push({ toLocationId: opts.locationId, col: ed.dC, row: ed.dR, ...(opts.id ? { fixtureId: opts.id } : {}) });
+  const realized: RealizedDoor = { c: ed.dC, r: ed.dR, oC: ed.oC, oR: ed.oR };
+  stampApproach(cv, realized);
 
   // PASS B — FRAME: a house door on the entrance, a wooden arch on every interior connector — but ONLY
   //   where it truly joins two passable spaces on OPPOSITE sides (a real doorway). A candidate that ended
@@ -709,17 +819,28 @@ export function compound(cv: Canvas, region: Rect, type: BuildingType, opts: { d
   for (const d of doorList) for (const [dc, dr] of N4) approachCells.add(`${d.c + dc},${d.r + dr}`);
   const FOCAL = new Set(['altar', 'forge', 'throne', 'banner']); // a type's wall-backed centrepiece (esp. the ones centred OPPOSITE the door, where arches get carved) must NEVER be deleted by clearance — relocate it instead
   const wallAdj = (c: number, r: number) => N4.some(([dc, dr]) => (cv.tileAt(c + dc, r + dr) ?? '').startsWith('wall'));
-  const relocateFocal = (o: { col: number; row: number }): boolean => { // slide it to the nearest free wall cell that isn't a door approach
+  const relocateFocal = (o: { col: number; row: number; tag?: string }): boolean => { // slide it to the nearest free wall cell that isn't a door approach
+    // A bed keeps its ORIENTATION: it may only slide to a cell backing the SAME wall side (the one-orientation-
+    // per-room invariant) — no legal same-side cell → report false and let clearance delete it instead.
+    const sideOk = (nc: number, nr: number): boolean => {
+      if (!o.tag?.startsWith('bed')) return true;
+      const wl = (dc2: number, dr2: number) => (cv.tileAt(nc + dc2, nr + dr2) ?? '').startsWith('wall');
+      return o.tag === 'bed' ? wl(0, -1) : o.tag === 'bed_down' ? wl(0, 1) : o.tag === 'bed_blue' ? wl(-1, 0) : wl(1, 0);
+    };
     for (let rad = 1; rad <= 4; rad++) for (let dr = -rad; dr <= rad; dr++) for (let dc = -rad; dc <= rad; dc++) {
       const nc = o.col + dc, nr = o.row + dr, k = `${nc},${nr}`;
-      if (roomFloor(nc, nr) && cv.walkable[nr]![nc] === true && !cv.occ[nr]![nc] && wallAdj(nc, nr) && !approachCells.has(k)) { o.col = nc; o.row = nr; cv.occ[nr]![nc] = true; cv.walkable[nr]![nc] = false; return true; }
+      if (roomFloor(nc, nr) && cv.walkable[nr]![nc] === true && !cv.occ[nr]![nc] && wallAdj(nc, nr) && sideOk(nc, nr) && !approachCells.has(k)) {
+        o.col = nc; o.row = nr; cv.occ[nr]![nc] = true; cv.walkable[nr]![nc] = false;
+        return true;
+      }
     }
     return false;
   };
   const clearApproach = (c: number, r: number) => {
     if (!roomFloor(c, r) || cv.walkable[r]![c] === true) return; // already a walkable interior cell → nothing to clear
     const idx = cv.objects.findIndex((o) => o.kind === 'prop' && o.col === c && o.row === r);
-    if (idx >= 0) { const o = cv.objects[idx]!; if (!(FOCAL.has(o.tag) && relocateFocal(o))) cv.objects.splice(idx, 1); } // relocate a focal piece; else remove the furniture
+    // Beds are DEFINING STOCK (an inn without beds fails its contract) — relocate them like a focal, never delete.
+    if (idx >= 0) { const o = cv.objects[idx]!; if (!((FOCAL.has(o.tag) || o.tag.startsWith('bed')) && relocateFocal(o))) cv.objects.splice(idx, 1); } // relocate a focal piece; else remove the furniture
     cv.occ[r]![c] = false; cv.walkable[r]![c] = true;
   };
   for (const d of doorList) for (const [dc, dr] of N4) clearApproach(d.c + dc, d.r + dr);
@@ -730,7 +851,7 @@ export function compound(cv: Canvas, region: Rect, type: BuildingType, opts: { d
   {
     // PROTECTED props are a type's focal/station/seating pieces — the carve routes AROUND them (never clears
     // them to make a path), so connecting a pocket can't break a forge/altar/bar/shop station.
-    const PROTECT = new Set(['altar', 'forge', 'anvil', 'bar_counter', 'shelf_wares', 'stone_bench', 'candelabra', 'throne', 'banner']); // single-instance centrepieces; multi-instance stock (shelves/chests/racks) is intentionally clearable (the carve removes one to open a path; the count still passes)
+    const PROTECT = new Set(['altar', 'forge', 'anvil', 'bar_counter', 'shelf_wares', 'stone_bench', 'candelabra', 'throne', 'banner']); // single-instance centrepieces; multi-instance stock (shelves/chests/racks/beds) is intentionally clearable (the carve removes one to open a path; the count still passes — protecting beds SEALS pockets the carve must clear)
     const isCounter = new Set(cv.objects.filter((o) => o.tag === 'bar_counter').map((o) => `${o.col},${o.row}`));
     const isProtected = new Set(cv.objects.filter((o) => o.kind === 'prop' && PROTECT.has(o.tag)).map((o) => `${o.col},${o.row}`));
     const staff = (c: number, r: number) => N4.some(([dc, dr]) => isCounter.has(`${c + dc},${r + dr}`) && (cv.tileAt(c - dc, r - dr) ?? '').startsWith('wall'));
@@ -801,6 +922,7 @@ export function compound(cv: Canvas, region: Rect, type: BuildingType, opts: { d
     if (straightH) cv.ambiance.push({ tag: 'window_front', col: c, row: r });
     else if (straightV) cv.ambiance.push({ tag: 'window', col: c, row: r });
   }
+  return realized;
 }
 
 // --- object primitives ------------------------------------------------------
@@ -815,8 +937,14 @@ const footprintOf = (tag: string, kind: string): { w: number; h: number } => {
  *  footprint; actors stand on walkable floor. Snaps to the nearest free fit so it never lands in a wall. */
 export function place(cv: Canvas, o: { id: string; tag: string; kind: 'fixture' | 'prop' | 'actor'; role?: 'pc' | 'npc' | 'mob'; at: Pt; name?: string; visible?: boolean }): Pt | null {
   const fp = footprintOf(o.tag, o.kind);
+  const blocks = o.kind === 'fixture' || (o.kind === 'prop' && (propDef(o.tag)?.blocks ?? true));
+  // A BLOCKING object must respect semantic claims (door approaches, circulation): a free-but-claimed cell
+  // is not a legal site — this is what stops the nearest-free-cell snap from parking props in doorways.
   const fits = (c: number, r: number) => {
-    for (let dy = 0; dy < fp.h; dy++) for (let dx = 0; dx < fp.w; dx++) if (!cv.isFree(c + dx, r + dy)) return false;
+    for (let dy = 0; dy < fp.h; dy++) for (let dx = 0; dx < fp.w; dx++) {
+      if (!cv.isFree(c + dx, r + dy)) return false;
+      if (blocks && cv.claimed(c + dx, r + dy)) return false;
+    }
     return true;
   };
   let best: Pt | null = null;
@@ -837,7 +965,6 @@ export function place(cv: Canvas, o: { id: string; tag: string; kind: 'fixture' 
     for (let dy = 0; dy < fp.h; dy++) for (let dx = 0; dx < fp.w; dx++) cv.set(cc + dx, rr + dy, 'dirt', true);
     best = { c: cc, r: rr };
   }
-  const blocks = o.kind === 'fixture' || (o.kind === 'prop' && (propDef(o.tag)?.blocks ?? true));
   for (let dy = 0; dy < fp.h; dy++) for (let dx = 0; dx < fp.w; dx++) {
     cv.reserve(best.c + dx, best.r + dy);
     if (blocks) cv.walkable[best.r + dy]![best.c + dx] = false;
@@ -850,7 +977,8 @@ export function place(cv: Canvas, o: { id: string; tag: string; kind: 'fixture' 
  *  ACTORS must appear: if the region is dry of free cells (e.g. crocodiles "in" a mostly-water lake),
  *  top up from free walkable cells ANYWHERE on the map so the creatures never silently vanish. */
 export function scatter(cv: Canvas, o: { idBase: string; tags: string[]; kind: 'prop' | 'actor'; role?: 'pc' | 'npc' | 'mob'; region: Rect; count: number }): void {
-  let free = cv.shuffle(cellsOf(clampRect(cv, o.region)).filter((p) => cv.isFree(p.c, p.r)));
+  // Props keep off claimed cells (door approaches / circulation); actors may stand anywhere walkable.
+  let free = cv.shuffle(cellsOf(clampRect(cv, o.region)).filter((p) => cv.isFree(p.c, p.r) && (o.kind === 'actor' || !cv.claimed(p.c, p.r))));
   if (o.kind === 'actor' && free.length < o.count) {
     const seen = new Set(free.map((p) => p.r * cv.cols + p.c));
     const everywhere: Pt[] = [];
@@ -964,7 +1092,7 @@ export function poissonScatter(
   for (const s of cv.shuffle(samples)) {
     if (o.max != null && n >= o.max) break;
     const c = R.x + Math.floor(s.x), r = R.y + Math.floor(s.y);
-    if (!cv.isFree(c, r) || (o.filter && !o.filter(c, r))) continue;
+    if (!cv.isFree(c, r) || (o.blocks && cv.claimed(c, r)) || (o.filter && !o.filter(c, r))) continue; // blocking scatter respects claims (no props on aprons/streets)
     const tag = o.tags[Math.floor(cv.rng() * o.tags.length)]!;
     cv.reserve(c, r);
     if (o.blocks) cv.walkable[r]![c] = false;
@@ -989,7 +1117,7 @@ export function clumpScatter(
   const field = noiseField(cv.cols, cv.rows, o.freq ?? 0.13, (cv.seed ^ (o.seedOffset ?? 0)) >>> 0);
   const th = o.threshold ?? 0.62;
   const cells = cv.shuffle(
-    cellsOf(clampRect(cv, region)).filter((p) => cv.isFree(p.c, p.r) && field[p.r]![p.c]! > th && (!o.filter || o.filter(p.c, p.r))),
+    cellsOf(clampRect(cv, region)).filter((p) => cv.isFree(p.c, p.r) && !(o.blocks && cv.claimed(p.c, p.r)) && field[p.r]![p.c]! > th && (!o.filter || o.filter(p.c, p.r))),
   );
   const n = o.max != null ? Math.min(o.max, cells.length) : cells.length;
   for (let i = 0; i < n; i++) {
