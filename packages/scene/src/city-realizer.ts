@@ -145,9 +145,22 @@ function cellInfos(m: ReturnType<typeof buildCityMesh>, nid: number[][], GRID: n
   return out;
 }
 
+/** The DM's roster for a settlement — WHAT exists and WHO is there (never coordinates). Requested
+ *  buildings are GUARANTEED a ward each; named story characters are placed on/near the plaza. */
+export interface CityContents {
+  /** Building types that must exist ("a city with a church and a blacksmith" → ['temple','smithy']). */
+  buildings?: BuildingType[];
+  /** Named story characters (visible actors; tag defaults to a villager sprite). */
+  npcs?: { name: string; tag?: string }[];
+  /** Plaza scale — 'grand' for "a big central plaza". */
+  plaza?: 'small' | 'grand';
+}
+
 /** Inside-out zoning: a plaza at the heart, signature landmarks on the best-fit cells, then a gradient
- *  from grand/commercial centre to craft mid to residential/slum outskirts. */
-function assignWards(m: ReturnType<typeof buildCityMesh>, infos: Map<number, CellInfo>, rng: () => number): Map<number, Ward> {
+ *  from grand/commercial centre to craft mid to residential/slum outskirts. When the DM supplies a
+ *  roster, its types claim wards FIRST (guaranteed, best-fit by their class) and REPLACE the default
+ *  signature set — the DM decides WHAT the city contains; the engine still decides where. */
+function assignWards(m: ReturnType<typeof buildCityMesh>, infos: Map<number, CellInfo>, rng: () => number, contents?: CityContents): Map<number, Ward> {
   const ward = new Map<number, Ward>();
   const ids = [...infos.keys()].sort((a, b) => m.patches[a]!.distToCenter - m.patches[b]!.distToCenter);
   if (!ids.length) return ward;
@@ -160,11 +173,27 @@ function assignWards(m: ReturnType<typeof buildCityMesh>, infos: Map<number, Cel
     return undefined;
   };
   const sig = (id: number | undefined, w: Ward) => { if (id !== undefined) ward.set(id, w); };
-  sig(pick((i) => i.d < 0.6, (i) => i.area), 'cathedral'); // grand temple, central + large
-  sig(pick((i) => i.wallAdj, (i) => i.area), 'keep'); // citadel on the wall
-  sig(pick((i) => i.d < 0.55, (i) => i.area), 'manor'); // a noble's seat near the centre
-  sig(pick((i) => i.d < 0.65, (i) => i.area), 'guildhall');
-  sig(pick((i) => i.d < 0.5, (i) => i.area), 'courthouse');
+  const requested = (contents?.buildings ?? []).slice(0, Math.max(0, free.size)); // every request gets a ward (capped by cells)
+  if (requested.length) {
+    // GUARANTEE pass: each requested type claims its best-fit free cell by class — grand/civic central +
+    // large, commercial inner, craft mid-ring, homes outward. Falls back to any free cell so a request
+    // NEVER silently vanishes. Requested landmarks replace the default signature roster below.
+    const scoreFor = (t: BuildingType): [(i: CellInfo) => boolean, (i: CellInfo) => number] => {
+      const c = propClass(t as Ward);
+      const fits = (i: CellInfo) => i.area >= 140; // must actually HOST the building (the fill needs a ≥9-wide grass rect after the street setback)
+      if (c === 'grand' || c === 'civic') return [(i) => fits(i) && i.d < 0.7, (i) => i.area];
+      if (c === 'market') return [(i) => fits(i) && i.d < 0.6, (i) => i.area * (1 - i.d)];
+      if (c === 'craft') return [fits, (i) => i.area - Math.abs(i.d - 0.55) * 100];
+      return [fits, (i) => i.d]; // residential → outward
+    };
+    for (const t of requested) { const [pred, score] = scoreFor(t); sig(pick(pred, score) ?? pick(() => true, (i) => i.area), t); }
+  } else {
+    sig(pick((i) => i.d < 0.6, (i) => i.area), 'cathedral'); // grand temple, central + large
+    sig(pick((i) => i.wallAdj, (i) => i.area), 'keep'); // citadel on the wall
+    sig(pick((i) => i.d < 0.55, (i) => i.area), 'manor'); // a noble's seat near the centre
+    sig(pick((i) => i.d < 0.65, (i) => i.area), 'guildhall');
+    sig(pick((i) => i.d < 0.5, (i) => i.area), 'courthouse');
+  }
   sig(pick((i) => i.d > 0.38 && i.d < 0.72, () => rng()), 'park'); // a green square mid-town
   if (free.size > 9) sig(pick((i) => i.d > 0.45, () => rng()), 'park'); // a second park in bigger cities
   for (const id of free) {
@@ -215,19 +244,21 @@ function carveFront(cv: Canvas, door: RealizedDoor) {
   }
 }
 
-function fillCoreCell(cv: Canvas, w: Ward, info: CellInfo, nid: number[][], loc: string) {
+function fillCoreCell(cv: Canvas, w: Ward, info: CellInfo, nid: number[][], loc: string, plazaCap = 6, emitted?: Set<BuildingType>) {
+  const ns = loc.replace(/[^a-zA-Z0-9_-]/g, '-'); // entity-id namespace (ids forbid ':' beyond the prefix)
   const id = info.id;
   const inCell = (c: number, r: number) => cv.inB(c, r) && nid[r]?.[c] === id;
   if (w === 'plaza') {
     // A proper market square: pave a CENTRED square (capped so an oversized block doesn't become a grey
-    // runway), ring the fountain with benches + stalls + folk, and frame the rest of the cell in greenery.
-    const hw = Math.min(6, (info.x1 - info.x0) >> 1), hh = Math.min(6, (info.y1 - info.y0) >> 1);
+    // runway — the cap widens for a DM-requested grand plaza), ring the fountain with benches + stalls +
+    // folk, and frame the rest of the cell in greenery.
+    const hw = Math.min(plazaCap, (info.x1 - info.x0) >> 1), hh = Math.min(plazaCap, (info.y1 - info.y0) >> 1);
     const px0 = info.cc - hw, px1 = info.cc + hw, py0 = info.cr - hh, py1 = info.cr + hh;
     for (let r = py0; r <= py1; r++) for (let c = px0; c <= px1; c++) if (inCell(c, r) && cv.tileAt(c, r) === 'grass') cv.set(c, r, 'road', true);
-    if (cv.inB(info.cc, info.cr)) place(cv, { id: `prop:${loc}-fountain`, tag: 'fountain', kind: 'prop', at: { c: info.cc, r: info.cr } });
-    for (const [dc, dr] of [[-2, 0], [2, 0], [0, -2], [0, 2]] as const) { const c = info.cc + dc, r = info.cr + dr; if (cv.inB(c, r) && cv.tileAt(c, r) === 'road' && cv.isFree(c, r)) place(cv, { id: `prop:${loc}-pbench-${c}-${r}`, tag: 'stone_bench', kind: 'prop', at: { c, r } }); }
+    if (cv.inB(info.cc, info.cr)) place(cv, { id: `prop:${ns}-fountain`, tag: 'fountain', kind: 'prop', at: { c: info.cc, r: info.cr } });
+    for (const [dc, dr] of [[-2, 0], [2, 0], [0, -2], [0, 2]] as const) { const c = info.cc + dc, r = info.cr + dr; if (cv.inB(c, r) && cv.tileAt(c, r) === 'road' && cv.isFree(c, r)) place(cv, { id: `prop:${ns}-pbench-${c}-${r}`, tag: 'stone_bench', kind: 'prop', at: { c, r } }); }
     poissonScatter(cv, rectOf(info), { tags: ['market_stall', 'market_stall', 'crate', 'barrel', 'sack'], r: 2, max: 8, blocks: true, filter: (c, r) => inCell(c, r) && cv.tileAt(c, r) === 'road' && cv.isFree(c, r) });
-    placeActors(cv, info, inCell, 'road', ['villager', 'villager_woman', 'dog'], 4, `npc:${loc}-plaza`);
+    placeActors(cv, info, inCell, 'road', ['villager', 'villager_woman', 'dog'], 4, `npc:${ns}-plaza`);
     poissonScatter(cv, rectOf(info), { tags: ['tree', 'tree_autumn', 'bush'], r: 2, max: 12, blocks: true, filter: (c, r) => inCell(c, r) && cv.tileAt(c, r) === 'grass' && cv.isFree(c, r) });
     poissonScatter(cv, rectOf(info), { tags: ['flowers', 'flowers_blue', 'flowers_yellow', 'grass_tuft'], r: 1, max: 18, blocks: false, filter: (c, r) => inCell(c, r) && cv.tileAt(c, r) === 'grass' && cv.isFree(c, r) });
     return;
@@ -236,11 +267,11 @@ function fillCoreCell(cv: Canvas, w: Ward, info: CellInfo, nid: number[][], loc:
     // a DESIGNED green: a fountain/statue centrepiece, benches around it, framing trees + flower beds and
     // a couple of strollers — a town park, never bare grass.
     const cc = info.cc, cr = info.cr;
-    if (cv.inB(cc, cr) && cv.isFree(cc, cr)) place(cv, { id: `prop:${loc}-park-${id}`, tag: cv.rng() < 0.5 ? 'fountain' : 'statue', kind: 'prop', at: { c: cc, r: cr } });
-    for (const [dc, dr] of [[-2, 0], [2, 0], [0, -2], [0, 2]] as const) { const c = cc + dc, r = cr + dr; if (cv.inB(c, r) && inCell(c, r) && cv.tileAt(c, r) === 'grass' && cv.isFree(c, r)) place(cv, { id: `prop:${loc}-pb-${id}-${c}-${r}`, tag: 'stone_bench', kind: 'prop', at: { c, r } }); }
+    if (cv.inB(cc, cr) && cv.isFree(cc, cr)) place(cv, { id: `prop:${ns}-park-${id}`, tag: cv.rng() < 0.5 ? 'fountain' : 'statue', kind: 'prop', at: { c: cc, r: cr } });
+    for (const [dc, dr] of [[-2, 0], [2, 0], [0, -2], [0, 2]] as const) { const c = cc + dc, r = cr + dr; if (cv.inB(c, r) && inCell(c, r) && cv.tileAt(c, r) === 'grass' && cv.isFree(c, r)) place(cv, { id: `prop:${ns}-pb-${id}-${c}-${r}`, tag: 'stone_bench', kind: 'prop', at: { c, r } }); }
     poissonScatter(cv, rectOf(info), { tags: ['tree', 'tree_autumn', 'tree_pine', 'bush'], r: 2, max: 10, blocks: true, filter: (c, r) => inCell(c, r) && cv.tileAt(c, r) === 'grass' && cv.isFree(c, r) });
     poissonScatter(cv, rectOf(info), { tags: ['flowers', 'flowers_blue', 'flowers_yellow', 'flowers_red', 'grass_tuft'], r: 1, max: 16, blocks: false, filter: (c, r) => inCell(c, r) && cv.tileAt(c, r) === 'grass' && cv.isFree(c, r) });
-    placeActors(cv, info, inCell, 'grass', ['villager', 'villager_woman', 'dog'], 2, `npc:${loc}-park`);
+    placeActors(cv, info, inCell, 'grass', ['villager', 'villager_woman', 'dog'], 2, `npc:${ns}-park-${id}`); // per-cell base: two parks must not collide
     return;
   }
   // Fill a node with a FEW big, irregular-shaped buildings (fewer-but-bigger, not many tiny squares):
@@ -285,8 +316,9 @@ function fillCoreCell(cv: Canvas, w: Ward, info: CellInfo, nid: number[][], loc:
     const [fw, fh] = footFor(type);
     const lot = clampLot(big, door, Math.max(fw, cap), Math.max(fh, cap)); // landmarks keep their size; others fill up to cap
     if (lot.w < 9 || lot.h < 9) { claim(lot); return; } // too small even for an L → garden, never a tiny box
-    const rd = compound(cv, lot, type, { shape: pickShape(lot, true, cv.rng), door, locationId: loc, id: `bldg:${loc}-${id}-${n}` });
+    const rd = compound(cv, lot, type, { shape: pickShape(lot, true, cv.rng), door, locationId: loc, id: `bldg:${ns}-${id}-${n}` });
     if (rd) {
+      emitted?.add(type); // the roster ledger — what the city actually BUILT (read by the repair pass)
       carveFront(cv, rd); // apron from the REALIZED door (repair may have moved it off the requested side)
       if (n === 0) signature(cv, lot, doorSideOf(rd), w, inCell, `${loc}-${id}`); // trade cluster flanks the real door side
     }
@@ -303,7 +335,7 @@ function fillCoreCell(cv: Canvas, w: Ward, info: CellInfo, nid: number[][], loc:
   // a kitchen-garden so a node never reads as bare grass: a well/fountain focal point, then dense planting
   // (bushes/crops/fences/a few trees) + flower beds.
   if (cv.inB(info.cc, info.cr) && cv.isFree(info.cc, info.cr) && cv.tileAt(info.cc, info.cr) === 'grass' && cv.rng() < 0.65)
-    place(cv, { id: `prop:${loc}-yard-${id}`, tag: 'fountain', kind: 'prop', at: { c: info.cc, r: info.cr } });
+    place(cv, { id: `prop:${ns}-yard-${id}`, tag: 'fountain', kind: 'prop', at: { c: info.cc, r: info.cr } });
   // Planting in clumped BEDS/thickets (not an even sprinkle) → reads as a designed kitchen-garden, never bare.
   clumpScatter(cv, rectOf(info), { tags: ['bush', 'bush', 'fence', 'woodpile', 'tree', ...WARD_PROPS[propClass(w)]!], freq: 0.18, threshold: 0.5, max: 12, blocks: true, filter: (c, r) => inCell(c, r) && cv.tileAt(c, r) === 'grass' && cv.isFree(c, r) });
   poissonScatter(cv, rectOf(info), { tags: ['flowers', 'flowers_blue', 'flowers_yellow', 'grass_tuft', 'mushroom'], r: 1, max: 14, blocks: false, filter: (c, r) => inCell(c, r) && cv.tileAt(c, r) === 'grass' && cv.isFree(c, r) });
@@ -311,17 +343,18 @@ function fillCoreCell(cv: Canvas, w: Ward, info: CellInfo, nid: number[][], loc:
 
 /** The preserved extramural ring → flavour: farmsteads, a camp by a gate, a roadside vendor. */
 function fillExtramural(cv: Canvas, m: ReturnType<typeof buildCityMesh>, nid: number[][], GRID: number, loc: string, rng: () => number) {
+  const ns = loc.replace(/[^a-zA-Z0-9_-]/g, '-'); // entity-id namespace (ids forbid ':' beyond the prefix)
   const ext = cellInfos(m, nid, GRID, 'extramural');
   if (!ext.size) return;
   let campId = -1, campBest = Infinity;
   for (const [id, i] of ext) if (i.nearGate < campBest) { campBest = i.nearGate; campId = id; }
   for (const [id, info] of ext) {
     const inCell = (c: number, r: number) => cv.inB(c, r) && nid[r]?.[c] === id;
-    if (id === campId && m.wall) { if (cv.inB(info.cc, info.cr)) vignette(cv, { c: info.cc, r: info.cr }, 'camp', `camp-${loc}-${id}`); continue; }
+    if (id === campId && m.wall) { if (cv.inB(info.cc, info.cr)) vignette(cv, { c: info.cc, r: info.cr }, 'camp', `camp-${ns}-${id}`); continue; }
     if (rng() < 0.5) {
       // farmstead: a cottage + an orchard + a couple of fences
       const rect = maxRect((c, r) => inCell(c, r) && cv.tileAt(c, r) === 'grass', info.x0, info.y0, info.x1, info.y1);
-      if (rect && rect.w >= 4 && rect.h >= 4) building(cv, { x: rect.x, y: rect.y, w: Math.min(6, rect.w), h: Math.min(6, rect.h) }, 'house', { door: 'south', locationId: loc, id: `bldg:${loc}-farm-${id}` });
+      if (rect && rect.w >= 4 && rect.h >= 4) building(cv, { x: rect.x, y: rect.y, w: Math.min(6, rect.w), h: Math.min(6, rect.h) }, 'house', { door: 'south', locationId: loc, id: `bldg:${ns}-farm-${id}` });
       poissonScatter(cv, rectOf(info), { tags: ['tree', 'bush', 'fence'], r: 2, max: 7, blocks: true, filter: (c, r) => inCell(c, r) && cv.tileAt(c, r) === 'grass' && cv.isFree(c, r) });
     } else {
       poissonScatter(cv, rectOf(info), { tags: ['grass_tuft', 'bush', 'flowers', 'tree'], r: 3, max: 4, blocks: false, filter: (c, r) => inCell(c, r) && cv.tileAt(c, r) === 'grass' && cv.isFree(c, r) });
@@ -335,7 +368,7 @@ function fillExtramural(cv: Canvas, m: ReturnType<typeof buildCityMesh>, nid: nu
     const g = toTile(gates[0]!);
     for (const [dc, dr] of [[0, 2], [2, 0], [0, -2], [-2, 0], [2, 2]] as const) {
       const c = g.c + dc, r = g.r + dr;
-      if (cv.inB(c, r) && cv.tileAt(c, r) === 'grass' && cv.isFree(c, r)) { place(cv, { id: `prop:${loc}-vendor`, tag: 'market_stall', kind: 'prop', at: { c, r } }); if (cv.inB(c + 1, r) && cv.isFree(c + 1, r)) place(cv, { id: `npc:${loc}-vendor`, tag: 'villager', kind: 'actor', role: 'npc', at: { c: c + 1, r } }); break; }
+      if (cv.inB(c, r) && cv.tileAt(c, r) === 'grass' && cv.isFree(c, r)) { place(cv, { id: `prop:${ns}-vendor`, tag: 'market_stall', kind: 'prop', at: { c, r } }); if (cv.inB(c + 1, r) && cv.isFree(c + 1, r)) place(cv, { id: `npc:${ns}-vendor`, tag: 'villager', kind: 'actor', role: 'npc', at: { c: c + 1, r } }); break; }
     }
   }
   // a forest framing the countryside (dense at the rural edge — deliberate, not a uniform field scatter)
@@ -344,22 +377,26 @@ function fillExtramural(cv: Canvas, m: ReturnType<typeof buildCityMesh>, nid: nu
 
 const cellMapHalf = (m: CityMesh) => m.viewExtent * 1.1;
 
+/** Realizer options: the blueprint knobs + the DM's roster (what exists, who is there). */
+export type RealizeCityOpts = CityMeshOpts & { contents?: CityContents };
+
 /** Voronoi engine (organic wards). */
-export function realizeCityMesh(seed: number, opts: CityMeshOpts = {}): SceneMap {
-  return realizeLayout(buildCityMesh(seed, opts), seed);
+export function realizeCityMesh(seed: number, opts: RealizeCityOpts = {}): SceneMap {
+  return realizeLayout(buildCityMesh(seed, opts), seed, opts.contents);
 }
 /** Orthogonal engine (BSP rectangular blocks). Same fill/realizer, different layout. */
-export function realizeCityBsp(seed: number, opts: CityMeshOpts = {}): SceneMap {
-  return realizeLayout(buildCityBsp(seed, opts), seed);
+export function realizeCityBsp(seed: number, opts: RealizeCityOpts = {}): SceneMap {
+  return realizeLayout(buildCityBsp(seed, opts), seed, opts.contents);
 }
 
 /** Build a tiled, lived-in SceneMap from any block layout (Voronoi or BSP) — shared by both engines. */
-function realizeLayout(m: CityMesh, seed: number): SceneMap {
+function realizeLayout(m: CityMesh, seed: number, contents?: CityContents): SceneMap {
   const half = cellMapHalf(m);
   const GRID = Math.max(60, Math.min(160, Math.round(2 * half * 0.9)));
   const SCALE = GRID / (2 * half);
   const cv = new Canvas(GRID, GRID, seed, 'grass');
   const loc = `loc:lab-citymesh-${seed}`;
+  const ns = loc.replace(/[^a-zA-Z0-9_-]/g, '-'); // entity-id namespace (ids forbid ':' beyond the prefix)
   const tileWorld = (c: number, r: number) => ({ wx: m.center.x - half + (c + 0.5) / SCALE, wy: m.center.y + half - (r + 0.5) / SCALE });
   const toTile = (p: Vec2) => ({ c: Math.round((p.x - (m.center.x - half)) * SCALE - 0.5), r: Math.round(((m.center.y + half) - p.y) * SCALE - 0.5) });
   const zoneOf = (id: number): Zone => m.patches[id]?.zone ?? 'rural';
@@ -393,14 +430,41 @@ function realizeLayout(m: CityMesh, seed: number): SceneMap {
       for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) if (cv.inB(t.c + dc, t.r + dr)) { cv.set(t.c + dc, t.r + dr, 'road', true); cv.stampClaim(t.c + dc, t.r + dr, CLAIM_CIRCULATION); }
       const ic = Math.sign(ctr.c - t.c), ir = Math.sign(ctr.r - t.r); // one step inward
       const gc = t.c + ic, gr = t.r + ir;
-      if (cv.inB(gc, gr) && cv.isFree(gc, gr)) place(cv, { id: `npc:${loc}-gate-${gi}`, tag: 'knight', kind: 'actor', role: 'npc', at: { c: gc, r: gr } });
+      if (cv.inB(gc, gr) && cv.isFree(gc, gr)) place(cv, { id: `npc:${ns}-gate-${gi}`, tag: 'knight', kind: 'actor', role: 'npc', at: { c: gc, r: gr } });
     });
   }
 
-  // 4. Zone the core into wards and fill each cell.
+  // 4. Zone the core into wards (honouring the DM's roster when supplied) and fill each cell.
   const core = cellInfos(m, nid, GRID, 'core');
-  const wards = assignWards(m, core, cv.rng);
-  for (const [id, info] of core) fillCoreCell(cv, wards.get(id) ?? 'house', info, nid, loc);
+  const wards = assignWards(m, core, cv.rng, contents);
+  const plazaCap = contents?.plaza === 'grand' ? 10 : 6; // "a big central plaza" → a wider paved square
+  const emitted = new Set<BuildingType>();
+  for (const [id, info] of core) fillCoreCell(cv, wards.get(id) ?? 'house', info, nid, loc, plazaCap, emitted);
+
+  // 4b. ROSTER REPAIR — the DM contract is a GUARANTEE: any requested type whose ward geometry failed to
+  //     host a building gets force-placed on the biggest remaining buildable rect anywhere in the core.
+  //     A request never silently vanishes (mirrors place()'s never-vanish rule, at the building scale).
+  if (contents?.buildings?.length) {
+    for (const t of contents.buildings) {
+      if (emitted.has(t)) continue;
+      let best: { x: number; y: number; w: number; h: number } | null = null;
+      for (const [cid, info] of core) {
+        const inCell = (c: number, r: number) => cv.inB(c, r) && nid[r]?.[c] === cid;
+        const r2 = maxRect((c, r) => inCell(c, r) && cv.tileAt(c, r) === 'grass' && cv.isFree(c, r), info.x0, info.y0, info.x1, info.y1);
+        if (r2 && r2.w >= 9 && r2.h >= 9 && (!best || r2.w * r2.h > best.w * best.h)) best = r2;
+      }
+      if (!best) continue; // genuinely no room anywhere — accept the miss rather than deform the city
+      const door = pickDoor(cv, best);
+      const W = Math.min(best.w, 16), H = Math.min(best.h, 14);
+      const lot = {
+        x: door === 'west' ? best.x : door === 'east' ? best.x + best.w - W : best.x + ((best.w - W) >> 1),
+        y: door === 'north' ? best.y : door === 'south' ? best.y + best.h - H : best.y + ((best.h - H) >> 1),
+        w: W, h: H,
+      };
+      const rd = compound(cv, lot, t, { shape: pickShape(lot, true, cv.rng), door, locationId: loc, id: `bldg:${ns}-roster-${t}` });
+      if (rd) { emitted.add(t); carveFront(cv, rd); }
+    }
+  }
 
   // 5. Extramural flavour (farms, camp, vendor) + the rural treeline.
   fillExtramural(cv, m, nid, GRID, loc, cv.rng);
@@ -413,7 +477,22 @@ function realizeLayout(m: CityMesh, seed: number): SceneMap {
   for (let r = 0; r < GRID; r++) for (let c = 0; c < GRID; c++) if (cv.tileAt(c, r) === 'road' && zoneOf(nid[r]![c]!) === 'core' && cv.isFree(c, r)) roads.push({ c, r });
   for (let i = roads.length - 1; i > 0; i--) { const j = Math.floor(cv.rng() * (i + 1)); [roads[i], roads[j]] = [roads[j]!, roads[i]!]; }
   const folk = ['villager', 'villager_woman', 'ranger', 'dog'];
-  for (let k = 0; k < Math.min(6, roads.length); k++) place(cv, { id: `npc:${loc}-folk-${k}`, tag: folk[k % folk.length]!, kind: 'actor', role: 'npc', at: roads[k]! });
+  for (let k = 0; k < Math.min(6, roads.length); k++) place(cv, { id: `npc:${ns}-folk-${k}`, tag: folk[k % folk.length]!, kind: 'actor', role: 'npc', at: roads[k]! });
+
+  // 6b. The DM's NAMED story characters — placed around the plaza heart (place() snaps to free cells and
+  //     respects claims, so they stand on the square, never in a doorway). Stable ids from their names.
+  if (contents?.npcs?.length) {
+    const plazaCell = [...wards].find(([, ward]) => ward === 'plaza')?.[0];
+    const pi = plazaCell !== undefined ? core.get(plazaCell) : undefined;
+    const at0 = pi ? { c: pi.cc, r: pi.cr } : { c: GRID >> 1, r: GRID >> 1 };
+    const seen = new Set<string>();
+    contents.npcs.slice(0, 8).forEach((n, k) => {
+      let slug = n.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || `story-${k}`;
+      if (seen.has(slug)) slug = `${slug}-${k}`;
+      seen.add(slug);
+      place(cv, { id: `npc:${slug}`, tag: n.tag ?? (k % 2 ? 'villager_woman' : 'villager'), kind: 'actor', role: 'npc', name: n.name, at: { c: at0.c + ((k % 3) - 1) * 2, r: at0.r + (Math.floor(k / 3) - 1) * 2 } });
+    });
+  }
 
   // 7. Civic square: re-skin the PLAZA cell's cobble to formal FLAGSTONE so the town's heart reads as a
   //    proper paved square, while every street stays the beloved curbed cobble. Street detection above ran

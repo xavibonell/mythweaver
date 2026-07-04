@@ -6,7 +6,7 @@ import Fastify, { type FastifyReply } from 'fastify';
 import { Engine, createInitialState } from '@mythweaver/engine';
 import { createProvider } from '@mythweaver/llm';
 import { CHARACTERS, FakeSceneComposer, LlmSceneComposer, PROPS, TERRAINS, buildSceneMap, cityBspBlueprint, cityMeshBlueprint, loadAssetLibrary, realizeCityBsp, realizeCityMesh } from '@mythweaver/scene';
-import { BIOMES, classToSpriteTag, validateEstablishScene, type EstablishScene } from '@mythweaver/shared';
+import { BIOMES, BUILDING_TYPES, classToSpriteTag, validateEstablishScene, type EstablishScene } from '@mythweaver/shared';
 import { Db } from './db.js';
 import { loadScenario, readScenarioRaw, writeScenarioRaw, parseScenario, loadSharedParty, loadSharedBestiary, resolveParty } from './content.js';
 import {
@@ -233,14 +233,20 @@ app.get('/scene/citymesh', async (req, reply) => {
 
 // Scene Lab — CITY layout realized to TILES (the Blueprint tab's "tiles" view): rasterizes the chosen
 // engine (voronoi=organic wards · orthogonal=BSP rectangular blocks) into a real lived-in SceneMap.
+// `buildings` / `npcs` (CSV) simulate the DM's roster: requested types are GUARANTEED wards; named
+// story characters stand on the plaza. `plaza=grand` widens the central square.
 app.get('/scene/citymesh/render', async (req, reply) => {
-  const q = (req.query ?? {}) as { seed?: string; nPatches?: string; wall?: string; engine?: string };
+  const q = (req.query ?? {}) as { seed?: string; nPatches?: string; wall?: string; engine?: string; buildings?: string; npcs?: string; plaza?: string };
   const seed = Number.isFinite(Number(q.seed)) ? Number(q.seed) : 1;
   const nPatches = Number.isFinite(Number(q.nPatches)) ? Number(q.nPatches) : 15;
   const wall = q.wall !== '0' && q.wall !== 'false';
   const bsp = q.engine === 'orthogonal' || q.engine === 'bsp';
+  const KNOWN = new Set<string>(BUILDING_TYPES);
+  const buildings = (q.buildings ?? '').split(',').map((s) => s.trim().toLowerCase()).filter((s) => KNOWN.has(s)).slice(0, 12) as (typeof BUILDING_TYPES)[number][];
+  const npcs = (q.npcs ?? '').split(',').map((s) => s.trim()).filter(Boolean).slice(0, 8).map((name) => ({ name: name.slice(0, 40) }));
+  const contents = buildings.length || npcs.length || q.plaza === 'grand' ? { buildings, npcs, ...(q.plaza === 'grand' ? { plaza: 'grand' as const } : {}) } : undefined;
   try {
-    return { sceneMap: (bsp ? realizeCityBsp : realizeCityMesh)(seed, { nPatches, wall }) };
+    return { sceneMap: (bsp ? realizeCityBsp : realizeCityMesh)(seed, { nPatches, wall, contents }) };
   } catch (err) {
     app.log.error(err, 'scene citymesh render failed');
     reply.code(502);

@@ -13,7 +13,7 @@ export { renderSceneMapToPng } from './headless-render.js';
 export { blockCottage, blockPlaza, blockTown } from './blocks.js';
 export { buildCityMesh, cityMeshBlueprint, meshBlueprint, coreWall, type CityMesh, type CityBlueprint, type BlueprintPatch, type Patch, type Zone } from './citymesh.js';
 export { buildCityBsp, cityBspBlueprint } from './citybsp.js';
-export { realizeCityMesh, realizeCityBsp } from './city-realizer.js';
+export { realizeCityMesh, realizeCityBsp, type CityContents, type RealizeCityOpts } from './city-realizer.js';
 export { checkCoherence, type CoherenceReport } from './coherence-check.js';
 export { CLAIM_APPROACH, CLAIM_CIRCULATION, CLAIM_STAGE, doorSideOf, type RealizedDoor } from './primitives.js';
 export * from './catalog.js';

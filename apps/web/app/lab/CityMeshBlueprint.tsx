@@ -50,6 +50,13 @@ export default function CityMeshBlueprint({ server }: { server: string }) {
   const [walled, setWalled] = useState(true);
   const [engine, setEngine] = useState<'voronoi' | 'orthogonal'>('voronoi');
   const [view, setView] = useState<'plan' | 'tiles'>('plan');
+  // The DM roster (the wire-in contract): building types that MUST exist + named story characters.
+  // Drafts commit on Enter/blur so typing doesn't re-generate the city per keystroke.
+  const [buildings, setBuildings] = useState('');
+  const [npcs, setNpcs] = useState('');
+  const [grandPlaza, setGrandPlaza] = useState(false);
+  const [bldDraft, setBldDraft] = useState('');
+  const [npcDraft, setNpcDraft] = useState('');
   const [data, setData] = useState<CityBlueprint | null>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [tileMap, setTileMap] = useState<any>(null);
@@ -67,17 +74,18 @@ export default function CityMeshBlueprint({ server }: { server: string }) {
     } catch (e) { setError((e as Error).message); } finally { setBusy(false); }
   }, [server]);
 
-  const loadTiles = useCallback(async (s: number, n: number, w: boolean, eng: string) => {
+  const loadTiles = useCallback(async (s: number, n: number, w: boolean, eng: string, bld: string, cast: string, grand: boolean) => {
     setTileBusy(true); setError('');
     try {
-      const res = await fetch(`${server}/scene/citymesh/render?seed=${s}&nPatches=${n}&wall=${w ? 1 : 0}&engine=${eng}`, { cache: 'no-store' });
+      const roster = `&buildings=${encodeURIComponent(bld)}&npcs=${encodeURIComponent(cast)}${grand ? '&plaza=grand' : ''}`;
+      const res = await fetch(`${server}/scene/citymesh/render?seed=${s}&nPatches=${n}&wall=${w ? 1 : 0}&engine=${eng}${roster}`, { cache: 'no-store' });
       const d = await res.json();
       if (!res.ok) setError(d.error ?? `error ${res.status}`); else setTileMap(d.sceneMap);
     } catch (e) { setError((e as Error).message); } finally { setTileBusy(false); }
   }, [server]);
 
   useEffect(() => { load(seed, nPatches, walled, engine); }, [load, seed, nPatches, walled, engine]);
-  useEffect(() => { if (view === 'tiles') loadTiles(seed, nPatches, walled, engine); }, [view, seed, nPatches, walled, engine, loadTiles]);
+  useEffect(() => { if (view === 'tiles') loadTiles(seed, nPatches, walled, engine, buildings, npcs, grandPlaza); }, [view, seed, nPatches, walled, engine, buildings, npcs, grandPlaza, loadTiles]);
 
   // Fit the shown cells into the viewBox (flip Y so north is up).
   let fit: { s: number; minX: number; maxY: number; ox: number; oy: number } | null = null;
@@ -112,6 +120,12 @@ export default function CityMeshBlueprint({ server }: { server: string }) {
           {([['voronoi', 'organic'], ['orthogonal', 'orthogonal']] as const).map(([v, label]) => (
             <button key={v} onClick={() => setEngine(v)} style={{ padding: '3px 12px', fontSize: '0.74rem', cursor: 'pointer', border: 'none', background: engine === v ? '#5a8f3a' : '#15120f', color: engine === v ? '#0d0b0a' : '#9a8f7d' }}>{label}</button>
           ))}
+        </span>
+        <span style={{ display: 'flex', gap: 6, alignItems: 'center' }} title="the DM roster — requested building types are GUARANTEED a ward (tiles view)">
+          roster
+          <input placeholder="temple,smithy,…" value={bldDraft} onChange={(e) => setBldDraft(e.target.value)} onBlur={() => setBuildings(bldDraft)} onKeyDown={(e) => { if (e.key === 'Enter') setBuildings(bldDraft); }} style={{ ...inp, width: 130 }} />
+          <input placeholder="named npcs: Aldric,…" value={npcDraft} onChange={(e) => setNpcDraft(e.target.value)} onBlur={() => setNpcs(npcDraft)} onKeyDown={(e) => { if (e.key === 'Enter') setNpcs(npcDraft); }} style={{ ...inp, width: 140 }} />
+          <label style={{ display: 'flex', gap: 3, alignItems: 'center', cursor: 'pointer' }}><input type="checkbox" checked={grandPlaza} onChange={(e) => setGrandPlaza(e.target.checked)} />grand plaza</label>
         </span>
         <span style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
           seed
