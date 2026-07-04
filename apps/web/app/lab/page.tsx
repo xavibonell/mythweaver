@@ -52,7 +52,7 @@ export default function LabPage() {
   // The build MODE (one selector, mutually exclusive — replaces the old look-alike checkboxes):
   //  primitives = G1b LLM-composes-a-program (the new path, default) · classic = old DM→Director→3-grammar
   //  pipeline · city = district stitcher · large = classic but floored to a big grid (perf/zoom test).
-  const [mode, setMode] = useState<'primitives' | 'classic' | 'city' | 'large' | 'component' | 'blueprint'>('primitives');
+  const [mode, setMode] = useState<'story' | 'primitives' | 'classic' | 'city' | 'large' | 'component' | 'blueprint'>('story');
   const [cityCount, setCityCount] = useState(6); // number of districts to stitch (city mode)
   const [fitNonce, setFitNonce] = useState(0); // bump to re-frame the whole scene in the free camera
   // Component mode — a contact sheet of N seed-varied instances of ONE micro-generator, for isolated
@@ -61,6 +61,7 @@ export default function LabPage() {
   const [componentKind, setComponentKind] = useState('building:tavern');
   const [componentCount, setComponentCount] = useState(6);
   const [componentSeed, setComponentSeed] = useState(1);
+  const story = mode === 'story';
   const prog = mode === 'primitives';
   const city = mode === 'city';
   const large = mode === 'large';
@@ -97,6 +98,29 @@ export default function LabPage() {
     setError('');
     try {
       const res = await fetch(`${SERVER}/scene/spike`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name }) });
+      const data = await res.json();
+      if (!res.ok) setError(data.error ?? `error ${res.status}`);
+      else {
+        setResult(data);
+        setEstablishEdit(JSON.stringify(data.establish, null, 2));
+      }
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  // STORY — the full experience: the REAL DM narrates the opening + declares the setup, the modern
+  // generator makes it real (2 LLM calls). The narration renders above the scene like a DM speaking.
+  async function buildStory(text?: string) {
+    const b = (text ?? brief).trim();
+    if (text) setBrief(text);
+    if (!b || busy) return;
+    setBusy(true);
+    setError('');
+    try {
+      const res = await fetch(`${SERVER}/scene/story`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ premise: b }) });
       const data = await res.json();
       if (!res.ok) setError(data.error ?? `error ${res.status}`);
       else {
@@ -154,6 +178,7 @@ export default function LabPage() {
   }
 
   async function build(text?: string) {
+    if (story) return buildStory(text);
     if (prog) return buildProgram(text);
     if (city) return buildCity();
     if (component) return buildComponent();
@@ -262,6 +287,7 @@ export default function LabPage() {
             </button>
             <div style={{ fontSize: '0.66rem', color: '#7c7464', marginTop: 2 }}>Mode:</div>
             {([
+              ['story', 'Story ★', 'THE FULL EXPERIENCE — the real DM narrates the opening beat + declares the setup (cast, buildings, hook), then the modern generator makes it real on screen. 2 LLM calls.'],
               ['primitives', 'Primitives', 'NEW — the LLM composes a primitive program from your brief (no templates). The generation path we are building.'],
               ['classic', 'Classic', 'OLD — DM → Director → the 3 fixed grammars (town/interior/outdoor). Being replaced.'],
               ['city', 'City', 'District stitcher. Empty box = sample roster ($0); a brief = the planner designs districts.'],

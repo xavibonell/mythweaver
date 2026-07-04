@@ -22,7 +22,7 @@ import {
 import { buildRetriever } from './corpus.js';
 import { buildTracer } from './tracing.js';
 import { runTurn, type TurnInput } from './orchestrator.js';
-import { labBuildCity, labBuildComponent, labBuildProgram, labBuildScene, labBuildSpike, labComposeScene } from './scene-lab.js';
+import { labBuildCity, labBuildComponent, labBuildProgram, labBuildScene, labBuildSpike, labBuildStory, labComposeScene } from './scene-lab.js';
 import { saveSceneCapture } from './scene-eval/capture.js';
 import { runDmLab, createDmLabSession, dmLabSubmit, arcView, autoRollTotal, DM_LAB_TRANSCRIPTS, type LabTurn, type DmLabSession } from './dm-lab.js';
 import { renderDmLabPage } from './dm-lab-page.js';
@@ -177,6 +177,23 @@ app.post('/scene/spike', async (req, reply) => {
     return labBuildSpike(name);
   } catch (err) {
     app.log.error(err, 'scene spike build failed');
+    reply.code(502);
+    return { error: (err as Error).message };
+  }
+});
+
+// Scene Lab — STORY mode (the full experience, lab-first): the REAL DM narrates the opening beat and
+// declares the setup (setScene), then the MODERN generator realizes it with the DM's cast injected.
+// Two LLM calls. This is the routing that later flips the live setScene path.
+app.post('/scene/story', async (req, reply) => {
+  const body = (req.body ?? {}) as { premise?: unknown };
+  const premise = typeof body.premise === 'string' ? body.premise.trim() : '';
+  if (!premise) return badRequest(reply, 'premise is required');
+  if (premise.length > 1000) return badRequest(reply, 'premise too long (max 1000 chars)');
+  try {
+    return await labBuildStory({ llm, model: dmModel }, premise);
+  } catch (err) {
+    app.log.error(err, 'scene story failed');
     reply.code(502);
     return { error: (err as Error).message };
   }

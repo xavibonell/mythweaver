@@ -17,3 +17,4 @@ export { realizeCityMesh, realizeCityBsp, type CityContents, type RealizeCityOpt
 export { checkCoherence, type CoherenceReport } from './coherence-check.js';
 export { CLAIM_APPROACH, CLAIM_CIRCULATION, CLAIM_STAGE, doorSideOf, type RealizedDoor } from './primitives.js';
 export * from './catalog.js';
+export { lookToSprite } from './composer.js';

@@ -74,7 +74,7 @@ const LOOK_SYNONYMS: [RegExp, string][] = [
   [/rogue|thief|spy|assassin|robber|bandit|smuggler|brigand|cutpurse|burglar/, 'rogue'],
   [/woman|girl|lady|matron|maiden|fisherwoman|maid|wife|widow|crone|grandmother/, 'villager_woman'],
 ];
-function lookToSprite(look: string): string {
+export function lookToSprite(look: string): string {
   const r = look.toLowerCase();
   for (const [re, tag] of LOOK_SYNONYMS) if (re.test(r) && isCharacter(tag)) return tag;
   return 'villager';

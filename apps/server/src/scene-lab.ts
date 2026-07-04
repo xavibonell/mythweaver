@@ -10,7 +10,7 @@
  */
 
 import type { LlmProvider } from '@mythweaver/llm';
-import { buildCityScene, buildComponentSheet, buildSceneMap, buildSpikeScene, GOLD_PROGRAMS, LlmCityPlanner, LlmSceneProgrammer, runProgram, type CityDistrictSpec, type CityRequest, type SceneComposer, type SceneProgram } from '@mythweaver/scene';
+import { buildCityScene, buildComponentSheet, buildSceneMap, buildSpikeScene, GOLD_PROGRAMS, LlmCityPlanner, LlmSceneProgrammer, lookToSprite, runProgram, type CityDistrictSpec, type CityRequest, type SceneComposer, type SceneProgram } from '@mythweaver/scene';
 import type { EstablishScene, GameState, Lighting, PartyMemberRef, SceneComposition, SceneMap } from '@mythweaver/shared';
 import { buildToolDefs, parseEstablish, seedFor } from './orchestrator.js';
 
@@ -61,6 +61,62 @@ export async function labBuildScene(
   const composition = await deps.composer.compose({ establish, party, seed: seedFor(establish.locationId), directive: brief, ...(opts.large ? { large: true } : {}) });
   const sceneMap = buildSceneMap(composition);
   return { brief, establish, composition, sceneMap, narration: res.text ?? '', model: res.model };
+}
+
+// STORY mode speaks with the DM's voice: same declaration contract, but a real opening beat.
+const STORY_SYSTEM = LAB_SYSTEM.replace(
+  'After the tool call, write ONE sentence of scene-setting narration.',
+  'FIRST write a SHORT opening narration (2-4 sentences) in the voice of a Dungeon Master — where the party stands, what draws the eye, the hook that pulls them in — THEN call setScene ONCE. (Narration BEFORE the tool call, always.)',
+);
+
+/**
+ * STORY mode — the full experience, lab-first (wire-in part 3 at the lab seam): the REAL DM reads the
+ * premise, narrates the opening beat, and declares the setup (setScene: setting + fixtures + named
+ * cast); then the MODERN generator (G1 programmer → archetypes/primitives — the audited 10/10
+ * extraction path) realizes it, with the DM's declared characters injected into the enriched brief so
+ * the story's cast stands in the rendered scene. Two LLM calls (~$0.05-0.1). This is exactly the
+ * routing that later flips the live setScene path — proven here first, visibly.
+ */
+export async function labBuildStory(deps: { llm: LlmProvider; model?: string }, premise: string): Promise<LabResult> {
+  // 1. The DM — the story half: opening narration + the scene declaration.
+  const res = await deps.llm.complete({
+    system: STORY_SYSTEM,
+    messages: [{ role: 'user', content: premise }],
+    tools: [SET_SCENE_TOOL],
+    maxTokens: 1400,
+    ...(deps.model ? { model: deps.model } : {}),
+  });
+  const tc = res.toolCalls.find((t) => t.name === 'setScene');
+  if (!tc) throw new Error('the DM did not call setScene for that premise — try a more concrete opening');
+  const stub = { world: { currentLocationId: null, locations: {}, links: [] } } as unknown as GameState;
+  const establish = parseEstablish(tc.input as Record<string, unknown>, stub);
+  // 2. The modern engine — realize the DM's setup. The programmer sees the premise ENRICHED with the
+  //    DM's setting + declared cast + fixtures, so the DM's INVENTED characters ("Marta the innkeeper",
+  //    never named in the premise) stand in the rendered scene too.
+  const npcLines = establish.npcs.filter((n) => n.visible !== false).map((n) => `${n.name}${n.look ? ` (${n.look})` : ''}`);
+  const fixTags = [...new Set(establish.fixtures.map((f) => f.tag))];
+  const enriched = [
+    premise,
+    establish.brief?.setting ? `Setting: ${establish.brief.setting}` : '',
+    npcLines.length ? `Characters present (place EVERY one as a named npc): ${npcLines.join('; ')}` : '',
+    fixTags.length ? `Notable objects: ${fixTags.join(', ')}` : '',
+  ].filter(Boolean).join('\n');
+  const program = await new LlmSceneProgrammer(deps.llm, deps.model).compose(enriched);
+  // CAST INJECTION (deterministic): the DM's declaration is the story's truth — any named character the
+  // programmer dropped is merged straight into the program (archetype contents, else a place op), so the
+  // cast can never be lost to LLM variance. Sprites resolved from the DM's look text (lookToSprite).
+  const arch = program.ops.find((o) => o.op === 'archetype');
+  const have = new Set<string>();
+  if (arch && arch.op === 'archetype') for (const n of arch.contents.npcs) if (n.name) have.add(n.name.toLowerCase());
+  for (const o of program.ops) if (o.op === 'place' && o.name) have.add(o.name.toLowerCase());
+  establish.npcs.filter((n) => n.visible !== false).forEach((n, i) => {
+    if (have.has(n.name.toLowerCase())) return;
+    const tag = lookToSprite(`${n.look ?? ''} ${n.name}`);
+    if (arch && arch.op === 'archetype') arch.contents.npcs.push({ tag, name: n.name });
+    else program.ops.push({ op: 'place', id: `npc:story-${i}`, tag, kind: 'actor', role: 'npc', at: 'center', name: n.name });
+  });
+  const sceneMap = runProgram(program);
+  return { brief: premise, establish, program, sceneMap, narration: res.text ?? '', model: res.model };
 }
 
 /**
