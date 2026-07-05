@@ -1,11 +1,17 @@
 /** GameState construction helpers (the engine is the sole mutator — spec §4.1). */
 
 import { classToSpriteTag, type AdventureContext, type CharacterSheet, type Combatant, type EncounterDef, type GameState, type StatBlock } from '@mythweaver/shared';
-
-/** D&D ability modifier from a raw score. */
-const abilityMod = (score: number): number => Math.floor((score - 10) / 2);
+import { abilityMod } from './derive.js';
+import { hitDieForClass } from './progression.js';
 
 export function pcToCombatant(pc: CharacterSheet): Combatant {
+  // Character-engine volatile pools (P3a): seed the live resources the table spends + recovers, from the
+  // sheet's spec. Every single-class PC has hit dice = level; slotsMax pairs with slotsRemaining so a long
+  // rest can restore it; class resources start full. Absent sheet fields fall back to level/class defaults,
+  // so a legacy pregen still produces a valid combatant.
+  const hitDieSize = pc.hitDice?.size ?? hitDieForClass(pc.className);
+  const hitDiceCount = pc.hitDice?.count ?? pc.level;
+  const resources = Object.fromEntries((pc.classResources ?? []).map((r) => [r.id, { current: r.max, max: r.max, recharge: r.recharge }]));
   return {
     id: `pc:${pc.id}`,
     name: pc.name,
@@ -18,7 +24,9 @@ export function pcToCombatant(pc: CharacterSheet): Combatant {
     armorClass: pc.armorClass,
     conditions: [],
     initiativeBonus: abilityMod(pc.abilities.dex),
-    ...(pc.spellcasting ? { slotsRemaining: [...pc.spellcasting.slots] } : {}),
+    ...(pc.spellcasting ? { slotsRemaining: [...pc.spellcasting.slots], slotsMax: [...pc.spellcasting.slots] } : {}),
+    ...(hitDiceCount > 0 ? { hitDice: { size: hitDieSize, remaining: hitDiceCount, max: hitDiceCount } } : {}),
+    ...(Object.keys(resources).length ? { resources } : {}),
   };
 }
 
@@ -38,6 +46,7 @@ export function statBlockToCombatant(sb: StatBlock, instanceId: string, name?: s
     ...(sb.damageResistances ? { damageResistances: [...sb.damageResistances] } : {}),
     ...(sb.damageImmunities ? { damageImmunities: [...sb.damageImmunities] } : {}),
     ...(sb.damageVulnerabilities ? { damageVulnerabilities: [...sb.damageVulnerabilities] } : {}),
+    ...(sb.conditionImmunities ? { conditionImmunities: [...sb.conditionImmunities] } : {}),
   };
 }
 

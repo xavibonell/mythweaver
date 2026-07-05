@@ -144,6 +144,9 @@ interface CombatantSnap {
   hp: string;
   conditions: string[];
   downed: boolean;
+  /** Compact character-engine pool signature (spell slots / hit dice / class resources / exhaustion /
+   *  inspiration) so the lab trace shows progression + rests unfold, the way it already shows HP. */
+  res: string;
 }
 interface StateSnap {
   scene: string;
@@ -166,6 +169,15 @@ function snapshot(state: GameState): StateSnap {
       hp: `${c.currentHitPoints}/${c.maxHitPoints}`,
       conditions: [...c.conditions],
       downed: !!c.downed,
+      res: [
+        c.slotsRemaining ? `slots:${c.slotsRemaining.slice(1).join('/')}` : '',
+        c.hitDice ? `hd:${c.hitDice.remaining}/${c.hitDice.max}` : '',
+        ...Object.entries(c.resources ?? {}).map(([k, v]) => `${k}:${v.current}/${v.max}`),
+        c.exhaustion ? `exh:${c.exhaustion}` : '',
+        c.inspiration ? 'insp' : '',
+      ]
+        .filter(Boolean)
+        .join(' '),
     })),
     flags: { ...state.flags },
   };
@@ -189,6 +201,7 @@ function diffSnaps(before: StateSnap, after: StateSnap): string[] {
     if (b.hp !== a.hp) out.push(`${a.id} HP: ${b.hp} → ${a.hp}`);
     if (!b.downed && a.downed) out.push(`${a.id} DOWNED`);
     if (b.downed && !a.downed) out.push(`${a.id} back up`);
+    if (b.res !== a.res) out.push(`${a.id} resources: ${b.res || '∅'} → ${a.res || '∅'}`);
     const added = a.conditions.filter((c) => !b.conditions.includes(c));
     const removed = b.conditions.filter((c) => !a.conditions.includes(c));
     if (added.length) out.push(`${a.id} +${added.join(', +')}`);

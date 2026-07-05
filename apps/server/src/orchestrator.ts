@@ -29,7 +29,7 @@ import {
   type ToolDef,
 } from '@mythweaver/llm';
 import type { Retriever } from '@mythweaver/rag';
-import { isEntityId, type ArcBrief, type DamageType, type EntityCard, type EstablishScene, type FixtureDecl, type GameState, type NpcDecl, type PartyMemberRef, type PendingTurn, type SceneMap } from '@mythweaver/shared';
+import { isEntityId, type ArcBrief, type Combatant, type DamageType, type EntityCard, type EstablishScene, type FixtureDecl, type GameState, type NpcDecl, type PartyMemberRef, type PendingTurn, type SceneMap } from '@mythweaver/shared';
 import type { ArcPlanner } from './arc-planner.js';
 import { CHARACTERS, PROMPT_PROPS, buildSceneMap, type SceneComposer } from '@mythweaver/scene';
 
@@ -77,7 +77,18 @@ CANON (keep the world consistent):
   NPC, it IS that NPC — voice them with their established tic/want/fear; never invent a stand-in.
 - Call "upsertNpc" the first time a named NPC speaks/acts (id, name, tic, want, fear; update status —
   dead/gone are permanent). Call "recordFact" when the party gains an item, makes a promise, or learns
-  something load-bearing. Invent freely when it isn't established — then record it so it becomes canon.`;
+  something load-bearing. Invent freely when it isn't established — then record it so it becomes canon.
+
+RESOURCES & REST (the engine tracks every pool — the party's HP snapshot shows what's left):
+- When a caster casts a LEVELLED spell, call "spendResource" (resource:"slot", the slot level). For a
+  class feature with a pool (ki, rage, channel divinity), call "spendResource" with that pool name. The
+  engine refuses if it's empty — respect that; a character can't use what they've spent.
+- When the party takes a SHORT rest, call "shortRest" per character; to heal, requestRoll their hit dice
+  and pass the declared total + how many dice they spent. When they take a LONG rest, call "longRest"
+  (no args = the whole party) — it restores HP, spell slots, and features. Spell slots ONLY come back on
+  a long rest, so track them across the day.
+- Reward great play with "grantInspiration"; a player may later spend it ("spendInspiration") for
+  advantage. Use "setExhaustion" when they push past their limits.`;
 
 const MAX_STEPS = 6;
 const MAX_OUTPUT_TOKENS = 700;
@@ -284,6 +295,73 @@ export function buildToolDefs(retrieval: boolean, scene: boolean): ToolDef[] {
       inputSchema: { type: 'object', properties: {}, additionalProperties: false },
     },
   );
+  // Character resources + rests (P3a). The engine owns every pool and every HP number — the DM narrates
+  // the fiction ("she burns a spell", "they catch their breath") and calls these; it never invents a total.
+  tools.push(
+    {
+      name: 'spendResource',
+      description:
+        'Spend a limited resource when a character uses it: a spell slot (resource:"slot", level 1–9) or a named class pool (resource:"ki"/"rage"/"channelDivinity"/…). The engine subtracts it and returns what remains, refusing if the pool is empty. Call this whenever a caster casts a levelled spell or a limited class feature is used.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          combatantId: { type: 'string', description: 'The character, e.g. "pc:elara".' },
+          resource: { type: 'string', description: '"slot" for a spell slot, or a class pool name like "ki", "rage".' },
+          level: { type: 'number', description: 'Spell slot level 1–9 (only for resource:"slot").' },
+          amount: { type: 'number', description: 'How many to spend (default 1).' },
+        },
+        required: ['combatantId', 'resource'],
+        additionalProperties: false,
+      },
+    },
+    {
+      name: 'shortRest',
+      description:
+        'Take a SHORT rest for one character (~1 hour). To heal, first requestRoll their hit dice (e.g. "2d10+4") and pass the declared total as "rolledTotal" plus how many dice were spent ("spendHitDice"); the engine heals and tracks the hit-dice pool. Also recharges short-rest features. Does NOT restore spell slots.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          combatantId: { type: 'string' },
+          spendHitDice: { type: 'number', description: 'How many hit dice the character spends (0 to just recharge features).' },
+          rolledTotal: { type: 'number', description: 'The rolled healing total from those hit dice (+CON).' },
+        },
+        required: ['combatantId'],
+        additionalProperties: false,
+      },
+    },
+    {
+      name: 'longRest',
+      description:
+        'Take a LONG rest (~8 hours): restores full HP, refills spell slots + class resources, returns half the hit-dice pool, and lowers exhaustion by 1. Call with no arguments to rest the whole party. This is the ONLY way spell slots come back.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          combatantIds: { type: 'array', items: { type: 'string' }, description: 'Specific characters to rest (omit = the whole party).' },
+        },
+        additionalProperties: false,
+      },
+    },
+    {
+      name: 'setExhaustion',
+      description: "Set a character's exhaustion level (0–6; 6 is death). Use when they push past their limits — no sleep, forced march, starvation, or a rule that inflicts it.",
+      inputSchema: {
+        type: 'object',
+        properties: { combatantId: { type: 'string' }, level: { type: 'number', description: 'New exhaustion level 0–6.' } },
+        required: ['combatantId', 'level'],
+        additionalProperties: false,
+      },
+    },
+    {
+      name: 'grantInspiration',
+      description: 'Give a player Heroic Inspiration (a one-shot token they can later spend for advantage) — reward great roleplay or a clever plan.',
+      inputSchema: { type: 'object', properties: { combatantId: { type: 'string' } }, required: ['combatantId'], additionalProperties: false },
+    },
+    {
+      name: 'spendInspiration',
+      description: "Spend a character's Heroic Inspiration for advantage on a roll. Fails if they hold none.",
+      inputSchema: { type: 'object', properties: { combatantId: { type: 'string' } }, required: ['combatantId'], additionalProperties: false },
+    },
+  );
   // Arc / Game-Master steering (D1): move the story by following the players, and remember branch choices.
   tools.push(
     {
@@ -388,13 +466,36 @@ function sceneDigest(map: SceneMap): string {
   ].join('\n');
 }
 
+/** Compact per-PC character-engine tail for the state block — NON-DEFAULT pools only, so a mundane L1
+ *  martial adds ~0 tokens and a loaded caster adds ~15 (spell slots, spent hit dice, class pools,
+ *  exhaustion, inspiration). Keeps the token budget honest while the DM still sees what's left to spend. */
+function characterTail(c: Combatant): string {
+  const parts: string[] = [];
+  if (c.slotsRemaining && c.slotsMax) {
+    const slots = c.slotsRemaining
+      .map((n, lvl) => (lvl >= 1 && (c.slotsMax![lvl] ?? 0) > 0 ? `L${lvl} ${n}/${c.slotsMax![lvl]}` : ''))
+      .filter(Boolean)
+      .join(', ');
+    if (slots) parts.push(`slots ${slots}`);
+  }
+  const res = Object.entries(c.resources ?? {})
+    .map(([k, v]) => `${k} ${v.current}/${v.max}`)
+    .join(', ');
+  if (res) parts.push(res);
+  if (c.hitDice && c.hitDice.remaining < c.hitDice.max) parts.push(`hit dice ${c.hitDice.remaining}/${c.hitDice.max}d${c.hitDice.size}`);
+  if (c.exhaustion) parts.push(`exhaustion ${c.exhaustion}`);
+  if (c.inspiration) parts.push('inspiration');
+  return parts.length ? ` — ${parts.join('; ')}` : '';
+}
+
 function summarizeState(state: GameState): string {
   const pcs = Object.values(state.combatants)
     .filter((c) => c.kind === 'pc')
     .map(
       (c) =>
         `- ${c.name}: ${c.currentHitPoints}/${c.maxHitPoints} HP, AC ${c.armorClass}` +
-        (c.conditions.length ? `, conditions: ${c.conditions.join(', ')}` : ''),
+        (c.conditions.length ? `, conditions: ${c.conditions.join(', ')}` : '') +
+        characterTail(c),
     )
     .join('\n');
   const npcs = Object.values(state.combatants)
@@ -897,6 +998,58 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
         try {
           const f = engine.recordFact({ subject: String(tc.input.subject ?? ''), attribute: String(tc.input.attribute ?? ''), value: String(tc.input.value ?? '') });
           resolved.push({ toolUseId: tc.id, content: JSON.stringify({ ok: true, id: f.id }) });
+        } catch (e) {
+          resolved.push({ toolUseId: tc.id, content: JSON.stringify({ error: (e as Error).message }) });
+        }
+      } else if (tc.name === 'spendResource') {
+        try {
+          const r = engine.spendResource({
+            combatantId: String(tc.input.combatantId ?? ''),
+            resource: String(tc.input.resource ?? ''),
+            ...(tc.input.level !== undefined ? { level: Number(tc.input.level) } : {}),
+            ...(tc.input.amount !== undefined ? { amount: Number(tc.input.amount) } : {}),
+          });
+          resolved.push({ toolUseId: tc.id, content: JSON.stringify(r) });
+        } catch (e) {
+          resolved.push({ toolUseId: tc.id, content: JSON.stringify({ error: (e as Error).message }) });
+        }
+      } else if (tc.name === 'shortRest') {
+        try {
+          const r = engine.shortRest({
+            combatantId: String(tc.input.combatantId ?? ''),
+            ...(tc.input.spendHitDice !== undefined ? { spendHitDice: Number(tc.input.spendHitDice) } : {}),
+            ...(tc.input.rolledTotal !== undefined ? { rolledTotal: Number(tc.input.rolledTotal) } : {}),
+          });
+          resolved.push({ toolUseId: tc.id, content: JSON.stringify(r) });
+        } catch (e) {
+          resolved.push({ toolUseId: tc.id, content: JSON.stringify({ error: (e as Error).message }) });
+        }
+      } else if (tc.name === 'longRest') {
+        try {
+          const ids = Array.isArray(tc.input.combatantIds) ? tc.input.combatantIds.map(String) : undefined;
+          const r = engine.longRest(ids && ids.length ? { combatantIds: ids } : undefined);
+          resolved.push({ toolUseId: tc.id, content: JSON.stringify(r) });
+        } catch (e) {
+          resolved.push({ toolUseId: tc.id, content: JSON.stringify({ error: (e as Error).message }) });
+        }
+      } else if (tc.name === 'setExhaustion') {
+        try {
+          const r = engine.setExhaustion({ combatantId: String(tc.input.combatantId ?? ''), level: Number(tc.input.level) });
+          resolved.push({ toolUseId: tc.id, content: JSON.stringify(r) });
+        } catch (e) {
+          resolved.push({ toolUseId: tc.id, content: JSON.stringify({ error: (e as Error).message }) });
+        }
+      } else if (tc.name === 'grantInspiration') {
+        try {
+          engine.grantInspiration({ combatantId: String(tc.input.combatantId ?? '') });
+          resolved.push({ toolUseId: tc.id, content: JSON.stringify({ ok: true }) });
+        } catch (e) {
+          resolved.push({ toolUseId: tc.id, content: JSON.stringify({ error: (e as Error).message }) });
+        }
+      } else if (tc.name === 'spendInspiration') {
+        try {
+          const r = engine.spendInspiration({ combatantId: String(tc.input.combatantId ?? '') });
+          resolved.push({ toolUseId: tc.id, content: JSON.stringify(r) });
         } catch (e) {
           resolved.push({ toolUseId: tc.id, content: JSON.stringify({ error: (e as Error).message }) });
         }

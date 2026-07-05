@@ -344,3 +344,133 @@ describe('Engine — soft arc steering (D1)', () => {
     expect(() => e.setArcFlag('hp', 5)).toThrow(); // not namespaced
   });
 });
+
+function wizard(): CharacterSheet {
+  return {
+    id: 'wizard',
+    name: 'Test Wizard',
+    ancestry: 'Elf',
+    className: 'Wizard',
+    level: 3,
+    abilities: { str: 8, dex: 14, con: 12, int: 16, wis: 11, cha: 10 },
+    proficiencyBonus: 2,
+    armorClass: 12,
+    maxHitPoints: 18,
+    speedFt: 30,
+    skillProficiencies: ['arcana'],
+    savingThrowProficiencies: ['int', 'wis'],
+    attacks: [],
+    spellcasting: { ability: 'int', spellSaveDc: 13, spellAttackBonus: 5, slots: [0, 4, 2, 0], cantrips: ['fire bolt'], prepared: ['magic missile'] },
+    classResources: [{ id: 'arcaneRecovery', name: 'Arcane Recovery', max: 1, recharge: 'long' }],
+    hitDice: { size: 6, count: 3 },
+  };
+}
+
+function monk(): CharacterSheet {
+  return {
+    id: 'monk',
+    name: 'Test Monk',
+    ancestry: 'Human',
+    className: 'Monk',
+    level: 3,
+    abilities: { str: 12, dex: 16, con: 13, int: 10, wis: 15, cha: 10 },
+    proficiencyBonus: 2,
+    armorClass: 15,
+    maxHitPoints: 20,
+    speedFt: 40,
+    skillProficiencies: ['acrobatics'],
+    savingThrowProficiencies: ['str', 'dex'],
+    attacks: [{ name: 'Unarmed Strike', attackBonus: 5, damage: '1d4+3', damageType: 'bludgeoning' }],
+    classResources: [{ id: 'ki', name: 'Ki', max: 3, recharge: 'short' }],
+    hitDice: { size: 8, count: 3 },
+  };
+}
+
+function construct(): StatBlock {
+  return { ...goblin(), id: 'golem', name: 'Clay Golem', type: 'construct', conditionImmunities: ['charmed', 'frightened', 'poisoned'] };
+}
+
+describe('Engine — P3a character resources & rests', () => {
+  const engineWith = (party: CharacterSheet[]) => new Engine(createInitialState({ sessionId: 's', scenarioId: 't', startSceneId: 'x', party }), () => 0.5);
+
+  it('seeds volatile pools at spawn, and a legacy sheet still gets hit dice from level/class', () => {
+    const e = engineWith([wizard(), fighter()]);
+    const w = e.getState().combatants['pc:wizard']!;
+    expect(w.slotsRemaining).toEqual([0, 4, 2, 0]);
+    expect(w.slotsMax).toEqual([0, 4, 2, 0]);
+    expect(w.hitDice).toEqual({ size: 6, remaining: 3, max: 3 });
+    expect(w.resources?.arcaneRecovery).toEqual({ current: 1, max: 1, recharge: 'long' });
+    // The fighter fixture carries none of the new sheet fields → hit dice default to hitDieForClass × level.
+    const f = e.getState().combatants['pc:fighter']!;
+    expect(f.hitDice).toEqual({ size: 10, remaining: 1, max: 1 });
+    expect(f.slotsRemaining).toBeUndefined();
+    expect(f.resources).toBeUndefined();
+  });
+
+  it('spends a spell slot and refuses when empty; a long rest restores it (dormant-slot bug closed)', () => {
+    const e = engineWith([wizard()]);
+    expect(e.spendResource({ combatantId: 'pc:wizard', resource: 'slot', level: 1 }).remaining).toBe(3);
+    expect(e.spendResource({ combatantId: 'pc:wizard', resource: 'slot', level: 1, amount: 3 }).remaining).toBe(0);
+    expect(() => e.spendResource({ combatantId: 'pc:wizard', resource: 'slot', level: 1 })).toThrow(/no level-1 spell slot/);
+    // The latent bug: slots were copied at spawn and consumed nowhere. Long rest is the recovery path.
+    e.longRest();
+    expect(e.getState().combatants['pc:wizard']!.slotsRemaining).toEqual([0, 4, 2, 0]);
+  });
+
+  it('spends a named class pool; short rest recharges short pools, long rest recharges all', () => {
+    const e = engineWith([monk()]);
+    expect(e.spendResource({ combatantId: 'pc:monk', resource: 'ki', amount: 2 }).remaining).toBe(1);
+    e.shortRest({ combatantId: 'pc:monk' });
+    expect(e.getState().combatants['pc:monk']!.resources!.ki!.current).toBe(3);
+    // A long-rest pool is untouched by a short rest, restored by a long rest.
+    const e2 = engineWith([wizard()]);
+    e2.spendResource({ combatantId: 'pc:wizard', resource: 'arcaneRecovery' });
+    e2.shortRest({ combatantId: 'pc:wizard' });
+    expect(e2.getState().combatants['pc:wizard']!.resources!.arcaneRecovery!.current).toBe(0);
+    e2.longRest();
+    expect(e2.getState().combatants['pc:wizard']!.resources!.arcaneRecovery!.current).toBe(1);
+  });
+
+  it('short rest spends hit dice to heal by the declared total; long rest refunds half + full HP', () => {
+    const e = engineWith([wizard()]);
+    e.applyDamage({ targetId: 'pc:wizard', amount: 10, type: 'fire' }); // 18 -> 8
+    const r = e.shortRest({ combatantId: 'pc:wizard', spendHitDice: 2, rolledTotal: 7 });
+    expect(r.hpRestored).toBe(7); // 8 -> 15
+    expect(r.hitDiceRemaining).toBe(1);
+    expect(e.getState().combatants['pc:wizard']!.currentHitPoints).toBe(15);
+    // Over-spending hit dice throws with no partial mutation.
+    expect(() => e.shortRest({ combatantId: 'pc:wizard', spendHitDice: 5, rolledTotal: 3 })).toThrow(/hit dice/);
+    expect(e.getState().combatants['pc:wizard']!.hitDice!.remaining).toBe(1);
+    e.longRest();
+    expect(e.getState().combatants['pc:wizard']!.hitDice!.remaining).toBe(2); // 1 + max(1, floor(3/2))
+    expect(e.getState().combatants['pc:wizard']!.currentHitPoints).toBe(18); // full HP
+  });
+
+  it('honors condition immunity (a construct cannot be charmed) but takes normal conditions', () => {
+    const e = engineWith([fighter()]);
+    const g = e.spawnCombatant(construct());
+    e.applyCondition({ combatantId: g.id, condition: 'charmed', add: true });
+    expect(e.getState().combatants[g.id]!.conditions).not.toContain('charmed');
+    e.applyCondition({ combatantId: g.id, condition: 'prone', add: true });
+    expect(e.getState().combatants[g.id]!.conditions).toContain('prone');
+  });
+
+  it('clamps exhaustion 0–6 (6 kills a PC); a long rest eases it by 1', () => {
+    const e = engineWith([fighter()]);
+    expect(e.setExhaustion({ combatantId: 'pc:fighter', level: 9 }).exhaustion).toBe(6);
+    expect(e.getState().combatants['pc:fighter']!.dead).toBe(true);
+    const e2 = engineWith([fighter()]);
+    e2.setExhaustion({ combatantId: 'pc:fighter', level: 3 });
+    e2.longRest();
+    expect(e2.getState().combatants['pc:fighter']!.exhaustion).toBe(2);
+  });
+
+  it('grants and spends inspiration; spending without any throws', () => {
+    const e = engineWith([fighter()]);
+    expect(() => e.spendInspiration({ combatantId: 'pc:fighter' })).toThrow(/no inspiration/);
+    e.grantInspiration({ combatantId: 'pc:fighter' });
+    expect(e.getState().combatants['pc:fighter']!.inspiration).toBe(true);
+    expect(e.spendInspiration({ combatantId: 'pc:fighter' }).spent).toBe(true);
+    expect(e.getState().combatants['pc:fighter']!.inspiration).toBe(false);
+  });
+});

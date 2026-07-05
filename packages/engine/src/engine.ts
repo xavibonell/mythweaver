@@ -284,10 +284,14 @@ export class Engine implements EngineTools {
     if (!enemyStanding) this.endCombat();
   }
 
-  /** Add or remove a condition on a combatant. */
+  /** Add or remove a condition on a combatant. A creature immune to a condition never gains it. */
   applyCondition(args: { combatantId: string; condition: Condition; add: boolean }): void {
     const c = this.state.combatants[args.combatantId];
     if (!c) throw new Error(`Unknown combatant: ${args.combatantId}`);
+    if (args.add && c.conditionImmunities?.includes(args.condition)) {
+      this.record('engine', `${c.name} is immune to ${args.condition}`, { combatantId: c.id, condition: args.condition, immune: true });
+      return;
+    }
     const has = c.conditions.includes(args.condition);
     if (args.add && !has) c.conditions.push(args.condition);
     else if (!args.add && has) c.conditions = c.conditions.filter((x) => x !== args.condition);
@@ -428,9 +432,131 @@ export class Engine implements EngineTools {
     return plant;
   }
 
-  // --- P3: resources -------------------------------------------------------
+  // --- P3a: the Character Engine's live pools (resources + rests) -----------
 
-  spendResource(_args: { combatantId: string; resource: 'slot'; level: number }): { remaining: number } {
-    throw new NotImplemented('spendResource', 'P3');
+  /**
+   * Spend a spell slot (resource:'slot' + level) or a named class pool (ki/rage/channelDivinity/…). The
+   * single debit path — the DM can never "use" a resource the engine hasn't subtracted. Throws if empty.
+   */
+  spendResource(args: { combatantId: string; resource: string; level?: number; amount?: number }): { remaining: number } {
+    const c = this.state.combatants[args.combatantId];
+    if (!c) throw new Error(`Unknown combatant: ${args.combatantId}`);
+    const amount = Math.max(1, Math.floor(args.amount ?? 1));
+    if (args.resource === 'slot') {
+      const level = Math.floor(args.level ?? 0);
+      if (level < 1 || level > 9) throw new Error(`Spell slot level must be 1–9 (got ${args.level ?? 'none'}).`);
+      const slots = c.slotsRemaining;
+      if (!slots || (slots[level] ?? 0) < amount) throw new Error(`${c.name} has no level-${level} spell slot to spend.`);
+      const before = slots[level]!;
+      slots[level] = before - amount;
+      this.record('engine', `${c.name} spends a level-${level} spell slot (${before} -> ${slots[level]} left)`, { combatantId: c.id, resource: `slot:${level}`, before, after: slots[level] });
+      return { remaining: slots[level]! };
+    }
+    const pool = c.resources?.[args.resource];
+    if (!pool || pool.current < amount) throw new Error(`${c.name} has no "${args.resource}" left to spend.`);
+    const before = pool.current;
+    pool.current = before - amount;
+    this.record('engine', `${c.name} spends ${amount} ${args.resource} (${before} -> ${pool.current} left)`, { combatantId: c.id, resource: args.resource, before, after: pool.current });
+    return { remaining: pool.current };
+  }
+
+  /**
+   * Short rest: spend up to `spendHitDice` hit dice to heal (the player rolls Nd(hitDie)+CON via the
+   * dice-trust path and passes the total as `rolledTotal`; the engine validates the count and owns the HP
+   * clamp) and recharge short-rest resources. Does NOT restore spell slots — that's a long rest.
+   */
+  shortRest(args: { combatantId: string; spendHitDice?: number; rolledTotal?: number }): { hpRestored: number; hitDiceRemaining: number } {
+    const c = this.state.combatants[args.combatantId];
+    if (!c) throw new Error(`Unknown combatant: ${args.combatantId}`);
+    if (c.dead) throw new Error(`${c.name} is dead and cannot rest.`);
+    const spend = Math.max(0, Math.floor(args.spendHitDice ?? 0));
+    let hpRestored = 0;
+    if (spend > 0) {
+      const hd = c.hitDice;
+      if (!hd || hd.remaining < spend) throw new Error(`${c.name} has only ${c.hitDice?.remaining ?? 0} hit dice to spend.`);
+      hd.remaining -= spend;
+      const before = c.currentHitPoints;
+      c.currentHitPoints = Math.min(c.maxHitPoints, c.currentHitPoints + Math.max(0, Math.floor(args.rolledTotal ?? 0)));
+      hpRestored = c.currentHitPoints - before;
+      if (before === 0 && c.currentHitPoints > 0) {
+        c.downed = false;
+        delete c.deathSaves;
+        c.conditions = c.conditions.filter((x) => x !== 'unconscious');
+      }
+    }
+    let recharged = 0;
+    for (const r of Object.values(c.resources ?? {})) if (r.recharge === 'short' && r.current < r.max) { r.current = r.max; recharged++; }
+    this.record('engine', `${c.name} takes a short rest — ${spend} hit dice spent (+${hpRestored} HP)${recharged ? `, ${recharged} resource(s) recharged` : ''}`, {
+      combatantId: c.id,
+      spendHitDice: spend,
+      hpRestored,
+      hitDiceRemaining: c.hitDice?.remaining ?? 0,
+    });
+    return { hpRestored, hitDiceRemaining: c.hitDice?.remaining ?? 0 };
+  }
+
+  /**
+   * Long rest: full HP, spell slots + resources back to max, half the hit-dice pool refunded (min 1), and
+   * exhaustion reduced by 1 — for each named combatant (defaults to every PC). This is THE place spell
+   * slots come back: without it, slotsRemaining is copied at spawn and never restored (a live correctness
+   * hole). A long rest does not raise the dead.
+   */
+  longRest(args?: { combatantIds?: string[] }): { restored: Record<string, { hp: number; slotsRestored: boolean; hitDiceRemaining: number; exhaustion: number }> } {
+    const ids = args?.combatantIds?.length ? args.combatantIds : Object.values(this.state.combatants).filter((c) => c.kind === 'pc').map((c) => c.id);
+    const restored: Record<string, { hp: number; slotsRestored: boolean; hitDiceRemaining: number; exhaustion: number }> = {};
+    for (const id of ids) {
+      const c = this.state.combatants[id];
+      if (!c) throw new Error(`Unknown combatant: ${id}`);
+      if (c.dead) continue;
+      c.currentHitPoints = c.maxHitPoints;
+      c.temporaryHitPoints = 0;
+      c.downed = false;
+      delete c.deathSaves;
+      c.conditions = c.conditions.filter((x) => x !== 'unconscious');
+      let slotsRestored = false;
+      if (c.slotsRemaining && c.slotsMax) {
+        c.slotsRemaining = [...c.slotsMax];
+        slotsRestored = true;
+      }
+      for (const r of Object.values(c.resources ?? {})) r.current = r.max;
+      if (c.hitDice) c.hitDice.remaining = Math.min(c.hitDice.max, c.hitDice.remaining + Math.max(1, Math.floor(c.hitDice.max / 2)));
+      if (c.exhaustion) c.exhaustion = Math.max(0, c.exhaustion - 1);
+      restored[id] = { hp: c.currentHitPoints, slotsRestored, hitDiceRemaining: c.hitDice?.remaining ?? 0, exhaustion: c.exhaustion ?? 0 };
+    }
+    this.record('engine', `Long rest — ${Object.keys(restored).length} character(s) recovered`, { restored });
+    return { restored };
+  }
+
+  /** Set a combatant's exhaustion level (clamped 0–6; 6 = death, SRD). */
+  setExhaustion(args: { combatantId: string; level: number }): { exhaustion: number } {
+    const c = this.state.combatants[args.combatantId];
+    if (!c) throw new Error(`Unknown combatant: ${args.combatantId}`);
+    const before = c.exhaustion ?? 0;
+    const level = Math.max(0, Math.min(6, Math.floor(args.level)));
+    c.exhaustion = level;
+    if (level >= 6 && c.kind === 'pc' && !c.dead) {
+      c.dead = true;
+      c.downed = true;
+    }
+    this.record('engine', `${c.name} exhaustion ${before} -> ${level}${level >= 6 ? ' — dead' : ''}`, { combatantId: c.id, before, after: level, dead: c.dead ?? false });
+    return { exhaustion: level };
+  }
+
+  /** Grant Heroic Inspiration (a one-shot advantage token). */
+  grantInspiration(args: { combatantId: string }): void {
+    const c = this.state.combatants[args.combatantId];
+    if (!c) throw new Error(`Unknown combatant: ${args.combatantId}`);
+    c.inspiration = true;
+    this.record('engine', `${c.name} gains inspiration`, { combatantId: c.id, inspiration: true });
+  }
+
+  /** Spend Heroic Inspiration; throws if the combatant holds none. */
+  spendInspiration(args: { combatantId: string }): { spent: boolean } {
+    const c = this.state.combatants[args.combatantId];
+    if (!c) throw new Error(`Unknown combatant: ${args.combatantId}`);
+    if (!c.inspiration) throw new Error(`${c.name} has no inspiration to spend.`);
+    c.inspiration = false;
+    this.record('engine', `${c.name} spends inspiration`, { combatantId: c.id, inspiration: false });
+    return { spent: true };
   }
 }

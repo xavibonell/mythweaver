@@ -137,6 +137,28 @@ export interface EngineTools {
   /** Apply/remove a condition. P2. */
   applyCondition(args: { combatantId: string; condition: Condition; add: boolean }): void;
 
-  /** Spend a spell slot / limited resource. P3. */
-  spendResource(args: { combatantId: string; resource: 'slot'; level: number }): { remaining: number };
+  /** Spend a spell slot (resource:'slot' + level) or a named class pool (ki/rage/channelDivinity/…). P3a. */
+  spendResource(args: { combatantId: string; resource: string; level?: number; amount?: number }): { remaining: number };
+
+  /**
+   * Short rest: optionally spend hit dice to heal (pass the ROLLED total via the dice-trust path) and
+   * recharge short-rest resources. The engine validates the hit-dice count and owns the HP arithmetic. P3a.
+   */
+  shortRest(args: { combatantId: string; spendHitDice?: number; rolledTotal?: number }): { hpRestored: number; hitDiceRemaining: number };
+
+  /**
+   * Long rest: restore HP to full, spell slots + resources to max, refund up to half the hit-dice pool
+   * (min 1), and reduce exhaustion by 1 — for each combatant (defaults to the whole party). This is the
+   * single place spell slots come back, making slotsRemaining a real resource. P3a.
+   */
+  longRest(args?: { combatantIds?: string[] }): { restored: Record<string, { hp: number; slotsRestored: boolean; hitDiceRemaining: number; exhaustion: number }> };
+
+  /** Set a combatant's exhaustion level (clamped 0–6; 6 = death, SRD). P3a. */
+  setExhaustion(args: { combatantId: string; level: number }): { exhaustion: number };
+
+  /** Grant Heroic Inspiration (a one-shot advantage token). P3a. */
+  grantInspiration(args: { combatantId: string }): void;
+
+  /** Spend Heroic Inspiration; throws if the combatant holds none. P3a. */
+  spendInspiration(args: { combatantId: string }): { spent: boolean };
 }

@@ -163,6 +163,13 @@ export interface CharacterSheet {
   /** Freeform origin/motivation (player-authored, or Director-invented). Woven into the arc + NPCs
    *  and injected as canon so the DM keeps the story about who the characters are. */
   backstory?: string;
+  // --- Character-engine starting-state (P3a). Optional/additive: absent → defaults derived from
+  // level/class at spawn, so existing pregens keep loading unchanged. The sheet is the immutable spec;
+  // the live pools that grow/shrink at the table live on the Combatant.
+  /** Hit-dice spec: die size + count (defaults to hitDieForClass(className) × level when omitted). */
+  hitDice?: { size: number; count: number };
+  /** Class resource pools this character starts with (ki, rage, channel divinity, …). */
+  classResources?: { id: string; name: string; max: number; recharge: 'short' | 'long' }[];
 }
 
 // ---------------------------------------------------------------------------
@@ -233,6 +240,23 @@ export interface Combatant {
   actionEconomy?: ActionEconomy;
   /** Remaining spell slots by level, mirrors SpellcastingBlock.slots; engine-owned. */
   slotsRemaining?: number[];
+  // --- Character-engine volatile pools (P3a). Seeded at spawn from the sheet; engine-owned; mutated in
+  // place like currentHitPoints. All optional so legacy combatants/pregens are byte-identical without them.
+  /** Full spell-slot capacity by level (paired with slotsRemaining). A long rest restores remaining→max
+   *  — this is what makes slotsRemaining a live resource instead of a copied-at-spawn dead field. */
+  slotsMax?: number[];
+  /** Hit-dice pool: die size (for the roll), how many remain to spend on a short rest, and the max
+   *  (a long rest refunds up to half the max, min 1). */
+  hitDice?: { size: number; remaining: number; max: number };
+  /** Named class resources (ki/rage/channelDivinity/sorceryPoints/…): current + max + which rest refills
+   *  them. Self-contained so short/long rest recovery needs no back-reference to the sheet. */
+  resources?: Record<string, { current: number; max: number; recharge: 'short' | 'long' }>;
+  /** Exhaustion level 0–6 (6 = death, SRD). derive.ts applies its penalty to checks/saves. */
+  exhaustion?: number;
+  /** Heroic Inspiration — a one-shot token the DM grants and the player spends for advantage. */
+  inspiration?: boolean;
+  /** Conditions this combatant can't suffer (copied from a monster stat block; applyCondition honors it). */
+  conditionImmunities?: Condition[];
 }
 
 export interface CombatState {
