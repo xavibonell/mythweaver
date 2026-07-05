@@ -554,9 +554,12 @@ function harvestTownContents(ops: SceneOp[], lcb: string): Contents {
   const mine = /\b(mines?|mining|mineshaft|quarry|ore|excavation|dwarven hold)\b/.test(lcb);
   const coast = port || /\b(sea|seaside|seashore|coast|coastal|beach|shore|shoreline|ocean|oceanside|seafront|waterfront|bay|lagoon|by the water)\b/.test(lcb);
   const mountain = mine || /\b(mountains?|mountainous|mountainside|cliffs?|crags?|craggy|highlands?|foothills?|escarpment|beneath the peaks?)\b/.test(lcb);
-  // TOWN CHARACTER drives context-appropriate furnishing (no genteel fountain in a mining camp).
+  // TOWN CHARACTER drives context-appropriate furnishing (no genteel fountain in a mining camp — and
+  // MOOD wins: a horror/cursed/drowned village gets a grim marker, never a cheerful plaza fountain).
+  const grim = /\b(horror|cursed|haunted|drowned|corpses?|the dead|plague|blight|doomed|forsaken|sinister|macabre|decay(ing)?|rotting|undead|ghostly|buried|sacrific\w*|ominous|dread|eerie|funereal|grim|unhallowed|desecrat\w*)\b/.test(lcb);
   const character: Contents['character'] =
-    mine ? 'mining' : port ? 'port'
+    grim ? 'grim'
+    : mine ? 'mining' : port ? 'port'
     : /\b(market ?town|bazaar|trading post|merchant|trade hub)\b/.test(lcb) ? 'market'
     : /\b(camp|outpost|bandit|shanty|refugee|frontier post|ramshackle|rough|logging|hunting lodge)\b/.test(lcb) ? 'rough'
     : 'civic';
@@ -652,7 +655,12 @@ export function normalizeProgram(raw: unknown, brief: string): SceneProgram {
     seed: progSeed(brief),
     base: terrainOr(r.base, 'grass'),
     biome: (BIOMES as readonly string[]).includes(r.biome as string) ? (r.biome as string) : 'forest',
-    lighting: LIGHTINGS.has(r.lighting as Lighting) ? (r.lighting as Lighting) : 'day',
+    // MOOD → time of day: a dark/foggy/horror brief drives a night/dusk TINT (the renderer already has
+    // the filter; it just needs triggering). An explicit non-day lighting from the model still wins.
+    lighting: (LIGHTINGS.has(r.lighting as Lighting) && r.lighting !== 'day') ? (r.lighting as Lighting)
+      : /\b(night|midnight|nocturnal|moonlit|moonlight|dark(ness)?|black|horror|cursed|haunted|grim|drowned|corpse|the dead|plague|blight|dread|eerie|fog(gy|-bound)?|mist(y)?|gloom|shadow(ed|y)?|storm)\b/.test(lcb) ? 'night'
+      : /\b(dusk|twilight|sunset|evening|gloaming|nightfall|golden hour)\b/.test(lcb) ? 'dusk'
+      : (LIGHTINGS.has(r.lighting as Lighting) ? (r.lighting as Lighting) : 'day'),
     grammar,
     theme: themeNameFor(r.theme, brief, grammar), // one palette for the whole scene
     outdoor: typeof r.outdoor === 'boolean' ? r.outdoor : grammar !== 'enclosed-interior',

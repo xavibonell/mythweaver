@@ -46,7 +46,7 @@ export interface Contents {
   mine?: boolean;
   /** The town's CHARACTER — drives context-appropriate furnishing (centerpiece, park) so a mining camp
    *  doesn't get a genteel fountain. Derived from the brief + buildings in harvestTownContents. */
-  character?: 'mining' | 'port' | 'market' | 'civic' | 'rough';
+  character?: 'mining' | 'port' | 'market' | 'civic' | 'rough' | 'grim';
 }
 export interface GenContext {
   theme: Theme;
@@ -242,11 +242,11 @@ function townGen(cv: Canvas, ctx: GenContext): void {
   // CENTERPIECE by town CHARACTER (not an unconditional well): a genteel village gets a well, a mining
   // town an anvil/forge, a market its stalls; a rough camp gets nothing but a firepit. A vignette the DM
   // explicitly named still wins.
-  const CENTERPIECE: Record<NonNullable<Contents['character']>, string | undefined> = { mining: 'forge', port: 'market', market: 'market', civic: 'well', rough: undefined };
+  const CENTERPIECE: Record<NonNullable<Contents['character']>, string | undefined> = { mining: 'forge', port: 'market', market: 'market', civic: 'well', rough: undefined, grim: undefined };
   const namedVig = contents.landmarks.map((l) => l.tag).find((t) => TOWN_VIGNETTES.has(t));
   const vig = namedVig ?? CENTERPIECE[contents.character ?? 'civic'];
   if (vig) vignette(cv, plazaCtr, vig, `plaza-${slug(locationId, 0)}`);
-  else place(cv, { id: `prop:plaza-firepit-${slug(locationId, 0)}`, tag: 'brazier', kind: 'prop', at: plazaCtr }); // rough camp: a firepit, no fountain
+  else place(cv, { id: `prop:plaza-centre-${slug(locationId, 0)}`, tag: contents.character === 'grim' ? 'gravestone' : 'brazier', kind: 'prop', at: plazaCtr }); // grim: a graveyard marker; rough: a firepit — never a fountain
   // benches at the square's corners — somewhere to sit by the market/well.
   for (const [cx, cy] of [[pRect.x + 1, pRect.y + 1], [pRect.x + pRect.w - 2, pRect.y + 1], [pRect.x + 1, pRect.y + pRect.h - 2], [pRect.x + pRect.w - 2, pRect.y + pRect.h - 2]] as const)
     if (cv.inB(cx, cy) && cv.isFree(cx, cy)) place(cv, { id: `prop:plaza-bench-${cx}-${cy}`, tag: 'stone_bench', kind: 'prop', at: { c: cx, r: cy } });
@@ -261,7 +261,8 @@ function townGen(cv: Canvas, ctx: GenContext): void {
       const parkCtr = rectCenter(park);
       // a fountain only befits a genteel town; a working/rough town gets a firepit gathering-spot instead.
       const genteel = !contents.character || contents.character === 'civic' || contents.character === 'market';
-      place(cv, { id: `prop:park-centre-${slug(locationId, 0)}`, tag: genteel ? 'fountain' : 'brazier', kind: 'prop', at: parkCtr });
+      const parkTag = genteel ? 'fountain' : contents.character === 'grim' ? 'gravestone' : 'brazier';
+      place(cv, { id: `prop:park-centre-${slug(locationId, 0)}`, tag: parkTag, kind: 'prop', at: parkCtr });
       for (const [dx, dy] of [[-2, 0], [2, 0], [0, -2], [0, 2]] as const) { const bc = parkCtr.c + dx, br = parkCtr.r + dy; if (cv.inB(bc, br) && cv.isFree(bc, br)) place(cv, { id: `prop:park-bench-${bc}-${br}`, tag: 'stone_bench', kind: 'prop', at: { c: bc, r: br } }); }
     }
   }

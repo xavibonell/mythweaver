@@ -122,5 +122,19 @@ export function renderSceneMapToPng(scene: SceneMap, opts: { assetsRoot: string 
     blit(png, dstX, dstY, fw, fh);
   }
 
+  // TIME-OF-DAY tint — a global colour MULTIPLY matching the Phaser renderer (SceneCanvas), so headless
+  // proof renders carry the same dusk/night mood. (The Phaser nicety of exempting light sources so they
+  // glow is skipped here — this is a proof render, not the live game.)
+  const interior = scene.grammar === 'enclosed-interior';
+  const tint = scene.lighting === 'night' ? (interior ? 0xc2a886 : 0x7e8cc0)
+    : scene.lighting === 'dusk' ? (interior ? 0xd2c0a0 : 0xb2b6da) : 0;
+  if (tint) {
+    const tr = (tint >> 16) & 0xff, tg = (tint >> 8) & 0xff, tb = tint & 0xff;
+    for (let i = 0; i < out.data.length; i += 4) {
+      out.data[i] = Math.round(out.data[i]! * tr / 255);
+      out.data[i + 1] = Math.round(out.data[i + 1]! * tg / 255);
+      out.data[i + 2] = Math.round(out.data[i + 2]! * tb / 255);
+    }
+  }
   return PNG.sync.write(out);
 }
