@@ -28,7 +28,7 @@ import { runDmLab, createDmLabSession, dmLabSubmit, arcView, autoRollTotal, DM_L
 import { renderDmLabPage } from './dm-lab-page.js';
 import { distillStyle, DISTILL_MAX_INPUT } from './distill.js';
 import { buildArcPlanner } from './arc-planner.js';
-import { buildArcComposer, validateGeneratedArc, type ArcSeed, type GeneratedArc } from './arc-composer.js';
+import { buildArcComposer, inventBackstories, validateGeneratedArc, type ArcSeed, type GeneratedArc } from './arc-composer.js';
 
 const PORT = Number(process.env.PORT ?? 8080);
 // Bind to localhost by default; containers set HOST=0.0.0.0 (and should set a token).
@@ -510,23 +510,45 @@ app.post('/dm/lab/generate-arc', async (req, reply) => {
     temperature = t;
   }
   try {
+    // Resolve the party FIRST and feed the composer the SAME names the sheets carry ("Fighter 1"),
+    // not the bare archetype ("Fighter"). Otherwise the composer keys pcBackstories "Fighter the
+    // Fighter" while the sheet is "Fighter 1" — neither a prefix of the other — and the merge misses.
+    const resolvedParty = resolveParty(parsePartyPicks((req.body as Record<string, unknown>)?.party));
+    if (resolvedParty.length) {
+      seed.party = resolvedParty.map((s) => ({ name: s.name, className: s.className, ...(s.backstory ? { backstory: s.backstory } : {}) }));
+    }
     const { arc, costUsd } = await arcComposer.compose(seed, { ...(temperature !== undefined ? { temperature } : {}), library: loadSharedBestiary() });
-    arc.party = resolveParty(parsePartyPicks((req.body as Record<string, unknown>)?.party)); // resolved sheets, editable in the bundle
+    arc.party = resolvedParty; // resolved sheets, editable in the bundle
     // Backstory precedence: authored (already on the sheet) wins; fill the blanks with what the Director
     // invented. The composer often keys entries "Aldric the Fighter" while the sheet is "Aldric", so match
     // on a name prefix (either direction), not just exact equality.
     const norm = (s: string) => s.trim().toLowerCase();
-    const invented = arc.pcBackstories ?? [];
-    for (const sheet of arc.party) {
-      if (sheet.backstory) continue;
-      const s = norm(sheet.name);
-      const hit = invented.find((p) => {
-        const n = norm(p.name);
-        return n === s || n.startsWith(`${s} `) || s.startsWith(`${n} `);
+    const fill = (invented: { name: string; backstory: string }[]) => {
+      for (const sheet of arc.party!) {
+        if (sheet.backstory) continue;
+        const s = norm(sheet.name);
+        const hit = invented.find((p) => {
+          const n = norm(p.name);
+          return n === s || n.startsWith(`${s} `) || s.startsWith(`${n} `);
+        });
+        if (hit) sheet.backstory = hit.backstory;
+      }
+    };
+    fill(arc.pcBackstories ?? []);
+    // Guarantee: the composer intermittently drops pcBackstories. Any PC still blank gets a dedicated
+    // fallback call — every PC ends the request with a backstory (never "(no backstory)").
+    let extraCost = 0;
+    const blanks = arc.party.filter((sheet) => !sheet.backstory);
+    if (blanks.length) {
+      const { backstories, costUsd: fillCost } = await inventBackstories(llm, {
+        premise: arc.blueprint.premise || seed.theme || '',
+        party: blanks.map((s) => ({ name: s.name, className: s.className })),
+        ...(temperature !== undefined ? { temperature } : {}),
       });
-      if (hit) sheet.backstory = hit.backstory;
+      extraCost = fillCost;
+      fill(backstories);
     }
-    return { arc, costUsd, markdown: arcMarkdown(arc) };
+    return { arc, costUsd: costUsd + extraCost, markdown: arcMarkdown(arc) };
   } catch (err) {
     app.log.error(err, 'arc generation failed');
     reply.code(502);

@@ -490,27 +490,47 @@ export class LlmArcComposer implements ArcComposer {
     const now = opts?.now ?? Date.now;
     const promptText = this.composerSystem();
     const monsters = monsterResources(seed, opts?.library ?? []);
+    // Composing a whole arc is one expensive call — a transient overload (429/529) should NOT silently
+    // dump the player into a generic Fake arc. Retry a couple of times with a short backoff first, and
+    // if it still fails, LOG it (don't swallow) so degraded generation is visible, not a mystery.
     let res;
-    try {
-      res = await this.llm.complete({
-        system: promptText,
-        messages: [{ role: 'user', content: seedDigest(seed, monsters) }],
-        maxTokens: 2600,
-        taskClass: 'set_piece',
-        ...(this.model ? { model: this.model } : {}),
-        ...(opts?.temperature !== undefined ? { temperature: opts.temperature } : {}),
-      });
-    } catch {
+    let lastErr: unknown;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        res = await this.llm.complete({
+          // A full arc (beats + spine + cast + plants + pcBackstories) can exceed 2600 output tokens —
+          // when it did, the JSON truncated mid-array, failed to parse, and the WHOLE arc silently fell
+          // back to the generic Fake. Give it real headroom (you only pay for tokens actually emitted).
+          system: promptText,
+          messages: [{ role: 'user', content: seedDigest(seed, monsters) }],
+          maxTokens: 6000,
+          taskClass: 'set_piece',
+          ...(this.model ? { model: this.model } : {}),
+          ...(opts?.temperature !== undefined ? { temperature: opts.temperature } : {}),
+        });
+        lastErr = undefined;
+        break;
+      } catch (err) {
+        lastErr = err;
+        if (attempt < 2) await new Promise((r) => setTimeout(r, 700 * (attempt + 1)));
+      }
+    }
+    if (!res) {
+      console.warn('[arc-composer] LLM composer failed after retries — using deterministic fallback arc:', (lastErr as Error)?.message ?? lastErr);
       return this.fallbackResult(seed, opts, promptText);
     }
     let parsed: unknown = {};
+    let parseErr = '';
     const json = extractJson(res.text);
     if (json) {
       try {
         parsed = JSON.parse(json);
-      } catch {
-        /* fall through to coercer, which returns null on empty → fallback */
+      } catch (e) {
+        parseErr = `JSON.parse failed (${(e as Error).message})`;
       }
+    } else {
+      // No balanced JSON found — almost always a maxTokens truncation cutting the object mid-array.
+      parseErr = `no parseable JSON (${res.text.length} chars, likely truncated: …${res.text.slice(-60)})`;
     }
     const arc = buildGeneratedArc(
       parsed,
@@ -518,7 +538,12 @@ export class LlmArcComposer implements ArcComposer {
       { model: res.model, ...(opts?.temperature !== undefined ? { temperature: opts.temperature } : {}), promptText, usage: { inputTokens: res.usage.inputTokens, outputTokens: res.usage.outputTokens }, now, fallback: false },
       monsters,
     );
-    if (!arc) return this.fallbackResult(seed, opts, promptText);
+    if (!arc) {
+      // Don't silently hand the player a generic arc — a real composer output that failed to become a
+      // usable arc is a signal worth surfacing (truncation, invalid scenario, empty beats).
+      console.warn('[arc-composer] composed output unusable — using deterministic fallback arc:', parseErr || 'arc failed validation (beats/premise/reachability)');
+      return this.fallbackResult(seed, opts, promptText);
+    }
     return { arc, costUsd: estimateCostUsd(res.model, res.usage.inputTokens, res.usage.outputTokens) };
   }
 
@@ -528,6 +553,46 @@ export class LlmArcComposer implements ArcComposer {
     r.arc.genMeta.fallback = true;
     r.arc.genMeta.composerPromptHash = sha1(promptText);
     return r;
+  }
+}
+
+/**
+ * RELIABILITY BACKSTOP: the composer is asked to echo a `pcBackstories` entry for every PC, but an LLM
+ * intermittently drops that field on a long generation — leaving a PC with no backstory, which should
+ * NEVER happen (every PC is canon). This is a tiny dedicated call that invents a fitting backstory for
+ * ONLY the PCs the composer left blank. Returns [] on any error (the caller keeps whatever it had).
+ */
+export async function inventBackstories(
+  llm: LlmProvider,
+  args: { premise: string; party: { name: string; className: string }[]; temperature?: number; model?: string },
+): Promise<{ backstories: { name: string; backstory: string }[]; costUsd: number }> {
+  if (!args.party.length) return { backstories: [], costUsd: 0 };
+  const system =
+    'You are the GAME DIRECTOR. Given a campaign premise and a party, write a vivid ONE-to-two-sentence backstory for EACH character that fits the premise and gives them a personal stake in it. No mechanics, no rolls — pure fiction. Respond with ONLY a JSON object: {"backstories":[{"name":"<exact name as given>","backstory":"…"}]} — one entry per character, echoing each name exactly.';
+  const user = `PREMISE: ${args.premise || '(none given — invent a fitting one)'}\n\nPARTY:\n${args.party.map((p) => `- ${p.name} the ${p.className}`).join('\n')}`;
+  try {
+    const res = await llm.complete({
+      system,
+      messages: [{ role: 'user', content: user }],
+      maxTokens: 700,
+      taskClass: 'set_piece',
+      ...(args.model ? { model: args.model } : {}),
+      ...(args.temperature !== undefined ? { temperature: args.temperature } : {}),
+    });
+    const costUsd = estimateCostUsd(res.model, res.usage.inputTokens, res.usage.outputTokens);
+    const json = extractJson(res.text);
+    if (!json) return { backstories: [], costUsd };
+    const parsed = JSON.parse(json) as Record<string, unknown>;
+    const arr = Array.isArray(parsed.backstories) ? parsed.backstories : [];
+    const backstories = arr
+      .map((b) => {
+        const bb = b && typeof b === 'object' ? (b as Record<string, unknown>) : {};
+        return { name: str(bb.name, 60), backstory: str(bb.backstory, 400) };
+      })
+      .filter((b) => b.name && b.backstory);
+    return { backstories, costUsd };
+  } catch {
+    return { backstories: [], costUsd: 0 };
   }
 }
 
