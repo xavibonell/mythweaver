@@ -40,6 +40,10 @@ export interface Contents {
   coast?: boolean;
   /** MOUNTAINS — a rock massif takes a map edge; the town sits on the land beside it. */
   mountain?: boolean;
+  /** A PORT — piers + boats + dockworkers attached to the coast frontier (implies `coast`). */
+  port?: boolean;
+  /** A MINE — a cave mouth + ore + miners attached to the mountain frontier (implies `mountain`). */
+  mine?: boolean;
 }
 export interface GenContext {
   theme: Theme;
@@ -64,14 +68,14 @@ type FieldSide = 'north' | 'south' | 'east' | 'west';
  *  bake) — the same `fill`+autotile machinery that makes lakes, now triggered from the fiction. coast =
  *  a beach → shallows → deep-water gradient; mountain = an impassable rock massif. No-op if the band
  *  would starve the buildable interior. Mutates `interior`. */
-function reserveEdgeField(cv: Canvas, B: Rect, interior: Rect, kind: 'coast' | 'mountain', avoid?: FieldSide): void {
+function reserveEdgeField(cv: Canvas, B: Rect, interior: Rect, kind: 'coast' | 'mountain', avoid?: FieldSide): { edge: FieldSide; band: Rect } | null {
   const opp: Record<FieldSide, FieldSide> = { north: 'south', south: 'north', east: 'west', west: 'east' };
   let edge: FieldSide = kind === 'coast' ? 'east' : 'west';
   if (edge === avoid) edge = opp[edge];
   const horiz = edge === 'east' || edge === 'west';
   const band = Math.max(5, Math.floor((horiz ? B.w : B.h) * 0.26));
   const cut = band + 1;
-  if (horiz ? interior.w - cut < 16 : interior.h - cut < 16) return; // don't starve the town
+  if (horiz ? interior.w - cut < 16 : interior.h - cut < 16) return null; // don't starve the town
   const full: Rect = edge === 'west' ? { x: B.x, y: B.y, w: band, h: B.h }
     : edge === 'east' ? { x: B.x + B.w - band, y: B.y, w: band, h: B.h }
     : edge === 'north' ? { x: B.x, y: B.y, w: B.w, h: band }
@@ -105,6 +109,51 @@ function reserveEdgeField(cv: Canvas, B: Rect, interior: Rect, kind: 'coast' | '
   else if (edge === 'east') { interior.w -= cut; }
   else if (edge === 'north') { interior.y += cut; interior.h -= cut; }
   else { interior.h -= cut; }
+  return { edge, band: full };
+}
+
+/** Frontier geometry: a point on the field's LAND-facing edge + a unit vector INTO the field + a unit
+ *  vector ALONG the frontier + the frontier length. Lets a frontier FEATURE be placed by (along, depth)
+ *  offsets regardless of which edge the field took. */
+function frontierGeom(band: Rect, edge: FieldSide): { sx: number; sy: number; ix: number; iy: number; ax: number; ay: number; len: number } {
+  switch (edge) {
+    case 'east': return { sx: band.x, sy: band.y, ix: 1, iy: 0, ax: 0, ay: 1, len: band.h };
+    case 'west': return { sx: band.x + band.w - 1, sy: band.y, ix: -1, iy: 0, ax: 0, ay: 1, len: band.h };
+    case 'north': return { sx: band.x, sy: band.y + band.h - 1, ix: 0, iy: -1, ax: 1, ay: 0, len: band.w };
+    default: return { sx: band.x, sy: band.y, ix: 0, iy: 1, ax: 1, ay: 0, len: band.w }; // south
+  }
+}
+
+/** FRONTIER FEATURE (Weave L3 seed): attach a COMPOSITE (structure + props + cast) at a field's frontier,
+ *  facing the town. A PORT reaches piers into the sea; a MINE opens a mouth in the rock face. Both are the
+ *  SAME move — differ only in the data below — so lighthouse/quarry/fishing-hut/shrine are future rows, not
+ *  new code. Placed straight into the decorative layer + walkability (the field cells aren't place()-able). */
+function placeFrontierFeature(cv: Canvas, band: Rect, edge: FieldSide, kind: 'port' | 'mine', locationId: string): void {
+  const g = frontierGeom(band, edge);
+  if (g.len < 5) return;
+  const mid = Math.floor(g.len / 2);
+  const cellAt = (a: number, d: number): Pt => ({ c: g.sx + g.ax * a + g.ix * d, r: g.sy + g.ay * a + g.iy * d });
+  const deco = (tag: string, p: Pt, walk = false): void => { if (cv.inB(p.c, p.r)) { cv.ambiance.push({ tag, col: p.c, row: p.r }); if (walk) cv.walkable[p.r]![p.c] = true; } };
+  const put = (tag: string, p: Pt, kindOf: 'prop' | 'actor', role?: 'npc'): void => { if (cv.inB(p.c, p.r)) place(cv, { id: `${kindOf}:frontier-${slug(locationId, 0)}-${p.c}-${p.r}`, tag, kind: kindOf, ...(role ? { role } : {}), at: p }); };
+
+  if (kind === 'port') {
+    const dock = edge === 'east' || edge === 'west' ? 'dock_ew' : 'dock_ns';
+    const pierLen = Math.max(3, Math.min(6, Math.floor((edge === 'east' || edge === 'west' ? band.w : band.h) * 0.7)));
+    // a 2-wide plank pier from the beach (d=0) out into the water — walkable over the water
+    for (let d = 0; d < pierLen; d++) { deco(dock, cellAt(mid, d), true); if (d > 0) deco(dock, cellAt(mid + 1, d), true); }
+    // boats moored at the pier head, cargo at its base, dockworkers on the planks
+    cv.ambiance.push({ tag: 'boat', col: cellAt(mid - 1, pierLen - 1).c, row: cellAt(mid - 1, pierLen - 1).r });
+    cv.ambiance.push({ tag: 'boat', col: cellAt(mid + 2, pierLen - 2).c, row: cellAt(mid + 2, pierLen - 2).r });
+    put('crate', cellAt(mid - 1, 0), 'prop'); put('barrel', cellAt(mid + 1, 0), 'prop');
+    for (let i = 0; i < 2; i++) put('villager', cellAt(mid, 1 + i), 'actor', 'npc');
+  } else {
+    // MINE: a mouth in the rock face (frontier cell, made walkable so it reads as an opening), an ore
+    // vein glinting deeper in the rock, cargo + dwarf miners on the land apron just outside.
+    deco('mine_entrance', cellAt(mid, 0), true);
+    deco('ore_vein', cellAt(mid - 1, 1)); deco('ore_vein', cellAt(mid + 1, 1)); deco('ore_vein', cellAt(mid, 2));
+    put('crate', cellAt(mid + 2, -1), 'prop');
+    for (let i = 0; i < 2; i++) put('dwarf', cellAt(mid - i, -1), 'actor', 'npc');
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -132,8 +181,8 @@ function townGen(cv: Canvas, ctx: GenContext): void {
   // STAGE 0b — TERRAIN FIELD (Weave field primitive): a coast/mountains brief reserves an edge band as a
   // water/rock field and shrinks the interior off it, so the town sits on land and the field forms a
   // coherent frontier at bake. Applied before streets/parcels so buildings never land in the sea/cliffs.
-  if (contents.mountain) reserveEdgeField(cv, B, interior, 'mountain', contents.entranceSide);
-  if (contents.coast) reserveEdgeField(cv, B, interior, 'coast', contents.entranceSide);
+  if (contents.mountain) { const f = reserveEdgeField(cv, B, interior, 'mountain', contents.entranceSide); if (f && contents.mine) placeFrontierFeature(cv, f.band, f.edge, 'mine', locationId); }
+  if (contents.coast) { const f = reserveEdgeField(cv, B, interior, 'coast', contents.entranceSide); if (f && contents.port) placeFrontierFeature(cv, f.band, f.edge, 'port', locationId); }
 
   // STAGE 1 — ORGANIC STREET NETWORK via the LOOM (routeSeam, Weave L1). Recursive bisection carves a
   // material-typed seam at each cut (2-wide cobble arteries near the top, 1-wide dirt alleys deeper), and

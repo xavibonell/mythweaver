@@ -353,6 +353,8 @@ function normContents(v: unknown): Contents {
     ...(typeof r.canal === 'boolean' ? { canal: r.canal } : {}),
     ...(typeof r.coast === 'boolean' ? { coast: r.coast } : {}),
     ...(typeof r.mountain === 'boolean' ? { mountain: r.mountain } : {}),
+    ...(typeof r.port === 'boolean' ? { port: r.port } : {}),
+    ...(typeof r.mine === 'boolean' ? { mine: r.mine } : {}),
     ...(side === 'north' || side === 'south' || side === 'east' || side === 'west' ? { entranceSide: side } : {}),
   };
 }
@@ -544,10 +546,14 @@ function harvestTownContents(ops: SceneOp[], lcb: string): Contents {
   for (const [re, tag] of BRIEF_PROPS) if (re.test(lcb) && !haveProp.has(tag)) { landmarks.push({ tag }); haveProp.add(tag); }
   // FEATURE nets (Weave field/seam primitives): a brief naming a waterway threads a canal; naming a
   // coast/mountains hands a map edge to a water/rock terrain field (the town sits on the land).
-  const canal = /\b(canal|waterway|watergate|quay|wharf|dock)\b/.test(lcb);
-  const coast = /\b(sea|seaside|seashore|coast|coastal|beach|shore|shoreline|ocean|oceanside|seafront|waterfront|bay|lagoon|fishing village|by the water)\b/.test(lcb);
-  const mountain = /\b(mountains?|mountainous|mountainside|cliffs?|crags?|craggy|highlands?|foothills?|escarpment|beneath the peaks?)\b/.test(lcb);
-  return { buildings, landmarks, npcs, mobs, ...(wall ? { wall: true } : {}), ...(canal ? { canal: true } : {}), ...(coast ? { coast: true } : {}), ...(mountain ? { mountain: true } : {}), ...(entranceSide ? { entranceSide } : {}) };
+  const canal = /\b(canal|waterway|watergate)\b/.test(lcb);
+  // FRONTIER FEATURES attach a composite to a field's edge — and IMPLY that field (a port needs a coast,
+  // a mine needs a mountain), so the compiler always has an edge to hang them on.
+  const port = /\b(ports?|harbou?rs?|docks?|piers?|jettys?|wharf|quays?|marina|fishing village)\b/.test(lcb);
+  const mine = /\b(mines?|mining|mineshaft|quarry|ore|excavation|dwarven hold)\b/.test(lcb);
+  const coast = port || /\b(sea|seaside|seashore|coast|coastal|beach|shore|shoreline|ocean|oceanside|seafront|waterfront|bay|lagoon|by the water)\b/.test(lcb);
+  const mountain = mine || /\b(mountains?|mountainous|mountainside|cliffs?|crags?|craggy|highlands?|foothills?|escarpment|beneath the peaks?)\b/.test(lcb);
+  return { buildings, landmarks, npcs, mobs, ...(wall ? { wall: true } : {}), ...(canal ? { canal: true } : {}), ...(coast ? { coast: true } : {}), ...(mountain ? { mountain: true } : {}), ...(port ? { port: true } : {}), ...(mine ? { mine: true } : {}), ...(entranceSide ? { entranceSide } : {}) };
 }
 
 function progSeed(s: string): number {

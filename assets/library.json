@@ -5898,6 +5898,121 @@
       },
       "license": "CC-BY-4.0",
       "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
+    },
+    {
+      "kind": "prop",
+      "tag": "dock_ew",
+      "desc": "a wooden dock plank (east-west)",
+      "biomes": [
+        "coast",
+        "village"
+      ],
+      "art": "/assets/dawnlike/props/dock_ew.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false,
+      "from": {
+        "pack": "DawnLike",
+        "crop": "Objects/Map0.png",
+        "rect": [
+          144,
+          224,
+          16,
+          16
+        ]
+      },
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite",
+      "platform": true
+    },
+    {
+      "kind": "prop",
+      "tag": "dock_ns",
+      "desc": "a wooden dock plank (north-south)",
+      "biomes": [
+        "coast",
+        "village"
+      ],
+      "art": "/assets/dawnlike/props/dock_ns.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false,
+      "from": {
+        "pack": "DawnLike",
+        "crop": "Objects/Map0.png",
+        "rect": [
+          96,
+          224,
+          16,
+          16
+        ]
+      },
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite",
+      "platform": true
+    },
+    {
+      "kind": "prop",
+      "tag": "mine_entrance",
+      "desc": "a mine entrance cut into the rock",
+      "biomes": [
+        "mountain",
+        "cave",
+        "wild"
+      ],
+      "art": "/assets/dawnlike/props/mine_entrance.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false,
+      "from": {
+        "pack": "DawnLike",
+        "crop": "Objects/Tile.png",
+        "rect": [
+          48,
+          16,
+          16,
+          16
+        ]
+      },
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
+    },
+    {
+      "kind": "prop",
+      "tag": "ore_vein",
+      "desc": "a glittering ore vein",
+      "biomes": [
+        "mountain",
+        "cave"
+      ],
+      "art": "/assets/dawnlike/props/ore_vein.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": true,
+      "from": {
+        "pack": "DawnLike",
+        "crop": "Items/Money.png",
+        "rect": [
+          16,
+          64,
+          16,
+          16
+        ]
+      },
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
     }
   ]
 }
