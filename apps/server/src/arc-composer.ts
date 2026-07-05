@@ -18,7 +18,7 @@
 import { createHash } from 'node:crypto';
 import { generateStatBlock, type MonsterSpec } from '@mythweaver/engine';
 import { estimateCostUsd, type LlmProvider } from '@mythweaver/llm';
-import type { AdventureContext, ArcGenMeta, CampaignBlueprint, CharacterSheet, EncounterDef, StatBlock } from '@mythweaver/shared';
+import type { AdventureContext, ArcGenMeta, CampaignBlueprint, CharacterSheet, EncounterDef, EntityCard, Plant, StatBlock } from '@mythweaver/shared';
 import { buildBlueprint, extractJson, str } from './arc-planner.js';
 import { validateScenario, type Scenario } from './content.js';
 
@@ -51,6 +51,8 @@ export interface GeneratedArc {
   bestiary: Record<string, StatBlock>;
   /** The resolved party sheets (attached by the endpoint) — editable in the lab to tweak levels/HP. */
   party?: CharacterSheet[];
+  /** Canon Ledger seed (P1): the cast (NPCs with voice, native scenes) + planted details. */
+  ledger?: { entities: EntityCard[]; plants: Plant[] };
   blueprint: CampaignBlueprint;
   genMeta: ArcGenMeta;
 }
@@ -137,14 +139,16 @@ export const DEFAULT_COMPOSER_SYSTEM = `You are the GAME DIRECTOR composing a br
 Design a coherent arc with a KNOWN ENDING: what the whole thing is about, the central problem, where the party starts, the envisioned ending you steer toward, and an ordered chain of BEATS (scenes) that route from the opening to that ending. Honor the seed's theme, tone, length, and constraints. Give players real agency — offer multiple approaches per beat, never a single gated path.
 
 Respond with ONLY a JSON object (no prose, no code fence):
-{"premise":"<what the campaign is about / its theme>","centralProblem":"<the concrete problem the party must address>","intendedEnding":"<a clear, specific resolution — how it should end if it lands>","opening":"<where/how the party starts>","beats":[{"title":"<short scene name>","summary":"<GM guidance: what's here, what's at stake, ways to engage; you MAY note suggested checks + DCs; reveal it through play>","exits":[2,3],"intent":"<what this beat accomplishes toward the ending>","monsters":[{"from":"<library id>","count":2},{"new":{"name":"<creature>","challengeRating":1,"type":"<e.g. undead>","attackName":"<e.g. Spectral Touch>","damageType":"necrotic","ranged":false},"count":1}]}],"spine":[{"milestone":"<short label>","beat":1,"intent":"<step toward the ending>"}]}
+{"premise":"<what the campaign is about / its theme>","centralProblem":"<the concrete problem the party must address>","intendedEnding":"<a clear, specific resolution — how it should end if it lands>","opening":"<where/how the party starts>","beats":[{"title":"<short scene name>","summary":"<GM guidance: what's here, what's at stake, ways to engage; you MAY note suggested checks + DCs; reveal it through play>","exits":[2,3],"intent":"<what this beat accomplishes toward the ending>","monsters":[{"from":"<library id>","count":2},{"new":{"name":"<creature>","challengeRating":1,"type":"<e.g. undead>","attackName":"<e.g. Spectral Touch>","damageType":"necrotic","ranged":false},"count":1}]}],"spine":[{"milestone":"<short label>","beat":1,"intent":"<step toward the ending>"}],"cast":[{"id":"npc:<slug>","name":"<name>","atBeats":[1],"voice":{"tic":"<a distinctive speech/behaviour tic>","want":"<what they want>","fear":"<what they fear>"}}],"plants":[{"id":"plant:<slug>","what":"<a detail planted early that pays off later>"}]}
 
 RULES:
 - "beats" is an ORDERED array; the FIRST beat is where the party starts. Produce the requested number of beats (3-8).
 - "exits" are the 1-based indexes of the OTHER beats reachable from this beat (a short list; the finale may have none). Build a connected path from beat 1 to the finale.
 - "spine" milestones map to a beat via its 1-based "beat" index; you MAY add 1-2 final milestones with NO "beat" (pure narrative payoff after the last scene).
 - "monsters" (optional, only on beats with a fight): each entry is EITHER {"from":"<library id>","count":N} to place an existing creature, OR {"new":{...},"count":N} to commission one — pick whichever the MONSTERS line in the seed allows. For "new", give ONLY fiction: name, challengeRating (0–5), type, attackName, damageType, ranged (true/false). The ENGINE computes its HP/AC/damage — never write any number other than challengeRating and count. Scale fights to the party size; not every beat needs combat.
-- intendedEnding must be a concrete destination, not vague. No stat blocks, no HP/AC/to-hit. Keep prose tight (~500 words total).`;
+- "cast": EVERY named NPC in your beat prose MUST appear here with a memorable VOICE (a tic, a want, a fear) and "atBeats" = the 1-based beats they appear in. This is what keeps them themselves when they return.
+- "plants": 2-4 Chekhov details planted early that pay off later (a heirloom, a rumour, a scar) — the seeds of callbacks.
+- intendedEnding must be a concrete destination, not vague. No stat blocks, no HP/AC/to-hit. Keep prose tight (~600 words total).`;
 
 interface StampCtx {
   model: string;
@@ -297,6 +301,42 @@ export function buildGeneratedArc(raw: unknown, seed: ArcSeed, ctx: StampCtx, re
     return null;
   }
 
+  // Canon Ledger seed (P1): the cast (NPCs with voice, native beats) + planted details.
+  const entities: EntityCard[] = (Array.isArray(o.cast) ? o.cast : [])
+    .map((c) => {
+      const cc = c && typeof c === 'object' ? (c as Record<string, unknown>) : {};
+      const name = str(cc.name, 80);
+      if (!name) return null;
+      const idRaw = str(cc.id, 60);
+      const id = /^[a-z]+:/i.test(idRaw) ? idRaw : `npc:${ledgerSlug(idRaw || name)}`;
+      const atScenes = (Array.isArray(cc.atBeats) ? cc.atBeats : [])
+        .map((x) => Math.round(Number(x)))
+        .filter((x) => Number.isInteger(x) && x >= 1 && x <= cap)
+        .map((x) => ids[x - 1]!);
+      const v = cc.voice && typeof cc.voice === 'object' ? (cc.voice as Record<string, unknown>) : cc;
+      const voice = { ...(str(v.tic, 120) ? { tic: str(v.tic, 120) } : {}), ...(str(v.want, 120) ? { want: str(v.want, 120) } : {}), ...(str(v.fear, 120) ? { fear: str(v.fear, 120) } : {}) };
+      const card: EntityCard = {
+        id,
+        kind: 'npc',
+        name,
+        ...(Object.keys(voice).length ? { voice } : {}),
+        ...(atScenes.length ? { scenes: [...new Set(atScenes)] } : {}),
+        status: 'active',
+      };
+      return card;
+    })
+    .filter((c): c is EntityCard => c !== null)
+    .slice(0, 16);
+  const plants: Plant[] = (Array.isArray(o.plants) ? o.plants : [])
+    .map((p, i): Plant | null => {
+      const pp = p && typeof p === 'object' ? (p as Record<string, unknown>) : {};
+      const what = str(pp.what, 200) || str(pp, 200);
+      if (!what) return null;
+      return { id: str(pp.id, 60) || `plant:${i + 1}`, what, status: 'planted' };
+    })
+    .filter((p): p is Plant => p !== null)
+    .slice(0, 6);
+
   const genMeta: ArcGenMeta = {
     seedHash: sha1(canonicalSeed(seed)),
     ...(seed.seedPhrase ? { seedPhrase: str(seed.seedPhrase, 200) } : {}),
@@ -308,8 +348,10 @@ export function buildGeneratedArc(raw: unknown, seed: ArcSeed, ctx: StampCtx, re
     composerPromptHash: sha1(ctx.promptText),
     fallback: ctx.fallback,
   };
-  return { adventure, startSceneId: ids[0]!, encounters, bestiary, blueprint, genMeta };
+  return { adventure, startSceneId: ids[0]!, encounters, bestiary, ...(entities.length || plants.length ? { ledger: { entities, plants } } : {}), blueprint, genMeta };
 }
+
+const ledgerSlug = (s: string): string => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'npc';
 
 /**
  * Validate a (possibly HAND-EDITED) generated bundle before it starts a session — the lab lets the

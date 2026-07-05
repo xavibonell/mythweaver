@@ -9,6 +9,7 @@
 
 import {
   NotImplemented,
+  TERMINAL_ENTITY_STATUSES,
   type Ability,
   type AdvantageState,
   type AttackResult,
@@ -18,8 +19,12 @@ import {
   type DamageType,
   type DiceExpr,
   type EngineTools,
+  type EntityCard,
+  type FactRow,
   type GameState,
+  type LedgerState,
   type LogEntry,
+  type Plant,
   type RollRequest,
   type RollResult,
   type Skill,
@@ -348,6 +353,79 @@ export class Engine implements EngineTools {
     const v = typeof value === 'string' ? value.replace(/\s*\n\s*/g, ' ').slice(0, 200) : value;
     this.state.flags[key] = v;
     this.record('engine', `Arc flag ${key} = ${v}`, { key, value: v });
+  }
+
+  // --- P1: the Canon Ledger (the §7 memory tier that survives the transcript window) -------------
+
+  private ledger(): LedgerState {
+    return (this.state.ledger ??= { entities: {}, facts: [], plants: {} });
+  }
+
+  private static isTerminal(s?: string): boolean {
+    return !!s && (TERMINAL_ENTITY_STATUSES as readonly string[]).includes(s);
+  }
+
+  private static clip(s: unknown, n: number): string {
+    return typeof s === 'string' ? s.replace(/\s*\n\s*/g, ' ').trim().slice(0, n) : '';
+  }
+
+  /**
+   * Create or merge a canonical entity (NPC/place/item/…). ABSORBING STATUS: once an entity is
+   * dead/gone/destroyed it can never leave that state — a downgrade is ignored (no un-dying).
+   * Voice/aliases/scenes MERGE across upserts so a returning NPC keeps its established self.
+   */
+  upsertEntity(card: Partial<EntityCard> & { id: string }): EntityCard {
+    const L = this.ledger();
+    const prev = L.entities[card.id];
+    let status = card.status;
+    if (Engine.isTerminal(prev?.status) && !Engine.isTerminal(status)) status = prev!.status; // absorbing
+    const aliases = [...new Set([...(prev?.aliases ?? []), ...(card.aliases ?? [])].map((a) => Engine.clip(a, 60)).filter(Boolean))];
+    const scenes = [...new Set([...(prev?.scenes ?? []), ...(card.scenes ?? [])])];
+    const voice = { ...(prev?.voice ?? {}), ...(card.voice ?? {}) };
+    const merged: EntityCard = {
+      id: card.id,
+      kind: card.kind ?? prev?.kind ?? 'other',
+      name: Engine.clip(card.name, 80) || prev?.name || card.id,
+      ...(aliases.length ? { aliases } : {}),
+      ...(voice.tic || voice.want || voice.fear ? { voice: { ...(voice.tic ? { tic: Engine.clip(voice.tic, 120) } : {}), ...(voice.want ? { want: Engine.clip(voice.want, 120) } : {}), ...(voice.fear ? { fear: Engine.clip(voice.fear, 120) } : {}) } } : {}),
+      status: (status ?? prev?.status ?? 'active') as EntityCard['status'],
+      ...(scenes.length ? { scenes } : {}),
+      ...(Engine.clip(card.notes, 240) || prev?.notes ? { notes: Engine.clip(card.notes, 240) || prev?.notes } : {}),
+    };
+    L.entities[card.id] = merged;
+    this.record('engine', `Canon: ${merged.name} [${merged.id}] — ${merged.status}`, { entityId: merged.id, status: merged.status });
+    return merged;
+  }
+
+  /**
+   * Append a canonical fact. A newer fact for the same subject+attribute SUPERSEDES the older one
+   * (marked, not deleted — the ledger is append-only for audit). Facts about a terminal entity's
+   * being (subject=entity, attribute="status") cannot revive it — that lives on the EntityCard.
+   */
+  recordFact(args: { subject: string; attribute: string; value: string; source?: FactRow['source'] }): FactRow {
+    const L = this.ledger();
+    const subject = Engine.clip(args.subject, 80);
+    const attribute = Engine.clip(args.attribute, 60);
+    const value = Engine.clip(args.value, 240);
+    if (!subject || !attribute) throw new Error('recordFact needs a subject and an attribute.');
+    const id = `fact:${L.facts.length + 1}`;
+    for (const f of L.facts) if (!f.supersededBy && f.subject === subject && f.attribute === attribute) f.supersededBy = id;
+    const row: FactRow = { id, subject, attribute, value, turn: this.state.turnCount ?? 0, source: args.source ?? 'dm' };
+    L.facts.push(row);
+    this.record('engine', `Fact: ${subject} · ${attribute} = ${value}`, { ...row });
+    return row;
+  }
+
+  /** Plant / advance a Chekhov detail. Status only moves forward: planted → echoed → fired. */
+  setPlant(id: string, what: string, status: Plant['status'] = 'planted'): Plant {
+    const L = this.ledger();
+    const order: Plant['status'][] = ['planted', 'echoed', 'fired'];
+    const prev = L.plants[id];
+    const next = prev && order.indexOf(status) < order.indexOf(prev.status) ? prev.status : status; // monotonic
+    const plant: Plant = { id, what: Engine.clip(what, 200) || prev?.what || id, status: next, turn: this.state.turnCount ?? 0 };
+    L.plants[id] = plant;
+    this.record('engine', `Plant ${id}: ${plant.status}`, { plantId: id, status: plant.status });
+    return plant;
   }
 
   // --- P3: resources -------------------------------------------------------

@@ -163,6 +163,36 @@ describe('arc-composer', () => {
     });
   });
 
+  describe('canon ledger seed (cast + plants coercion)', () => {
+    const raw = {
+      premise: 'p', intendedEnding: 'e',
+      beats: [{ title: 'Green', summary: 's', exits: [2] }, { title: 'Tower', summary: 's', exits: [] }],
+      cast: [
+        { id: 'edda', name: 'Edda', atBeats: [1], voice: { tic: 'wrings her hands', want: 'forgiveness' } },
+        { name: '' }, // no name → dropped
+      ],
+      plants: [{ id: 'plant:clapper', what: 'the missing iron clapper' }, { what: 'a crooked bell' }],
+    };
+
+    it('seeds entities (id namespaced, atBeats→scenes, voice) + plants onto the bundle', () => {
+      const arc = buildGeneratedArc(raw, seed, ctx0)!;
+      expect(arc.ledger).toBeTruthy();
+      const edda = arc.ledger!.entities.find((e) => e.name === 'Edda')!;
+      expect(edda.id).toBe('npc:edda'); // bare id gets namespaced
+      expect(edda.kind).toBe('npc');
+      expect(edda.scenes).toEqual(['scene:b1']); // atBeats [1] → minted scene id
+      expect(edda.voice).toEqual({ tic: 'wrings her hands', want: 'forgiveness' });
+      expect(arc.ledger!.entities).toHaveLength(1); // the nameless cast member dropped
+      expect(arc.ledger!.plants.map((p) => p.status)).toEqual(['planted', 'planted']);
+      expect(arc.ledger!.plants[1]!.id).toBe('plant:2'); // missing id gets one
+    });
+
+    it('omits the ledger entirely when the model gives no cast/plants', () => {
+      const arc = buildGeneratedArc({ premise: 'p', intendedEnding: 'e', beats: [{ title: 'A', summary: 's', exits: [] }] }, seed, ctx0)!;
+      expect(arc.ledger).toBeUndefined();
+    });
+  });
+
   describe('validateGeneratedArc (guards hand-edited bundles before a session)', () => {
     const valid = () => ({
       adventure: { pitch: 'p', scenes: { 'scene:b1': { title: 'Start', summary: 's', exits: ['scene:b2'] }, 'scene:b2': { title: 'End', summary: 's', exits: [] } } },

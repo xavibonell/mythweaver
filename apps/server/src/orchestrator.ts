@@ -29,7 +29,7 @@ import {
   type ToolDef,
 } from '@mythweaver/llm';
 import type { Retriever } from '@mythweaver/rag';
-import { isEntityId, type ArcBrief, type DamageType, type EstablishScene, type FixtureDecl, type GameState, type NpcDecl, type PartyMemberRef, type PendingTurn, type SceneMap } from '@mythweaver/shared';
+import { isEntityId, type ArcBrief, type DamageType, type EntityCard, type EstablishScene, type FixtureDecl, type GameState, type NpcDecl, type PartyMemberRef, type PendingTurn, type SceneMap } from '@mythweaver/shared';
 import type { ArcPlanner } from './arc-planner.js';
 import { CHARACTERS, PROMPT_PROPS, buildSceneMap, type SceneComposer } from '@mythweaver/scene';
 
@@ -69,7 +69,15 @@ VISUAL SCENE (the table sees a live top-down map — docs/SCENE-CONTRACTS.md):
   - "npcs": everyone present, each { id ("npc:edda"), name, look, anchor, visible } — set visible:false
     for anyone hidden/lurking (they are placed but unseen until revealed).
 - Anchors are coordinate-free: "center", "north-edge", "waterside", "near:<id>". The game owns exact
-  tiles. Reuse the SAME locationId when the party returns — the place is remembered, not rebuilt.`;
+  tiles. Reuse the SAME locationId when the party returns — the place is remembered, not rebuilt.
+
+CANON (keep the world consistent):
+- A "CANON" block may appear in the turn context — established truth (named NPCs + their voice/status,
+  facts learned, items held). Treat it as real and NEVER contradict it. If the players seek a CANON
+  NPC, it IS that NPC — voice them with their established tic/want/fear; never invent a stand-in.
+- Call "upsertNpc" the first time a named NPC speaks/acts (id, name, tic, want, fear; update status —
+  dead/gone are permanent). Call "recordFact" when the party gains an item, makes a promise, or learns
+  something load-bearing. Invent freely when it isn't established — then record it so it becomes canon.`;
 
 const MAX_STEPS = 6;
 const MAX_OUTPUT_TOKENS = 700;
@@ -306,6 +314,40 @@ export function buildToolDefs(retrieval: boolean, scene: boolean): ToolDef[] {
         additionalProperties: false,
       },
     },
+    {
+      name: 'upsertNpc',
+      description:
+        'CANON: record or update a named NPC the moment they matter, so they stay themselves when they return. Give a stable id ("npc:edda"), their name, and their voice — a speech tic, what they WANT, what they FEAR. Update "status" when it changes ("wounded","captive","gone","dead"; dead/gone are permanent). Do this the FIRST time an NPC speaks or acts.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          id: { type: 'string', description: 'Stable id, e.g. "npc:edda".' },
+          name: { type: 'string' },
+          tic: { type: 'string', description: 'A distinctive speech/behaviour tic.' },
+          want: { type: 'string', description: 'What they want.' },
+          fear: { type: 'string', description: 'What they fear.' },
+          status: { type: 'string', enum: ['active', 'wounded', 'captive', 'gone', 'dead'], description: 'Their standing; dead/gone are permanent.' },
+          aliases: { type: 'array', items: { type: 'string' }, description: 'Other names they go by.' },
+        },
+        required: ['id', 'name'],
+        additionalProperties: false,
+      },
+    },
+    {
+      name: 'recordFact',
+      description:
+        'CANON: record a load-bearing fact so later turns honor it — an item the party gained, a promise made, something learned, a place\'s state. subject = an entity id / "party" / a label; attribute = a short relation ("has","promised","knows","location"); value = the detail. A new fact for the same subject+attribute supersedes the old.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          subject: { type: 'string', description: 'e.g. "party", "npc:edda", "item:silver-key".' },
+          attribute: { type: 'string', description: 'e.g. "has", "promised", "knows", "location".' },
+          value: { type: 'string', description: 'The detail, e.g. "the silver key from the crypt".' },
+        },
+        required: ['subject', 'attribute', 'value'],
+        additionalProperties: false,
+      },
+    },
   );
   return tools;
 }
@@ -404,6 +446,43 @@ function serializeStateForModel(state: GameState): string {
 }
 
 /** Render the Game Director's brief (D2) as the per-turn STEERING block — offers, never orders. */
+/**
+ * The CANON block (P1): deterministically inject the ledger slice relevant to THIS turn — entities
+ * native to the current scene or named in the turn's context, their live facts, party facts (items/
+ * promises), and any free fact being discussed. Capped ~550 tokens. $0, no LLM. This is how a returning
+ * NPC keeps its voice and the silver key stays remembered past the 12-line window.
+ */
+export function canonBlock(state: GameState, context: string): string {
+  const L = state.ledger;
+  if (!L || (!Object.keys(L.entities).length && !L.facts.length)) return '';
+  const hay = context.toLowerCase();
+  const scene = state.currentSceneId;
+  const entities = Object.values(L.entities);
+  const named = (e: { name: string; aliases?: string[] }) => [e.name, ...(e.aliases ?? [])].some((a) => a && hay.includes(a.toLowerCase()));
+  const matched = new Set(entities.filter((e) => e.scenes?.includes(scene) || named(e)).map((e) => e.id));
+  const live = L.facts.filter((f) => !f.supersededBy);
+  // One recursion pass: a matched entity's fact may name another entity → pull that one in too.
+  for (const f of live) if (matched.has(f.subject)) for (const e of entities) if (!matched.has(e.id) && f.value.toLowerCase().includes(e.name.toLowerCase())) matched.add(e.id);
+
+  const lines: string[] = [];
+  let budget = 2200; // ~550 tokens
+  const push = (s: string) => { if (s && budget - s.length > 0) { lines.push(s); budget -= s.length + 1; } };
+  for (const e of entities) {
+    if (!matched.has(e.id)) continue;
+    const v = e.voice;
+    const voice = v ? [v.tic && `tic: ${v.tic}`, v.want && `wants: ${v.want}`, v.fear && `fears: ${v.fear}`].filter(Boolean).join('; ') : '';
+    push(`- ${e.name} [${e.id}] (${e.status ?? 'active'})${voice ? ` — ${voice}` : ''}`);
+    for (const f of live) if (f.subject === e.id) push(`    · ${f.attribute}: ${f.value}`);
+  }
+  // Free-subject facts (party items/promises, or anything named in the turn's context).
+  for (const f of live) {
+    if (L.entities[f.subject]) continue; // already rendered under its entity
+    if (f.subject === 'party' || hay.includes(f.subject.toLowerCase()) || hay.includes(f.value.toLowerCase())) push(`- ${f.subject} · ${f.attribute}: ${f.value}`);
+  }
+  if (!lines.length) return '';
+  return `=== CANON (established world truth — NEVER contradict; if something is unknown, invent it freshly and record it with recordFact/upsertNpc) ===\n${lines.join('\n')}\n\n`;
+}
+
 /** Render the persistent NPC standings (`npc:*` flags) so the DM keeps NPCs consistent across turns. */
 function npcStandings(flags: Record<string, string | number | boolean>): string[] {
   return Object.entries(flags)
@@ -562,6 +641,7 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
     state.pendingTurn = undefined;
   } else {
     if (input.kind === 'message') engine.record('player', input.text, { speakerId: input.speakerId });
+    state.turnCount = (state.turnCount ?? 0) + 1; // recency stamp for any facts the DM records this turn
     // Drop bare roll-declaration lines ("roll: 🎲 15") — they are mechanical noise, not narrative context.
     const recent = (deps.recentTranscript ?? []).filter((l) => !/^\s*roll\s*:/i.test(l)).slice(-12).join('\n');
     const adv = state.adventure;
@@ -630,11 +710,15 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
         (npcs.length ? `NPC standings (keep consistent): ${npcs.join(', ')}\n` : '') +
         `\n`;
     }
+    // CANON: the ledger slice relevant to what's being discussed this turn (established truth to honor).
+    const playerLine = input.kind === 'message' ? input.text : '';
+    const canon = canonBlock(state, [scene?.summary ?? '', recent, playerLine].join(' '));
     messages = [
       {
         role: 'user',
         content:
           gmBlock +
+          canon +
           steering +
           `=== CURRENT STATE (authoritative; from the engine) ===\n${summarizeState(state)}\n\n` +
           (recent ? `=== RECENT ===\n${recent}\n\n` : '') +
@@ -772,6 +856,32 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
         try {
           engine.setArcFlag(String(tc.input.key ?? ''), typeof tc.input.value === 'string' ? tc.input.value : String(tc.input.value));
           resolved.push({ toolUseId: tc.id, content: JSON.stringify({ ok: true }) });
+        } catch (e) {
+          resolved.push({ toolUseId: tc.id, content: JSON.stringify({ error: (e as Error).message }) });
+        }
+      } else if (tc.name === 'upsertNpc') {
+        try {
+          const i = tc.input;
+          const rawId = String(i.id ?? '');
+          const id = /^[a-z]+:/i.test(rawId) ? rawId : `npc:${slug(rawId || String(i.name ?? ''))}`;
+          const voice = { ...(i.tic ? { tic: String(i.tic) } : {}), ...(i.want ? { want: String(i.want) } : {}), ...(i.fear ? { fear: String(i.fear) } : {}) };
+          const e = engine.upsertEntity({
+            id,
+            kind: 'npc',
+            name: String(i.name ?? ''),
+            ...(Object.keys(voice).length ? { voice } : {}),
+            ...(typeof i.status === 'string' ? { status: i.status as EntityCard['status'] } : {}),
+            ...(Array.isArray(i.aliases) ? { aliases: i.aliases.map(String) } : {}),
+            scenes: [state.currentSceneId],
+          });
+          resolved.push({ toolUseId: tc.id, content: JSON.stringify({ ok: true, id: e.id, status: e.status }) });
+        } catch (e) {
+          resolved.push({ toolUseId: tc.id, content: JSON.stringify({ error: (e as Error).message }) });
+        }
+      } else if (tc.name === 'recordFact') {
+        try {
+          const f = engine.recordFact({ subject: String(tc.input.subject ?? ''), attribute: String(tc.input.attribute ?? ''), value: String(tc.input.value ?? '') });
+          resolved.push({ toolUseId: tc.id, content: JSON.stringify({ ok: true, id: f.id }) });
         } catch (e) {
           resolved.push({ toolUseId: tc.id, content: JSON.stringify({ error: (e as Error).message }) });
         }

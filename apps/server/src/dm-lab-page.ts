@@ -503,6 +503,21 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
       if (a.npcs && a.npcs.length) h += '<div class="kv"><b>NPCs:</b> ' + a.npcs.map(function (n) { return esc(n.key + '=' + n.value); }).join(', ') + '</div>';
       h += '</div>';
     }
+    var L = a.ledger;
+    if (L) {
+      if (L.entities && L.entities.length) {
+        h += '<div class="arc-sec"><h3>Canon — cast</h3>' + L.entities.map(function (e) {
+          var v = e.voice ? [e.voice.tic, e.voice.want && 'wants ' + e.voice.want, e.voice.fear && 'fears ' + e.voice.fear].filter(Boolean).join('; ') : '';
+          return '<div class="kv"><b>' + esc(e.name) + '</b> <span style="color:#6b7080">' + esc(e.status) + '</span>' + (v ? ' — <span style="color:#9aa0b0">' + esc(v) + '</span>' : '') + '</div>';
+        }).join('') + '</div>';
+      }
+      if (L.facts && L.facts.length) {
+        h += '<div class="arc-sec"><h3>Canon — facts</h3>' + L.facts.map(function (f) { return '<div class="kv">' + esc(f.subject) + ' · ' + esc(f.attribute) + ': ' + esc(f.value) + '</div>'; }).join('') + '</div>';
+      }
+      if (L.plants && L.plants.length) {
+        h += '<div class="arc-sec"><h3>Plants</h3>' + L.plants.map(function (p) { return '<div class="kv">' + esc(p.what) + ' <span style="color:#6b7080">[' + esc(p.status) + ']</span></div>'; }).join('') + '</div>';
+      }
+    }
     el.innerHTML = h;
   }
   function setPending(rr) {

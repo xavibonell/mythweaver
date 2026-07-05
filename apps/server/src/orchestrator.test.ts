@@ -4,8 +4,9 @@ import { FakeLlmProvider, fakeText, fakeToolUse, type LlmContentBlock } from '@m
 import { InMemoryRetriever } from '@mythweaver/rag';
 import { FakeSceneComposer, type SceneComposer } from '@mythweaver/scene';
 import { validateSceneMap, type CharacterSheet, type StatBlock } from '@mythweaver/shared';
-import { runTurn } from './orchestrator.js';
+import { runTurn, canonBlock } from './orchestrator.js';
 import { FakeArcPlanner } from './arc-planner.js';
+import type { GameState } from '@mythweaver/shared';
 
 function goblinStat(): StatBlock {
   return {
@@ -340,5 +341,38 @@ describe('orchestrator turn-loop', () => {
     engine.setArcFlag('npc:edda:trust', 'low'); // NPC standing changed
     await run('press Edda'); // -> re-plan #2
     expect(planCalls).toBe(2);
+  });
+});
+
+describe('canonBlock — deterministic CANON injection (P1)', () => {
+  const state = {
+    currentSceneId: 'a',
+    ledger: {
+      entities: {
+        'npc:edda': { id: 'npc:edda', kind: 'npc', name: 'Edda', scenes: ['a'], voice: { tic: 'wrings her hands' } },
+        'npc:mabon': { id: 'npc:mabon', kind: 'npc', name: 'Mabon', scenes: ['b'] },
+        'npc:gorm': { id: 'npc:gorm', kind: 'npc', name: 'Gorm', scenes: ['c'] },
+      },
+      facts: [
+        { id: 'fact:1', subject: 'party', attribute: 'has', value: 'nothing yet', turn: 1, source: 'dm', supersededBy: 'fact:2' },
+        { id: 'fact:2', subject: 'party', attribute: 'has', value: 'a silver key and a map', turn: 2, source: 'dm' },
+      ],
+      plants: {},
+    },
+  } as unknown as GameState;
+
+  it('injects scene-native + name-mentioned entities and live party facts; excludes off-scene + superseded', () => {
+    const out = canonBlock(state, 'we ask Gorm what he saw');
+    expect(out).toContain('Edda'); // native to the current scene
+    expect(out).toContain('wrings her hands'); // its voice comes along
+    expect(out).toContain('Gorm'); // mentioned by name in the turn context
+    expect(out).not.toContain('Mabon'); // neither native to scene a nor mentioned
+    expect(out).toContain('a silver key and a map'); // the LIVE party fact
+    expect(out).not.toContain('nothing yet'); // the superseded fact is not shown
+  });
+
+  it('returns empty when the ledger is empty', () => {
+    expect(canonBlock({ currentSceneId: 'a', ledger: { entities: {}, facts: [], plants: {} } } as unknown as GameState, 'x')).toBe('');
+    expect(canonBlock({ currentSceneId: 'a' } as unknown as GameState, 'x')).toBe('');
   });
 });

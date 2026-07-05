@@ -345,6 +345,56 @@ export interface ArcBrief {
   notes?: string;
 }
 
+// ---------------------------------------------------------------------------
+// Canon Ledger (P1 — the §7 memory tier): the "world bible" that survives the
+// transcript window, so NPCs stay themselves and items/promises/facts persist.
+// ---------------------------------------------------------------------------
+
+/** Statuses an entity cannot leave once reached (no un-dying / un-destroying) — engine-enforced. */
+export type EntityStatus = 'active' | 'wounded' | 'captive' | 'gone' | 'dead' | 'destroyed';
+export const TERMINAL_ENTITY_STATUSES: readonly EntityStatus[] = ['dead', 'gone', 'destroyed'];
+
+/** A canonical world entity (NPC/place/item/faction) the DM must stay consistent with. */
+export interface EntityCard {
+  id: string; // e.g. "npc:edda", "item:silver-key", "place:bell-tower"
+  kind: 'npc' | 'place' | 'item' | 'faction' | 'other';
+  name: string;
+  /** Other ways the entity is referred to — used for canon matching against narration/input. */
+  aliases?: string[];
+  /** NPC personality anchors so a returning NPC sounds like themselves. */
+  voice?: { tic?: string; want?: string; fear?: string };
+  status?: EntityStatus; // default 'active'; terminal states are absorbing
+  /** Scenes where this entity is native — always injected into CANON when the party is there. */
+  scenes?: string[];
+  notes?: string;
+}
+
+/** An append-only canonical fact. A newer fact for the same subject+attribute SUPERSEDES the older. */
+export interface FactRow {
+  id: string;
+  subject: string; // an entity id, "party", or a free label
+  attribute: string; // e.g. "has", "promised", "location", "knows"
+  value: string;
+  turn: number; // turn index recorded (recency)
+  source: 'dm' | 'composer' | 'archivist';
+  /** Set to the superseding fact's id when a later fact overrides this one. */
+  supersededBy?: string;
+}
+
+/** A planted detail (Chekhov's gun): planted → echoed → fired over the campaign. */
+export interface Plant {
+  id: string;
+  what: string;
+  status: 'planted' | 'echoed' | 'fired';
+  turn?: number;
+}
+
+export interface LedgerState {
+  entities: Record<string, EntityCard>;
+  facts: FactRow[];
+  plants: Record<string, Plant>;
+}
+
 export interface GameState {
   sessionId: string;
   scenarioId: string;
@@ -354,6 +404,10 @@ export interface GameState {
   combat: CombatState;
   /** Quest/world flags — the v1 canonical tier (spec §7). */
   flags: Record<string, string | number | boolean>;
+  /** Canon Ledger (P1 §7 memory): entities + append-only facts + plants that survive the window. */
+  ledger?: LedgerState;
+  /** Monotonic count of message turns taken (recency stamp for facts). */
+  turnCount?: number;
   log: LogEntry[];
   /** Set when a turn is paused waiting for a player's declared dice result (spec §4.3). */
   pendingTurn?: PendingTurn;

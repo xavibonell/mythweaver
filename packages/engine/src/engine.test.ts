@@ -219,6 +219,44 @@ describe('Engine — P0 state-truth (combat lifecycle + arc)', () => {
   });
 });
 
+describe('Engine — P1 Canon Ledger', () => {
+  it('upserts an entity and MERGES voice/aliases/scenes across calls', () => {
+    const e = newEngine();
+    e.upsertEntity({ id: 'npc:edda', kind: 'npc', name: 'Edda', voice: { tic: 'wrings her hands' }, scenes: ['a'] });
+    e.upsertEntity({ id: 'npc:edda', name: 'Edda', voice: { want: 'to be forgiven' }, aliases: ['the bellkeeper'], scenes: ['b'] });
+    const card = e.getState().ledger!.entities['npc:edda']!;
+    expect(card.voice).toEqual({ tic: 'wrings her hands', want: 'to be forgiven' });
+    expect(card.aliases).toEqual(['the bellkeeper']);
+    expect(card.scenes).toEqual(['a', 'b']);
+  });
+
+  it('absorbing status: a dead entity cannot be revived by a later upsert', () => {
+    const e = newEngine();
+    e.upsertEntity({ id: 'npc:mabon', kind: 'npc', name: 'Mabon', status: 'dead' });
+    e.upsertEntity({ id: 'npc:mabon', name: 'Mabon', status: 'active' }); // attempt to un-die
+    expect(e.getState().ledger!.entities['npc:mabon']!.status).toBe('dead');
+  });
+
+  it('recordFact supersedes the prior live fact for the same subject+attribute', () => {
+    const e = newEngine();
+    e.recordFact({ subject: 'npc:edda', attribute: 'standing', value: 'wary' });
+    e.recordFact({ subject: 'npc:edda', attribute: 'standing', value: 'trusting' });
+    const facts = e.getState().ledger!.facts;
+    expect(facts).toHaveLength(2);
+    expect(facts[0]!.supersededBy).toBe(facts[1]!.id); // old one marked, not deleted (append-only)
+    const live = facts.filter((f) => !f.supersededBy);
+    expect(live.map((f) => f.value)).toEqual(['trusting']);
+  });
+
+  it('plants advance monotonically (planted → echoed → fired; never backward)', () => {
+    const e = newEngine();
+    e.setPlant('plant:heirloom', 'a cracked locket', 'planted');
+    e.setPlant('plant:heirloom', 'a cracked locket', 'fired');
+    e.setPlant('plant:heirloom', 'a cracked locket', 'planted'); // attempt to go backward
+    expect(e.getState().ledger!.plants['plant:heirloom']!.status).toBe('fired');
+  });
+});
+
 describe('Engine — death saves & healing', () => {
   it('downs a PC to dying (not dead) and begins death saves', () => {
     const e = newEngine();

@@ -285,6 +285,14 @@ export function createDmLabSession(deps: DmLabDeps, scenarioId: string): DmLabSe
   });
   // Pre-prime the architected blueprint so the orchestrator SKIPS the architect step in generate-mode.
   if (gen) state.arc = { blueprint: gen.blueprint, genMeta: gen.genMeta };
+  // Prime the Canon Ledger from the generated cast + plants (facts accrue during play).
+  if (gen?.ledger) {
+    state.ledger = {
+      entities: Object.fromEntries((gen.ledger.entities ?? []).map((e) => [e.id, e])),
+      facts: [],
+      plants: Object.fromEntries((gen.ledger.plants ?? []).map((p) => [p.id, p])),
+    };
+  }
   return {
     scenarioId,
     engine: new Engine(state),
@@ -404,7 +412,16 @@ export function arcView(session: DmLabSession) {
     sceneId: e.sceneId,
     monsters: e.monsters.map((m) => ({ name: st.bestiary?.[m.statBlockId]?.name ?? m.statBlockId, count: m.count })),
   }));
-  return { blueprint: arc.blueprint ?? null, brief: arc.brief ?? null, currentScene: st.currentSceneId, beats, decisions, npcs, genMeta, stale, encounters };
+  // Canon Ledger (P1): entities (with voice + status), live facts, plants — the live "world bible".
+  const L = st.ledger;
+  const ledger = L
+    ? {
+        entities: Object.values(L.entities).map((e) => ({ id: e.id, name: e.name, kind: e.kind, status: e.status ?? 'active', voice: e.voice ?? null })),
+        facts: L.facts.filter((f) => !f.supersededBy).map((f) => ({ subject: f.subject, attribute: f.attribute, value: f.value, turn: f.turn })),
+        plants: Object.values(L.plants).map((p) => ({ id: p.id, what: p.what, status: p.status })),
+      }
+    : null;
+  return { blueprint: arc.blueprint ?? null, brief: arc.brief ?? null, currentScene: st.currentSceneId, beats, decisions, npcs, genMeta, stale, encounters, ledger };
 }
 
 /**
