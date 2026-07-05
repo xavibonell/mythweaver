@@ -261,7 +261,9 @@ function townGen(cv: Canvas, ctx: GenContext): void {
       const parkCtr = rectCenter(park);
       // a fountain only befits a genteel town; a working/rough town gets a firepit gathering-spot instead.
       const genteel = !contents.character || contents.character === 'civic' || contents.character === 'market';
-      const parkTag = genteel ? 'fountain' : contents.character === 'grim' ? 'gravestone' : 'brazier';
+      // the PARK gets a statue/monument (or a grim/rough marker) — the fountain is reserved for the ONE
+      // civic PLAZA square, so it stops appearing in every green corner of town.
+      const parkTag = genteel ? 'statue' : contents.character === 'grim' ? 'gravestone' : 'brazier';
       place(cv, { id: `prop:park-centre-${slug(locationId, 0)}`, tag: parkTag, kind: 'prop', at: parkCtr });
       for (const [dx, dy] of [[-2, 0], [2, 0], [0, -2], [0, 2]] as const) { const bc = parkCtr.c + dx, br = parkCtr.r + dy; if (cv.inB(bc, br) && cv.isFree(bc, br)) place(cv, { id: `prop:park-bench-${bc}-${br}`, tag: 'stone_bench', kind: 'prop', at: { c: bc, r: br } }); }
     }

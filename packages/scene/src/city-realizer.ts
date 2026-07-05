@@ -332,10 +332,10 @@ function fillCoreCell(cv: Canvas, w: Ward, info: CellInfo, nid: number[][], loc:
     emit(big, side);
   }
   // TENDED courtyard/garden on the leftover grass (block interiors, rear slabs, arms, the setback band) —
-  // a kitchen-garden so a node never reads as bare grass: a well/fountain focal point, then dense planting
-  // (bushes/crops/fences/a few trees) + flower beds.
+  // a kitchen-garden so a node never reads as bare grass: a TREE/statue focal point (NOT a fountain — that
+  // belongs on the plaza square, not in every yard), then dense planting (bushes/crops/fences/a few trees).
   if (cv.inB(info.cc, info.cr) && cv.isFree(info.cc, info.cr) && cv.tileAt(info.cc, info.cr) === 'grass' && cv.rng() < 0.65)
-    place(cv, { id: `prop:${ns}-yard-${id}`, tag: 'fountain', kind: 'prop', at: { c: info.cc, r: info.cr } });
+    place(cv, { id: `prop:${ns}-yard-${id}`, tag: cv.rng() < 0.55 ? 'tree_oak' : 'statue', kind: 'prop', at: { c: info.cc, r: info.cr } });
   // Planting in clumped BEDS/thickets (not an even sprinkle) → reads as a designed kitchen-garden, never bare.
   clumpScatter(cv, rectOf(info), { tags: ['bush', 'bush', 'fence', 'woodpile', 'tree', ...WARD_PROPS[propClass(w)]!], freq: 0.18, threshold: 0.5, max: 12, blocks: true, filter: (c, r) => inCell(c, r) && cv.tileAt(c, r) === 'grass' && cv.isFree(c, r) });
   poissonScatter(cv, rectOf(info), { tags: ['flowers', 'flowers_blue', 'flowers_yellow', 'grass_tuft', 'mushroom'], r: 1, max: 14, blocks: false, filter: (c, r) => inCell(c, r) && cv.tileAt(c, r) === 'grass' && cv.isFree(c, r) });

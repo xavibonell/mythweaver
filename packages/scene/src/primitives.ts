@@ -629,7 +629,9 @@ export function compound(cv: Canvas, region: Rect, type: BuildingType, opts: { d
         const border = x === lf.x || x === lf.x + lf.w - 1 || y === lf.y || y === lf.y + lf.h - 1;
         if (border && !isGate(x, y)) { cv.reserve(x, y); cv.walkable[y]![x] = false; cv.ambiance.push({ tag: 'fence', col: x, row: y }); }
       }
-      place(cv, { id: `prop:${safe}-garden`, tag: 'fountain', kind: 'prop', at: { c: lf.x + Math.floor(lf.w / 2), r: lf.y + Math.floor(lf.h / 2) } });
+      // a GARDEN's centrepiece is greenery/a statue, NEVER a fountain (a fountain belongs on the civic
+      // PLAZA square, not in every fenced building yard — the fountain-everywhere overuse).
+      place(cv, { id: `prop:${safe}-garden`, tag: cv.rng() < 0.55 ? 'tree_oak' : 'statue', kind: 'prop', at: { c: lf.x + Math.floor(lf.w / 2), r: lf.y + Math.floor(lf.h / 2) } });
       for (let y = lf.y + 1; y < lf.y + lf.h - 1; y++) for (let x = lf.x + 1; x < lf.x + lf.w - 1; x++) if (cv.isFree(x, y) && cv.rng() < 0.45) { const tag = GARDEN[Math.floor(cv.rng() * GARDEN.length)]!; cv.reserve(x, y); if (tag.startsWith('tree')) cv.walkable[y]![x] = false; cv.ambiance.push({ tag, col: x, row: y }); }
       return;
     }
