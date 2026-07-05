@@ -183,6 +183,18 @@ export const COMPOSITION_RUBRIC = [
       'through, with a centre, streets, and packed varied buildings — rather than a procedural parcel-fill, a ' +
       'field of scattered huts, or one big building mislabelled as a town.',
   },
+  {
+    key: 'featureCredibility',
+    label: 'Feature credibility & context',
+    desc:
+      'Every named NATURAL or FUNCTIONAL feature reads UNMISTAKABLY as what it is, and nothing is ' +
+      'contextually incongruous. A MOUNTAIN/CLIFF reads as impassable rocky high ground (a vertical rock ' +
+      'face), NOT a flat desert texture; the SEA as open water with a shoreline; a PORT as docks/piers with ' +
+      'boats; a MINE as an entrance cut into rock. And the furnishing FITS the place: a genteel fountain in a ' +
+      'rough mining camp, market stalls in a wilderness, or a boat that reads as a paper triangle all score ' +
+      'LOW here. You could name each feature at a glance and nothing feels out of place for the kind of ' +
+      'settlement it is.',
+  },
 ] as const;
 
 export const COMPOSITION_NOT_DEFECTS = [
@@ -197,6 +209,7 @@ export const COMPOSITION_LENSES: JudgeLens[] = [
   { key: 'publicspace', focus: 'the PLAZA and STREET NETWORK — is the centre a deliberate framed square with a clear focal feature? do paved streets/alleys form a connected, navigable, intricate network (plaza→buildings→out) with winding alleys, not dead gaps or one lone ring?' },
   { key: 'packing', focus: 'FRONTAGE PACKING and MASSING — do buildings pack onto the street edge (walls/doors addressing it, abutting neighbours) to DEFINE the open space, vs isolated boxes in grass? do footprints vary in size and use irregular L/T/U/compound silhouettes?' },
   { key: 'gestalt', focus: 'GREENERY and the WHOLE — is greenery intentional (groves/parks/lining) rather than uniform noise? does the whole read as a believable hand-built town slice, not a procedural fill or one mislabelled building?' },
+  { key: 'credibility', focus: 'FEATURE CREDIBILITY and CONTEXT — does each named feature read as itself (a MOUNTAIN as a rocky cliff not a desert texture; the SEA as water; a PORT as docks+boats; a MINE as a rock entrance)? is anything contextually WRONG for this settlement (a fountain in a mining camp, a crude/abstract prop, stalls in a wilderness)?' },
 ];
 
 /** The TARGET the town composition is measured against — a hand-crafted top-down RPG town (CrossCode /
