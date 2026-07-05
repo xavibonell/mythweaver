@@ -90,18 +90,28 @@ function reserveEdgeField(cv: Canvas, B: Rect, interior: Rect, kind: 'coast' | '
     : edge === 'south' ? { x: B.x, y: full.y + offset, w: B.w, h: w }
     : { x: B.x, y: full.y + band - offset - w, w: B.w, h: w };
   if (kind === 'mountain') {
-    fill(cv, full, 'rock_wall', false);
-    // scatter boulders/rocks so the massif reads as rugged rock, not flat gravel. The band is
-    // non-walkable, so place them straight into the decorative layer (like the garden trees) rather
-    // than via place() (which requires a walkable free cell).
-    const rockTags = ['boulder', 'rocks_grey', 'rocks_brown', 'stone_pile'];
-    const nRocks = Math.max(6, Math.floor((full.w * full.h) / 16));
-    const seen = new Set<number>();
-    for (let i = 0; i < nRocks; i++) {
-      const rc = full.x + Math.floor(cv.rng() * full.w), rr = full.y + Math.floor(cv.rng() * full.h);
-      const key = rr * cv.cols + rc;
-      const tag = rockTags[Math.floor(cv.rng() * rockTags.length)]!;
-      if (cv.inB(rc, rr) && !seen.has(key)) { seen.add(key); cv.ambiance.push({ tag, col: rc, row: rr }); }
+    // A CLIFF, not a flat fill: a JAGGED body of dark rock (bakeRockMass gives it a town-facing vertical
+    // FACE), a cast SHADOW on the grass at its foot (the top-down depth cue), and boulder scree — so it
+    // reads as impassable high ground, not a desert texture. Rock cells set directly (non-walkable).
+    const g = frontierGeom(full, edge);
+    const depth = edge === 'east' || edge === 'west' ? full.w : full.h;
+    const scree = ['boulder', 'rocks_grey', 'rocks_brown', 'stone_pile'];
+    for (let a = 0; a < g.len; a++) {
+      const jit = Math.floor(cv.rng() * 4); // pull the face back 0–3 tiles → irregular silhouette
+      for (let d = jit; d < depth; d++) {
+        const c = g.sx + g.ax * a + g.ix * d, r = g.sy + g.ay * a + g.iy * d;
+        if (cv.inB(c, r)) { cv.tiles[r]![c] = 'rock_wall'; cv.walkable[r]![c] = false; }
+      }
+      const fc = g.sx + g.ax * a + g.ix * (jit - 1), fr = g.sy + g.ay * a + g.iy * (jit - 1); // grass foot, in front of the face
+      if (cv.inB(fc, fr) && cv.walkable[fr]?.[fc]) {
+        cv.ambiance.push({ tag: 'cliff_shadow', col: fc, row: fr });
+        if (a % 3 === 1) cv.ambiance.push({ tag: scree[Math.floor(cv.rng() * scree.length)]!, col: fc, row: fr });
+      }
+    }
+    for (let i = 0; i < Math.floor(g.len / 4); i++) { // a little scree on the rock top for texture
+      const a = Math.floor(cv.rng() * g.len), d = 1 + Math.floor(cv.rng() * Math.max(1, depth - 2));
+      const c = g.sx + g.ax * a + g.ix * d, r = g.sy + g.ay * a + g.iy * d;
+      if (cv.inB(c, r)) cv.ambiance.push({ tag: scree[Math.floor(cv.rng() * scree.length)]!, col: c, row: r });
     }
   } else {
     fill(cv, full, 'water_deep', false); // open sea

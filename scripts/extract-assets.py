@@ -346,7 +346,18 @@ def gen_forge(dst: str, frm: dict) -> None:
     im.save(dst)
 
 
+def gen_cliff_shadow(dst: str, frm: dict) -> None:
+    """A soft cast shadow for a cliff foot: darkest on the cliff (left) side, fading to transparent."""
+    im = Image.new("RGBA", (16, 16), (0, 0, 0, 0))
+    for x in range(16):
+        a = int(150 * max(0.0, 1.0 - x / 13.0))
+        for y in range(16):
+            im.putpixel((x, y), (20, 12, 28, a))
+    im.save(dst)
+
+
 GENERATORS = {
+    "cliff_shadow": gen_cliff_shadow,
     "anvil": gen_anvil, "forge": gen_forge,
     "water": gen_water, "water_deep": gen_water_deep, "lava": gen_lava, "sand": gen_sand, "boat": gen_boat,
     "house": gen_house, "fountain": gen_fountain, "dlhouse": gen_dlhouse, "stall": gen_stall, "wall": gen_wall, "flowers": gen_flowers,

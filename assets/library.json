@@ -6028,7 +6028,7 @@
             "crop": "Objects/Wall.png",
             "rect": [
               64,
-              256,
+              400,
               16,
               16
             ]
@@ -6056,7 +6056,7 @@
             "crop": "Objects/Wall.png",
             "rect": [
               64,
-              240,
+              384,
               16,
               16
             ]
@@ -6080,7 +6080,7 @@
             "crop": "Objects/Wall.png",
             "rect": [
               64,
-              272,
+              416,
               16,
               16
             ]
@@ -6104,7 +6104,7 @@
             "crop": "Objects/Wall.png",
             "rect": [
               80,
-              256,
+              400,
               16,
               16
             ]
@@ -6128,7 +6128,7 @@
             "crop": "Objects/Wall.png",
             "rect": [
               48,
-              256,
+              400,
               16,
               16
             ]
@@ -6152,7 +6152,7 @@
             "crop": "Objects/Wall.png",
             "rect": [
               16,
-              240,
+              384,
               16,
               16
             ]
@@ -6176,7 +6176,7 @@
             "crop": "Objects/Wall.png",
             "rect": [
               0,
-              256,
+              400,
               16,
               16
             ]
@@ -6200,7 +6200,7 @@
             "crop": "Objects/Wall.png",
             "rect": [
               0,
-              240,
+              384,
               16,
               16
             ]
@@ -6224,7 +6224,7 @@
             "crop": "Objects/Wall.png",
             "rect": [
               32,
-              240,
+              384,
               16,
               16
             ]
@@ -6248,7 +6248,7 @@
             "crop": "Objects/Wall.png",
             "rect": [
               0,
-              272,
+              416,
               16,
               16
             ]
@@ -6272,7 +6272,7 @@
             "crop": "Objects/Wall.png",
             "rect": [
               32,
-              272,
+              416,
               16,
               16
             ]
@@ -6296,7 +6296,7 @@
             "crop": "Objects/Wall.png",
             "rect": [
               48,
-              240,
+              384,
               16,
               16
             ]
@@ -6375,6 +6375,26 @@
       },
       "license": "AI-generated (OpenAI gpt-image-1) in the DB16 palette; owned per OpenAI terms \u2014 NOT DawnLike art",
       "attribution": "generated asset (not DawnLike)"
+    },
+    {
+      "kind": "prop",
+      "tag": "cliff_shadow",
+      "desc": "a cast shadow at a cliff foot",
+      "biomes": [
+        "mountain"
+      ],
+      "art": "/assets/gen-ai/props/cliff_shadow.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false,
+      "from": {
+        "gen": "cliff_shadow"
+      },
+      "license": "procedural",
+      "attribution": "generated"
     }
   ]
 }
