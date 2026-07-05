@@ -6395,6 +6395,90 @@
       },
       "license": "procedural",
       "attribution": "generated"
+    },
+    {
+      "kind": "prop",
+      "tag": "peak_a",
+      "desc": "a rocky mountain peak",
+      "biomes": [
+        "mountain",
+        "wild"
+      ],
+      "art": "/assets/dawnlike/props/peak_a.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false,
+      "from": {
+        "pack": "DawnLike",
+        "crop": "Objects/Hill0.png",
+        "rect": [
+          48,
+          0,
+          16,
+          16
+        ]
+      },
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
+    },
+    {
+      "kind": "prop",
+      "tag": "peak_b",
+      "desc": "a rocky mountain peak",
+      "biomes": [
+        "mountain",
+        "wild"
+      ],
+      "art": "/assets/dawnlike/props/peak_b.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false,
+      "from": {
+        "pack": "DawnLike",
+        "crop": "Objects/Hill0.png",
+        "rect": [
+          96,
+          0,
+          16,
+          16
+        ]
+      },
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
+    },
+    {
+      "kind": "prop",
+      "tag": "peak_c",
+      "desc": "a rocky mountain peak",
+      "biomes": [
+        "mountain",
+        "wild"
+      ],
+      "art": "/assets/dawnlike/props/peak_c.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false,
+      "from": {
+        "pack": "DawnLike",
+        "crop": "Objects/Hill0.png",
+        "rect": [
+          144,
+          0,
+          16,
+          16
+        ]
+      },
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
     }
   ]
 }

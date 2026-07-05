@@ -108,11 +108,15 @@ function reserveEdgeField(cv: Canvas, B: Rect, interior: Rect, kind: 'coast' | '
         if (a % 3 === 1) cv.ambiance.push({ tag: scree[Math.floor(cv.rng() * scree.length)]!, col: fc, row: fr });
       }
     }
-    for (let i = 0; i < Math.floor(g.len / 4); i++) { // a little scree on the rock top for texture
-      const a = Math.floor(cv.rng() * g.len), d = 1 + Math.floor(cv.rng() * Math.max(1, depth - 2));
-      const c = g.sx + g.ax * a + g.ix * d, r = g.sy + g.ay * a + g.iy * d;
-      if (cv.inB(c, r)) cv.ambiance.push({ tag: scree[Math.floor(cv.rng() * scree.length)]!, col: c, row: r });
-    }
+    // OVERWORLD PEAKS: a dense cluster of mountain-peak icons over the rock builds a legible mountain-
+    // RANGE silhouette (the top-down convention that reads as "mountains", not a flat rock texture).
+    const peaks = ['peak_a', 'peak_b', 'peak_c'];
+    for (let a = 0; a < g.len; a++)
+      for (let d = 1; d < depth; d++) {
+        const c = g.sx + g.ax * a + g.ix * d, r = g.sy + g.ay * a + g.iy * d;
+        if (cv.inB(c, r) && (cv.tiles[r]?.[c] ?? '').startsWith('rock_wall') && cv.rng() < 0.34)
+          cv.ambiance.push({ tag: peaks[Math.floor(cv.rng() * peaks.length)]!, col: c, row: r });
+      }
   } else {
     fill(cv, full, 'water_deep', false); // open sea
     fill(cv, strip(1, 2), 'water', false); // shallows
