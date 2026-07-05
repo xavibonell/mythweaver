@@ -99,6 +99,28 @@ export async function labBuildStory(deps: { llm: LlmProvider; model?: string }, 
  * the DM's declaration (setting + cast + fixtures), compose a primitive program (G1 — the audited
  * extraction path), deterministically inject the declared cast, and run it. One LLM call.
  */
+/** EMISSION nudge (Weave terrain-field): when the DM's brief names a COAST or MOUNTAINS, prepend a
+ *  terrain-field `fill` on a map edge so "a village by the sea" / "a town beneath the mountains"
+ *  actually renders the feature — the same `fill`+autotile primitive that already makes lakes, now
+ *  triggered from the fiction. Sea → east edge (deep water · shallows · beach), mountains → west edge
+ *  (rock massif). Inserted AFTER the base fill but BEFORE the LLM's buildings/scatter, so a structure
+ *  drawn later sits ON TOP of the field (a house never sinks into the sea; the band just gets clipped). */
+function edgeTerrainFieldOps(text: string, cols: number, rows: number): SceneProgram['ops'] {
+  const t = text.toLowerCase();
+  const ops: SceneProgram['ops'] = [];
+  const w = Math.max(4, Math.round(cols * 0.2));
+  if (/\b(sea|seaside|seashore|coast|coastal|beach|shore|shoreline|ocean|oceanside|harbou?r|bay|lagoon|wharf|quay|waterfront|fishing village|by the water)\b/.test(t)) {
+    const x0 = cols - w;
+    ops.push({ op: 'fill', region: { x: x0, y: 0, w, h: rows }, tag: 'water_deep' });
+    ops.push({ op: 'fill', region: { x: Math.max(0, x0 - 2), y: 0, w: 2, h: rows }, tag: 'water' });
+    ops.push({ op: 'fill', region: { x: Math.max(0, x0 - 3), y: 0, w: 1, h: rows }, tag: 'sand' });
+  }
+  if (/\b(mountains?|mountainous|mountainside|cliffs?|crags?|craggy|highlands?|foothills?|ridge|escarpment|rocky peaks?|beneath the peaks?)\b/.test(t)) {
+    ops.push({ op: 'fill', region: { x: 0, y: 0, w, h: rows }, tag: 'rock' });
+  }
+  return ops;
+}
+
 export async function realizeStoryScene(deps: { llm: LlmProvider; model?: string }, establish: EstablishScene, premise: string, party: PartyMemberRef[] = []): Promise<{ sceneMap: SceneMap; program: SceneProgram }> {
   const npcLines = establish.npcs.filter((n) => n.visible !== false).map((n) => `${n.name}${n.look ? ` (${n.look})` : ''}`);
   const fixTags = [...new Set(establish.fixtures.map((f) => f.tag))];
@@ -109,6 +131,22 @@ export async function realizeStoryScene(deps: { llm: LlmProvider; model?: string
     fixTags.length ? `Notable objects: ${fixTags.join(', ')}` : '',
   ].filter(Boolean).join('\n');
   const program = await new LlmSceneProgrammer(deps.llm, deps.model).compose(enriched);
+  // TERRAIN-FIELD EMISSION: if the fiction names a coast/mountains, splice the field fill in after any
+  // leading full-map base fill(s) but before the content ops (so buildings draw over it). Skip interiors.
+  if (program.grammar !== 'enclosed-interior') {
+    const fieldOps = edgeTerrainFieldOps(`${premise} ${establish.brief?.setting ?? ''} ${establish.brief?.biome ?? ''}`, program.cols, program.rows);
+    if (fieldOps.length) {
+      const full = (r: unknown): boolean => {
+        if (r === 'all') return true;
+        if (!r || typeof r !== 'object' || !('w' in r)) return false;
+        const rr = r as { x?: number; y?: number; w: number; h: number };
+        return (rr.x ?? 0) <= 0 && (rr.y ?? 0) <= 0 && rr.w >= program.cols && rr.h >= program.rows;
+      };
+      let at = 0;
+      while (at < program.ops.length && program.ops[at]!.op === 'fill' && full((program.ops[at] as { region?: unknown }).region)) at++;
+      program.ops.splice(at, 0, ...fieldOps);
+    }
+  }
   // CAST INJECTION (deterministic): the DM's declaration is the story's truth — any named character the
   // programmer dropped is merged straight into the program (archetype contents, else a place op), so the
   // cast can never be lost to LLM variance. Sprites resolved from the DM's look text (lookToSprite).

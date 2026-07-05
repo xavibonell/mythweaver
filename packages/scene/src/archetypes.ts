@@ -36,6 +36,10 @@ export interface Contents {
   entranceSide?: 'north' | 'south' | 'east' | 'west';
   /** A CANAL threads the town (Weave L1 — the main artery becomes a water seam with bridges). */
   canal?: boolean;
+  /** A COAST — the sea takes a map edge (deep water · shallows · beach), the town sits inland. */
+  coast?: boolean;
+  /** MOUNTAINS — a rock massif takes a map edge; the town sits on the land beside it. */
+  mountain?: boolean;
 }
 export interface GenContext {
   theme: Theme;
@@ -53,6 +57,43 @@ const edgePt = (B: Rect, side: 'north' | 'south' | 'east' | 'west'): Pt => {
   return side === 'north' ? { c: mc, r: B.y } : side === 'south' ? { c: mc, r: B.y + B.h - 1 } : side === 'west' ? { c: B.x, r: mr } : { c: B.x + B.w - 1, r: mr };
 };
 const rectCenter = (r: Rect): Pt => ({ c: r.x + Math.floor(r.w / 2), r: r.y + Math.floor(r.h / 2) });
+
+type FieldSide = 'north' | 'south' | 'east' | 'west';
+/** Reserve an edge BAND of the bounds as a terrain FIELD (Weave field primitive) and shrink `interior`
+ *  off it, so the settlement lays out on land and the field forms a coherent frontier (autotiled at
+ *  bake) — the same `fill`+autotile machinery that makes lakes, now triggered from the fiction. coast =
+ *  a beach → shallows → deep-water gradient; mountain = an impassable rock massif. No-op if the band
+ *  would starve the buildable interior. Mutates `interior`. */
+function reserveEdgeField(cv: Canvas, B: Rect, interior: Rect, kind: 'coast' | 'mountain', avoid?: FieldSide): void {
+  const opp: Record<FieldSide, FieldSide> = { north: 'south', south: 'north', east: 'west', west: 'east' };
+  let edge: FieldSide = kind === 'coast' ? 'east' : 'west';
+  if (edge === avoid) edge = opp[edge];
+  const horiz = edge === 'east' || edge === 'west';
+  const band = Math.max(5, Math.floor((horiz ? B.w : B.h) * 0.26));
+  const cut = band + 1;
+  if (horiz ? interior.w - cut < 16 : interior.h - cut < 16) return; // don't starve the town
+  const full: Rect = edge === 'west' ? { x: B.x, y: B.y, w: band, h: B.h }
+    : edge === 'east' ? { x: B.x + B.w - band, y: B.y, w: band, h: B.h }
+    : edge === 'north' ? { x: B.x, y: B.y, w: B.w, h: band }
+    : { x: B.x, y: B.y + B.h - band, w: B.w, h: band };
+  // a strip `w` tiles wide, `offset` in from the LAND-facing side of the band, running seaward.
+  const strip = (offset: number, w: number): Rect =>
+    edge === 'east' ? { x: full.x + offset, y: B.y, w, h: B.h }
+    : edge === 'west' ? { x: full.x + band - offset - w, y: B.y, w, h: B.h }
+    : edge === 'south' ? { x: B.x, y: full.y + offset, w: B.w, h: w }
+    : { x: B.x, y: full.y + band - offset - w, w: B.w, h: w };
+  if (kind === 'mountain') {
+    fill(cv, full, 'rock', false);
+  } else {
+    fill(cv, full, 'water_deep', false); // open sea
+    fill(cv, strip(1, 2), 'water', false); // shallows
+    fill(cv, strip(0, 1), 'sand', true); // beach (walkable)
+  }
+  if (edge === 'west') { interior.x += cut; interior.w -= cut; }
+  else if (edge === 'east') { interior.w -= cut; }
+  else if (edge === 'north') { interior.y += cut; interior.h -= cut; }
+  else { interior.h -= cut; }
+}
 
 // ---------------------------------------------------------------------------
 // TOWN — the real procedural-settlement algorithm.
@@ -75,6 +116,12 @@ function townGen(cv: Canvas, ctx: GenContext): void {
   const ix = B.x + inset + jm(), iy = B.y + inset + jm();
   const interior: Rect = { x: ix, y: iy, w: B.x + B.w - inset - jm() - ix, h: B.y + B.h - inset - jm() - iy };
   if (interior.w < 12 || interior.h < 12) { interior.x = B.x + 1; interior.y = B.y + 1; interior.w = B.w - 2; interior.h = B.h - 2; }
+
+  // STAGE 0b — TERRAIN FIELD (Weave field primitive): a coast/mountains brief reserves an edge band as a
+  // water/rock field and shrinks the interior off it, so the town sits on land and the field forms a
+  // coherent frontier at bake. Applied before streets/parcels so buildings never land in the sea/cliffs.
+  if (contents.mountain) reserveEdgeField(cv, B, interior, 'mountain', contents.entranceSide);
+  if (contents.coast) reserveEdgeField(cv, B, interior, 'coast', contents.entranceSide);
 
   // STAGE 1 — ORGANIC STREET NETWORK via the LOOM (routeSeam, Weave L1). Recursive bisection carves a
   // material-typed seam at each cut (2-wide cobble arteries near the top, 1-wide dirt alleys deeper), and

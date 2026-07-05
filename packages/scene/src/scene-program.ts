@@ -72,7 +72,7 @@ const resolvePt = (cv: Canvas, spec: PtSpec): Pt => {
 /** Run one op against the canvas. When `theme` is set, OPEN-GROUND ops draw their material from it
  *  (hazards water/lava/sand keep their own tag) — the per-scene material-consistency guarantee. */
 function runOp(cv: Canvas, op: SceneOp, locationId: string, theme?: Theme): void {
-  const haz = (t: string) => t === 'water' || t === 'water_deep' || t === 'lava' || t === 'sand';
+  const haz = (t: string) => t === 'water' || t === 'water_deep' || t === 'lava' || t === 'sand' || t === 'rock';
   const wmat = (): 'wall' | 'wall_wood' => (theme && theme.wallMat === 'wood' ? 'wall_wood' : 'wall');
   switch (op.op) {
     case 'fill': fill(cv, resolveRegion(cv, op.region), theme && !haz(op.tag) ? theme.ground : op.tag, op.walkable); break;
@@ -351,6 +351,8 @@ function normContents(v: unknown): Contents {
     mobs: arr(r.mobs).slice(0, 12).map((m) => { const o = asRec(m); return { tag: charOr(o.tag ?? o.type), count: Math.max(1, Math.min(20, num(o.count, 4))) }; }),
     ...(typeof r.wall === 'boolean' ? { wall: r.wall } : {}),
     ...(typeof r.canal === 'boolean' ? { canal: r.canal } : {}),
+    ...(typeof r.coast === 'boolean' ? { coast: r.coast } : {}),
+    ...(typeof r.mountain === 'boolean' ? { mountain: r.mountain } : {}),
     ...(side === 'north' || side === 'south' || side === 'east' || side === 'west' ? { entranceSide: side } : {}),
   };
 }
@@ -540,9 +542,12 @@ function harvestTownContents(ops: SceneOp[], lcb: string): Contents {
   if (!buildings.length) buildings.push({ type: 'tavern' }, { type: 'shop' }, { type: 'house' }, { type: 'house' }, { type: 'house' }, { type: 'house' });
   const haveProp = new Set(landmarks.map((l) => l.tag));
   for (const [re, tag] of BRIEF_PROPS) if (re.test(lcb) && !haveProp.has(tag)) { landmarks.push({ tag }); haveProp.add(tag); }
-  // FEATURE net (Weave L1 seed): a brief naming a waterway threads a canal through the town.
+  // FEATURE nets (Weave field/seam primitives): a brief naming a waterway threads a canal; naming a
+  // coast/mountains hands a map edge to a water/rock terrain field (the town sits on the land).
   const canal = /\b(canal|waterway|watergate|quay|wharf|dock)\b/.test(lcb);
-  return { buildings, landmarks, npcs, mobs, ...(wall ? { wall: true } : {}), ...(canal ? { canal: true } : {}), ...(entranceSide ? { entranceSide } : {}) };
+  const coast = /\b(sea|seaside|seashore|coast|coastal|beach|shore|shoreline|ocean|oceanside|seafront|waterfront|bay|lagoon|fishing village|by the water)\b/.test(lcb);
+  const mountain = /\b(mountains?|mountainous|mountainside|cliffs?|crags?|craggy|highlands?|foothills?|escarpment|beneath the peaks?)\b/.test(lcb);
+  return { buildings, landmarks, npcs, mobs, ...(wall ? { wall: true } : {}), ...(canal ? { canal: true } : {}), ...(coast ? { coast: true } : {}), ...(mountain ? { mountain: true } : {}), ...(entranceSide ? { entranceSide } : {}) };
 }
 
 function progSeed(s: string): number {

@@ -5562,6 +5562,226 @@
       },
       "license": "CC-BY-4.0",
       "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
+    },
+    {
+      "kind": "terrain",
+      "tag": "rock",
+      "desc": "rocky mountain ground",
+      "walkable": false,
+      "variants": [
+        {
+          "art": "/assets/dawnlike/terrain/rock.png",
+          "from": {
+            "pack": "DawnLike",
+            "crop": "Objects/Floor.png",
+            "rect": [
+              240,
+              112,
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite",
+      "biomes": [
+        "mountain",
+        "wild",
+        "cave"
+      ]
+    },
+    {
+      "kind": "terrain",
+      "tag": "rock_t",
+      "desc": "rock edge t",
+      "walkable": false,
+      "variants": [
+        {
+          "art": "/assets/dawnlike/terrain/rock_t.png",
+          "from": {
+            "pack": "DawnLike",
+            "crop": "Objects/Floor.png",
+            "rect": [
+              240,
+              96,
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite",
+      "internal": true
+    },
+    {
+      "kind": "terrain",
+      "tag": "rock_b",
+      "desc": "rock edge b",
+      "walkable": false,
+      "variants": [
+        {
+          "art": "/assets/dawnlike/terrain/rock_b.png",
+          "from": {
+            "pack": "DawnLike",
+            "crop": "Objects/Floor.png",
+            "rect": [
+              240,
+              128,
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite",
+      "internal": true
+    },
+    {
+      "kind": "terrain",
+      "tag": "rock_l",
+      "desc": "rock edge l",
+      "walkable": false,
+      "variants": [
+        {
+          "art": "/assets/dawnlike/terrain/rock_l.png",
+          "from": {
+            "pack": "DawnLike",
+            "crop": "Objects/Floor.png",
+            "rect": [
+              224,
+              112,
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite",
+      "internal": true
+    },
+    {
+      "kind": "terrain",
+      "tag": "rock_r",
+      "desc": "rock edge r",
+      "walkable": false,
+      "variants": [
+        {
+          "art": "/assets/dawnlike/terrain/rock_r.png",
+          "from": {
+            "pack": "DawnLike",
+            "crop": "Objects/Floor.png",
+            "rect": [
+              256,
+              112,
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite",
+      "internal": true
+    },
+    {
+      "kind": "terrain",
+      "tag": "rock_tl",
+      "desc": "rock edge tl",
+      "walkable": false,
+      "variants": [
+        {
+          "art": "/assets/dawnlike/terrain/rock_tl.png",
+          "from": {
+            "pack": "DawnLike",
+            "crop": "Objects/Floor.png",
+            "rect": [
+              224,
+              96,
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite",
+      "internal": true
+    },
+    {
+      "kind": "terrain",
+      "tag": "rock_tr",
+      "desc": "rock edge tr",
+      "walkable": false,
+      "variants": [
+        {
+          "art": "/assets/dawnlike/terrain/rock_tr.png",
+          "from": {
+            "pack": "DawnLike",
+            "crop": "Objects/Floor.png",
+            "rect": [
+              256,
+              96,
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite",
+      "internal": true
+    },
+    {
+      "kind": "terrain",
+      "tag": "rock_bl",
+      "desc": "rock edge bl",
+      "walkable": false,
+      "variants": [
+        {
+          "art": "/assets/dawnlike/terrain/rock_bl.png",
+          "from": {
+            "pack": "DawnLike",
+            "crop": "Objects/Floor.png",
+            "rect": [
+              224,
+              128,
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite",
+      "internal": true
+    },
+    {
+      "kind": "terrain",
+      "tag": "rock_br",
+      "desc": "rock edge br",
+      "walkable": false,
+      "variants": [
+        {
+          "art": "/assets/dawnlike/terrain/rock_br.png",
+          "from": {
+            "pack": "DawnLike",
+            "crop": "Objects/Floor.png",
+            "rect": [
+              256,
+              128,
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite",
+      "internal": true
     }
   ]
 }
