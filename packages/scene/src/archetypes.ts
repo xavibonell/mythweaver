@@ -145,7 +145,7 @@ function placeFrontierFeature(cv: Canvas, band: Rect, edge: FieldSide, kind: 'po
     // a 2-wide plank pier from the beach (d=0) out into the water — walkable over the water
     for (let d = 0; d < pierLen; d++) { deco(dock, cellAt(mid, d), true); if (d > 0) deco(dock, cellAt(mid + 1, d), true); }
     // boats moored at the pier head, cargo at its base, dockworkers on the planks
-    cv.ambiance.push({ tag: 'boat', col: cellAt(mid - 1, pierLen - 1).c, row: cellAt(mid - 1, pierLen - 1).r });
+    cv.ambiance.push({ tag: 'boat_sail', col: cellAt(mid - 1, pierLen - 1).c, row: cellAt(mid - 1, pierLen - 1).r });
     cv.ambiance.push({ tag: 'boat', col: cellAt(mid + 2, pierLen - 2).c, row: cellAt(mid + 2, pierLen - 2).r });
     put('crate', cellAt(mid - 1, 0), 'prop'); put('barrel', cellAt(mid + 1, 0), 'prop');
     for (let i = 0; i < 2; i++) put('villager', cellAt(mid, 1 + i), 'actor', 'npc');

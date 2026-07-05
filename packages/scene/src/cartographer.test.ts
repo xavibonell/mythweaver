@@ -253,10 +253,10 @@ describe('buildSceneMap (Cartographer)', () => {
     const m = buildSceneMap(comp);
     expect(validateSceneMap(m)).toEqual({ ok: true, violations: [] });
     const boat = m.objects.find((o) => o.id === 'prop:boat')!;
-    expect(boat.footprint).toEqual({ w: 3, h: 2 }); // the platform footprint
+    expect(boat.footprint).toEqual({ w: 2, h: 3 }); // the platform footprint (portrait AI boat sprite)
     // the boat's deck tiles are walkable even though the base terrain is water
     let deckWalkable = 0;
-    for (let dy = 0; dy < 2; dy++) for (let dx = 0; dx < 3; dx++) if (m.walkable[boat.row + dy]?.[boat.col + dx]) deckWalkable++;
+    for (let dy = 0; dy < 3; dy++) for (let dx = 0; dx < 2; dx++) if (m.walkable[boat.row + dy]?.[boat.col + dx]) deckWalkable++;
     expect(deckWalkable).toBeGreaterThanOrEqual(5);
     const sailor = m.objects.find((o) => o.id === 'npc:sailor')!;
     expect(m.walkable[sailor.row]?.[sailor.col]).toBe(true); // standing on the boat, not drowning
