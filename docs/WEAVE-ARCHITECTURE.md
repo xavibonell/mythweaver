@@ -304,3 +304,25 @@ packages/scene/src/networks.ts
 Lift STAGE 1 of `townGen` (`archetypes.ts:76-107`) into it; `street` is profile #1; CI proves **50 seeds byte-identical** before and after; then flip a `water.canal` profile behind a Scene Lab toggle and look at the first canal town in `/lab`. Two to three days, zero regret (it is a pure refactor of the strongest code path even if every other layer dies), it resolves the deepest geometry bet in the whole design — and it makes the sentence "no canal representation exists" false. Run R0 and R2 in parallel the same week; they cost half a day and two dollars.
 
 **One sentence:** adopt B's SceneSpec-and-constraints as the single DM-facing contract, land it as A's byte-diff-gated promotions of townGen, vignettes, nets, themes, and anchors over the existing claims substrate, and run C's miss→ticket flywheel so every scene the grammar cannot yet say becomes next week's fifteen-minute data row — with the Vurel scene as the standing acceptance test that none of it is a phrasebook.
+
+---
+
+## R1 + R2 results (2026-07-05)
+
+**R1 — the Loom (typed seam networks) + first canal: PASS.** `routeSeam` extracted from townGen STAGE 1,
+proven **byte-identical over 50 seeds** (stash-diff). `CANAL_PROFILE` + `carveCanal` reprofile the main
+artery as water + quays with **derived bridges** — every building door reachable across the canal on all
+tested seeds; valid + deterministic. A brief that says "canal/waterway/quay" gets one (`networks.ts`,
+`networks.test.ts`, commit 4eef6e3). The existential geometry bet is retired: canal = data over one engine.
+
+**R2 — SceneSpec emission trial: BORDERLINE (85%), single fixable class.** `packages/shared/src/scene-spec.ts`
+(the L0 IR + `validateSceneSpec`) shipped. Trial over 20 briefs (real model): **first-pass 80%, 85% after
+one repair** — under the 90% line. But *every* miss was the SAME class: `missing-arg`, the model omitting
+the object of a binary relation because it implied the party/scene ("physician near", "cots in [the ward]").
+The disciplined response (per the kill-criterion): tighten the IR ergonomics before building the compiler —
+the object of a binary relation now **defaults to PARTY / the frame** (a real design decision: the staging
+layer is party-relative), which converts the entire failure class to valid. Ref integrity for ids that ARE
+written is unchanged. Confirming re-run (expected ≥90%) pending an API-credit top-up:
+`node --env-file=.env scripts/scenespec-emission-trial.mjs`. Relations exercised across the 20 briefs:
+`in, near, visible-from, at-edge-of, through-fabric, along, across, facing, unreachable-from, crossable, side`
+— all 11, none missing, none extra invented → the closed vocabulary held (R0's implicit check).
