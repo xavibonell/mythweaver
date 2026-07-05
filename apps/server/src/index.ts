@@ -464,7 +464,10 @@ function arcMarkdown(arc: GeneratedArc): string {
   lines.push(`# ${bp.premise || 'Generated arc'}`);
   lines.push('');
   if (arc.party && arc.party.length) {
-    lines.push(`**Party:** ${arc.party.map((p) => `${p.name} (L${p.level} ${p.className}, ${p.maxHitPoints} HP, AC ${p.armorClass})`).join(' · ')}`);
+    lines.push('## Party');
+    for (const p of arc.party) {
+      lines.push(`- **${p.name}** — L${p.level} ${p.className}, ${p.maxHitPoints} HP, AC ${p.armorClass}${p.backstory ? `\n  _${p.backstory}_` : ''}`);
+    }
     lines.push('');
   }
   lines.push(`**Central problem:** ${bp.centralProblem || '—'}`);

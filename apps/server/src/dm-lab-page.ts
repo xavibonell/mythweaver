@@ -783,6 +783,11 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
     }
     var h = '';
     h += '<div class="arc-sec"><h3>Premise</h3><div class="kv">' + esc(bp.premise || '—') + '</div></div>';
+    if (arc.party && arc.party.length) {
+      h += '<div class="arc-sec"><h3>Party <span style="color:#6b7080">— backstories (authored or Director-invented)</span></h3>' + arc.party.map(function (p) {
+        return '<div class="kv"><b>' + esc(p.name) + '</b> <span style="color:#6b7080">L' + esc(p.level) + ' ' + esc(p.className) + '</span>' + (p.backstory ? ' — <span style="color:#9aa0b0">' + esc(p.backstory) + '</span>' : ' <span style="color:#6b7080">(no backstory)</span>') + '</div>';
+      }).join('') + '</div>';
+    }
     h += '<div class="arc-sec"><h3>Central problem</h3><div class="kv arc-problem">' + esc(bp.centralProblem || '—') + '</div></div>';
     h += '<div class="arc-sec"><h3>Intended ending — north star</h3><div class="arc-ending">' + esc(bp.intendedEnding || '—') + '</div></div>';
     h += '<div class="arc-sec"><h3>Opening</h3><div class="kv">' + esc(bp.opening || '—') + '</div></div>';
