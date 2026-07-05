@@ -5,7 +5,7 @@ import { randomUUID } from 'node:crypto';
 import Fastify, { type FastifyReply } from 'fastify';
 import { Engine, createInitialState } from '@mythweaver/engine';
 import { createProvider } from '@mythweaver/llm';
-import { CHARACTERS, FakeSceneComposer, LlmSceneComposer, PROPS, TERRAINS, buildSceneMap, cityBspBlueprint, cityMeshBlueprint, loadAssetLibrary, realizeCityBsp, realizeCityMesh } from '@mythweaver/scene';
+import { CHARACTERS, FakeSceneComposer, LlmSceneComposer, PROPS, TERRAINS, buildSceneMap, cityBspBlueprint, cityMeshBlueprint, loadAssetLibrary, realizeCityBsp, realizeCityMesh, renderSceneMapToPng } from '@mythweaver/scene';
 import { BIOMES, BUILDING_TYPES, classToSpriteTag, validateEstablishScene, type EstablishScene } from '@mythweaver/shared';
 import { Db } from './db.js';
 import { loadScenario, readScenarioRaw, writeScenarioRaw, parseScenario, loadSharedParty, loadSharedBestiary, resolveParty } from './content.js';
@@ -22,7 +22,7 @@ import {
 import { buildRetriever } from './corpus.js';
 import { buildTracer } from './tracing.js';
 import { runTurn, type TurnInput } from './orchestrator.js';
-import { labBuildCity, labBuildComponent, labBuildProgram, labBuildScene, labBuildSpike, labBuildStory, labComposeScene } from './scene-lab.js';
+import { buildModernRealizer, labBuildCity, labBuildComponent, labBuildProgram, labBuildScene, labBuildSpike, labBuildStory, labComposeScene } from './scene-lab.js';
 import { saveSceneCapture } from './scene-eval/capture.js';
 import { runDmLab, createDmLabSession, dmLabSubmit, arcView, autoRollTotal, DM_LAB_TRANSCRIPTS, type LabTurn, type DmLabSession } from './dm-lab.js';
 import { renderDmLabPage } from './dm-lab-page.js';
@@ -63,6 +63,13 @@ const composer =
     ? new FakeSceneComposer()
     : new LlmSceneComposer(createProvider(dirName, dirModel ? { model: dirModel } : {}), dirModel);
 app.log.info(`Scene Composer: ${dirName}${dirModel ? ` (${dirModel})` : ''}`);
+
+// LIVE-PLAY scene engine (wire-in part 3): settlements realize via the MODERN story path (G1 programmer
+// -> archetypes, the audited extraction pipeline) with the classic Composer as decline/failure fallback.
+// Kill-switch: MYTHWEAVER_SCENE_ENGINE=classic.
+const sceneEngineMode = (process.env.MYTHWEAVER_SCENE_ENGINE || 'modern').toLowerCase();
+const realizeScene = sceneEngineMode === 'classic' ? undefined : buildModernRealizer({ llm, ...(dmModel ? { model: dmModel } : {}) });
+app.log.info(`Scene engine: ${realizeScene ? 'modern (settlements) + classic fallback' : 'classic'}`);
 
 // Game Director / arc planner (Phase D / D2) — MYTHWEAVER_ARC_PLANNER = llm (default) | fake | off.
 // Director prompts are editable/hot-reloaded (prompts/director-*.md), mirroring the DM playbook.
@@ -571,6 +578,25 @@ app.post('/dm/lab', async (req, reply) => {
 
 // Interactive DM Lab — create a stateful session, then submit one turn at a time (accumulating
 // context), the natural way to vibe-test the DM. The persona/scenario/temp are captured at create.
+// DM Lab — the CURRENT SCENE, rendered server-side (headless PNG, pixel-parity with the web renderer):
+// the playable view's "see the story come alive" panel. 404 until the DM has established a location.
+app.get('/dm/lab/session/:id/scene.png', async (req, reply) => {
+  const session = dmLabSessions.get((req.params as { id: string }).id);
+  if (!session) return reply.code(404).send({ error: 'unknown session' });
+  const world = session.engine.getState().world;
+  const map = world?.currentLocationId ? world.locations[world.currentLocationId] : undefined;
+  if (!map) return reply.code(404).send({ error: 'no scene established yet' });
+  try {
+    const png = renderSceneMapToPng(map, { assetsRoot: new URL('../../web/public', import.meta.url).pathname });
+    reply.header('content-type', 'image/png');
+    reply.header('cache-control', 'no-store');
+    return reply.send(png);
+  } catch (err) {
+    app.log.error(err, 'dm lab scene render failed');
+    return reply.code(500).send({ error: (err as Error).message });
+  }
+});
+
 app.post('/dm/lab/session', async (req, reply) => {
   const body = (req.body ?? {}) as {
     scenario?: unknown;
@@ -616,6 +642,7 @@ app.post('/dm/lab/session', async (req, reply) => {
         llm,
         ...(retriever ? { retriever } : {}),
         composer: new FakeSceneComposer(),
+        ...(realizeScene ? { realizeScene } : {}),
         ...(arcPlanner ? { arcPlanner } : {}),
         ...(playbook ? { playbook } : {}),
         ...(scenarioJson ? { scenarioJson } : {}),
@@ -771,7 +798,7 @@ app.post('/sessions/:id/turn', async (req, reply) => {
   const recent = await db.recentMessages(id, 12);
 
   try {
-    const result = await runTurn({ engine, llm, recentTranscript: recent, playbook: loadPlaybook(), retriever, tracer, composer, ...(arcPlanner ? { arcPlanner } : {}) }, parsed);
+    const result = await runTurn({ engine, llm, recentTranscript: recent, playbook: loadPlaybook(), retriever, tracer, composer, ...(realizeScene ? { realizeScene } : {}), ...(arcPlanner ? { arcPlanner } : {}) }, parsed);
 
     const state = engine.getState();
     const newSpent = spent + result.costUsd;

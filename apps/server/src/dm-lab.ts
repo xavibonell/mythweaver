@@ -24,7 +24,7 @@ import {
 } from '@mythweaver/llm';
 import type { Retriever } from '@mythweaver/rag';
 import { FakeSceneComposer, type SceneComposer } from '@mythweaver/scene';
-import type { CharacterSheet, GameState, StatBlock } from '@mythweaver/shared';
+import type { CharacterSheet, EstablishScene, GameState, PartyMemberRef, SceneMap, StatBlock } from '@mythweaver/shared';
 import { createHash } from 'node:crypto';
 import { loadScenario, parseScenario, resolveParty } from './content.js';
 import { buildRetriever } from './corpus.js';
@@ -72,6 +72,8 @@ export interface DmLabDeps {
   retriever?: Retriever;
   /** Defaults to a deterministic FakeSceneComposer (no API cost). */
   composer?: SceneComposer;
+  /** LIVE-PLAY modern engine (wire-in part 3) — settlements realize via the story path; else classic. */
+  realizeScene?: (est: EstablishScene, party: PartyMemberRef[]) => Promise<SceneMap | null>;
   /** DM persona. Defaults to the EDITED prompts/dm-playbook.md (loadPlaybook), so editing the
    *  file + re-running iterates the real persona — not the in-code DEFAULT_DM_PLAYBOOK fallback. */
   playbook?: string;
@@ -223,6 +225,7 @@ export interface DmLabSession {
   engine: Engine;
   recorder: RecordingProvider;
   composer: SceneComposer;
+  realizeScene?: (est: EstablishScene, party: PartyMemberRef[]) => Promise<SceneMap | null>;
   retriever?: Retriever;
   arcPlanner?: ArcPlanner;
   playbook: string;
@@ -287,6 +290,7 @@ export function createDmLabSession(deps: DmLabDeps, scenarioId: string): DmLabSe
     engine: new Engine(state),
     recorder: new RecordingProvider(deps.llm),
     composer: deps.composer ?? new FakeSceneComposer(),
+    ...(deps.realizeScene ? { realizeScene: deps.realizeScene } : {}),
     ...(deps.retriever ? { retriever: deps.retriever } : {}),
     ...(deps.arcPlanner ? { arcPlanner: deps.arcPlanner } : {}),
     playbook: deps.playbook ?? loadPlaybook(),
@@ -332,6 +336,7 @@ export async function dmLabSubmit(
       llm: recorder,
       ...(session.retriever ? { retriever: session.retriever } : {}),
       composer,
+      ...(session.realizeScene ? { realizeScene: session.realizeScene } : {}),
       ...(session.arcPlanner ? { arcPlanner: session.arcPlanner } : {}),
       playbook: session.playbook,
       recentTranscript: session.recent,

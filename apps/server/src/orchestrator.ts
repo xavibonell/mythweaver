@@ -29,7 +29,7 @@ import {
   type ToolDef,
 } from '@mythweaver/llm';
 import type { Retriever } from '@mythweaver/rag';
-import { isEntityId, type ArcBrief, type DamageType, type EstablishScene, type FixtureDecl, type GameState, type NpcDecl, type PendingTurn, type SceneMap } from '@mythweaver/shared';
+import { isEntityId, type ArcBrief, type DamageType, type EstablishScene, type FixtureDecl, type GameState, type NpcDecl, type PartyMemberRef, type PendingTurn, type SceneMap } from '@mythweaver/shared';
 import type { ArcPlanner } from './arc-planner.js';
 import { CHARACTERS, PROMPT_PROPS, buildSceneMap, type SceneComposer } from '@mythweaver/scene';
 
@@ -121,6 +121,10 @@ export interface OrchestratorDeps {
   tracer?: Tracer;
   /** Scene Composer for the visual layer (docs/SCENE-CONTRACTS.md). When present, the DM gets `setScene`. */
   composer?: SceneComposer;
+  /** LIVE-PLAY modern engine (wire-in part 3): tried FIRST when a NEW location is established. Returns
+   *  null to decline (currently everything but settlements) → the classic Composer path runs. Any
+   *  failure also falls back — scene generation can never break a turn. */
+  realizeScene?: (est: EstablishScene, party: PartyMemberRef[]) => Promise<SceneMap | null>;
   /** Game Director (Phase D / D2). When present, the per-turn STEERING brief is (re)planned on triggers. */
   arcPlanner?: ArcPlanner;
   /** Sampling temperature for the DM model (omit to use the provider default). Used by the DM Lab. */
@@ -677,12 +681,18 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
           const existed = !!world.locations[est.locationId];
           let map = world.locations[est.locationId];
           if (!map) {
-            // First visit: generate via the Composer + Cartographer, then FREEZE.
+            // First visit — the MODERN engine gets first refusal (settlements → the proven story path),
+            // the classic Composer + Cartographer is the decline/failure fallback — then FREEZE.
             const party = Object.values(state.combatants)
               .filter((c) => c.kind === 'pc')
               .map((c) => ({ id: c.id, spriteTag: c.spriteTag ?? 'knight', name: c.name }));
-            const comp = await deps.composer.compose({ establish: est, party, seed: seedFor(est.locationId) });
-            map = buildSceneMap(comp);
+            if (deps.realizeScene) {
+              try { map = (await deps.realizeScene(est, party)) ?? undefined; } catch { map = undefined; /* modern engine failed → classic path below */ }
+            }
+            if (!map) {
+              const comp = await deps.composer.compose({ establish: est, party, seed: seedFor(est.locationId) });
+              map = buildSceneMap(comp);
+            }
             world.locations[est.locationId] = map;
             if (world.currentLocationId && world.currentLocationId !== est.locationId) world.links.push({ from: world.currentLocationId, to: est.locationId });
           }

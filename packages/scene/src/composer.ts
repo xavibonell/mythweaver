@@ -88,9 +88,9 @@ export function lookToSprite(look: string): string {
  *   settlement — a built-up place with structures (village, town, market, plaza)
  *   wild       — open nature (forest, coast, beach, plains, meadow, desert, swamp, …) ← the default
  */
-type SceneKind = 'interior' | 'settlement' | 'wild';
+export type SceneKind = 'interior' | 'settlement' | 'wild';
 const GRAMMAR_BY_KIND: Record<SceneKind, LayoutGrammar> = { interior: 'enclosed-interior', settlement: 'town-square', wild: 'open-outdoor' };
-function sceneKindOf(e: CompositionRequest['establish']): SceneKind {
+export function sceneKindOf(e: CompositionRequest['establish']): SceneKind {
   const biome = (e.brief.biome ?? '').toLowerCase();
   const setting = (e.brief.setting ?? '').toLowerCase();
   // Interior is the one kind the biome enum names reliably (cave/dungeon), so read biome + setting.

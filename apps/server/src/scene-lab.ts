@@ -10,7 +10,7 @@
  */
 
 import type { LlmProvider } from '@mythweaver/llm';
-import { buildCityScene, buildComponentSheet, buildSceneMap, buildSpikeScene, GOLD_PROGRAMS, LlmCityPlanner, LlmSceneProgrammer, lookToSprite, runProgram, type CityDistrictSpec, type CityRequest, type SceneComposer, type SceneProgram } from '@mythweaver/scene';
+import { buildCityScene, buildComponentSheet, buildSceneMap, buildSpikeScene, GOLD_PROGRAMS, LlmCityPlanner, LlmSceneProgrammer, lookToSprite, runProgram, sceneKindOf, type CityDistrictSpec, type CityRequest, type SceneComposer, type SceneProgram } from '@mythweaver/scene';
 import type { EstablishScene, GameState, Lighting, PartyMemberRef, SceneComposition, SceneMap } from '@mythweaver/shared';
 import { buildToolDefs, parseEstablish, seedFor } from './orchestrator.js';
 
@@ -90,9 +90,16 @@ export async function labBuildStory(deps: { llm: LlmProvider; model?: string }, 
   if (!tc) throw new Error('the DM did not call setScene for that premise — try a more concrete opening');
   const stub = { world: { currentLocationId: null, locations: {}, links: [] } } as unknown as GameState;
   const establish = parseEstablish(tc.input as Record<string, unknown>, stub);
-  // 2. The modern engine — realize the DM's setup. The programmer sees the premise ENRICHED with the
-  //    DM's setting + declared cast + fixtures, so the DM's INVENTED characters ("Marta the innkeeper",
-  //    never named in the premise) stand in the rendered scene too.
+  const { sceneMap, program } = await realizeStoryScene(deps, establish, premise);
+  return { brief: premise, establish, program, sceneMap, narration: res.text ?? '', model: res.model };
+}
+
+/**
+ * The MODERN realization half, shared by STORY mode and the LIVE setScene flip: enrich the premise with
+ * the DM's declaration (setting + cast + fixtures), compose a primitive program (G1 — the audited
+ * extraction path), deterministically inject the declared cast, and run it. One LLM call.
+ */
+export async function realizeStoryScene(deps: { llm: LlmProvider; model?: string }, establish: EstablishScene, premise: string, party: PartyMemberRef[] = []): Promise<{ sceneMap: SceneMap; program: SceneProgram }> {
   const npcLines = establish.npcs.filter((n) => n.visible !== false).map((n) => `${n.name}${n.look ? ` (${n.look})` : ''}`);
   const fixTags = [...new Set(establish.fixtures.map((f) => f.tag))];
   const enriched = [
@@ -115,8 +122,25 @@ export async function labBuildStory(deps: { llm: LlmProvider; model?: string }, 
     if (arch && arch.op === 'archetype') arch.contents.npcs.push({ tag, name: n.name });
     else program.ops.push({ op: 'place', id: `npc:story-${i}`, tag, kind: 'actor', role: 'npc', at: 'center', name: n.name });
   });
+  // PARTY injection (live play): the PCs stand together near the heart of the scene, with their real
+  // ids so the engine/combat can address them. place() snaps to free cells and respects claims.
+  party.forEach((p) => program.ops.push({ op: 'place', id: p.id, tag: p.spriteTag ?? 'knight', kind: 'actor', role: 'pc', at: 'center', name: p.name }));
   const sceneMap = runProgram(program);
-  return { brief: premise, establish, program, sceneMap, narration: res.text ?? '', model: res.model };
+  return { sceneMap, program };
+}
+
+/**
+ * The LIVE-PLAY hook (wire-in part 3): the orchestrator calls this on setScene BEFORE the classic
+ * Director. SETTLEMENTS (the city/town scenario — the current scope) realize via the modern engine;
+ * anything else returns null and falls back to the classic path. More biomes flip here as they prove
+ * out. Failures also fall back — the game never breaks on a generation error.
+ */
+export function buildModernRealizer(deps: { llm: LlmProvider; model?: string }): (est: EstablishScene, party: PartyMemberRef[]) => Promise<SceneMap | null> {
+  return async (est, party) => {
+    if (sceneKindOf(est) !== 'settlement') return null; // city/town only for now — dungeons/wilds/coasts next
+    const { sceneMap } = await realizeStoryScene(deps, est, est.brief?.setting ?? '', party);
+    return sceneMap;
+  };
 }
 
 /**

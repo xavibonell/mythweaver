@@ -219,6 +219,10 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
       <div class="hint" id="status" style="margin-top:10px">Generate a campaign to begin.</div>
     </div>
     <div class="right-wrap">
+      <details id="scene-panel" style="display:none;margin-bottom:8px;border:1px solid #23262f;border-radius:8px;background:#0f1116" open>
+        <summary style="cursor:pointer;padding:7px 10px;color:#c9a227;font-size:13px">Scene — the story made real <span style="color:#6b7080">(re-renders as the DM sets scenes)</span></summary>
+        <div style="padding:8px"><img id="scene-img" alt="current scene" style="width:100%;image-rendering:pixelated;border-radius:4px;display:block" /></div>
+      </details>
       <div class="convo" id="convo"><div class="empty-state">No live campaign yet — head to the <b>Generate</b> tab, build your party, and generate an arc. Play begins here.</div></div>
       <div class="inputbar">
         <div class="row" id="msgbar">
@@ -594,8 +598,18 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
         renderSuggestions();
         setBusy(false);
         $('status').textContent = 'the scene is set — what do you do?';
+        refreshScene();
       })
       .catch(function (e) { addSys('(opening narration skipped: ' + (e.message || e) + ')'); setBusy(false); $('status').textContent = 'session live — what do you do?'; });
+  }
+
+  // The playable view's SCENE panel: probe the server-side headless render of the current location and
+  // show it when the DM has established one (404 until then). Called after every turn.
+  function refreshScene() {
+    if (!sessionId) return;
+    var probe = new Image();
+    probe.onload = function () { $('scene-img').src = probe.src; $('scene-panel').style.display = ''; };
+    probe.src = '/dm/lab/session/' + sessionId + '/scene.png?v=' + Date.now();
   }
 
   function submitTurn(payload) {
@@ -613,6 +627,7 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
         setPending(x.body.pendingRoll);
         renderSuggestions(); // keep quick-starts arc-aware as the scene advances
         setBusy(false);
+        refreshScene(); // the DM may have established/changed the location this turn
         $('status').textContent = 'turn ' + t.index + ' · total ' + fmtCost(x.body.totalCostUsd) + ' · ' + fmtTime(x.body.totalLatencyMs);
       }).catch(function (e) { addSys('error: ' + (e.message || e)); setBusy(false); $('status').textContent = ''; });
   }
