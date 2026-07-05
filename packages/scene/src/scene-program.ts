@@ -350,6 +350,7 @@ function normContents(v: unknown): Contents {
     npcs: arr(r.npcs).slice(0, 20).map((n) => { const o = asRec(n); return { tag: charOr(o.tag ?? o.type), ...name(o) }; }),
     mobs: arr(r.mobs).slice(0, 12).map((m) => { const o = asRec(m); return { tag: charOr(o.tag ?? o.type), count: Math.max(1, Math.min(20, num(o.count, 4))) }; }),
     ...(typeof r.wall === 'boolean' ? { wall: r.wall } : {}),
+    ...(typeof r.canal === 'boolean' ? { canal: r.canal } : {}),
     ...(side === 'north' || side === 'south' || side === 'east' || side === 'west' ? { entranceSide: side } : {}),
   };
 }
@@ -539,7 +540,9 @@ function harvestTownContents(ops: SceneOp[], lcb: string): Contents {
   if (!buildings.length) buildings.push({ type: 'tavern' }, { type: 'shop' }, { type: 'house' }, { type: 'house' }, { type: 'house' }, { type: 'house' });
   const haveProp = new Set(landmarks.map((l) => l.tag));
   for (const [re, tag] of BRIEF_PROPS) if (re.test(lcb) && !haveProp.has(tag)) { landmarks.push({ tag }); haveProp.add(tag); }
-  return { buildings, landmarks, npcs, mobs, ...(wall ? { wall: true } : {}), ...(entranceSide ? { entranceSide } : {}) };
+  // FEATURE net (Weave L1 seed): a brief naming a waterway threads a canal through the town.
+  const canal = /\b(canal|waterway|watergate|quay|wharf|dock)\b/.test(lcb);
+  return { buildings, landmarks, npcs, mobs, ...(wall ? { wall: true } : {}), ...(canal ? { canal: true } : {}), ...(entranceSide ? { entranceSide } : {}) };
 }
 
 function progSeed(s: string): number {

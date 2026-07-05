@@ -23,6 +23,7 @@ import {
   type Pt, type Rect,
 } from './primitives.js';
 import { SHAPE_MIN, type ShapeKind } from './footprint.js';
+import { carveCanal, routeSeam, type MaterialProfile } from './networks.js';
 import type { Theme } from './themes.js';
 
 /** The semantic cast the LLM (or a completeness net) supplies — names + which things exist, NO geometry. */
@@ -33,6 +34,8 @@ export interface Contents {
   mobs: { tag: string; count: number }[];
   wall?: boolean;
   entranceSide?: 'north' | 'south' | 'east' | 'west';
+  /** A CANAL threads the town (Weave L1 — the main artery becomes a water seam with bridges). */
+  canal?: boolean;
 }
 export interface GenContext {
   theme: Theme;
@@ -73,38 +76,15 @@ function townGen(cv: Canvas, ctx: GenContext): void {
   const interior: Rect = { x: ix, y: iy, w: B.x + B.w - inset - jm() - ix, h: B.y + B.h - inset - jm() - iy };
   if (interior.w < 12 || interior.h < 12) { interior.x = B.x + 1; interior.y = B.y + 1; interior.w = B.w - 2; interior.h = B.h - 2; }
 
-  // STAGE 1 — ORGANIC STREET NETWORK via recursive bisection. Pop the largest open block, cut its LONGER
-  // axis at a jittered position with a street (wide arteries near the start, alleys deeper in), recurse.
-  // Streets touch their parent's edges → the network is connected BY CONSTRUCTION (reachabilityCarve
-  // rarely fires). Jittered positions + varied widths give irregular, non-uniform blocks.
-  const MIN_BLOCK = 15;
-  const GRID_CHAOS = 0.42;
-  const open: { r: Rect; d: number }[] = [{ r: interior, d: 0 }];
-  const blocks: Rect[] = [];
-  let guard = 0;
-  while (open.length && guard++ < 600) {
-    open.sort((a, b) => b.r.w * b.r.h - a.r.w * a.r.h);
-    const { r: R, d } = open.shift()!;
-    if (Math.min(R.w, R.h) <= MIN_BLOCK || d >= 5) { blocks.push(R); continue; }
-    const horiz = R.w >= R.h;
-    const len = horiz ? R.w : R.h;
-    // Keep lanes NARROW (only the first couple of arteries are 2-wide) — wide streets flood the map
-    // with dirt and read as a muddy field instead of a village threaded by paths.
-    // The main street SKELETON (the first couple of recursive cuts) is a 2-wide COBBLE artery; deeper cuts are
-    // 1-wide dirt alleys. So a town reads as cobbled high streets threaded by dirt lanes, not a muddy field.
-    const streetW = d === 0 ? 2 : 1;
-    const streetMat = d <= 1 ? ARTERY : path;
-    const lo = Math.floor(MIN_BLOCK / 2), hi = len - Math.floor(MIN_BLOCK / 2) - streetW;
-    if (hi <= lo) { blocks.push(R); continue; }
-    const cut = Math.max(lo, Math.min(hi, Math.floor(len * (0.5 + (cv.rng() - 0.5) * GRID_CHAOS))));
-    if (horiz) {
-      fill(cv, { x: R.x + cut, y: R.y, w: streetW, h: R.h }, streetMat, true);
-      open.push({ r: { x: R.x, y: R.y, w: cut, h: R.h }, d: d + 1 }, { r: { x: R.x + cut + streetW, y: R.y, w: R.w - cut - streetW, h: R.h }, d: d + 1 });
-    } else {
-      fill(cv, { x: R.x, y: R.y + cut, w: R.w, h: streetW }, streetMat, true);
-      open.push({ r: { x: R.x, y: R.y, w: R.w, h: cut }, d: d + 1 }, { r: { x: R.x, y: R.y + cut + streetW, w: R.w, h: R.h - cut - streetW }, d: d + 1 });
-    }
-  }
+  // STAGE 1 — ORGANIC STREET NETWORK via the LOOM (routeSeam, Weave L1). Recursive bisection carves a
+  // material-typed seam at each cut (2-wide cobble arteries near the top, 1-wide dirt alleys deeper), and
+  // returns the block partition — connected BY CONSTRUCTION. Street = material profile #1; a canal is the
+  // SAME engine with a water profile (see networks.ts). This is a byte-identical lift of the old inline loop.
+  const streetProfile: MaterialProfile = { id: 'street', bedAt: (d) => ({ tag: d <= 1 ? ARTERY : path, walkable: true, width: d === 0 ? 2 : 1 }) };
+  const { blocks, seams } = routeSeam(cv, interior, streetProfile, { minBlock: 15, gridChaos: 0.42, maxDepth: 5 });
+  // A CANAL (when the brief asks) reprofiles the main artery as water + quays + derived bridges — the same
+  // seam engine, a water material. The first proof that features are DATA over one network engine (Weave L1).
+  if (contents.canal) carveCanal(cv, seams);
 
   // STAGE 2 — PLAZA. The block nearest the centroid becomes the town square (capped to a centred sub-rect
   // so a big block doesn't swallow the map), with the main landmark at its centre.

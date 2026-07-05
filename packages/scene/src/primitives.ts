@@ -36,7 +36,8 @@ export interface Rect {
 export const CLAIM_CIRCULATION = 1; // streets, gate runways, door→street aprons
 export const CLAIM_APPROACH = 2; // the immediate corridor of a specific door
 export const CLAIM_STAGE = 4; // a vignette's composed interior (reserved for P3)
-const CLAIM_NOBUILD = CLAIM_CIRCULATION | CLAIM_APPROACH | CLAIM_STAGE;
+export const CLAIM_BARRIER = 8; // an impassable feature seam (canal bed, moat, wall) — bridges derive where it meets CIRCULATION (Weave L1)
+const CLAIM_NOBUILD = CLAIM_CIRCULATION | CLAIM_APPROACH | CLAIM_STAGE | CLAIM_BARRIER;
 
 export class Canvas {
   readonly tiles: string[][];
