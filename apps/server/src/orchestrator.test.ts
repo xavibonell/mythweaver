@@ -264,10 +264,10 @@ describe('orchestrator turn-loop', () => {
     const result = await runTurn({ engine, llm, now: frozenClock }, { kind: 'message', speakerId: 'Aldric', text: 'I cut the goblin down.' });
 
     expect(result.trace.toolCalls).toEqual(['startEncounter', 'applyDamage']);
-    expect(engine.getState().combat.active).toBe(true);
-    const g = engine.getState().combatants['npc:goblin-1'];
-    expect(g?.currentHitPoints).toBe(0); // engine owns HP — not invented by the DM
-    expect(g?.downed).toBe(true);
+    // The DM passed a ROLLED total; the engine applied it and, as the last foe dropped, auto-resolved
+    // the fight (P0 state-truth): combat clears and the defeated foe stops being listed as present.
+    expect(engine.getState().combat.active).toBe(false);
+    expect(engine.getState().combatants['npc:goblin-1']).toBeUndefined();
     expect(result.narration).toContain('crumples');
   });
 

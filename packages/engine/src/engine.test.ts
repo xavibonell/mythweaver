@@ -171,6 +171,54 @@ describe('Engine — P2 combat', () => {
   });
 });
 
+describe('Engine — P0 state-truth (combat lifecycle + arc)', () => {
+  it('auto-resolves the fight + despawns the foe when the last enemy drops', () => {
+    const e = newEngine();
+    const g = e.spawnCombatant(goblin()); // 7 HP
+    e.startCombat([{ combatantId: 'pc:fighter', initiative: 15 }, { combatantId: g.id, initiative: 10 }]);
+    expect(e.getState().combat.active).toBe(true);
+    e.applyDamage({ targetId: g.id, amount: 99, type: 'slashing' });
+    expect(e.getState().combat.active).toBe(false); // fight over — no phantom combat lingers
+    expect(e.getState().combatants[g.id]).toBeUndefined(); // defeated foe cleared from the field
+    expect(e.getState().combatants['pc:fighter']).toBeTruthy(); // PCs persist
+  });
+
+  it('keeps combat active while another foe still stands', () => {
+    const e = newEngine();
+    const g1 = e.spawnCombatant(goblin());
+    const g2 = e.spawnCombatant(goblin());
+    e.startCombat([{ combatantId: g1.id, initiative: 15 }, { combatantId: g2.id, initiative: 12 }]);
+    e.applyDamage({ targetId: g1.id, amount: 99, type: 'slashing' }); // down one
+    expect(e.getState().combat.active).toBe(true);
+    expect(e.getState().combatants[g2.id]).toBeTruthy();
+    e.applyDamage({ targetId: g2.id, amount: 99, type: 'slashing' }); // down the last
+    expect(e.getState().combat.active).toBe(false);
+  });
+
+  it('endCombat clears combat + despawns all foes (non-lethal end), PCs persist', () => {
+    const e = newEngine();
+    const g = e.spawnCombatant(goblin());
+    e.startCombat([{ combatantId: 'pc:fighter', initiative: 15 }, { combatantId: g.id, initiative: 10 }]);
+    const r = e.endCombat();
+    expect(r.despawned).toContain(g.id);
+    expect(e.getState().combat.active).toBe(false);
+    expect(e.getState().combatants[g.id]).toBeUndefined();
+    expect(e.getState().combatants['pc:fighter']).toBeTruthy();
+  });
+
+  it('advanceScene stamps the beat outcome + is blocked from a terminal beat', () => {
+    const state = createInitialState({
+      sessionId: 's1', scenarioId: 'test', startSceneId: 'a', party: [fighter()],
+      adventure: { pitch: 'p', scenes: { a: { title: 'A', summary: '', exits: ['b'] }, b: { title: 'B', summary: '', exits: [] } } },
+    });
+    const e = new Engine(state, () => 0.5);
+    e.advanceScene('b', 'fled');
+    expect(e.getState().flags['beat:a']).toBe('fled'); // outcome recorded (not just "done")
+    expect(e.getState().currentSceneId).toBe('b');
+    expect(() => e.advanceScene('a')).toThrow(/terminal/); // b has no exits → cannot advance
+  });
+});
+
 describe('Engine — death saves & healing', () => {
   it('downs a PC to dying (not dead) and begins death saves', () => {
     const e = newEngine();

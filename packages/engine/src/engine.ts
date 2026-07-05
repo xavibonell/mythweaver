@@ -152,6 +152,7 @@ export class Engine implements EngineTools {
       `${c.name} takes ${amount} ${args.type} damage (${before} -> ${c.currentHitPoints} HP)${c.dead ? ' — dead' : downed ? ' — downed' : ''}`,
       { combatantId: c.id, field: 'currentHitPoints', before, after: c.currentHitPoints, type: args.type, raw, applied: amount, downed, dead: c.dead ?? false },
     );
+    if (downed) this.maybeEndCombat(); // P0: when the last conscious foe drops, resolve the fight
     return { remaining: c.currentHitPoints, downed };
   }
 
@@ -250,6 +251,34 @@ export class Engine implements EngineTools {
     return { activeCombatantId, round: cs.round };
   }
 
+  /**
+   * End the fight: clear combat state and despawn every npc combatant (defeated or fled) so the
+   * authoritative state stops asserting phantom combat with dead foes "present" (P0 state-truth).
+   * PCs persist. Idempotent.
+   */
+  endCombat(): { despawned: string[] } {
+    const despawned: string[] = [];
+    for (const [id, c] of Object.entries(this.state.combatants)) {
+      if (c.kind === 'npc') {
+        delete this.state.combatants[id];
+        despawned.push(id);
+      }
+    }
+    const wasActive = this.state.combat.active;
+    this.state.combat = { active: false, round: 0, turnIndex: 0, order: [] };
+    if (wasActive || despawned.length) {
+      this.record('engine', `Combat ended${despawned.length ? ` — ${despawned.length} foe(s) cleared from the field` : ''}`, { despawned });
+    }
+    return { despawned };
+  }
+
+  /** Auto-resolve a fight the moment no conscious enemy (npc) remains. */
+  private maybeEndCombat(): void {
+    if (!this.state.combat.active) return;
+    const enemyStanding = Object.values(this.state.combatants).some((c) => c.kind === 'npc' && !c.downed && !c.dead);
+    if (!enemyStanding) this.endCombat();
+  }
+
   /** Add or remove a condition on a combatant. */
   applyCondition(args: { combatantId: string; condition: Condition; add: boolean }): void {
     const c = this.state.combatants[args.combatantId];
@@ -290,18 +319,23 @@ export class Engine implements EngineTools {
 
   // --- D1: soft arc steering (scene advancement + branch flags) ------------
 
-  /** Advance the active beat to a reachable next scene (per the adventure's exits). */
-  advanceScene(toSceneId: string): { scene: string; from: string } {
+  /** Advance the active beat to a reachable next scene (per the adventure's exits). `outcome` stamps
+   *  HOW the beat closed (resolved / fled / done) so later steering + payoffs can read it. */
+  advanceScene(toSceneId: string, outcome?: 'resolved' | 'fled' | 'done'): { scene: string; from: string } {
     const adv = this.state.adventure;
     if (!adv?.scenes[toSceneId]) throw new Error(`Unknown scene: ${toSceneId}`);
     const from = this.state.currentSceneId;
     const exits = adv.scenes[from]?.exits ?? [];
-    if (exits.length && !exits.includes(toSceneId)) {
-      throw new Error(`"${toSceneId}" is not reachable from "${from}" (exits: ${exits.join(', ') || 'none'}).`);
+    // A beat with no exits is TERMINAL — the arc resolves here; nothing is reachable from it (P0).
+    if (exits.length === 0) {
+      throw new Error(`"${from}" is a terminal beat (no exits) — the arc resolves here; there is nowhere to advance.`);
     }
-    this.state.flags[`beat:${from}`] = 'done';
+    if (!exits.includes(toSceneId)) {
+      throw new Error(`"${toSceneId}" is not reachable from "${from}" (exits: ${exits.join(', ')}).`);
+    }
+    this.state.flags[`beat:${from}`] = outcome ?? 'done';
     this.state.currentSceneId = toSceneId;
-    this.record('engine', `Scene advanced: ${from} -> ${toSceneId}`, { from, to: toSceneId });
+    this.record('engine', `Scene advanced: ${from} -> ${toSceneId} (${outcome ?? 'done'})`, { from, to: toSceneId, outcome: outcome ?? 'done' });
     return { scene: toSceneId, from };
   }
 

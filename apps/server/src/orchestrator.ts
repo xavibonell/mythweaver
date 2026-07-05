@@ -269,6 +269,12 @@ export function buildToolDefs(retrieval: boolean, scene: boolean): ToolDef[] {
         additionalProperties: false,
       },
     },
+    {
+      name: 'endEncounter',
+      description:
+        'End the fight and clear the enemies from the field — call when combat is over (all foes defeated, or they flee/surrender). The engine auto-ends when the last foe drops, so mainly use this for a non-lethal end. Defeated/fled foes stop being listed as present.',
+      inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+    },
   );
   // Arc / Game-Master steering (D1): move the story by following the players, and remember branch choices.
   tools.push(
@@ -278,7 +284,10 @@ export function buildToolDefs(retrieval: boolean, scene: boolean): ToolDef[] {
         'Move the party to a new beat/scene WHEN THEY CHOOSE to go there — it must be a reachable exit listed in STEERING. Records the prior beat as done. This steers the arc by following the players; never force it.',
       inputSchema: {
         type: 'object',
-        properties: { toSceneId: { type: 'string', description: 'Destination scene id (a reachable exit from STEERING).' } },
+        properties: {
+          toSceneId: { type: 'string', description: 'Destination scene id (a reachable exit from STEERING).' },
+          outcome: { type: 'string', enum: ['resolved', 'fled', 'done'], description: 'How the prior beat closed: "resolved" (goal met), "fled" (left it undone), or "done".' },
+        },
         required: ['toSceneId'],
         additionalProperties: false,
       },
@@ -395,9 +404,17 @@ function serializeStateForModel(state: GameState): string {
 }
 
 /** Render the Game Director's brief (D2) as the per-turn STEERING block — offers, never orders. */
+/** Render the persistent NPC standings (`npc:*` flags) so the DM keeps NPCs consistent across turns. */
+function npcStandings(flags: Record<string, string | number | boolean>): string[] {
+  return Object.entries(flags)
+    .filter(([k]) => k.startsWith('npc:'))
+    .map(([k, v]) => `${k.slice(4)}=${v}`);
+}
+
 function steeringFromBrief(brief: ArcBrief, flags: Record<string, string | number | boolean>): string {
   const beatsDone = Object.keys(flags).filter((k) => k.startsWith('beat:')).map((k) => k.slice(5));
   const decisions = Object.entries(flags).filter(([k]) => k.startsWith('decision:')).map(([k, v]) => `${k.slice(9)}=${v}`);
+  const npcs = npcStandings(flags);
   const reach = brief.reachable.map((r) => `  - ${r.sceneId} — ${r.hook}`).join('\n');
   return (
     [
@@ -407,6 +424,7 @@ function steeringFromBrief(brief: ArcBrief, flags: Record<string, string | numbe
       brief.bridgeNpcs?.length ? `Bridge NPCs available: ${brief.bridgeNpcs.map((n) => `${n.name} (${n.role})`).join('; ')}` : '',
       brief.clocks?.length ? `Pressure: ${brief.clocks.join('; ')}` : '',
       brief.notes ? `Director note: ${brief.notes}` : '',
+      npcs.length ? `NPC standings (keep consistent): ${npcs.join(', ')}` : '',
       beatsDone.length ? `Beats done: ${beatsDone.join(', ')}` : '',
       decisions.length ? `Decisions: ${decisions.join(', ')}` : '',
     ]
@@ -544,7 +562,8 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
     state.pendingTurn = undefined;
   } else {
     if (input.kind === 'message') engine.record('player', input.text, { speakerId: input.speakerId });
-    const recent = (deps.recentTranscript ?? []).slice(-12).join('\n');
+    // Drop bare roll-declaration lines ("roll: 🎲 15") — they are mechanical noise, not narrative context.
+    const recent = (deps.recentTranscript ?? []).filter((l) => !/^\s*roll\s*:/i.test(l)).slice(-12).join('\n');
     const adv = state.adventure;
     const scene = adv?.scenes[state.currentSceneId];
     const gmBlock = adv
@@ -572,20 +591,20 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
           span.event('arcArchitect.error', { message: String(err) });
         }
       }
-      const decisionCount = Object.keys(state.flags).filter((k) => k.startsWith('decision:')).length;
-      const npcCount = Object.keys(state.flags).filter((k) => k.startsWith('npc:')).length;
-      const due =
-        !arc.brief ||
-        arc.plannedForScene !== state.currentSceneId ||
-        arc.plannedDecisionCount !== decisionCount ||
-        arc.plannedNpcCount !== npcCount;
+      // Dirty-bit over the VALUES (not just the count) of decision:/npc: flags, so flipping an existing
+      // flag (e.g. npc:edda=hostile after being friendly) re-plans — key-count alone would miss it.
+      const flagSig = Object.entries(state.flags)
+        .filter(([k]) => k.startsWith('decision:') || k.startsWith('npc:'))
+        .sort(([a], [b]) => (a < b ? -1 : 1))
+        .map(([k, v]) => `${k}=${v}`)
+        .join('|');
+      const due = !arc.brief || arc.plannedForScene !== state.currentSceneId || arc.plannedFlagSig !== flagSig;
       if (due) {
         try {
           const { brief, costUsd: planCost } = await deps.arcPlanner.plan({ ...planInput, ...(arc.blueprint ? { blueprint: arc.blueprint } : {}) });
           arc.brief = brief;
           arc.plannedForScene = state.currentSceneId;
-          arc.plannedDecisionCount = decisionCount;
-          arc.plannedNpcCount = npcCount;
+          arc.plannedFlagSig = flagSig;
           costUsd += planCost;
           toolCallLog.push('arcPlanner');
           span.event('arcPlanner');
@@ -602,11 +621,13 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
       const exits = (scene?.exits ?? []).map((id) => (adv.scenes[id] ? `${id} ("${adv.scenes[id].title}")` : id));
       const beatsDone = Object.keys(state.flags).filter((k) => k.startsWith('beat:')).map((k) => k.slice(5));
       const decisions = Object.entries(state.flags).filter(([k]) => k.startsWith('decision:')).map(([k, v]) => `${k.slice(9)}=${v}`);
+      const npcs = npcStandings(state.flags);
       steering =
         `=== STEERING (soft — OFFER these as the fiction allows; never force. advanceScene only when the party goes there) ===\n` +
         `Reachable beats from here: ${exits.join(', ') || '(none — this beat resolves the arc)'}\n` +
         (beatsDone.length ? `Beats done: ${beatsDone.join(', ')}\n` : '') +
         (decisions.length ? `Decisions so far: ${decisions.join(', ')}\n` : '') +
+        (npcs.length ? `NPC standings (keep consistent): ${npcs.join(', ')}\n` : '') +
         `\n`;
     }
     messages = [
@@ -736,9 +757,13 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
         } catch (e) {
           resolved.push({ toolUseId: tc.id, content: JSON.stringify({ error: (e as Error).message }) });
         }
+      } else if (tc.name === 'endEncounter') {
+        const r = engine.endCombat();
+        resolved.push({ toolUseId: tc.id, content: JSON.stringify({ ended: true, ...r }) });
       } else if (tc.name === 'advanceScene') {
         try {
-          const r = engine.advanceScene(String(tc.input.toSceneId ?? ''));
+          const outcome = ['resolved', 'fled', 'done'].includes(String(tc.input.outcome)) ? (String(tc.input.outcome) as 'resolved' | 'fled' | 'done') : undefined;
+          const r = engine.advanceScene(String(tc.input.toSceneId ?? ''), outcome);
           resolved.push({ toolUseId: tc.id, content: JSON.stringify({ advanced: true, ...r }) });
         } catch (e) {
           resolved.push({ toolUseId: tc.id, content: JSON.stringify({ advanced: false, error: (e as Error).message }) });

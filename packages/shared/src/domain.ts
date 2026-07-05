@@ -372,8 +372,8 @@ export interface GameState {
     blueprint?: CampaignBlueprint;
     brief?: ArcBrief;
     plannedForScene?: string;
-    plannedDecisionCount?: number;
-    plannedNpcCount?: number;
+    /** Signature of decision:/npc: flag VALUES the brief was planned against (replan when it changes). */
+    plannedFlagSig?: string;
     /** Provenance when the arc was Composer-generated from a seed (absent for authored scenarios). */
     genMeta?: ArcGenMeta;
   };
