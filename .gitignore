@@ -28,3 +28,6 @@ raw-packs/
 # Python bytecode (asset extractor / contact-sheet helpers)
 __pycache__/
 *.pyc
+
+# generated DawnLike sprite gallery (regenerate: python3 scripts/build-sprite-index.py)
+apps/web/public/sprite-index.html

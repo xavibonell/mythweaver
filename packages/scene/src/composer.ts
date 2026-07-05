@@ -57,21 +57,47 @@ const LOOK_SYNONYMS: [RegExp, string][] = [
   [/deer|stag|doe|elk|fawn/, 'deer'],
   [/rabbit|hare|bunny/, 'rabbit'],
   [/crab|lobster|crayfish/, 'crab'],
-  // monsters
+  // monsters — SPECIFIC new-roster tags FIRST (first match wins, so multiword/qualified forms must
+  // precede the generic buckets below; this is what makes "a hulking ogre" / "a town guard" resolve to
+  // the exact sprite instead of collapsing into goblin/knight the way the old table did).
+  [/orc shaman|orc witch|orc priest|orc wizard|orc warlock/, 'orc_shaman'],
+  [/hobgoblin/, 'hobgoblin'],
+  [/bugbear/, 'bugbear'],
+  [/kobold/, 'kobold'],
+  [/\bimp\b/, 'imp'],
+  [/bone devil|\bdevil\b/, 'devil_bone'],
+  [/ogre/, 'ogre'],
+  [/troll/, 'troll'],
+  [/minotaur/, 'minotaur'],
+  [/cyclops/, 'cyclops'],
+  [/ettin/, 'ettin'],
+  [/giant spider|dire spider/, 'spider_giant'],
+  [/giant rat|dire rat|giant vermin|sewer rat|\brat\b/, 'rat_giant'],
+  [/frost giant|ice giant|snow giant/, 'giant_frost'],
+  [/stone giant|earth giant|rock giant/, 'giant_stone'],
+  [/giants?|hill giant|fire giant|storm giant|cloud giant/, 'giant_hill'],
+  [/lich/, 'lich'],
+  [/mummy|mummified/, 'mummy'],
+  [/ghoul/, 'ghoul'],
+  [/wraith|\bwight\b|revenant|specter|spectre/, 'wraith'],
+  [/ghost|phantom|apparition|spectral|poltergeist|banshee|\bspirit\b/, 'ghost'],
+  // generic monster buckets (fallbacks reached only when no specific tag above matched)
   [/orc/, 'orc'],
-  [/goblin|kobold|imp/, 'goblin'],
+  [/goblin/, 'goblin'],
   [/skeleton|skeletal|bones/, 'skeleton'],
-  [/zombie|undead|ghoul|corpse|drowned|risen|wight/, 'zombie'],
+  [/zombie|undead|corpse|drowned|risen/, 'zombie'],
   [/slime|ooze|jelly|blob/, 'slime'],
   [/wolf|warg|jackal|hyena/, 'wolf'],
   [/spider|arachnid/, 'spider'],
   [/dragon|wyrm|drake|wyvern/, 'dragon'],
-  // people / adventurers
+  // people / adventurers (guard & bandit split out to their own sprites; both precede knight/rogue)
   [/dwarf|dwarves|dwarven/, 'dwarf'],
-  [/knight|guard|soldier|warrior|fighter|paladin|sentry|sentinel|militia|man-at-arms/, 'knight'],
+  [/town guard|city guard|\bguard\b|sentry|sentinel|watchman|watchmen|warden|gatekeeper|militia/, 'guard'],
+  [/bandit|brigand|outlaw|highwayman|highwaywoman|marauder|footpad/, 'bandit'],
+  [/knight|soldier|warrior|fighter|paladin|man-at-arms/, 'knight'],
   [/wizard|mage|witch|sorcer|priest|cleric|druid|shaman|enchant|conjur|warlock/, 'wizard'],
   [/ranger|hunter|scout|elf|archer|woodsman|forester/, 'ranger'],
-  [/rogue|thief|spy|assassin|robber|bandit|smuggler|brigand|cutpurse|burglar/, 'rogue'],
+  [/rogue|thief|spy|assassin|robber|smuggler|cutpurse|burglar/, 'rogue'],
   [/woman|girl|lady|matron|maiden|fisherwoman|maid|wife|widow|crone|grandmother/, 'villager_woman'],
 ];
 export function lookToSprite(look: string): string {

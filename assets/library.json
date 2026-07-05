@@ -4754,6 +4754,814 @@
           16
         ]
       }
+    },
+    {
+      "kind": "character",
+      "tag": "kobold",
+      "desc": "a small reptilian kobold",
+      "biomes": [
+        "dungeon",
+        "wild",
+        "ruins"
+      ],
+      "art": "/assets/dawnlike/char/kobold.png",
+      "frameW": 16,
+      "frameH": 16,
+      "idleFrames": 2,
+      "fps": 3,
+      "from": {
+        "pack": "DawnLike",
+        "crop": "Characters/Misc0.png",
+        "rect": [
+          0,
+          32,
+          16,
+          16
+        ],
+        "frame2": "Characters/Misc1.png"
+      },
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
+    },
+    {
+      "kind": "character",
+      "tag": "hobgoblin",
+      "desc": "a disciplined hobgoblin soldier",
+      "biomes": [
+        "dungeon",
+        "wild",
+        "ruins"
+      ],
+      "art": "/assets/dawnlike/char/hobgoblin.png",
+      "frameW": 16,
+      "frameH": 16,
+      "idleFrames": 2,
+      "fps": 3,
+      "from": {
+        "pack": "DawnLike",
+        "crop": "Characters/Humanoid0.png",
+        "rect": [
+          16,
+          304,
+          16,
+          16
+        ],
+        "frame2": "Characters/Humanoid1.png"
+      },
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
+    },
+    {
+      "kind": "character",
+      "tag": "bugbear",
+      "desc": "a hulking bugbear",
+      "biomes": [
+        "dungeon",
+        "wild",
+        "ruins"
+      ],
+      "art": "/assets/dawnlike/char/bugbear.png",
+      "frameW": 16,
+      "frameH": 16,
+      "idleFrames": 2,
+      "fps": 3,
+      "from": {
+        "pack": "DawnLike",
+        "crop": "Characters/Humanoid0.png",
+        "rect": [
+          0,
+          336,
+          16,
+          16
+        ],
+        "frame2": "Characters/Humanoid1.png"
+      },
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
+    },
+    {
+      "kind": "character",
+      "tag": "ogre",
+      "desc": "a brutish ogre",
+      "biomes": [
+        "wild",
+        "dungeon",
+        "ruins"
+      ],
+      "art": "/assets/dawnlike/char/ogre.png",
+      "frameW": 16,
+      "frameH": 16,
+      "idleFrames": 2,
+      "fps": 3,
+      "from": {
+        "pack": "DawnLike",
+        "crop": "Characters/Humanoid0.png",
+        "rect": [
+          0,
+          224,
+          16,
+          16
+        ],
+        "frame2": "Characters/Humanoid1.png"
+      },
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
+    },
+    {
+      "kind": "character",
+      "tag": "troll",
+      "desc": "a regenerating troll",
+      "biomes": [
+        "wild",
+        "dungeon",
+        "cave"
+      ],
+      "art": "/assets/dawnlike/char/troll.png",
+      "frameW": 16,
+      "frameH": 16,
+      "idleFrames": 2,
+      "fps": 3,
+      "from": {
+        "pack": "DawnLike",
+        "crop": "Characters/Humanoid0.png",
+        "rect": [
+          0,
+          112,
+          16,
+          16
+        ],
+        "frame2": "Characters/Humanoid1.png"
+      },
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
+    },
+    {
+      "kind": "character",
+      "tag": "minotaur",
+      "desc": "a horned minotaur",
+      "biomes": [
+        "dungeon",
+        "ruins"
+      ],
+      "art": "/assets/dawnlike/char/minotaur.png",
+      "frameW": 16,
+      "frameH": 16,
+      "idleFrames": 2,
+      "fps": 3,
+      "from": {
+        "pack": "DawnLike",
+        "crop": "Characters/Humanoid0.png",
+        "rect": [
+          0,
+          16,
+          16,
+          16
+        ],
+        "frame2": "Characters/Humanoid1.png"
+      },
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
+    },
+    {
+      "kind": "character",
+      "tag": "cyclops",
+      "desc": "a one-eyed cyclops",
+      "biomes": [
+        "wild",
+        "cave",
+        "ruins"
+      ],
+      "art": "/assets/dawnlike/char/cyclops.png",
+      "frameW": 16,
+      "frameH": 16,
+      "idleFrames": 2,
+      "fps": 3,
+      "from": {
+        "pack": "DawnLike",
+        "crop": "Characters/Humanoid0.png",
+        "rect": [
+          16,
+          16,
+          16,
+          16
+        ],
+        "frame2": "Characters/Humanoid1.png"
+      },
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
+    },
+    {
+      "kind": "character",
+      "tag": "ettin",
+      "desc": "a two-headed ettin",
+      "biomes": [
+        "wild",
+        "dungeon"
+      ],
+      "art": "/assets/dawnlike/char/ettin.png",
+      "frameW": 16,
+      "frameH": 16,
+      "idleFrames": 2,
+      "fps": 3,
+      "from": {
+        "pack": "DawnLike",
+        "crop": "Characters/Humanoid0.png",
+        "rect": [
+          96,
+          0,
+          16,
+          16
+        ],
+        "frame2": "Characters/Humanoid1.png"
+      },
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
+    },
+    {
+      "kind": "character",
+      "tag": "giant_hill",
+      "desc": "a hill giant",
+      "biomes": [
+        "wild",
+        "mountain",
+        "ruins"
+      ],
+      "art": "/assets/dawnlike/char/giant_hill.png",
+      "frameW": 16,
+      "frameH": 16,
+      "idleFrames": 2,
+      "fps": 3,
+      "from": {
+        "pack": "DawnLike",
+        "crop": "Characters/Humanoid0.png",
+        "rect": [
+          32,
+          0,
+          16,
+          16
+        ],
+        "frame2": "Characters/Humanoid1.png"
+      },
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
+    },
+    {
+      "kind": "character",
+      "tag": "giant_frost",
+      "desc": "a frost giant",
+      "biomes": [
+        "wild",
+        "mountain",
+        "snow"
+      ],
+      "art": "/assets/dawnlike/char/giant_frost.png",
+      "frameW": 16,
+      "frameH": 16,
+      "idleFrames": 2,
+      "fps": 3,
+      "from": {
+        "pack": "DawnLike",
+        "crop": "Characters/Humanoid0.png",
+        "rect": [
+          64,
+          0,
+          16,
+          16
+        ],
+        "frame2": "Characters/Humanoid1.png"
+      },
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
+    },
+    {
+      "kind": "character",
+      "tag": "giant_stone",
+      "desc": "a stone giant",
+      "biomes": [
+        "wild",
+        "mountain",
+        "cave"
+      ],
+      "art": "/assets/dawnlike/char/giant_stone.png",
+      "frameW": 16,
+      "frameH": 16,
+      "idleFrames": 2,
+      "fps": 3,
+      "from": {
+        "pack": "DawnLike",
+        "crop": "Characters/Humanoid0.png",
+        "rect": [
+          16,
+          0,
+          16,
+          16
+        ],
+        "frame2": "Characters/Humanoid1.png"
+      },
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
+    },
+    {
+      "kind": "character",
+      "tag": "bandit",
+      "desc": "a road bandit",
+      "biomes": [
+        "village",
+        "road",
+        "wild"
+      ],
+      "art": "/assets/dawnlike/char/bandit.png",
+      "frameW": 16,
+      "frameH": 16,
+      "idleFrames": 2,
+      "fps": 3,
+      "from": {
+        "pack": "DawnLike",
+        "crop": "Characters/Player0.png",
+        "rect": [
+          48,
+          0,
+          16,
+          16
+        ],
+        "frame2": "Characters/Player1.png"
+      },
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
+    },
+    {
+      "kind": "character",
+      "tag": "guard",
+      "desc": "a town guard",
+      "biomes": [
+        "village",
+        "town",
+        "castle"
+      ],
+      "art": "/assets/dawnlike/char/guard.png",
+      "frameW": 16,
+      "frameH": 16,
+      "idleFrames": 2,
+      "fps": 3,
+      "from": {
+        "pack": "DawnLike",
+        "crop": "Characters/Humanoid0.png",
+        "rect": [
+          96,
+          80,
+          16,
+          16
+        ],
+        "frame2": "Characters/Humanoid1.png"
+      },
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
+    },
+    {
+      "kind": "character",
+      "tag": "ghoul",
+      "desc": "a flesh-eating ghoul",
+      "biomes": [
+        "dungeon",
+        "ruins",
+        "graveyard"
+      ],
+      "art": "/assets/dawnlike/char/ghoul.png",
+      "frameW": 16,
+      "frameH": 16,
+      "idleFrames": 2,
+      "fps": 3,
+      "from": {
+        "pack": "DawnLike",
+        "crop": "Characters/Undead0.png",
+        "rect": [
+          0,
+          128,
+          16,
+          16
+        ],
+        "frame2": "Characters/Undead1.png"
+      },
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
+    },
+    {
+      "kind": "character",
+      "tag": "wraith",
+      "desc": "a shrouded wraith",
+      "biomes": [
+        "dungeon",
+        "ruins",
+        "graveyard"
+      ],
+      "art": "/assets/dawnlike/char/wraith.png",
+      "frameW": 16,
+      "frameH": 16,
+      "idleFrames": 2,
+      "fps": 3,
+      "from": {
+        "pack": "DawnLike",
+        "crop": "Characters/Undead0.png",
+        "rect": [
+          0,
+          96,
+          16,
+          16
+        ],
+        "frame2": "Characters/Undead1.png"
+      },
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
+    },
+    {
+      "kind": "character",
+      "tag": "ghost",
+      "desc": "a pale ghost",
+      "biomes": [
+        "dungeon",
+        "ruins",
+        "graveyard"
+      ],
+      "art": "/assets/dawnlike/char/ghost.png",
+      "frameW": 16,
+      "frameH": 16,
+      "idleFrames": 2,
+      "fps": 3,
+      "from": {
+        "pack": "DawnLike",
+        "crop": "Characters/Undead0.png",
+        "rect": [
+          32,
+          64,
+          16,
+          16
+        ],
+        "frame2": "Characters/Undead1.png"
+      },
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
+    },
+    {
+      "kind": "character",
+      "tag": "lich",
+      "desc": "an undead lich",
+      "biomes": [
+        "dungeon",
+        "ruins"
+      ],
+      "art": "/assets/dawnlike/char/lich.png",
+      "frameW": 16,
+      "frameH": 16,
+      "idleFrames": 2,
+      "fps": 3,
+      "from": {
+        "pack": "DawnLike",
+        "crop": "Characters/Undead0.png",
+        "rect": [
+          64,
+          32,
+          16,
+          16
+        ],
+        "frame2": "Characters/Undead1.png"
+      },
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
+    },
+    {
+      "kind": "character",
+      "tag": "mummy",
+      "desc": "a bandaged mummy",
+      "biomes": [
+        "dungeon",
+        "ruins",
+        "desert"
+      ],
+      "art": "/assets/dawnlike/char/mummy.png",
+      "frameW": 16,
+      "frameH": 16,
+      "idleFrames": 2,
+      "fps": 3,
+      "from": {
+        "pack": "DawnLike",
+        "crop": "Characters/Undead0.png",
+        "rect": [
+          48,
+          16,
+          16,
+          16
+        ],
+        "frame2": "Characters/Undead1.png"
+      },
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
+    },
+    {
+      "kind": "character",
+      "tag": "rat_giant",
+      "desc": "a giant rat",
+      "biomes": [
+        "dungeon",
+        "sewer",
+        "cave"
+      ],
+      "art": "/assets/dawnlike/char/rat_giant.png",
+      "frameW": 16,
+      "frameH": 16,
+      "idleFrames": 2,
+      "fps": 3,
+      "from": {
+        "pack": "DawnLike",
+        "crop": "Characters/Rodent0.png",
+        "rect": [
+          16,
+          16,
+          16,
+          16
+        ],
+        "frame2": "Characters/Rodent1.png"
+      },
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
+    },
+    {
+      "kind": "character",
+      "tag": "spider_giant",
+      "desc": "a giant spider",
+      "biomes": [
+        "dungeon",
+        "cave",
+        "forest"
+      ],
+      "art": "/assets/dawnlike/char/spider_giant.png",
+      "frameW": 16,
+      "frameH": 16,
+      "idleFrames": 2,
+      "fps": 3,
+      "from": {
+        "pack": "DawnLike",
+        "crop": "Characters/Pest0.png",
+        "rect": [
+          16,
+          32,
+          16,
+          16
+        ],
+        "frame2": "Characters/Pest1.png"
+      },
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
+    },
+    {
+      "kind": "character",
+      "tag": "imp",
+      "desc": "a darting imp",
+      "biomes": [
+        "dungeon",
+        "ruins"
+      ],
+      "art": "/assets/dawnlike/char/imp.png",
+      "frameW": 16,
+      "frameH": 16,
+      "idleFrames": 2,
+      "fps": 3,
+      "from": {
+        "pack": "DawnLike",
+        "crop": "Characters/Demon0.png",
+        "rect": [
+          0,
+          80,
+          16,
+          16
+        ],
+        "frame2": "Characters/Demon1.png"
+      },
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
+    },
+    {
+      "kind": "character",
+      "tag": "devil_bone",
+      "desc": "a skeletal bone devil",
+      "biomes": [
+        "dungeon",
+        "ruins"
+      ],
+      "art": "/assets/dawnlike/char/devil_bone.png",
+      "frameW": 16,
+      "frameH": 16,
+      "idleFrames": 2,
+      "fps": 3,
+      "from": {
+        "pack": "DawnLike",
+        "crop": "Characters/Demon0.png",
+        "rect": [
+          0,
+          48,
+          16,
+          16
+        ],
+        "frame2": "Characters/Demon1.png"
+      },
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
+    },
+    {
+      "kind": "character",
+      "tag": "orc_shaman",
+      "desc": "an orc shaman",
+      "biomes": [
+        "wild",
+        "dungeon",
+        "ruins"
+      ],
+      "art": "/assets/dawnlike/char/orc_shaman.png",
+      "frameW": 16,
+      "frameH": 16,
+      "idleFrames": 2,
+      "fps": 3,
+      "from": {
+        "pack": "DawnLike",
+        "crop": "Characters/Humanoid0.png",
+        "rect": [
+          64,
+          64,
+          16,
+          16
+        ],
+        "frame2": "Characters/Humanoid1.png"
+      },
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
+    },
+    {
+      "kind": "prop",
+      "tag": "sign_inn",
+      "desc": "a hanging inn sign",
+      "biomes": [
+        "village",
+        "town"
+      ],
+      "art": "/assets/dawnlike/props/sign_inn.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false,
+      "from": {
+        "pack": "DawnLike",
+        "crop": "Objects/Decor0.png",
+        "rect": [
+          96,
+          96,
+          16,
+          16
+        ]
+      },
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
+    },
+    {
+      "kind": "prop",
+      "tag": "sign_smithy",
+      "desc": "a blacksmith's sign",
+      "biomes": [
+        "village",
+        "town"
+      ],
+      "art": "/assets/dawnlike/props/sign_smithy.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false,
+      "from": {
+        "pack": "DawnLike",
+        "crop": "Objects/Decor0.png",
+        "rect": [
+          48,
+          96,
+          16,
+          16
+        ]
+      },
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
+    },
+    {
+      "kind": "prop",
+      "tag": "sign_church",
+      "desc": "a church sign",
+      "biomes": [
+        "village",
+        "town"
+      ],
+      "art": "/assets/dawnlike/props/sign_church.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false,
+      "from": {
+        "pack": "DawnLike",
+        "crop": "Objects/Decor0.png",
+        "rect": [
+          64,
+          96,
+          16,
+          16
+        ]
+      },
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
+    },
+    {
+      "kind": "prop",
+      "tag": "sign_shop",
+      "desc": "a blank shop sign",
+      "biomes": [
+        "village",
+        "town"
+      ],
+      "art": "/assets/dawnlike/props/sign_shop.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false,
+      "from": {
+        "pack": "DawnLike",
+        "crop": "Objects/Decor0.png",
+        "rect": [
+          0,
+          96,
+          16,
+          16
+        ]
+      },
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
+    },
+    {
+      "kind": "prop",
+      "tag": "sign_pub",
+      "desc": "a tavern/pub sign",
+      "biomes": [
+        "village",
+        "town"
+      ],
+      "art": "/assets/dawnlike/props/sign_pub.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false,
+      "from": {
+        "pack": "DawnLike",
+        "crop": "Objects/Decor0.png",
+        "rect": [
+          80,
+          96,
+          16,
+          16
+        ]
+      },
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
+    },
+    {
+      "kind": "prop",
+      "tag": "sign_armory",
+      "desc": "an armory sign",
+      "biomes": [
+        "village",
+        "town",
+        "castle"
+      ],
+      "art": "/assets/dawnlike/props/sign_armory.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false,
+      "from": {
+        "pack": "DawnLike",
+        "crop": "Objects/Decor0.png",
+        "rect": [
+          32,
+          96,
+          16,
+          16
+        ]
+      },
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
     }
   ]
 }
