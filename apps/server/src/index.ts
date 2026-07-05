@@ -405,13 +405,17 @@ app.get('/dm/lab/library', async (_req, reply) => {
   }
 });
 
-// Parse the hand-built party (Add player → role) from a request body: [{role, name?}], capped at 6.
-function parsePartyPicks(raw: unknown): { role: string; name?: string }[] {
+// Parse the hand-built party from a request body: [{role, name?, backstory?}], capped at 6.
+function parsePartyPicks(raw: unknown): { role: string; name?: string; backstory?: string }[] {
   if (!Array.isArray(raw)) return [];
   return raw
     .map((p) => {
       const pp = (p ?? {}) as Record<string, unknown>;
-      return { role: typeof pp.role === 'string' ? pp.role.trim().slice(0, 40) : '', ...(typeof pp.name === 'string' && pp.name.trim() ? { name: pp.name.trim().slice(0, 60) } : {}) };
+      return {
+        role: typeof pp.role === 'string' ? pp.role.trim().slice(0, 40) : '',
+        ...(typeof pp.name === 'string' && pp.name.trim() ? { name: pp.name.trim().slice(0, 60) } : {}),
+        ...(typeof pp.backstory === 'string' && pp.backstory.trim() ? { backstory: pp.backstory.trim().slice(0, 600) } : {}),
+      };
     })
     .filter((p) => p.role)
     .slice(0, 6);
@@ -432,7 +436,7 @@ function parseArcSeed(raw: unknown): ArcSeed | { error: string } {
   const lib = new Map(loadSharedParty().map((p) => [p.id, p]));
   const party = parsePartyPicks(b.party).map((pk) => {
     const a = lib.get(pk.role);
-    return { name: (pk.name || '').trim() || (a ? a.name : pk.role), className: a ? a.className : pk.role };
+    return { name: (pk.name || '').trim() || (a ? a.name : pk.role), className: a ? a.className : pk.role, ...(pk.backstory ? { backstory: pk.backstory } : {}) };
   });
   const constraints = Array.isArray(b.constraints) ? b.constraints.filter((c): c is string => typeof c === 'string').map((c) => c.slice(0, 200)).slice(0, 8) : undefined;
   const seedPhrase = typeof b.seedPhrase === 'string' && b.seedPhrase.trim() ? b.seedPhrase.trim().slice(0, 200) : undefined;
@@ -505,6 +509,20 @@ app.post('/dm/lab/generate-arc', async (req, reply) => {
   try {
     const { arc, costUsd } = await arcComposer.compose(seed, { ...(temperature !== undefined ? { temperature } : {}), library: loadSharedBestiary() });
     arc.party = resolveParty(parsePartyPicks((req.body as Record<string, unknown>)?.party)); // resolved sheets, editable in the bundle
+    // Backstory precedence: authored (already on the sheet) wins; fill the blanks with what the Director
+    // invented. The composer often keys entries "Aldric the Fighter" while the sheet is "Aldric", so match
+    // on a name prefix (either direction), not just exact equality.
+    const norm = (s: string) => s.trim().toLowerCase();
+    const invented = arc.pcBackstories ?? [];
+    for (const sheet of arc.party) {
+      if (sheet.backstory) continue;
+      const s = norm(sheet.name);
+      const hit = invented.find((p) => {
+        const n = norm(p.name);
+        return n === s || n.startsWith(`${s} `) || s.startsWith(`${n} `);
+      });
+      if (hit) sheet.backstory = hit.backstory;
+    }
     return { arc, costUsd, markdown: arcMarkdown(arc) };
   } catch (err) {
     app.log.error(err, 'arc generation failed');

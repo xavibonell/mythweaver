@@ -375,4 +375,23 @@ describe('canonBlock — deterministic CANON injection (P1)', () => {
     expect(canonBlock({ currentSceneId: 'a', ledger: { entities: {}, facts: [], plants: {} } } as unknown as GameState, 'x')).toBe('');
     expect(canonBlock({ currentSceneId: 'a' } as unknown as GameState, 'x')).toBe('');
   });
+
+  it('ALWAYS injects the party (kind:pc) under a PARTY header, even off-scene and unmentioned', () => {
+    const withPc = {
+      currentSceneId: 'z', // no entity is native here
+      ledger: {
+        entities: {
+          'pc-1-fighter': { id: 'pc-1-fighter', kind: 'pc', name: 'Aldric', notes: 'a disgraced knight seeking his lost blade' },
+          'npc:mabon': { id: 'npc:mabon', kind: 'npc', name: 'Mabon', scenes: ['b'] },
+        },
+        facts: [],
+        plants: {},
+      },
+    } as unknown as GameState;
+    const out = canonBlock(withPc, 'the party rests quietly'); // mentions no one by name
+    expect(out).toContain('PARTY');
+    expect(out).toContain('Aldric');
+    expect(out).toContain('a disgraced knight seeking his lost blade'); // backstory (notes) rendered
+    expect(out).not.toContain('Mabon'); // NPC off-scene + unmentioned stays out
+  });
 });

@@ -160,6 +160,9 @@ export interface CharacterSheet {
   spellcasting?: SpellcastingBlock;
   features?: { name: string; text: string }[];
   inventory?: string[];
+  /** Freeform origin/motivation (player-authored, or Director-invented). Woven into the arc + NPCs
+   *  and injected as canon so the DM keeps the story about who the characters are. */
+  backstory?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -356,8 +359,8 @@ export const TERMINAL_ENTITY_STATUSES: readonly EntityStatus[] = ['dead', 'gone'
 
 /** A canonical world entity (NPC/place/item/faction) the DM must stay consistent with. */
 export interface EntityCard {
-  id: string; // e.g. "npc:edda", "item:silver-key", "place:bell-tower"
-  kind: 'npc' | 'place' | 'item' | 'faction' | 'other';
+  id: string; // e.g. "npc:edda", "item:silver-key", "place:bell-tower", "pc-1-fighter"
+  kind: 'pc' | 'npc' | 'place' | 'item' | 'faction' | 'other';
   name: string;
   /** Other ways the entity is referred to — used for canon matching against narration/input. */
   aliases?: string[];

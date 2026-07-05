@@ -28,8 +28,9 @@ export interface ArcSeed {
   theme?: string;
   tone?: string; // e.g. grim | heroic | whimsical | mystery | horror
   lengthBeats?: number; // clamped 3-8
-  /** The hand-built party (name + role), which PRE-EXISTS the campaign so it's designed for them. */
-  party: { name: string; className?: string }[];
+  /** The hand-built party (name + role + optional backstory), which PRE-EXISTS the campaign so it's
+   *  designed for them. A blank backstory tells the Director to invent one that fits. */
+  party: { name: string; className?: string; backstory?: string }[];
   constraints?: string[];
   /** A throwaway phrase that varies the prompt so "Reroll" yields a different arc. */
   seedPhrase?: string;
@@ -53,6 +54,8 @@ export interface GeneratedArc {
   party?: CharacterSheet[];
   /** Canon Ledger seed (P1): the cast (NPCs with voice, native scenes) + planted details. */
   ledger?: { entities: EntityCard[]; plants: Plant[] };
+  /** Per-PC backstories the composer echoed/invented, keyed by name — merged onto `party` by the endpoint. */
+  pcBackstories?: { name: string; backstory: string }[];
   blueprint: CampaignBlueprint;
   genMeta: ArcGenMeta;
 }
@@ -101,7 +104,7 @@ function canonicalSeed(seed: ArcSeed): string {
     theme: (seed.theme || '').trim(),
     tone: seed.tone || '',
     lengthBeats: clampLen(seed.lengthBeats),
-    party: (seed.party || []).map((p) => ({ name: p.name || '', className: p.className || '' })),
+    party: (seed.party || []).map((p) => ({ name: p.name || '', className: p.className || '', backstory: (p.backstory || '').trim() })),
     constraints: (seed.constraints || []).map((c) => (c || '').trim()).filter(Boolean),
     seedPhrase: seed.seedPhrase || '',
     monsterMode: seed.monsterMode || 'auto',
@@ -125,7 +128,11 @@ function seedDigest(seed: ArcSeed, res: MonsterResources): string {
     seed.theme ? `THEME: ${str(seed.theme, 300)}` : 'THEME: (none given — invent a fresh, compelling premise yourself)',
     seed.tone ? `TONE: ${str(seed.tone, 60)}` : '',
     `LENGTH: ${clampLen(seed.lengthBeats)} beats`,
-    `PARTY (design the adventure FOR this party): ${(seed.party || []).map((p) => (p.className ? `${str(p.name, 60)} the ${str(p.className, 40)}` : str(p.name, 60))).join(', ') || '(a small adventuring party)'}`,
+    (seed.party || []).length
+      ? `PARTY (design the adventure FOR these characters; weave their backstories in where they fit):\n${(seed.party || [])
+          .map((p) => `  - ${str(p.name, 60)}${p.className ? ` the ${str(p.className, 40)}` : ''} — ${str(p.backstory, 300) || '(no backstory given: invent a short one that fits the theme)'}`)
+          .join('\n')}`
+      : 'PARTY: (a small adventuring party)',
     (seed.constraints || []).length ? `CONSTRAINTS: ${(seed.constraints || []).map((c) => str(c, 200)).filter(Boolean).join('; ')}` : '',
     seed.seedPhrase ? `SEED PHRASE (use for variety/novelty): ${str(seed.seedPhrase, 200)}` : '',
     monsterGuidance,
@@ -139,7 +146,7 @@ export const DEFAULT_COMPOSER_SYSTEM = `You are the GAME DIRECTOR composing a br
 Design a coherent arc with a KNOWN ENDING: what the whole thing is about, the central problem, where the party starts, the envisioned ending you steer toward, and an ordered chain of BEATS (scenes) that route from the opening to that ending. Honor the seed's theme, tone, length, and constraints. Give players real agency — offer multiple approaches per beat, never a single gated path.
 
 Respond with ONLY a JSON object (no prose, no code fence):
-{"premise":"<what the campaign is about / its theme>","centralProblem":"<the concrete problem the party must address>","intendedEnding":"<a clear, specific resolution — how it should end if it lands>","opening":"<where/how the party starts>","beats":[{"title":"<short scene name>","summary":"<GM guidance: what's here, what's at stake, ways to engage; you MAY note suggested checks + DCs; reveal it through play>","exits":[2,3],"intent":"<what this beat accomplishes toward the ending>","monsters":[{"from":"<library id>","count":2},{"new":{"name":"<creature>","challengeRating":1,"type":"<e.g. undead>","attackName":"<e.g. Spectral Touch>","damageType":"necrotic","ranged":false},"count":1}]}],"spine":[{"milestone":"<short label>","beat":1,"intent":"<step toward the ending>"}],"cast":[{"id":"npc:<slug>","name":"<name>","atBeats":[1],"voice":{"tic":"<a distinctive speech/behaviour tic>","want":"<what they want>","fear":"<what they fear>"}}],"plants":[{"id":"plant:<slug>","what":"<a detail planted early that pays off later>"}]}
+{"premise":"<what the campaign is about / its theme>","centralProblem":"<the concrete problem the party must address>","intendedEnding":"<a clear, specific resolution — how it should end if it lands>","opening":"<where/how the party starts>","beats":[{"title":"<short scene name>","summary":"<GM guidance: what's here, what's at stake, ways to engage; you MAY note suggested checks + DCs; reveal it through play>","exits":[2,3],"intent":"<what this beat accomplishes toward the ending>","monsters":[{"from":"<library id>","count":2},{"new":{"name":"<creature>","challengeRating":1,"type":"<e.g. undead>","attackName":"<e.g. Spectral Touch>","damageType":"necrotic","ranged":false},"count":1}]}],"spine":[{"milestone":"<short label>","beat":1,"intent":"<step toward the ending>"}],"cast":[{"id":"npc:<slug>","name":"<name>","atBeats":[1],"voice":{"tic":"<a distinctive speech/behaviour tic>","want":"<what they want>","fear":"<what they fear>"}}],"plants":[{"id":"plant:<slug>","what":"<a detail planted early that pays off later>"}],"pcBackstories":[{"name":"<pc name exactly as given>","backstory":"<their backstory>"}]}
 
 RULES:
 - "beats" is an ORDERED array; the FIRST beat is where the party starts. Produce the requested number of beats (3-8).
@@ -148,6 +155,8 @@ RULES:
 - "monsters" (optional, only on beats with a fight): each entry is EITHER {"from":"<library id>","count":N} to place an existing creature, OR {"new":{...},"count":N} to commission one — pick whichever the MONSTERS line in the seed allows. For "new", give ONLY fiction: name, challengeRating (0–5), type, attackName, damageType, ranged (true/false). The ENGINE computes its HP/AC/damage — never write any number other than challengeRating and count. Scale fights to the party size; not every beat needs combat.
 - "cast": EVERY named NPC in your beat prose MUST appear here with a memorable VOICE (a tic, a want, a fear) and "atBeats" = the 1-based beats they appear in. This is what keeps them themselves when they return.
 - "plants": 2-4 Chekhov details planted early that pay off later (a heirloom, a rumour, a scar) — the seeds of callbacks.
+- PARTY BACKSTORIES: weave the party's backstories into the arc where they naturally fit — tie an NPC to a PC's past, let a beat touch a PC's stakes, plant a detail that pays off their history (no need to hook every PC). For any PC whose backstory is "(no backstory given…)", INVENT a short one that fits the theme.
+- "pcBackstories": return one entry per PC — the given backstory verbatim, or the short one you invented. Use the PC's name exactly as given.
 - intendedEnding must be a concrete destination, not vague. No stat blocks, no HP/AC/to-hit. Keep prose tight (~600 words total).`;
 
 interface StampCtx {
@@ -337,6 +346,17 @@ export function buildGeneratedArc(raw: unknown, seed: ArcSeed, ctx: StampCtx, re
     .filter((p): p is Plant => p !== null)
     .slice(0, 6);
 
+  // Per-PC backstories (echoed authored + invented for blanks), keyed by name — merged onto party later.
+  const pcBackstories = (Array.isArray(o.pcBackstories) ? o.pcBackstories : [])
+    .map((p): { name: string; backstory: string } | null => {
+      const pp = p && typeof p === 'object' ? (p as Record<string, unknown>) : {};
+      const name = str(pp.name, 60);
+      const backstory = str(pp.backstory, 400);
+      return name && backstory ? { name, backstory } : null;
+    })
+    .filter((p): p is { name: string; backstory: string } => p !== null)
+    .slice(0, 8);
+
   const genMeta: ArcGenMeta = {
     seedHash: sha1(canonicalSeed(seed)),
     ...(seed.seedPhrase ? { seedPhrase: str(seed.seedPhrase, 200) } : {}),
@@ -348,7 +368,7 @@ export function buildGeneratedArc(raw: unknown, seed: ArcSeed, ctx: StampCtx, re
     composerPromptHash: sha1(ctx.promptText),
     fallback: ctx.fallback,
   };
-  return { adventure, startSceneId: ids[0]!, encounters, bestiary, ...(entities.length || plants.length ? { ledger: { entities, plants } } : {}), blueprint, genMeta };
+  return { adventure, startSceneId: ids[0]!, encounters, bestiary, ...(entities.length || plants.length ? { ledger: { entities, plants } } : {}), ...(pcBackstories.length ? { pcBackstories } : {}), blueprint, genMeta };
 }
 
 const ledgerSlug = (s: string): string => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'npc';

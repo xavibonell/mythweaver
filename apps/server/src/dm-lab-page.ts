@@ -150,10 +150,12 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
   .pill.stale { background: #38301a; color: #e8c98a; border: 1px solid #7b6a2e; }
   .pill.fallback { background: #38141d; color: #f0a6b0; border: 1px solid #5a2630; }
   .gen-badge .det { color: #8b90a0; }
-  .prow { display: flex; gap: 6px; align-items: center; margin-bottom: 6px; }
-  .prow select { flex: 0 0 116px; }
-  .prow input { flex: 1; min-width: 0; }
+  .prow { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; }
+  .prow-top { display: flex; gap: 6px; align-items: center; }
+  .prow-top select { flex: 0 0 116px; }
+  .prow-top .pname { flex: 1; min-width: 0; }
   .prow .premove { padding: 6px 9px; color: #c08; }
+  .prow .pback { width: 100%; min-height: 30px; resize: vertical; font: 12px/1.4 ui-sans-serif, system-ui; }
   .radiorow, .ckrow { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: #c7ccda; margin: 0; cursor: pointer; }
   .ckrow { margin-top: 6px; }
   .mon-lib { display: flex; flex-wrap: wrap; gap: 6px; max-height: 150px; overflow: auto; }
@@ -505,8 +507,15 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
     }
     var L = a.ledger;
     if (L) {
-      if (L.entities && L.entities.length) {
-        h += '<div class="arc-sec"><h3>Canon — cast</h3>' + L.entities.map(function (e) {
+      var pcs = (L.entities || []).filter(function (e) { return e.kind === 'pc'; });
+      var cast = (L.entities || []).filter(function (e) { return e.kind !== 'pc'; });
+      if (pcs.length) {
+        h += '<div class="arc-sec"><h3>Party (backstories)</h3>' + pcs.map(function (e) {
+          return '<div class="kv"><b>' + esc(e.name) + '</b>' + (e.notes ? ' — <span style="color:#9aa0b0">' + esc(e.notes) + '</span>' : '') + '</div>';
+        }).join('') + '</div>';
+      }
+      if (cast.length) {
+        h += '<div class="arc-sec"><h3>Canon — cast</h3>' + cast.map(function (e) {
           var v = e.voice ? [e.voice.tic, e.voice.want && 'wants ' + e.voice.want, e.voice.fear && 'fears ' + e.voice.fear].filter(Boolean).join('; ') : '';
           return '<div class="kv"><b>' + esc(e.name) + '</b> <span style="color:#6b7080">' + esc(e.status) + '</span>' + (v ? ' — <span style="color:#9aa0b0">' + esc(v) + '</span>' : '') + '</div>';
         }).join('') + '</div>';
@@ -725,9 +734,10 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
   }
   function addPlayer(role, name) {
     var row = document.createElement('div'); row.className = 'prow';
-    row.innerHTML = '<select class="seg prole">' + roleOptions(role) + '</select>' +
+    row.innerHTML = '<div class="prow-top"><select class="seg prole">' + roleOptions(role) + '</select>' +
       '<input class="pname" type="text" placeholder="name (optional)" value="' + esc(name || '') + '" />' +
-      '<button class="ghost premove" title="remove">×</button>';
+      '<button class="ghost premove" title="remove">×</button></div>' +
+      '<textarea class="pback" rows="1" placeholder="backstory (optional — blank = the Director invents one)"></textarea>';
     row.querySelector('.premove').onclick = function () { row.remove(); };
     $('party-list').appendChild(row);
   }
@@ -735,7 +745,11 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
     return [].slice.call(document.querySelectorAll('#party-list .prow')).map(function (row) {
       var role = row.querySelector('.prole').value;
       var name = row.querySelector('.pname').value.trim();
-      return name ? { role: role, name: name } : { role: role };
+      var backstory = row.querySelector('.pback').value.trim();
+      var p = { role: role };
+      if (name) p.name = name;
+      if (backstory) p.backstory = backstory;
+      return p;
     }).filter(function (p) { return p.role; });
   }
   function monsterConfig() {

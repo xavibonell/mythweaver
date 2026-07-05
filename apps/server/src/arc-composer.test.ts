@@ -191,6 +191,15 @@ describe('arc-composer', () => {
       const arc = buildGeneratedArc({ premise: 'p', intendedEnding: 'e', beats: [{ title: 'A', summary: 's', exits: [] }] }, seed, ctx0)!;
       expect(arc.ledger).toBeUndefined();
     });
+
+    it('coerces pcBackstories (dropping entries missing a name or backstory)', () => {
+      const arc = buildGeneratedArc(
+        { premise: 'p', intendedEnding: 'e', beats: [{ title: 'A', summary: 's', exits: [] }], pcBackstories: [{ name: 'Aldric', backstory: 'a disgraced knight' }, { name: 'X' }, { backstory: 'orphan' }] },
+        seed,
+        ctx0,
+      )!;
+      expect(arc.pcBackstories).toEqual([{ name: 'Aldric', backstory: 'a disgraced knight' }]);
+    });
   });
 
   describe('validateGeneratedArc (guards hand-edited bundles before a session)', () => {

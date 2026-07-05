@@ -112,7 +112,7 @@ export function loadSharedBestiary(): StatBlock[] {
  * its role archetype, with a unique id and the player's chosen name (falling back to the role label).
  * Unknown roles are dropped; an empty/garbage party falls back to a single Fighter so play never breaks.
  */
-export function resolveParty(picks: { role: string; name?: string }[]): CharacterSheet[] {
+export function resolveParty(picks: { role: string; name?: string; backstory?: string }[]): CharacterSheet[] {
   const lib = loadSharedParty();
   const byId = new Map(lib.map((p) => [p.id, p]));
   const out: CharacterSheet[] = [];
@@ -120,7 +120,8 @@ export function resolveParty(picks: { role: string; name?: string }[]): Characte
     const archetype = byId.get(pick.role);
     if (!archetype) return;
     const name = (pick.name || '').trim() || `${archetype.name} ${out.filter((p) => p.className === archetype.className).length + 1}`;
-    out.push({ ...archetype, id: `pc-${i + 1}-${archetype.id}`, name });
+    const backstory = (pick.backstory || '').trim();
+    out.push({ ...archetype, id: `pc-${i + 1}-${archetype.id}`, name, ...(backstory ? { backstory } : {}) });
   });
   if (out.length === 0) {
     const fighter = byId.get('fighter') ?? lib[0]!;

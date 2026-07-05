@@ -24,7 +24,7 @@ import {
 } from '@mythweaver/llm';
 import type { Retriever } from '@mythweaver/rag';
 import { FakeSceneComposer, type SceneComposer } from '@mythweaver/scene';
-import type { CharacterSheet, EstablishScene, GameState, PartyMemberRef, SceneMap, StatBlock } from '@mythweaver/shared';
+import type { CharacterSheet, EntityCard, EstablishScene, GameState, PartyMemberRef, SceneMap, StatBlock } from '@mythweaver/shared';
 import { createHash } from 'node:crypto';
 import { loadScenario, parseScenario, resolveParty } from './content.js';
 import { buildRetriever } from './corpus.js';
@@ -285,12 +285,19 @@ export function createDmLabSession(deps: DmLabDeps, scenarioId: string): DmLabSe
   });
   // Pre-prime the architected blueprint so the orchestrator SKIPS the architect step in generate-mode.
   if (gen) state.arc = { blueprint: gen.blueprint, genMeta: gen.genMeta };
-  // Prime the Canon Ledger from the generated cast + plants (facts accrue during play).
-  if (gen?.ledger) {
+  // Prime the Canon Ledger from the generated cast + plants + the PCs' backstories (facts accrue in play).
+  // Each PC with a backstory becomes a kind:'pc' canon entity so the DM always knows who they are.
+  const pcCards = party
+    .filter((p) => p.backstory)
+    .map((p): EntityCard => ({ id: p.id, kind: 'pc', name: p.name, notes: p.backstory! }));
+  if (gen?.ledger || pcCards.length) {
     state.ledger = {
-      entities: Object.fromEntries((gen.ledger.entities ?? []).map((e) => [e.id, e])),
+      entities: {
+        ...Object.fromEntries((gen?.ledger?.entities ?? []).map((e) => [e.id, e])),
+        ...Object.fromEntries(pcCards.map((c) => [c.id, c])),
+      },
       facts: [],
-      plants: Object.fromEntries((gen.ledger.plants ?? []).map((p) => [p.id, p])),
+      plants: Object.fromEntries((gen?.ledger?.plants ?? []).map((p) => [p.id, p])),
     };
   }
   return {
@@ -416,7 +423,7 @@ export function arcView(session: DmLabSession) {
   const L = st.ledger;
   const ledger = L
     ? {
-        entities: Object.values(L.entities).map((e) => ({ id: e.id, name: e.name, kind: e.kind, status: e.status ?? 'active', voice: e.voice ?? null })),
+        entities: Object.values(L.entities).map((e) => ({ id: e.id, name: e.name, kind: e.kind, status: e.status ?? 'active', voice: e.voice ?? null, notes: e.notes ?? null })),
         facts: L.facts.filter((f) => !f.supersededBy).map((f) => ({ subject: f.subject, attribute: f.attribute, value: f.value, turn: f.turn })),
         plants: Object.values(L.plants).map((p) => ({ id: p.id, what: p.what, status: p.status })),
       }

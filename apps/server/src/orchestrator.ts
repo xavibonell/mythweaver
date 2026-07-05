@@ -458,29 +458,44 @@ export function canonBlock(state: GameState, context: string): string {
   const hay = context.toLowerCase();
   const scene = state.currentSceneId;
   const entities = Object.values(L.entities);
-  const named = (e: { name: string; aliases?: string[] }) => [e.name, ...(e.aliases ?? [])].some((a) => a && hay.includes(a.toLowerCase()));
-  const matched = new Set(entities.filter((e) => e.scenes?.includes(scene) || named(e)).map((e) => e.id));
   const live = L.facts.filter((f) => !f.supersededBy);
+  const named = (e: { name: string; aliases?: string[] }) => [e.name, ...(e.aliases ?? [])].some((a) => a && hay.includes(a.toLowerCase()));
+  // PCs (kind:'pc') are ALWAYS present; NPCs/others are pulled in when native to the scene or named.
+  const matched = new Set(entities.filter((e) => e.kind === 'pc' || e.scenes?.includes(scene) || named(e)).map((e) => e.id));
   // One recursion pass: a matched entity's fact may name another entity → pull that one in too.
   for (const f of live) if (matched.has(f.subject)) for (const e of entities) if (!matched.has(e.id) && f.value.toLowerCase().includes(e.name.toLowerCase())) matched.add(e.id);
 
-  const lines: string[] = [];
   let budget = 2200; // ~550 tokens
-  const push = (s: string) => { if (s && budget - s.length > 0) { lines.push(s); budget -= s.length + 1; } };
-  for (const e of entities) {
-    if (!matched.has(e.id)) continue;
+  const factsFor = (id: string) => live.filter((f) => f.subject === id);
+  const renderEntity = (e: (typeof entities)[number], lines: string[]) => {
     const v = e.voice;
     const voice = v ? [v.tic && `tic: ${v.tic}`, v.want && `wants: ${v.want}`, v.fear && `fears: ${v.fear}`].filter(Boolean).join('; ') : '';
-    push(`- ${e.name} [${e.id}] (${e.status ?? 'active'})${voice ? ` — ${voice}` : ''}`);
-    for (const f of live) if (f.subject === e.id) push(`    · ${f.attribute}: ${f.value}`);
-  }
+    const tail = voice || e.notes || '';
+    const push = (s: string) => { if (s && budget - s.length > 0) { lines.push(s); budget -= s.length + 1; } };
+    push(`- ${e.name} [${e.id}] (${e.status ?? 'active'})${tail ? ` — ${tail}` : ''}`);
+    for (const f of factsFor(e.id)) push(`    · ${f.attribute}: ${f.value}`);
+  };
+
+  // Party block first — the DM should always know who the characters are and weave their backstories.
+  const partyLines: string[] = [];
+  for (const e of entities) if (e.kind === 'pc') renderEntity(e, partyLines);
+  // NPCs / places / items relevant to this turn.
+  const worldLines: string[] = [];
+  for (const e of entities) if (e.kind !== 'pc' && matched.has(e.id)) renderEntity(e, worldLines);
   // Free-subject facts (party items/promises, or anything named in the turn's context).
   for (const f of live) {
     if (L.entities[f.subject]) continue; // already rendered under its entity
-    if (f.subject === 'party' || hay.includes(f.subject.toLowerCase()) || hay.includes(f.value.toLowerCase())) push(`- ${f.subject} · ${f.attribute}: ${f.value}`);
+    if (f.subject === 'party' || hay.includes(f.subject.toLowerCase()) || hay.includes(f.value.toLowerCase())) {
+      const s = `- ${f.subject} · ${f.attribute}: ${f.value}`;
+      if (budget - s.length > 0) { worldLines.push(s); budget -= s.length + 1; }
+    }
   }
-  if (!lines.length) return '';
-  return `=== CANON (established world truth — NEVER contradict; if something is unknown, invent it freshly and record it with recordFact/upsertNpc) ===\n${lines.join('\n')}\n\n`;
+  if (!partyLines.length && !worldLines.length) return '';
+  const parts = [
+    partyLines.length ? `PARTY (the player characters — their backstories are canon; weave callbacks, honor who they are):\n${partyLines.join('\n')}` : '',
+    worldLines.join('\n'),
+  ].filter(Boolean);
+  return `=== CANON (established world truth — NEVER contradict; if something is unknown, invent it freshly and record it with recordFact/upsertNpc) ===\n${parts.join('\n')}\n\n`;
 }
 
 /** Render the persistent NPC standings (`npc:*` flags) so the DM keeps NPCs consistent across turns. */
