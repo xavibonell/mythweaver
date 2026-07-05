@@ -316,6 +316,23 @@ export function bakeWoodWalls(tiles: string[][], cols: number, rows: number): vo
     }
 }
 
+/** ROCK-MASS autotile (Weave cliff massif): a filled body of `rock_wall` (a mountain/cliff) gets the
+ *  DawnLike connectivity blob tile per cell — the town-facing side shows a vertical CLIFF FACE, the
+ *  interior a solid rock top — so a mountain reads as impassable high ground, not a flat gravel field.
+ *  Off-grid neighbours count as SAME (the massif continues off-screen). Writes `rock_wall_<exposed>`,
+ *  where exposed = the sides with NO rock neighbour (the faces the town sees). 3+ exposed → a pillar. */
+export function bakeRockMass(tiles: string[][], cols: number, rows: number): void {
+  const orig = tiles.map((row) => row.slice());
+  const rk = (c: number, r: number) => c < 0 || r < 0 || c >= cols || r >= rows || (orig[r]![c] ?? '').startsWith('rock_wall');
+  const SUF: Record<string, string> = { '': '', N: '_n', S: '_s', E: '_e', W: '_w', NS: '_ns', EW: '_ew', NW: '_nw', NE: '_ne', SW: '_sw', SE: '_se' };
+  for (let r = 0; r < rows; r++)
+    for (let c = 0; c < cols; c++) {
+      if (!(orig[r]![c] ?? '').startsWith('rock_wall')) continue;
+      const ex = (rk(c, r - 1) ? '' : 'N') + (rk(c + 1, r) ? '' : 'E') + (rk(c, r + 1) ? '' : 'S') + (rk(c - 1, r) ? '' : 'W');
+      tiles[r]![c] = `rock_wall${SUF[ex] ?? '_flat'}`;
+    }
+}
+
 /** C2 ground decals: a light, NON-blocking scatter of pebbles + grass tufts on free open natural
  *  ground (grass/dirt/sand). Reserves each chosen cell in `occ`; leaves walkable untouched (decals
  *  are walkable). Pushes AmbianceItems. Seed via `rand` so it's reproducible. */

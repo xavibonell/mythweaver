@@ -44,6 +44,9 @@ export interface Contents {
   port?: boolean;
   /** A MINE — a cave mouth + ore + miners attached to the mountain frontier (implies `mountain`). */
   mine?: boolean;
+  /** The town's CHARACTER — drives context-appropriate furnishing (centerpiece, park) so a mining camp
+   *  doesn't get a genteel fountain. Derived from the brief + buildings in harvestTownContents. */
+  character?: 'mining' | 'port' | 'market' | 'civic' | 'rough';
 }
 export interface GenContext {
   theme: Theme;
@@ -87,7 +90,7 @@ function reserveEdgeField(cv: Canvas, B: Rect, interior: Rect, kind: 'coast' | '
     : edge === 'south' ? { x: B.x, y: full.y + offset, w: B.w, h: w }
     : { x: B.x, y: full.y + band - offset - w, w: B.w, h: w };
   if (kind === 'mountain') {
-    fill(cv, full, 'rock', false);
+    fill(cv, full, 'rock_wall', false);
     // scatter boulders/rocks so the massif reads as rugged rock, not flat gravel. The band is
     // non-walkable, so place them straight into the decorative layer (like the garden trees) rather
     // than via place() (which requires a walkable free cell).
@@ -204,8 +207,14 @@ function townGen(cv: Canvas, ctx: GenContext): void {
   const pRect: Rect = { x: pBlock.x + Math.floor((pBlock.w - pw) / 2), y: pBlock.y + Math.floor((pBlock.h - ph) / 2), w: pw, h: ph };
   plaza(cv, pRect, theme.plaza);
   const plazaCtr = rectCenter(pRect);
-  const vig = contents.landmarks.map((l) => l.tag).find((t) => TOWN_VIGNETTES.has(t)) ?? (contents.landmarks.some((l) => /well|fountain/.test(l.tag)) ? 'well' : 'well');
-  vignette(cv, plazaCtr, vig, `plaza-${slug(locationId, 0)}`);
+  // CENTERPIECE by town CHARACTER (not an unconditional well): a genteel village gets a well, a mining
+  // town an anvil/forge, a market its stalls; a rough camp gets nothing but a firepit. A vignette the DM
+  // explicitly named still wins.
+  const CENTERPIECE: Record<NonNullable<Contents['character']>, string | undefined> = { mining: 'forge', port: 'market', market: 'market', civic: 'well', rough: undefined };
+  const namedVig = contents.landmarks.map((l) => l.tag).find((t) => TOWN_VIGNETTES.has(t));
+  const vig = namedVig ?? CENTERPIECE[contents.character ?? 'civic'];
+  if (vig) vignette(cv, plazaCtr, vig, `plaza-${slug(locationId, 0)}`);
+  else place(cv, { id: `prop:plaza-firepit-${slug(locationId, 0)}`, tag: 'brazier', kind: 'prop', at: plazaCtr }); // rough camp: a firepit, no fountain
   // benches at the square's corners — somewhere to sit by the market/well.
   for (const [cx, cy] of [[pRect.x + 1, pRect.y + 1], [pRect.x + pRect.w - 2, pRect.y + 1], [pRect.x + 1, pRect.y + pRect.h - 2], [pRect.x + pRect.w - 2, pRect.y + pRect.h - 2]] as const)
     if (cv.inB(cx, cy) && cv.isFree(cx, cy)) place(cv, { id: `prop:plaza-bench-${cx}-${cy}`, tag: 'stone_bench', kind: 'prop', at: { c: cx, r: cy } });
@@ -218,7 +227,9 @@ function townGen(cv: Canvas, ctx: GenContext): void {
     if (kIdx >= 0) {
       const park = blocks.splice(kIdx, 1)[0]!;
       const parkCtr = rectCenter(park);
-      place(cv, { id: `prop:park-fountain-${slug(locationId, 0)}`, tag: 'fountain', kind: 'prop', at: parkCtr });
+      // a fountain only befits a genteel town; a working/rough town gets a firepit gathering-spot instead.
+      const genteel = !contents.character || contents.character === 'civic' || contents.character === 'market';
+      place(cv, { id: `prop:park-centre-${slug(locationId, 0)}`, tag: genteel ? 'fountain' : 'brazier', kind: 'prop', at: parkCtr });
       for (const [dx, dy] of [[-2, 0], [2, 0], [0, -2], [0, 2]] as const) { const bc = parkCtr.c + dx, br = parkCtr.r + dy; if (cv.inB(bc, br) && cv.isFree(bc, br)) place(cv, { id: `prop:park-bench-${bc}-${br}`, tag: 'stone_bench', kind: 'prop', at: { c: bc, r: br } }); }
     }
   }

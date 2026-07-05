@@ -355,6 +355,7 @@ function normContents(v: unknown): Contents {
     ...(typeof r.mountain === 'boolean' ? { mountain: r.mountain } : {}),
     ...(typeof r.port === 'boolean' ? { port: r.port } : {}),
     ...(typeof r.mine === 'boolean' ? { mine: r.mine } : {}),
+    ...(typeof r.character === 'string' && ['mining', 'port', 'market', 'civic', 'rough'].includes(r.character) ? { character: r.character as Contents['character'] } : {}),
     ...(side === 'north' || side === 'south' || side === 'east' || side === 'west' ? { entranceSide: side } : {}),
   };
 }
@@ -553,7 +554,13 @@ function harvestTownContents(ops: SceneOp[], lcb: string): Contents {
   const mine = /\b(mines?|mining|mineshaft|quarry|ore|excavation|dwarven hold)\b/.test(lcb);
   const coast = port || /\b(sea|seaside|seashore|coast|coastal|beach|shore|shoreline|ocean|oceanside|seafront|waterfront|bay|lagoon|by the water)\b/.test(lcb);
   const mountain = mine || /\b(mountains?|mountainous|mountainside|cliffs?|crags?|craggy|highlands?|foothills?|escarpment|beneath the peaks?)\b/.test(lcb);
-  return { buildings, landmarks, npcs, mobs, ...(wall ? { wall: true } : {}), ...(canal ? { canal: true } : {}), ...(coast ? { coast: true } : {}), ...(mountain ? { mountain: true } : {}), ...(port ? { port: true } : {}), ...(mine ? { mine: true } : {}), ...(entranceSide ? { entranceSide } : {}) };
+  // TOWN CHARACTER drives context-appropriate furnishing (no genteel fountain in a mining camp).
+  const character: Contents['character'] =
+    mine ? 'mining' : port ? 'port'
+    : /\b(market ?town|bazaar|trading post|merchant|trade hub)\b/.test(lcb) ? 'market'
+    : /\b(camp|outpost|bandit|shanty|refugee|frontier post|ramshackle|rough|logging|hunting lodge)\b/.test(lcb) ? 'rough'
+    : 'civic';
+  return { buildings, landmarks, npcs, mobs, ...(wall ? { wall: true } : {}), ...(canal ? { canal: true } : {}), ...(coast ? { coast: true } : {}), ...(mountain ? { mountain: true } : {}), ...(port ? { port: true } : {}), ...(mine ? { mine: true } : {}), character, ...(entranceSide ? { entranceSide } : {}) };
 }
 
 function progSeed(s: string): number {

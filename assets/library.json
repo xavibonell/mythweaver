@@ -5960,7 +5960,7 @@
     {
       "kind": "prop",
       "tag": "mine_entrance",
-      "desc": "a mine entrance cut into the rock",
+      "desc": "a stone archway mine entrance",
       "biomes": [
         "mountain",
         "cave",
@@ -5975,10 +5975,10 @@
       "blocks": false,
       "from": {
         "pack": "DawnLike",
-        "crop": "Objects/Tile.png",
+        "crop": "Objects/Door0.png",
         "rect": [
-          48,
-          16,
+          0,
+          80,
           16,
           16
         ]
@@ -6013,6 +6013,298 @@
       },
       "license": "CC-BY-4.0",
       "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
+    },
+    {
+      "kind": "terrain",
+      "tag": "rock_wall",
+      "desc": "rocky cliff",
+      "walkable": false,
+      "variants": [
+        {
+          "art": "/assets/dawnlike/terrain/rock_wall.png",
+          "from": {
+            "pack": "DawnLike",
+            "crop": "Objects/Wall.png",
+            "rect": [
+              64,
+              256,
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite",
+      "biomes": [
+        "mountain",
+        "wild",
+        "cave"
+      ]
+    },
+    {
+      "kind": "terrain",
+      "tag": "rock_wall_n",
+      "desc": "cliff n",
+      "walkable": false,
+      "variants": [
+        {
+          "art": "/assets/dawnlike/terrain/rock_wall_n.png",
+          "from": {
+            "pack": "DawnLike",
+            "crop": "Objects/Wall.png",
+            "rect": [
+              64,
+              240,
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite",
+      "internal": true
+    },
+    {
+      "kind": "terrain",
+      "tag": "rock_wall_s",
+      "desc": "cliff s",
+      "walkable": false,
+      "variants": [
+        {
+          "art": "/assets/dawnlike/terrain/rock_wall_s.png",
+          "from": {
+            "pack": "DawnLike",
+            "crop": "Objects/Wall.png",
+            "rect": [
+              64,
+              272,
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite",
+      "internal": true
+    },
+    {
+      "kind": "terrain",
+      "tag": "rock_wall_e",
+      "desc": "cliff e",
+      "walkable": false,
+      "variants": [
+        {
+          "art": "/assets/dawnlike/terrain/rock_wall_e.png",
+          "from": {
+            "pack": "DawnLike",
+            "crop": "Objects/Wall.png",
+            "rect": [
+              80,
+              256,
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite",
+      "internal": true
+    },
+    {
+      "kind": "terrain",
+      "tag": "rock_wall_w",
+      "desc": "cliff w",
+      "walkable": false,
+      "variants": [
+        {
+          "art": "/assets/dawnlike/terrain/rock_wall_w.png",
+          "from": {
+            "pack": "DawnLike",
+            "crop": "Objects/Wall.png",
+            "rect": [
+              48,
+              256,
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite",
+      "internal": true
+    },
+    {
+      "kind": "terrain",
+      "tag": "rock_wall_ns",
+      "desc": "cliff ns",
+      "walkable": false,
+      "variants": [
+        {
+          "art": "/assets/dawnlike/terrain/rock_wall_ns.png",
+          "from": {
+            "pack": "DawnLike",
+            "crop": "Objects/Wall.png",
+            "rect": [
+              16,
+              240,
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite",
+      "internal": true
+    },
+    {
+      "kind": "terrain",
+      "tag": "rock_wall_ew",
+      "desc": "cliff ew",
+      "walkable": false,
+      "variants": [
+        {
+          "art": "/assets/dawnlike/terrain/rock_wall_ew.png",
+          "from": {
+            "pack": "DawnLike",
+            "crop": "Objects/Wall.png",
+            "rect": [
+              0,
+              256,
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite",
+      "internal": true
+    },
+    {
+      "kind": "terrain",
+      "tag": "rock_wall_nw",
+      "desc": "cliff nw",
+      "walkable": false,
+      "variants": [
+        {
+          "art": "/assets/dawnlike/terrain/rock_wall_nw.png",
+          "from": {
+            "pack": "DawnLike",
+            "crop": "Objects/Wall.png",
+            "rect": [
+              0,
+              240,
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite",
+      "internal": true
+    },
+    {
+      "kind": "terrain",
+      "tag": "rock_wall_ne",
+      "desc": "cliff ne",
+      "walkable": false,
+      "variants": [
+        {
+          "art": "/assets/dawnlike/terrain/rock_wall_ne.png",
+          "from": {
+            "pack": "DawnLike",
+            "crop": "Objects/Wall.png",
+            "rect": [
+              32,
+              240,
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite",
+      "internal": true
+    },
+    {
+      "kind": "terrain",
+      "tag": "rock_wall_sw",
+      "desc": "cliff sw",
+      "walkable": false,
+      "variants": [
+        {
+          "art": "/assets/dawnlike/terrain/rock_wall_sw.png",
+          "from": {
+            "pack": "DawnLike",
+            "crop": "Objects/Wall.png",
+            "rect": [
+              0,
+              272,
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite",
+      "internal": true
+    },
+    {
+      "kind": "terrain",
+      "tag": "rock_wall_se",
+      "desc": "cliff se",
+      "walkable": false,
+      "variants": [
+        {
+          "art": "/assets/dawnlike/terrain/rock_wall_se.png",
+          "from": {
+            "pack": "DawnLike",
+            "crop": "Objects/Wall.png",
+            "rect": [
+              32,
+              272,
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite",
+      "internal": true
+    },
+    {
+      "kind": "terrain",
+      "tag": "rock_wall_flat",
+      "desc": "cliff flat",
+      "walkable": false,
+      "variants": [
+        {
+          "art": "/assets/dawnlike/terrain/rock_wall_flat.png",
+          "from": {
+            "pack": "DawnLike",
+            "crop": "Objects/Wall.png",
+            "rect": [
+              48,
+              240,
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC-BY-4.0",
+      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite",
+      "internal": true
     }
   ]
 }

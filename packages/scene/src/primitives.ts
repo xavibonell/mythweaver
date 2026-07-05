@@ -13,7 +13,7 @@
  */
 
 import { FEET_PER_TILE, type AmbianceItem, type BuildingType, type Entrance, type LayoutGrammar, type Lighting, type MapObject, type SceneMap } from '@mythweaver/shared';
-import { bakeAutoTiles, bakeWoodWalls, BUILDING_TEMPLATES, furnishRoom, makeRng, reachabilityCarve, ROOM_PROGRAMS, ROOM_RECIPES, ROOM_TEMPLATES, scatterGroundDecals, wallTagFor, type RoomFunction, type RoomTemplate } from './cartographer.js';
+import { bakeAutoTiles, bakeRockMass, bakeWoodWalls, BUILDING_TEMPLATES, furnishRoom, makeRng, reachabilityCarve, ROOM_PROGRAMS, ROOM_RECIPES, ROOM_TEMPLATES, scatterGroundDecals, wallTagFor, type RoomFunction, type RoomTemplate } from './cartographer.js';
 import { isCharacter, propDef, terrainWalkable } from './catalog.js';
 import { inside, maskFor, ringCells, type ShapeKind } from './footprint.js';
 
@@ -1177,6 +1177,7 @@ export function finalize(
   // corridors between them would mangle the gallery. Real scenes leave it on (the rare safety net).
   if (!meta.skipReachability) reachabilityCarve(cv.tiles, cv.walkable, cv.cols, cv.rows, cv.objects, cv.entrances); // safety net; primitives are connectivity-correct so this rarely fires
   bakeWoodWalls(cv.tiles, cv.cols, cv.rows); // neighbour-autotile wood walls → correct edges/corners on any shape (incl. L-footprints + partitions)
+  bakeRockMass(cv.tiles, cv.cols, cv.rows); // connectivity blob-autotile a rock_wall massif into cliff faces + rock top (mountains)
   if (meta.outdoor) {
     // skipDecals: a generator that does its OWN deliberate landscaping (e.g. the precinct) opts out of the
     // uniform ground-decal sprinkle, which otherwise reads as procedural speckle over its composed greenery.
