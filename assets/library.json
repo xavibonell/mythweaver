@@ -6415,7 +6415,7 @@
         "pack": "DawnLike",
         "crop": "Objects/Hill0.png",
         "rect": [
-          48,
+          96,
           0,
           16,
           16
@@ -6443,7 +6443,7 @@
         "pack": "DawnLike",
         "crop": "Objects/Hill0.png",
         "rect": [
-          96,
+          128,
           0,
           16,
           16
@@ -6471,7 +6471,7 @@
         "pack": "DawnLike",
         "crop": "Objects/Hill0.png",
         "rect": [
-          144,
+          160,
           0,
           16,
           16

@@ -179,6 +179,24 @@ function placeFrontierFeature(cv: Canvas, band: Rect, edge: FieldSide, kind: 'po
 
 const TOWN_VIGNETTES = new Set(['well', 'market', 'shrine', 'graveyard', 'forge']);
 
+/** "Stone laid on soil": paint a 1-tile DIRT rim on the grass immediately around PAVED areas (plaza +
+ *  cobble arteries), so stone meets earth then grass instead of an abrupt cobble↔grass cut — the
+ *  hand-crafted transition the credibility judge flagged as missing in every scene. Only repaints plain
+ *  grass (never buildings / the rock or water fields / alleys, which are already dirt). Runs before the
+ *  autotile bake, so the road curb + grass fringe then form around the new dirt band automatically. */
+function dirtRimPaving(cv: Canvas): void {
+  const PAVED = new Set(['road', 'flagstone', 'cobblestone']);
+  const orig = cv.tiles.map((row) => row.slice());
+  const paved = (c: number, r: number) => c >= 0 && r >= 0 && c < cv.cols && r < cv.rows && PAVED.has(orig[r]![c] ?? '');
+  for (let r = 0; r < cv.rows; r++)
+    for (let c = 0; c < cv.cols; c++) {
+      if (orig[r]![c] !== 'grass') continue;
+      // a WORN rim (probabilistic), not a solid dirt band — so grass stays the dominant ground and the
+      // paving reads as "stone laid on soil", never "the town sits on bare dirt".
+      if ((paved(c, r - 1) || paved(c + 1, r) || paved(c, r + 1) || paved(c - 1, r)) && cv.rng() < 0.5) cv.tiles[r]![c] = 'dirt';
+    }
+}
+
 function townGen(cv: Canvas, ctx: GenContext): void {
   const { theme, contents, locationId } = ctx;
   const B = ctx.bounds;
@@ -353,6 +371,7 @@ function townGen(cv: Canvas, ctx: GenContext): void {
   const loc = slug(locationId, 0); // namespace the cast by location so two towns on one canvas don't share ids
   contents.npcs.forEach((npc, i) => place(cv, { id: `npc:${loc}-${slug(npc.tag, i)}`, tag: npc.tag, kind: 'actor', role: 'npc', at: streetCells[i % Math.max(1, streetCells.length)] ?? plazaCtr, ...(npc.name ? { name: npc.name } : {}) }));
   contents.mobs.forEach((mob, i) => scatter(cv, { idBase: `mob:${loc}-${slug(mob.tag, i)}`, tags: [mob.tag], kind: 'actor', role: 'mob', region: interior, count: Math.max(1, Math.min(20, mob.count)) }));
+  dirtRimPaving(cv); // "stone on soil" — a dirt rim around the paving (broad credibility polish)
   if (!contents.wall) entrance(cv, edgePt(B, contents.entranceSide ?? 'south'), locationId);
 }
 
