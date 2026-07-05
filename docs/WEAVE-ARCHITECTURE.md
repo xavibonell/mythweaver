@@ -315,14 +315,13 @@ artery as water + quays with **derived bridges** — every building door reachab
 tested seeds; valid + deterministic. A brief that says "canal/waterway/quay" gets one (`networks.ts`,
 `networks.test.ts`, commit 4eef6e3). The existential geometry bet is retired: canal = data over one engine.
 
-**R2 — SceneSpec emission trial: BORDERLINE (85%), single fixable class.** `packages/shared/src/scene-spec.ts`
-(the L0 IR + `validateSceneSpec`) shipped. Trial over 20 briefs (real model): **first-pass 80%, 85% after
-one repair** — under the 90% line. But *every* miss was the SAME class: `missing-arg`, the model omitting
-the object of a binary relation because it implied the party/scene ("physician near", "cots in [the ward]").
-The disciplined response (per the kill-criterion): tighten the IR ergonomics before building the compiler —
-the object of a binary relation now **defaults to PARTY / the frame** (a real design decision: the staging
-layer is party-relative), which converts the entire failure class to valid. Ref integrity for ids that ARE
-written is unchanged. Confirming re-run (expected ≥90%) pending an API-credit top-up:
-`node --env-file=.env scripts/scenespec-emission-trial.mjs`. Relations exercised across the 20 briefs:
-`in, near, visible-from, at-edge-of, through-fabric, along, across, facing, unreachable-from, crossable, side`
-— all 11, none missing, none extra invented → the closed vocabulary held (R0's implicit check).
+**R2 — SceneSpec emission trial: CONFIRMED (100%).** `packages/shared/src/scene-spec.ts` (the L0 IR +
+`validateSceneSpec`) shipped. The FIRST run over 20 briefs hit **85% after one repair** — under the 90%
+line — with *every* miss the SAME class: `missing-arg`, the model omitting the object of a binary relation
+because it implied the party/scene ("physician near", "cots in [the ward]"). Disciplined response (per the
+kill-criterion): tighten the IR ergonomics before building the compiler — the object of a binary relation
+now **defaults to PARTY / the frame** (a real design decision: the staging layer is party-relative). RE-RUN
+with the fix: **20/20 valid FIRST-PASS, zero repairs.** All 11 relations exercised across the briefs
+(`in, visible-from, near, at-edge-of, through-fabric, along, across, crossable, facing, side, unreachable-from`),
+none missing, none invented → the closed vocabulary held (R0's implicit check). **L0-as-primary confirmed;
+the compiler builds on this IR. Both existential bets (water on the mesh, IR emittability) are retired.**
