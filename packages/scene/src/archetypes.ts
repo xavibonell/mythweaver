@@ -84,6 +84,18 @@ function reserveEdgeField(cv: Canvas, B: Rect, interior: Rect, kind: 'coast' | '
     : { x: B.x, y: full.y + band - offset - w, w: B.w, h: w };
   if (kind === 'mountain') {
     fill(cv, full, 'rock', false);
+    // scatter boulders/rocks so the massif reads as rugged rock, not flat gravel. The band is
+    // non-walkable, so place them straight into the decorative layer (like the garden trees) rather
+    // than via place() (which requires a walkable free cell).
+    const rockTags = ['boulder', 'rocks_grey', 'rocks_brown', 'stone_pile'];
+    const nRocks = Math.max(6, Math.floor((full.w * full.h) / 16));
+    const seen = new Set<number>();
+    for (let i = 0; i < nRocks; i++) {
+      const rc = full.x + Math.floor(cv.rng() * full.w), rr = full.y + Math.floor(cv.rng() * full.h);
+      const key = rr * cv.cols + rc;
+      const tag = rockTags[Math.floor(cv.rng() * rockTags.length)]!;
+      if (cv.inB(rc, rr) && !seen.has(key)) { seen.add(key); cv.ambiance.push({ tag, col: rc, row: rr }); }
+    }
   } else {
     fill(cv, full, 'water_deep', false); // open sea
     fill(cv, strip(1, 2), 'water', false); // shallows
