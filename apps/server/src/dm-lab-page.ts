@@ -279,6 +279,7 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
         <summary style="cursor:pointer;padding:7px 10px;color:#c9a227;font-size:13px">Scene — the story made real <span style="color:#6b7080">(re-renders as the DM sets scenes)</span></summary>
         <div style="padding:8px"><img id="scene-img" alt="current scene" style="width:100%;image-rendering:pixelated;border-radius:4px;display:block" /></div>
       </details>
+      <div id="beatstrip" style="display:none;flex-wrap:wrap;gap:4px;margin-bottom:6px"></div>
       <div class="convo" id="convo"><div class="empty-state">No live campaign yet — head to the <b>Generate</b> tab, build your party, and generate an arc. Play begins here.</div></div>
       <div class="inputbar">
         <div class="row" id="msgbar">
@@ -502,8 +503,9 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
     var bf = (brief && brief.activeBeatIntent) ? '<div class="brief">🎬 steering: ' + esc(brief.activeBeatIntent) + (brief.reachable && brief.reachable.length ? '  ·  → ' + brief.reachable.map(function (r) { return esc(r.sceneId); }).join(', ') : '') + '</div>' : '';
     var narr = t.narration ? '<div class="narr">' + esc(t.narration) + '</div>' : '<div class="narr" style="color:#6b7080;font-style:italic">(no narration — awaiting your roll)</div>';
     var meta = esc(t.model || '?') + ' · ' + t.steps + ' step(s) · ' + fmtTime(t.latencyMs) + ' · ' + fmtCost(t.costUsd);
+    var beat = t.beat ? '<div class="brief" style="color:#c9a227">🎬 beat: ' + esc(t.beat.from) + ' → <b>' + esc(t.beat.title || t.beat.to) + '</b>' + (t.beat.outcome ? ' <span style="color:#6b7080">(' + esc(t.beat.outcome) + ')</span>' : '') + '</div>' : '';
     var d = document.createElement('div'); d.className = 'bubble dm';
-    d.innerHTML = '<div class="who">Dungeon Master</div>' + narr + roll + bf + sceneProvHtml(t) + deltaChips(t) + '<div class="meta">' + meta + '</div>' + details;
+    d.innerHTML = '<div class="who">Dungeon Master</div>' + narr + roll + bf + beat + sceneProvHtml(t) + deltaChips(t) + '<div class="meta">' + meta + '</div>' + details;
     convo().appendChild(d); scrollConvo();
   }
   // Scene-Δ chips — the map MOVED this turn (updateScene / combat sync): one chip per applied op.
@@ -569,9 +571,27 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
     return pill + '<span class="det">' + bits.join(' · ') + '</span>';
   }
 
+  // The always-visible beat strip above the convo — where the story IS (✓ done · ● here · → reachable).
+  function renderBeatStrip() {
+    var el = $('beatstrip');
+    if (!el) return;
+    var beats = (latestArc && latestArc.beats) || [];
+    if (!beats.length) { el.style.display = 'none'; return; }
+    el.style.display = 'flex';
+    el.innerHTML = beats.map(function (b) {
+      var bg = b.current ? '#c9a227' : b.done ? '#1d2a1f' : '#14161c';
+      var fg = b.current ? '#141414' : b.done ? '#7fb389' : b.reachable ? '#8fb8e0' : '#565b66';
+      var mark = b.done ? '✓ ' : b.current ? '● ' : b.reachable ? '→ ' : '';
+      return '<span style="font-size:11px;padding:2px 9px;border-radius:10px;background:' + bg + ';color:' + fg + (b.current ? ';font-weight:700' : '') + '">' + mark + esc(b.title) + '</span>';
+    }).join('') + ((latestArc.brief && latestArc.brief.clocks) || []).map(function (c) {
+      return '<span style="font-size:11px;padding:2px 9px;border-radius:10px;background:#2a1d1d;color:#d08f7f">⏱ ' + esc(c) + '</span>';
+    }).join('');
+  }
+
   // The LIVE Director state on the Run tab (the frozen blueprint lives in the Arc/Generate tabs).
   function renderDirectorPanel() {
     var wrap = $('director-wrap'); var el = $('director-panel');
+    renderBeatStrip(); // the strip rides every arc refresh
     if (!el) return;
     var a = latestArc;
     if (!a || (!a.brief && (!a.beats || !a.beats.length))) { wrap.style.display = 'none'; return; }

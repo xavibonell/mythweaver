@@ -30,6 +30,35 @@ const S = {
   btn: { background: '#c9a227', color: '#141414', border: 'none', borderRadius: 6, padding: '7px 14px', fontWeight: 600, cursor: 'pointer' } as React.CSSProperties,
 };
 
+/** The arc's beat stepper — where the story IS: ✓ done · ● here · → reachable. Clocks = pressure. */
+function BeatStrip({ arc }: { arc: any }) {
+  const beats = arc?.beats ?? [];
+  if (!beats.length) return null;
+  const clocks = arc?.brief?.clocks ?? [];
+  return (
+    <div style={{ position: 'absolute', top: 34, left: 10, right: 10, display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center', pointerEvents: 'none' }}>
+      {beats.map((b: any) => (
+        <span
+          key={b.id}
+          title={b.title}
+          style={{
+            fontSize: 11, padding: '2px 9px', borderRadius: 10, pointerEvents: 'auto',
+            background: b.current ? '#c9a227' : b.done ? '#1d2a1f' : '#14161c',
+            color: b.current ? '#141414' : b.done ? '#7fb389' : b.reachable ? '#8fb8e0' : '#565b66',
+            border: `1px solid ${b.current ? '#c9a227' : b.done ? '#2a4630' : b.reachable ? '#2b3542' : '#1d2027'}`,
+            fontWeight: b.current ? 700 : 400,
+          }}
+        >
+          {b.done ? '✓ ' : b.current ? '● ' : b.reachable ? '→ ' : ''}{b.title}
+        </span>
+      ))}
+      {clocks.map((c: string, i: number) => (
+        <span key={`c${i}`} style={{ fontSize: 11, padding: '2px 9px', borderRadius: 10, background: '#2a1d1d', color: '#d08f7f', border: '1px solid #422b2b' }}>⏱ {c}</span>
+      ))}
+    </div>
+  );
+}
+
 function DeltaChips({ deltas }: { deltas: any[] }) {
   if (!deltas?.length) return null;
   return (
@@ -89,6 +118,8 @@ export default function DmLiveTable() {
   const [pendingRoll, setPendingRoll] = useState<any>(null);
   const [rollVal, setRollVal] = useState('');
   const [characters, setCharacters] = useState<any[]>([]);
+  const [arc, setArc] = useState<any>(null);
+  const [titleCard, setTitleCard] = useState<any>(null); // {title, outcome} — shown ~2.4s on a beat transition
   const [cost, setCost] = useState(0);
   const [busy, setBusy] = useState(false);
   const sceneRev = useRef(0);
@@ -111,6 +142,7 @@ export default function DmLiveTable() {
     setView(v);
     setSpeaker(v.party?.[0]?.name ?? 'player');
     setCharacters(v.characters ?? []);
+    setArc(v.arc ?? null);
     setPendingRoll(v.pendingRoll ?? null);
     setCost(v.totalCostUsd ?? 0);
     sceneRev.current = v.scene?.rev ?? 0;
@@ -153,7 +185,13 @@ export default function DmLiveTable() {
       setLog((l) => [...l, { who: 'Dungeon Master', text: t.narration || '(awaiting your roll)', dm: true, turn: t }]);
       setPendingRoll(d.pendingRoll ?? null);
       setCharacters(d.characters ?? []);
+      if (d.arc) setArc(d.arc);
       setCost(d.totalCostUsd ?? 0);
+      if (t.beat) {
+        // A beat transition landed: title card over the canvas while the new scene fades in.
+        setTitleCard({ title: t.beat.title ?? t.beat.to, outcome: t.beat.outcome });
+        setTimeout(() => setTitleCard(null), 2400);
+      }
       applyScene(d.scene);
     } finally {
       setBusy(false);
@@ -206,6 +244,16 @@ export default function DmLiveTable() {
           <button onClick={() => setFitNonce((n) => n + 1)} style={{ ...S.btn, padding: '2px 10px', fontSize: 12 }}>fit</button>
         </div>
         {!sceneData && <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', color: '#6b7080' }}>no scene yet — play a turn; the DM will set one</div>}
+        <BeatStrip arc={arc} />
+        {titleCard && (
+          <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', background: 'rgba(8,7,6,0.72)', animation: 'mwfade 2.4s ease forwards', pointerEvents: 'none' }}>
+            <div style={{ textAlign: 'center' }}>
+              {titleCard.outcome && <div style={{ color: '#7a8494', fontSize: 13, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 8 }}>{titleCard.outcome}</div>}
+              <div style={{ color: '#c9a227', fontFamily: 'ui-serif, Georgia, serif', fontSize: 34 }}>{titleCard.title}</div>
+            </div>
+            <style>{'@keyframes mwfade { 0% {opacity: 0} 12% {opacity: 1} 78% {opacity: 1} 100% {opacity: 0} }'}</style>
+          </div>
+        )}
       </div>
 
       {/* RIGHT RAIL — transcript + controls (the workbench half) */}

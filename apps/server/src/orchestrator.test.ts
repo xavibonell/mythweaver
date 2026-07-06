@@ -483,11 +483,17 @@ describe('orchestrator turn-loop', () => {
       scenarioId: 'test',
       startSceneId: 'green',
       party: [fighter()],
-      adventure: { pitch: 'p', scenes: { green: { title: 'Green', summary: '', exits: ['tower'] }, tower: { title: 'Tower', summary: '', exits: [] } } },
+      adventure: {
+        pitch: 'p',
+        scenes: {
+          green: { title: 'Green', summary: '', exits: ['tower'] },
+          tower: { title: 'The Crooked Tower', summary: 'The belfry gapes.', scenePlan: { look: 'a leaning bell tower on a causeway over black water', kind: 'interior', mood: 'moonless dark' } },
+        },
+      },
     });
     const engine = new Engine(state, () => 0.5);
     const llm = new FakeLlmProvider([
-      fakeToolUse([{ id: 'av', name: 'advanceScene', input: { toSceneId: 'tower' } }]),
+      fakeToolUse([{ id: 'av', name: 'advanceScene', input: { toSceneId: 'tower', outcome: 'resolved' } }]),
       fakeText('You cross the fen to the crooked tower.'),
     ]);
 
@@ -495,7 +501,15 @@ describe('orchestrator turn-loop', () => {
 
     expect(result.trace.toolCalls).toContain('advanceScene');
     expect(engine.getState().currentSceneId).toBe('tower');
-    expect(engine.getState().flags['beat:green']).toBe('done');
+    expect(engine.getState().flags['beat:green']).toBe('resolved');
+    // The transition rides the turn (title card client-side)…
+    expect(result.beat).toEqual({ from: 'green', to: 'tower', title: 'The Crooked Tower', outcome: 'resolved' });
+    // …and the tool RESULT directs the DM to establish the new location NOW, with the beat's
+    // authored visual brief (the Phase-C ScenePlan consumed at the transition seam).
+    const feedback = JSON.stringify(llm.requests[1]!.messages.at(-1)!.content);
+    expect(feedback).toContain('Establish its location NOW with setScene');
+    expect(feedback).toContain('a leaning bell tower on a causeway');
+    expect(feedback).toContain('moonless dark');
   });
 
   it('Game Director (D2) re-plans + injects the STEERING brief into the DM prompt', async () => {

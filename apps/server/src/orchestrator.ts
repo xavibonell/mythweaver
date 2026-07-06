@@ -186,6 +186,8 @@ export interface TurnResult {
   /** APPLIED scene deltas this turn (updateScene + combat sync), moves/spawns normalized to concrete
    *  tiles — the client tweens these instead of re-rendering. The map itself is already mutated. */
   deltas?: SceneDelta[];
+  /** An arc beat transition landed this turn (advanceScene) — the client shows a title card. */
+  beat?: { from: string; to: string; title?: string; outcome?: 'resolved' | 'fled' | 'done' };
 }
 
 export interface OrchestratorDeps {
@@ -1102,6 +1104,17 @@ function parseNpcs(raw: unknown): NpcDecl[] {
   return out;
 }
 
+/** A beat's authored visual brief for the establish-directive: the ScenePlan when the arc composer
+ *  designed one (look + kind + mood + features), else the beat summary. The SINGLE seam Phase C's
+ *  plans are consumed through at transition time. */
+export function beatVisualBrief(state: GameState, sceneId: string): string {
+  const beat = state.adventure?.scenes?.[sceneId];
+  if (!beat) return '';
+  const p = beat.scenePlan;
+  if (!p) return beat.summary ? beat.summary.slice(0, 300) : '';
+  return `${p.look} [kind: ${p.kind}; mood: ${p.mood}${p.features?.length ? `; must include: ${p.features.join(', ')}` : ''}]`;
+}
+
 /** Coerce the DM's setScene tool input into a well-formed EstablishScene (the Composer normalizes further). */
 export function parseEstablish(input: Record<string, unknown>, state: GameState): EstablishScene {
   const setting = typeof input.setting === 'string' && input.setting.trim() ? input.setting : 'a quiet, dim place';
@@ -1148,6 +1161,7 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
   let sceneMap: SceneMap | undefined; // the frozen map to render
   let sceneProvenance: SceneProvenance | undefined; // how the scene came to be (response-only)
   const sceneDeltas: SceneDelta[] = []; // APPLIED updateScene/combat-sync ops this turn (normalized tiles)
+  let beatTransition: TurnResult['beat']; // an advanceScene landed this turn (title card client-side)
 
   const span = (deps.tracer ?? NOOP_TRACER).startTurn({
     sessionId: state.sessionId,
@@ -1531,7 +1545,20 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
         try {
           const outcome = ['resolved', 'fled', 'done'].includes(String(tc.input.outcome)) ? (String(tc.input.outcome) as 'resolved' | 'fled' | 'done') : undefined;
           const r = engine.advanceScene(String(tc.input.toSceneId ?? ''), outcome);
-          resolved.push({ toolUseId: tc.id, content: JSON.stringify({ advanced: true, ...r }) });
+          // A beat transition is a LEGIBLE dramatic moment: report it on the turn (title card client-side)
+          // and DIRECT the DM to establish the new beat's location NOW — with its authored visual brief —
+          // so one turn delivers beat + scene (tool results loop within the same turn).
+          const toBeat = state.adventure?.scenes?.[r.scene];
+          beatTransition = { from: r.from, to: r.scene, ...(toBeat?.title ? { title: toBeat.title } : {}), ...(outcome ? { outcome } : {}) };
+          const visual = beatVisualBrief(state, r.scene);
+          resolved.push({
+            toolUseId: tc.id,
+            content: JSON.stringify({
+              advanced: true,
+              ...r,
+              directive: `Beat advanced to "${toBeat?.title ?? r.scene}". Establish its location NOW with setScene (a NEW locationId — this is a different place).${visual ? ` Visual brief: ${visual}` : ''}`,
+            }),
+          });
         } catch (e) {
           resolved.push({ toolUseId: tc.id, content: JSON.stringify({ advanced: false, error: (e as Error).message }) });
         }
@@ -1833,6 +1860,7 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
     return {
       ...(sceneChanged ? { sceneChanged: true, ...(sceneMap ? { sceneMap } : {}), ...(sceneProvenance ? { sceneProvenance } : {}) } : {}),
       ...(sceneDeltas.length ? { deltas: sceneDeltas } : {}),
+      ...(beatTransition ? { beat: beatTransition } : {}),
     };
   }
 

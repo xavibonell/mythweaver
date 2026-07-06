@@ -74,6 +74,8 @@ export interface DmLabTurn {
   sceneProvenance?: SceneProvenance;
   /** APPLIED scene deltas (updateScene/combat sync) — the map moved this turn. */
   deltas?: SceneDelta[];
+  /** An arc beat transition landed this turn (advanceScene) — the client shows a title card. */
+  beat?: TurnResult['beat'];
   model: string;
   steps: number;
   costUsd: number;
@@ -448,6 +450,7 @@ export async function dmLabSubmit(
     ...(result.sceneChanged ? { sceneChanged: true } : {}),
     ...(result.sceneProvenance ? { sceneProvenance: result.sceneProvenance } : {}),
     ...(result.deltas?.length ? { deltas: result.deltas } : {}),
+    ...(result.beat ? { beat: result.beat } : {}),
     model: result.model,
     steps: result.trace.steps,
     costUsd: result.costUsd,
@@ -466,7 +469,8 @@ export function arcView(session: DmLabSession) {
         id,
         title: s.title,
         current: id === st.currentSceneId,
-        done: st.flags[`beat:${id}`] === 'done',
+        // A beat is DONE whatever way it closed — done/resolved/fled all stamp the flag.
+        done: !!st.flags[`beat:${id}`] && id !== st.currentSceneId,
         reachable: reachable.has(id),
       }))
     : [];
