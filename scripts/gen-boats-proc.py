@@ -491,3 +491,21 @@ for y in range(LP):
         pool.putpixel((x, y), (int(255 * f), int(224 * f), int(168 * f), 255))
 pool.save(os.path.join(OUT, "light_pool.png"))
 print("wrote light_pool")
+
+# ---- stalagmite: a grey rock spike (feet-bottom), for caves ----
+SW_, SH_ = 14, 16
+img = Image.new("RGBA", (SW_, SH_), (0, 0, 0, 0))
+d = ImageDraw.Draw(img)
+RK_L, RK, RK_D, RK_O = (0x8a, 0x94, 0xa2, 255), (0x5e, 0x62, 0x70, 255), (0x3a, 0x3c, 0x46, 255), (0x1c, 0x1a, 0x22, 255)
+apex = SW_ / 2 - 0.5
+for y in range(2, SH_):
+    t = (y - 2) / (SH_ - 3)
+    hw = 1.0 + 5.0 * t ** 0.9
+    xl, xr = int(round(apex - hw)), int(round(apex + hw))
+    for x in range(xl, xr + 1):
+        if not (0 <= x < SW_):
+            continue
+        dd = abs(x - apex)
+        img.putpixel((x, y), RK_O if dd > hw - 1.0 else (RK_L if x < apex - 0.5 else RK if x < apex + 1.5 else RK_D))
+img.save(os.path.join(OUT, "stalagmite.png"))
+print("wrote stalagmite")

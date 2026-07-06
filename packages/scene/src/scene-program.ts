@@ -110,11 +110,11 @@ export function runProgram(prog: SceneProgram): SceneMap {
  *  a huge fountain with a chest at the centre." Maze (connectivity-correct) + a central chamber + a
  *  main corridor from the west entrance + the landmark + monster scatter. */
 const LABYRINTH: SceneProgram = {
-  locationId: 'loc:gold-labyrinth', cols: 41, rows: 27, seed: 101, biome: 'forest', lighting: 'night', grammar: 'open-outdoor', outdoor: true,
+  locationId: 'loc:gold-labyrinth', cols: 41, rows: 27, seed: 101, biome: 'dungeon', lighting: 'night', grammar: 'enclosed-interior', outdoor: false,
   ops: [
-    { op: 'maze', region: 'all', wall: 'wall', floor: 'grass' },
-    { op: 'plaza', region: { x: 17, y: 11, w: 7, h: 5 }, tag: 'grass' }, // the central chamber (room for the 2x2 fountain)
-    { op: 'path', from: 'west', to: 'center', tag: 'grass' }, // main corridor: entrance → centre (guarantees connectivity)
+    { op: 'maze', region: 'all', wall: 'wall', floor: 'flagstone' }, // a STONE labyrinth, not a grass hedge maze
+    { op: 'plaza', region: { x: 17, y: 11, w: 7, h: 5 }, tag: 'flagstone' }, // the central chamber
+    { op: 'path', from: 'west', to: 'center', tag: 'flagstone' }, // main corridor: entrance → centre (guarantees connectivity)
     { op: 'entrance', at: 'west' },
     { op: 'place', id: 'prop:fountain', tag: 'fountain', kind: 'prop', at: 'center', name: 'a huge fountain' },
     { op: 'place', id: 'prop:hoard', tag: 'chest', kind: 'prop', at: { c: 22, r: 13 } },
@@ -165,12 +165,16 @@ const MARKET_CITY: SceneProgram = {
 const CRYPT: SceneProgram = {
   locationId: 'loc:gold-crypt', cols: 38, rows: 26, seed: 404, biome: 'cave', lighting: 'night', grammar: 'enclosed-interior', outdoor: false,
   ops: [
-    { op: 'rooms', region: 'all', count: 6, wall: 'wall', floor: 'stone' },
-    { op: 'place', id: 'prop:tomb', tag: 'sarcophagus', kind: 'prop', at: 'center', name: 'a cracked sarcophagus' },
-    { op: 'place', id: 'prop:altar', tag: 'altar', kind: 'prop', at: 'north' },
+    { op: 'rooms', region: 'all', count: 6, wall: 'wall', floor: 'flagstone' },
+    { op: 'place', id: 'prop:altar', tag: 'altar', kind: 'prop', at: 'north', name: 'a blood-stained altar' },
+    { op: 'place', id: 'prop:cand-l', tag: 'candelabra_large', kind: 'prop', at: { c: 16, r: 3 } },
+    { op: 'place', id: 'prop:cand-r', tag: 'candelabra_large', kind: 'prop', at: { c: 21, r: 3 } },
+    // rows of sarcophagi — the defining feature of a crypt
+    ...[8, 14, 20, 26].flatMap((c, i) => [10, 16].map((r, j) => ({ op: 'place' as const, id: `prop:tomb-${i}-${j}`, tag: 'sarcophagus', kind: 'prop' as const, at: { c, r } }))),
+    { op: 'scatter', idBase: 'prop:bones', tags: ['bones', 'skull', 'urn'], kind: 'prop', region: 'all', count: 10 },
     { op: 'place', id: 'prop:hoard', tag: 'chest', kind: 'prop', at: 'east' },
     { op: 'entrance', at: 'south' },
-    { op: 'scatter', idBase: 'mob:skeleton', tags: ['skeleton', 'zombie'], kind: 'actor', role: 'mob', region: 'all', count: 8 },
+    { op: 'scatter', idBase: 'mob:skeleton', tags: ['skeleton', 'zombie'], kind: 'actor', role: 'mob', region: 'all', count: 7 },
   ],
 };
 
@@ -612,9 +616,9 @@ export function normalizeProgram(raw: unknown, brief: string, moodText: string =
     const STRUCT = new Set(['building', 'rooms', 'cave', 'maze']);
     const interiorish = grammar === 'enclosed-interior' || /dungeon|crypt|cave|cavern|grotto|temple|vault|lair|tomb|catacomb|fortress|prison|sewer|\bmine\b|warren|labyrinth|maze/.test(lcb);
     if (interiorish && !ops.some((o) => STRUCT.has(o.op))) {
-      const inject: SceneOp = /labyrinth|maze/.test(lcb) ? { op: 'maze', region: 'all', wall: 'wall', floor: 'grass' }
-        : /cave|cavern|grotto|\bmine\b|lair|warren|burrow/.test(lcb) ? { op: 'cave', region: 'all', wall: 'wall', floor: 'stone' }
-        : { op: 'rooms', region: 'all', count: 6, wall: 'wall', floor: 'stone' };
+      const inject: SceneOp = /labyrinth|maze/.test(lcb) ? { op: 'maze', region: 'all', wall: 'wall', floor: 'flagstone' }
+        : /cave|cavern|grotto|\bmine\b|lair|warren|burrow/.test(lcb) ? { op: 'cave', region: 'all', wall: 'rock_wall', floor: 'stone' }
+        : { op: 'rooms', region: 'all', count: 6, wall: 'wall', floor: 'flagstone' };
       const objIdx = ops.findIndex((o) => o.op === 'place' || o.op === 'scatter' || o.op === 'vignette' || o.op === 'entrance');
       if (objIdx < 0) ops.push(inject); else ops.splice(objIdx, 0, inject);
     }

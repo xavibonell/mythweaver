@@ -7040,6 +7040,28 @@
       },
       "license": "procedural (MythWeaver)",
       "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "stalagmite",
+      "desc": "a rock stalagmite",
+      "biomes": [
+        "cave",
+        "dungeon"
+      ],
+      "art": "/assets/proc/props/stalagmite.png",
+      "frameW": 14,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-boats-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
     }
   ]
 }

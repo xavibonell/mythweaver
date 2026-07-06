@@ -290,7 +290,7 @@ export function bspRooms(cv: Canvas, region: Rect, count = 5, wall = 'wall', flo
  * cave closes at the region border), then keep the floor connected by carving each disconnected pocket
  * to the largest cavern. Floor walkable, wall not. The look the reference cave images have.
  */
-export function cave(cv: Canvas, region: Rect, wall = 'wall', floor = 'stone'): void {
+export function cave(cv: Canvas, region: Rect, wall = 'rock_wall', floor = 'stone'): void {
   const R = clampRect(cv, region);
   const W = R.w, H = R.h;
   if (W < 5 || H < 5) { fill(cv, R, floor, true); return; }
@@ -339,6 +339,29 @@ export function cave(cv: Canvas, region: Rect, wall = 'wall', floor = 'stone'): 
       while (x !== mc[0]) { x += x < mc[0] ? 1 : -1; lay(); }
       while (y !== mc[1]) { y += y < mc[1] ? 1 : -1; lay(); }
     }
+  }
+  // CAVE FORMATIONS — stalagmites + boulders scattered on the floor (non-blocking decor) so the cavern reads
+  // as a natural space, not an empty room. Denser near the walls where formations gather.
+  const FORM = ['stalagmite', 'stalagmite', 'boulder', 'rocks_grey', 'stone_pile'];
+  const nearWall = (c: number, r: number) => (cv.tileAt(c, r - 1) ?? '').startsWith('rock_wall') || (cv.tileAt(c, r + 1) ?? '').startsWith('rock_wall') || (cv.tileAt(c - 1, r) ?? '').startsWith('rock_wall') || (cv.tileAt(c + 1, r) ?? '').startsWith('rock_wall');
+  for (const { c, r } of cellsOf(R)) {
+    if (cv.tileAt(c, r) !== floor || !cv.isFree(c, r)) continue;
+    if (cv.rng() >= (nearWall(c, r) ? 0.14 : 0.03)) continue;
+    cv.reserve(c, r);
+    cv.ambiance.push({ tag: FORM[Math.floor(cv.rng() * FORM.length)]!, col: c, row: r });
+  }
+  // A few braziers — a playable cave is a lair, and without a light motivation the space reads as flat
+  // pitch-black. These are LIGHT_TAGS, so the renderers pool warm light around them (the crypt/lair look).
+  const open: Array<{ c: number; r: number }> = [];
+  for (const { c, r } of cellsOf(R)) if (cv.tileAt(c, r) === floor && cv.isFree(c, r) && !nearWall(c, r)) open.push({ c, r });
+  const nBraz = Math.min(4, Math.max(2, Math.floor(open.length / 90)));
+  for (let i = 0, placed = 0; i < open.length && placed < nBraz; i++) {
+    const j = Math.floor(cv.rng() * open.length), cell = open[j]!;
+    if (!cv.isFree(cell.c, cell.r)) continue;
+    if (cv.ambiance.some((a) => a.tag === 'brazier' && Math.abs(a.col - cell.c) + Math.abs(a.row - cell.r) < 8)) continue;
+    cv.reserve(cell.c, cell.r);
+    cv.ambiance.push({ tag: 'brazier', col: cell.c, row: cell.r });
+    placed++;
   }
 }
 

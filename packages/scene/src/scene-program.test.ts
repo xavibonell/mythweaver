@@ -75,7 +75,7 @@ describe('scene program (G1 spike) — diverse scenes from ONE primitive vocabul
   it('crypt is a walled interior (NO grass/water) of stone rooms with a sarcophagus', () => {
     const m = buildSpikeScene('crypt');
     expect(tileCount(m, (t) => t.startsWith('grass') || t.startsWith('water'))).toBe(0); // interior
-    expect(tileCount(m, (t) => t === 'stone')).toBeGreaterThan(20); // room floors
+    expect(tileCount(m, (t) => t === 'flagstone' || t === 'stone')).toBeGreaterThan(20); // stone room floors
     expect(m.objects.some((o) => o.tag === 'sarcophagus')).toBe(true);
   });
 
