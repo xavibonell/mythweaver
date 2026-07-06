@@ -132,6 +132,10 @@ function renderFullImpl(scene: any, data: any): void {
     else drawProp(scene, o.tag, o.col, o.row, o.footprint?.w ?? 1, o.footprint?.h ?? 1, o.row + 0.1, tint);
   }
 
+  // FOG = a pale, desaturating HAZE laid over the WHOLE scene (a light overlay, NOT a darkening multiply
+  // tint) — reads as a cold sea-fog. Sits above everything at a high depth.
+  if (data.lighting === 'fog') scene.add.rectangle(0, 0, cols * TILE, rows * TILE, 0xb0bac4, 0.42).setOrigin(0, 0).setDepth(100000);
+
   fitCamera(scene, data);
 }
 

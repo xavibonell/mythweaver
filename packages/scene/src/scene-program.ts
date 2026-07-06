@@ -302,7 +302,7 @@ EXAMPLE — "a flooded lake of grassy islands joined by plank bridges, a lone fi
 
 Now design the scene for the player's brief. Output ONLY the JSON.`;
 
-const LIGHTINGS = new Set<Lighting>(['day', 'dusk', 'night']);
+const LIGHTINGS = new Set<Lighting>(['day', 'dusk', 'night', 'fog']);
 const asRec = (v: unknown): Record<string, unknown> => (v && typeof v === 'object' ? (v as Record<string, unknown>) : {});
 const num = (v: unknown, d: number): number => (typeof v === 'number' && Number.isFinite(v) ? Math.round(v) : d);
 const terrainOr = (v: unknown, d: string): string => (typeof v === 'string' && isTerrain(v) ? v : d);
@@ -658,7 +658,8 @@ export function normalizeProgram(raw: unknown, brief: string): SceneProgram {
     // MOOD → time of day: a dark/foggy/horror brief drives a night/dusk TINT (the renderer already has
     // the filter; it just needs triggering). An explicit non-day lighting from the model still wins.
     lighting: (LIGHTINGS.has(r.lighting as Lighting) && r.lighting !== 'day') ? (r.lighting as Lighting)
-      : /\b(night|midnight|nocturnal|moonlit|moonlight|dark(ness)?|black|horror|cursed|haunted|grim|drowned|corpse|the dead|plague|blight|dread|eerie|fog(gy|-bound)?|mist(y)?|gloom|shadow(ed|y)?|storm)\b/.test(lcb) ? 'night'
+      : /\b(fog|foggy|fog-?bound|mist|misty|haze|hazy|murk|murky|pea-?soup)\b/.test(lcb) ? 'fog'
+      : /\b(night|midnight|nocturnal|moonlit|moonlight|dark(ness)?|black|horror|cursed|haunted|grim|drowned|corpse|the dead|plague|blight|dread|eerie|gloom|shadow(ed|y)?|storm)\b/.test(lcb) ? 'night'
       : /\b(dusk|twilight|sunset|evening|gloaming|nightfall|golden hour)\b/.test(lcb) ? 'dusk'
       : (LIGHTINGS.has(r.lighting as Lighting) ? (r.lighting as Lighting) : 'day'),
     grammar,

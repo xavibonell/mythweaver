@@ -19,8 +19,9 @@ export type Facing = 'up' | 'down' | 'left' | 'right';
 export type ActorAnim = 'idle' | 'walk' | 'attack' | 'down';
 export type ActorKind = 'pc' | 'npc';
 
-/** Time of day — the renderer applies a tint for dusk/night. */
-export type Lighting = 'day' | 'dusk' | 'night';
+/** Time of day / atmosphere — the renderer applies a darkening TINT for dusk/night, and a pale
+ *  desaturating HAZE for fog (a washed-out, low-contrast overlay, not a multiply). */
+export type Lighting = 'day' | 'dusk' | 'night' | 'fog';
 
 /** A placed actor in the rendered scene. */
 export interface ActorState {

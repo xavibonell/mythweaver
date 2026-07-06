@@ -126,14 +126,28 @@ export function renderSceneMapToPng(scene: SceneMap, opts: { assetsRoot: string 
   // proof renders carry the same dusk/night mood. (The Phaser nicety of exempting light sources so they
   // glow is skipped here — this is a proof render, not the live game.)
   const interior = scene.grammar === 'enclosed-interior';
-  const tint = scene.lighting === 'night' ? (interior ? 0xc2a886 : 0x7e8cc0)
-    : scene.lighting === 'dusk' ? (interior ? 0xd2c0a0 : 0xb2b6da) : 0;
-  if (tint) {
-    const tr = (tint >> 16) & 0xff, tg = (tint >> 8) & 0xff, tb = tint & 0xff;
+  if (scene.lighting === 'fog') {
+    // FOG = desaturate toward luminance + blend toward a pale cool grey (a washed-out, low-contrast HAZE,
+    // the opposite of a darkening multiply). Reads as a cold sea-fog.
+    const FR = 176, FG = 186, FB = 196, DESAT = 0.5, A = 0.42;
     for (let i = 0; i < out.data.length; i += 4) {
-      out.data[i] = Math.round(out.data[i]! * tr / 255);
-      out.data[i + 1] = Math.round(out.data[i + 1]! * tg / 255);
-      out.data[i + 2] = Math.round(out.data[i + 2]! * tb / 255);
+      const r = out.data[i]!, g = out.data[i + 1]!, b = out.data[i + 2]!;
+      const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+      const dr = r + (lum - r) * DESAT, dg = g + (lum - g) * DESAT, db = b + (lum - b) * DESAT;
+      out.data[i] = Math.round(dr + (FR - dr) * A);
+      out.data[i + 1] = Math.round(dg + (FG - dg) * A);
+      out.data[i + 2] = Math.round(db + (FB - db) * A);
+    }
+  } else {
+    const tint = scene.lighting === 'night' ? (interior ? 0xc2a886 : 0x7e8cc0)
+      : scene.lighting === 'dusk' ? (interior ? 0xd2c0a0 : 0xb2b6da) : 0;
+    if (tint) {
+      const tr = (tint >> 16) & 0xff, tg = (tint >> 8) & 0xff, tb = tint & 0xff;
+      for (let i = 0; i < out.data.length; i += 4) {
+        out.data[i] = Math.round(out.data[i]! * tr / 255);
+        out.data[i + 1] = Math.round(out.data[i + 1]! * tg / 255);
+        out.data[i + 2] = Math.round(out.data[i + 2]! * tb / 255);
+      }
     }
   }
   return PNG.sync.write(out);
