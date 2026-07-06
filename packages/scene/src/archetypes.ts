@@ -108,9 +108,10 @@ function reserveEdgeField(cv: Canvas, B: Rect, interior: Rect, kind: 'coast' | '
         if (a % 3 === 1) cv.ambiance.push({ tag: scree[Math.floor(cv.rng() * scree.length)]!, col: fc, row: fr });
       }
     }
-    // OVERWORLD PEAKS: a dense cluster of mountain-peak icons over the rock builds a legible mountain-
-    // RANGE silhouette (the top-down convention that reads as "mountains", not a flat rock texture).
-    const peaks = ['peak_a', 'peak_b', 'peak_c'];
+    // OVERWORLD PEAKS: a dense cluster of grey stone mountain-peak icons over the rock builds a legible
+    // mountain-RANGE silhouette (the top-down convention that reads as "mountains"). Weighted toward BARE
+    // stone (peak_a), with snow-capped summits (peak_b/c) sprinkled in — a rugged range, not a snowfield.
+    const peaks = ['peak_a', 'peak_a', 'peak_a', 'peak_b', 'peak_c'];
     for (let a = 0; a < g.len; a++)
       for (let d = 1; d < depth; d++) {
         const c = g.sx + g.ax * a + g.ix * d, r = g.sy + g.ay * a + g.iy * d;
@@ -187,7 +188,8 @@ function placeFrontierFeature(cv: Canvas, band: Rect, edge: FieldSide, kind: 'po
     // vein glinting deeper in the rock, cargo + dwarf miners on the land apron just outside.
     deco('mine_entrance', cellAt(mid, 0), true);
     deco('ore_vein', cellAt(mid - 1, 1)); deco('ore_vein', cellAt(mid + 1, 1)); deco('ore_vein', cellAt(mid, 2));
-    put('crate', cellAt(mid + 2, -1), 'prop');
+    // land apron just outside the mouth: an ore cart + crate + dwarf miners (the "this is a working mine" cast)
+    put('minecart', cellAt(mid + 2, -1), 'prop'); put('crate', cellAt(mid - 2, -1), 'prop');
     for (let i = 0; i < 2; i++) put('dwarf', cellAt(mid - i, -1), 'actor', 'npc');
   }
 }

@@ -246,6 +246,137 @@ for i in range(1, n):
                 img.putpixel((bx + 1, by), C["light"])
 save_one(img, "crate")
 
+# ---- mine_entrance: a timbered adit (dark tunnel mouth + wooden headframe) set into the rock ----
+ME = 16
+img = Image.new("RGBA", (ME, ME), CLEAR)
+TIMB = (0x85, 0x4c, 0x30, 255)     # timber
+TIMB_HI = (0xd2, 0x7d, 0x2c, 255)  # lit timber edge
+DARK = (0x0d, 0x0b, 0x12, 255)     # tunnel black
+ROCK = (0x4e, 0x4a, 0x4e, 255)     # a little grey rock lip
+# rock lintel/brow across the top
+for x in range(1, 15):
+    img.putpixel((x, 1), ROCK)
+# timber lintel (a beam under the brow, overhanging)
+for x in range(1, 15):
+    img.putpixel((x, 2), C["out"])
+    img.putpixel((x, 3), TIMB_HI if x % 3 else TIMB)
+# the dark tunnel mouth (an arch), framed by two timber posts
+for y in range(4, ME):
+    for x in range(2, 14):
+        edge_post = x in (2, 3, 12, 13)
+        inside = 4 <= x <= 11 and not (y == 4 and x in (4, 11))  # rounded top corners
+        if edge_post:
+            img.putpixel((x, y), TIMB if x in (3, 12) else C["out"])
+        elif inside:
+            img.putpixel((x, y), DARK)
+# a lintel edge over the mouth + rubble at the foot
+for x in range(4, 12):
+    img.putpixel((x, 4), C["out"])
+for x in (5, 8, 10):
+    img.putpixel((x, ME - 1), ROCK)
+save_one(img, "mine_entrance")
+
+# ---- minecart: an ore cart on a rail (strong 'mine' signal) ----
+MC = 16
+img = Image.new("RGBA", (MC, MC), CLEAR)
+CART = (0x5a, 0x34, 0x22, 255)
+CART_HI = (0x85, 0x4c, 0x30, 255)
+IRON = (0x4e, 0x4a, 0x4e, 255)
+OREG = (0x75, 0x71, 0x61, 255)
+# ore heap mounded above the cart
+for (ox, oy, orr) in [(6, 4, 3), (9, 4, 3), (7, 3, 2)]:
+    for y in range(MC):
+        for x in range(MC):
+            if (x - ox) ** 2 + (y - oy) ** 2 <= orr * orr:
+                img.putpixel((x, y), OREG if (x + y) % 3 else IRON)
+img.putpixel((8, 4), (0x6d, 0xc2, 0xca, 255))  # a cold crystal-ore glint (cool, never ember-red)
+# cart body (a trapezoid tub)
+for y in range(6, 12):
+    inset = max(0, y - 9)
+    for x in range(2 + inset, 14 - inset):
+        edge = (x == 2 + inset or x == 13 - inset or y == 11)
+        img.putpixel((x, y), C["out"] if edge else (CART_HI if x < 8 else CART))
+# wheels + a rail
+for wx in (5, 11):
+    for dy in range(2):
+        for dx in range(-1, 2):
+            img.putpixel((wx + dx, 12 + dy), IRON)
+for x in range(1, 15):
+    img.putpixel((x, 14), C["out"])
+save_one(img, "minecart")
+
+# ---- ore_vein: a COLD crystal/metal seam in dark rock (red ore reads as embers/fire at zoom) ----
+OV = 16
+img = Image.new("RGBA", (OV, OV), CLEAR)
+RKD = (0x2a, 0x24, 0x2c, 255)   # dark rock
+RKM = (0x4e, 0x4a, 0x4e, 255)   # mid rock
+CRY = (0x59, 0x7d, 0xce, 255)   # blue crystal
+CRY_HI = (0x6d, 0xc2, 0xca, 255)  # cyan highlight
+CRY_LT = (0xde, 0xee, 0xd6, 255)  # white glint
+ocx, ocy = 7.5, 8.5
+for y in range(OV):
+    for x in range(OV):
+        d = ((x - ocx) / 6.5) ** 2 + ((y - ocy) / 6.0) ** 2   # a rounded rock lump
+        if d > 1.0:
+            continue
+        img.putpixel((x, y), C["out"] if d > 0.82 else (RKD if (x + y) % 2 else RKM))
+# angular crystal facets embedded in the rock (cold blues)
+for (fx, fy) in [(6, 6), (7, 7), (8, 6), (9, 8), (6, 10), (8, 10), (10, 9)]:
+    if 0 <= fx < OV and 0 <= fy < OV:
+        img.putpixel((fx, fy), CRY)
+for (fx, fy) in [(7, 6), (8, 7), (9, 9), (7, 10)]:
+    img.putpixel((fx, fy), CRY_HI)
+img.putpixel((8, 6), CRY_LT); img.putpixel((7, 9), CRY_LT)  # bright glints
+save_one(img, "ore_vein")
+
+# ---- peaks: clean GREY STONE mountain icons (DawnLike's peaks read as bluish blobs) ----
+# A top-down/overworld mountain icon: a pointed peak with a LIT left face + SHADOWED right face split down
+# the ridge, a dark base shadow, optional snow cap. Reads as grey stone rock, never fire/ice-blob.
+PK = 16
+ST_LIT = (0x85, 0x95, 0xa1, 255)   # lit rock face (steel grey)
+ST_SHA = (0x4e, 0x4a, 0x4e, 255)   # shadowed rock face
+ST_DK = (0x14, 0x0c, 0x1c, 255)    # outline / deep shadow
+SNOW = (0xde, 0xee, 0xd6, 255)     # snow
+SNOW_SH = (0xb6, 0xc4, 0xd6, 255)  # snow shadow
+
+
+def draw_peak(apex_x, apex_y, base_y, half_max, snow_frac):
+    img = Image.new("RGBA", (PK, PK), CLEAR)
+    L = base_y - apex_y
+    for y in range(apex_y, base_y + 1):
+        t = (y - apex_y) / L
+        hw = t * half_max
+        xl, xr = int(round(apex_x - hw)), int(round(apex_x + hw))
+        for x in range(xl, xr + 1):
+            if not (0 <= x < PK):
+                continue
+            ridge = abs(x - apex_x) <= 0.6
+            edge = (x <= xl + 0.5 or x >= xr - 0.5)
+            snowy = t < snow_frac
+            if edge or y == base_y:
+                img.putpixel((x, y), ST_DK)
+            elif snowy:
+                img.putpixel((x, y), SNOW if (x <= apex_x or ridge) else SNOW_SH)
+            elif ridge:
+                img.putpixel((x, y), SNOW_SH if snow_frac > 0 else ST_LIT)
+            else:
+                img.putpixel((x, y), ST_LIT if x < apex_x else ST_SHA)
+    # a cast base shadow line
+    for x in range(int(apex_x - half_max), int(apex_x + half_max) + 1):
+        if 0 <= x < PK and base_y + 1 < PK:
+            img.putpixel((x, base_y), ST_DK)
+    return img
+
+
+draw_peak(7.5, 2, 14, 7.0, 0.0).save(os.path.join(OUT, "peak_a.png"))   # bare grey stone
+draw_peak(7.5, 1, 14, 6.6, 0.34).save(os.path.join(OUT, "peak_b.png"))  # snow-capped
+# peak_c: a craggy twin — a tall peak with a lower shoulder to its right
+_c = draw_peak(6.0, 2, 14, 5.2, 0.30)
+_sh = draw_peak(11.0, 6, 14, 3.4, 0.0)
+_c.alpha_composite(_sh)
+_c.save(os.path.join(OUT, "peak_c.png"))
+print("wrote peak_a/b/c (procedural grey stone)")
+
 # ---- rope_coil ----
 RW, RH = 12, 10
 img = Image.new("RGBA", (RW, RH), CLEAR)

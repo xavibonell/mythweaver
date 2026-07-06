@@ -5934,7 +5934,7 @@
         "cave",
         "wild"
       ],
-      "art": "/assets/dawnlike/props/mine_entrance.png",
+      "art": "/assets/proc/props/mine_entrance.png",
       "frameW": 16,
       "frameH": 16,
       "frames": 1,
@@ -5942,17 +5942,12 @@
       "footH": 1,
       "blocks": false,
       "from": {
-        "pack": "DawnLike",
-        "crop": "Objects/Door0.png",
-        "rect": [
-          0,
-          80,
-          16,
-          16
-        ]
+        "pack": "proc",
+        "gen": "scripts/gen-boats-proc.py",
+        "note": "was a thin grey arch -> timbered adit (dark tunnel + wood headframe)"
       },
-      "license": "CC-BY-4.0",
-      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
+      "license": "hand-drawn procedural pixel art in the DB16 palette (scripts/gen-boats-proc.py); owned, NOT DawnLike",
+      "attribution": "procedural asset (MythWeaver)"
     },
     {
       "kind": "prop",
@@ -5962,7 +5957,7 @@
         "mountain",
         "cave"
       ],
-      "art": "/assets/dawnlike/props/ore_vein.png",
+      "art": "/assets/proc/props/ore_vein.png",
       "frameW": 16,
       "frameH": 16,
       "frames": 1,
@@ -5970,17 +5965,12 @@
       "footH": 1,
       "blocks": true,
       "from": {
-        "pack": "DawnLike",
-        "crop": "Items/Money.png",
-        "rect": [
-          16,
-          64,
-          16,
-          16
-        ]
+        "pack": "proc",
+        "gen": "scripts/gen-boats-proc.py",
+        "note": "red ore read as embers/fire in dark rock -> cold blue-crystal seam"
       },
-      "license": "CC-BY-4.0",
-      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
+      "license": "hand-drawn procedural pixel art in the DB16 palette (scripts/gen-boats-proc.py); owned, NOT DawnLike",
+      "attribution": "procedural asset (MythWeaver)"
     },
     {
       "kind": "terrain",
@@ -6302,7 +6292,7 @@
         "mountain",
         "wild"
       ],
-      "art": "/assets/dawnlike/props/peak_a.png",
+      "art": "/assets/proc/props/peak_a.png",
       "frameW": 16,
       "frameH": 16,
       "frames": 1,
@@ -6310,17 +6300,12 @@
       "footH": 1,
       "blocks": false,
       "from": {
-        "pack": "DawnLike",
-        "crop": "Objects/Hill0.png",
-        "rect": [
-          96,
-          0,
-          16,
-          16
-        ]
+        "pack": "proc",
+        "gen": "scripts/gen-boats-proc.py",
+        "note": "DawnLike peaks read as bluish blobs -> procedural grey-stone mountain icon (lit/shadow face + snow cap)"
       },
-      "license": "CC-BY-4.0",
-      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
+      "license": "hand-drawn procedural pixel art in the DB16 palette (scripts/gen-boats-proc.py); owned, NOT DawnLike",
+      "attribution": "procedural asset (MythWeaver)"
     },
     {
       "kind": "prop",
@@ -6330,7 +6315,7 @@
         "mountain",
         "wild"
       ],
-      "art": "/assets/dawnlike/props/peak_b.png",
+      "art": "/assets/proc/props/peak_b.png",
       "frameW": 16,
       "frameH": 16,
       "frames": 1,
@@ -6338,17 +6323,12 @@
       "footH": 1,
       "blocks": false,
       "from": {
-        "pack": "DawnLike",
-        "crop": "Objects/Hill0.png",
-        "rect": [
-          128,
-          0,
-          16,
-          16
-        ]
+        "pack": "proc",
+        "gen": "scripts/gen-boats-proc.py",
+        "note": "DawnLike peaks read as bluish blobs -> procedural grey-stone mountain icon (lit/shadow face + snow cap)"
       },
-      "license": "CC-BY-4.0",
-      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
+      "license": "hand-drawn procedural pixel art in the DB16 palette (scripts/gen-boats-proc.py); owned, NOT DawnLike",
+      "attribution": "procedural asset (MythWeaver)"
     },
     {
       "kind": "prop",
@@ -6358,7 +6338,7 @@
         "mountain",
         "wild"
       ],
-      "art": "/assets/dawnlike/props/peak_c.png",
+      "art": "/assets/proc/props/peak_c.png",
       "frameW": 16,
       "frameH": 16,
       "frames": 1,
@@ -6366,17 +6346,12 @@
       "footH": 1,
       "blocks": false,
       "from": {
-        "pack": "DawnLike",
-        "crop": "Objects/Hill0.png",
-        "rect": [
-          160,
-          0,
-          16,
-          16
-        ]
+        "pack": "proc",
+        "gen": "scripts/gen-boats-proc.py",
+        "note": "DawnLike peaks read as bluish blobs -> procedural grey-stone mountain icon (lit/shadow face + snow cap)"
       },
-      "license": "CC-BY-4.0",
-      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
+      "license": "hand-drawn procedural pixel art in the DB16 palette (scripts/gen-boats-proc.py); owned, NOT DawnLike",
+      "attribution": "procedural asset (MythWeaver)"
     },
     {
       "kind": "prop",
@@ -6876,6 +6851,29 @@
       "footW": 1,
       "footH": 1,
       "blocks": false,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-boats-proc.py"
+      },
+      "license": "hand-drawn procedural pixel art in the DB16 palette (scripts/gen-boats-proc.py); owned, NOT DawnLike",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "minecart",
+      "desc": "an ore cart",
+      "biomes": [
+        "mountain",
+        "cave",
+        "village"
+      ],
+      "art": "/assets/proc/props/minecart.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": true,
       "from": {
         "pack": "proc",
         "gen": "scripts/gen-boats-proc.py"
