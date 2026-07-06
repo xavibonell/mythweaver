@@ -83,6 +83,10 @@ VISUAL SCENE (the table sees a live top-down map — docs/SCENE-CONTRACTS.md):
   an object's state flips — mirror it with ONE "updateScene" call (batch every change; ids from the
   scene). The engine owns exact tiles: it snaps targets to free ground and REFUSES impossible moves —
   narrate its verdict. Movement only; location changes stay setScene, mechanics stay the dice.
+- NEVER call setScene for movement WITHIN the current place — crossing the green, approaching a
+  building, stepping to an NPC is updateScene ({op:"move", id:"pc:...", to:"near:bldg:..."}).
+  setScene is ONLY for a genuinely DIFFERENT location (leaving town for the mine, entering a
+  building's interior, descending into the crypt).
 
 CANON (keep the world consistent):
 - A "CANON" block may appear in the turn context — established truth (named NPCs + their voice/status,

@@ -281,6 +281,9 @@ export interface DmLabSession {
   arcTemperature?: number;
   recent: string[];
   turnIndex: number;
+  /** Monotonic scene revision — bumped on every setScene AND every applied delta batch, so a client
+   *  can detect it missed something (revision gap → full re-render instead of delta application). */
+  sceneRev: number;
   totalCostUsd: number;
   totalLatencyMs: number;
   /** Set when the last turn asked for a roll (the next submit should declare it). */
@@ -367,6 +370,7 @@ export function createDmLabSession(deps: DmLabDeps, scenarioId: string): DmLabSe
     ...(deps.arcTemperature !== undefined ? { arcTemperature: deps.arcTemperature } : {}),
     recent: [],
     turnIndex: 0,
+    sceneRev: 0,
     totalCostUsd: 0,
     totalLatencyMs: 0,
     scene: startSceneId,
@@ -424,6 +428,7 @@ export async function dmLabSubmit(
   }
 
   session.turnIndex += 1;
+  if (result.sceneChanged || result.deltas?.length) session.sceneRev += 1; // clients detect gaps → full re-render
   session.totalCostUsd += result.costUsd;
   session.totalLatencyMs += latencyMs;
   if (result.rollRequest) session.pendingRoll = result.rollRequest;

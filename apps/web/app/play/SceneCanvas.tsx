@@ -65,12 +65,12 @@ function createActor(scene: any, a: any, tint: number | null): void {
 
 /** Draw a static/animated prop (declared fixture, prop, or seed ambiance), anchored at the bottom
  *  of its footprint so flat multi-tile props (a 2x2 fountain) sit on their ground, while tall props
- *  (trees, cottages) with a 1-tile base overhang upward. */
-function drawProp(scene: any, tag: string, col: number, row: number, footW: number, footH: number, depth: number, tint: number | null): void {
+ *  (trees, cottages) with a 1-tile base overhang upward. Returns the created object (or null). */
+function drawProp(scene: any, tag: string, col: number, row: number, footW: number, footH: number, depth: number, tint: number | null): any {
   const art = PROP_ART[tag];
   if (!art) {
     if (typeof console !== 'undefined') console.warn(`[renderer] no prop art for '${tag}'`);
-    return;
+    return null;
   }
   // A boat lies ON the water: CENTRE it on its cell (it isn't "standing" on the ground), so a boat moored
   // alongside a pier floats in the water instead of extending up onto the planks. Everything else is feet-bottom.
@@ -84,6 +84,87 @@ function drawProp(scene: any, tag: string, col: number, row: number, footW: numb
   if (tint && !art.light) obj.setTint(tint); // light sources keep their glow under a night tint
   obj.setDepth(depth);
   scene.sceneObjs.push(obj);
+  return obj;
+}
+
+/**
+ * INCREMENTAL scene deltas (Contract 4 → the renderer): moves become ~300ms tweens, spawns pop in,
+ * reveals/hides toggle visibility — with NO full rebuild (the terrain RenderTexture survives).
+ * `scene.lastData` (the client's copy of the frozen map) is mutated in LOCKSTEP so a later full
+ * render doesn't snap tokens back. Idempotent-ish: re-applying after a full render is harmless.
+ */
+function applyDeltasImpl(scene: any, deltas: any[]): void {
+  const data = scene.lastData;
+  if (!data) return;
+  const interior = data.grammar === 'enclosed-interior';
+  const tint = interior ? null : data.lighting === 'night' ? 0x7e8cc0 : data.lighting === 'dusk' ? 0xb2b6da : null;
+  const record = (id: string) => (data.objects ?? []).find((o: any) => o.id === id);
+  for (const d of deltas ?? []) {
+    if (d.op === 'move' && d.to && Number.isInteger(d.to.col)) {
+      const rec = record(d.id);
+      if (rec) { rec.col = d.to.col; rec.row = d.to.row; }
+      const a = scene.actorObjs.get(d.id);
+      if (a) {
+        const { x, y } = actorXY(d.to.col, d.to.row);
+        a.col = d.to.col; a.row = d.to.row;
+        scene.tweens.add({ targets: a.container, x, y, duration: 300, ease: 'Sine.easeInOut', onComplete: () => a.container.setDepth(d.to.row + 0.5) });
+      } else {
+        const p = scene.propObjs?.get(d.id);
+        if (p) {
+          const footW = p.footW ?? 1, footH = p.footH ?? 1;
+          const x = (d.to.col + footW / 2) * TILE, y = (d.to.row + footH) * TILE;
+          scene.tweens.add({ targets: p.obj, x, y, duration: 300, ease: 'Sine.easeInOut', onComplete: () => p.obj.setDepth(d.to.row + 0.1) });
+        }
+      }
+    } else if (d.op === 'face') {
+      const rec = record(d.id);
+      if (rec) rec.facing = d.facing;
+      const a = scene.actorObjs.get(d.id);
+      if (a) a.sprite.setFlipX(d.facing === 'left');
+    } else if (d.op === 'reveal') {
+      const rec = record(d.id);
+      if (rec) rec.visible = true;
+      const a = scene.actorObjs.get(d.id);
+      const p = scene.propObjs?.get(d.id);
+      if (a) a.container.setVisible(true);
+      else if (p) p.obj.setVisible(true);
+      else if (rec) {
+        // It was never drawn (hidden at render time) — create it now.
+        if (rec.kind === 'actor') createActor(scene, rec, tint);
+        else {
+          const obj = drawProp(scene, rec.tag, rec.col, rec.row, rec.footprint?.w ?? 1, rec.footprint?.h ?? 1, rec.row + 0.1, tint);
+          if (obj) scene.propObjs?.set(rec.id, { obj, footW: rec.footprint?.w ?? 1, footH: rec.footprint?.h ?? 1 });
+        }
+      }
+    } else if (d.op === 'hide') {
+      const rec = record(d.id);
+      if (rec) rec.visible = false;
+      scene.actorObjs.get(d.id)?.container.setVisible(false);
+      scene.propObjs?.get(d.id)?.obj.setVisible(false);
+    } else if (d.op === 'spawn' && d.at) {
+      if (scene.actorObjs.has(d.id) || scene.propObjs?.has(d.id)) continue; // already present (full render beat us)
+      if (!record(d.id)) (data.objects ??= []).push({ id: d.id, kind: d.kind, ...(d.role ? { role: d.role } : {}), tag: d.tag, ...(d.name ? { name: d.name } : {}), col: d.at.col, row: d.at.row, footprint: { w: 1, h: 1 }, facing: 'down', visible: d.visible !== false });
+      if (d.visible === false) continue; // present but hidden — drawn on reveal
+      if (d.kind === 'actor') {
+        createActor(scene, { id: d.id, tag: d.tag, col: d.at.col, row: d.at.row, facing: 'down' }, tint);
+        const a = scene.actorObjs.get(d.id);
+        if (a) { a.container.setAlpha(0); scene.tweens.add({ targets: a.container, alpha: 1, duration: 250 }); } // pop-in
+      } else {
+        const obj = drawProp(scene, d.tag, d.at.col, d.at.row, 1, 1, d.at.row + 0.1, tint);
+        if (obj) scene.propObjs?.set(d.id, { obj, footW: 1, footH: 1 });
+      }
+    } else if (d.op === 'despawn') {
+      const idx = (data.objects ?? []).findIndex((o: any) => o.id === d.id);
+      if (idx >= 0) data.objects.splice(idx, 1);
+      const a = scene.actorObjs.get(d.id);
+      if (a) { scene.tweens.add({ targets: a.container, alpha: 0, duration: 250, onComplete: () => a.container.destroy() }); scene.actorObjs.delete(d.id); }
+      const p = scene.propObjs?.get(d.id);
+      if (p) { p.obj.destroy(); scene.propObjs.delete(d.id); }
+    } else if (d.op === 'setState') {
+      const rec = record(d.id);
+      if (rec) rec.state = { ...(rec.state ?? {}), ...d.state }; // data-only in v1 (no visual treatment yet)
+    }
+  }
 }
 
 /** Full rebuild: terrain + props + actors + lighting + camera. */
@@ -92,6 +173,7 @@ function renderFullImpl(scene: any, data: any): void {
   for (const o of scene.sceneObjs ?? []) o.destroy();
   scene.sceneObjs = [];
   scene.actorObjs = new Map();
+  scene.propObjs = new Map(); // id-addressed props/fixtures (the delta path repositions/toggles them)
   scene.lastData = data;
 
   // Lighting = a per-object color multiply (tint), NOT a flat overlay, so name labels stay
@@ -130,7 +212,10 @@ function renderFullImpl(scene: any, data: any): void {
   for (const o of data.objects ?? []) {
     if (o.visible === false) continue;
     if (o.kind === 'actor') createActor(scene, o, tint);
-    else drawProp(scene, o.tag, o.col, o.row, o.footprint?.w ?? 1, o.footprint?.h ?? 1, o.row + 0.1, tint);
+    else {
+      const obj = drawProp(scene, o.tag, o.col, o.row, o.footprint?.w ?? 1, o.footprint?.h ?? 1, o.row + 0.1, tint);
+      if (obj) scene.propObjs.set(o.id, { obj, footW: o.footprint?.w ?? 1, footH: o.footprint?.h ?? 1 });
+    }
   }
 
   // ROOFS — the closed-building cover as VECTOR geometry (gradient polygon faces + hip/ridge/rim lines +
@@ -240,8 +325,10 @@ interface Bridge {
 }
 
 /** A self-contained Phaser surface that renders the SceneMap passed as `data` (null = nothing yet).
- *  `freeCamera` (Lab) enables drag-pan + wheel-zoom; bumping `fitNonce` re-frames the whole scene. */
-export default function SceneCanvas({ data, freeCamera = false, fitNonce = 0, showRoofs = true }: { data: any; freeCamera?: boolean; fitNonce?: number; showRoofs?: boolean }) {
+ *  `freeCamera` (Lab) enables drag-pan + wheel-zoom; bumping `fitNonce` re-frames the whole scene.
+ *  INCREMENTAL updates: bump `deltaNonce` with a fresh `deltas` array to tween tokens (move/spawn/
+ *  reveal/…) without a full rebuild — pass a NEW `data` reference only when the location changes. */
+export default function SceneCanvas({ data, freeCamera = false, fitNonce = 0, showRoofs = true, deltas = null, deltaNonce = 0 }: { data: any; freeCamera?: boolean; fitNonce?: number; showRoofs?: boolean; deltas?: any[] | null; deltaNonce?: number }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const bridgeRef = useRef<Bridge>({ scene: null, pending: null, game: null });
 
@@ -274,6 +361,7 @@ export default function SceneCanvas({ data, freeCamera = false, fitNonce = 0, sh
             scene.BLEND = Phaser.BlendModes; // ADD/MULTIPLY for the interior torch-pool lighting
             ensureAnims(scene);
             scene.renderFull = (d: any) => renderFullImpl(scene, d);
+            scene.applyDeltas = (ds: any[]) => applyDeltasImpl(scene, ds);
             scene.fit = () => { if (scene.lastData) fitCamera(scene, scene.lastData); };
             // /play keeps auto-fit on resize; the Lab free-camera leaves the tester's view alone.
             scene.scale.on('resize', () => { if (!freeCamera && scene.lastData) fitCamera(scene, scene.lastData); });
@@ -330,6 +418,11 @@ export default function SceneCanvas({ data, freeCamera = false, fitNonce = 0, sh
   useEffect(() => {
     if (fitNonce) bridgeRef.current.scene?.fit?.();
   }, [fitNonce]);
+
+  // Incremental deltas: tween tokens on the LIVE scene (no rebuild). Fired by bumping deltaNonce.
+  useEffect(() => {
+    if (deltaNonce && deltas?.length) bridgeRef.current.scene?.applyDeltas?.(deltas);
+  }, [deltaNonce]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return <div ref={containerRef} style={{ width: '100%', height: '100%', background: '#0d0b0a' }} />;
 }

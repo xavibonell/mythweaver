@@ -760,7 +760,18 @@ app.post('/dm/lab/session/:id/turn', async (req, reply) => {
   }
   try {
     const turn = await dmLabSubmit(session, input);
-    return { turn, totalCostUsd: session.totalCostUsd, totalLatencyMs: session.totalLatencyMs, pendingRoll: session.pendingRoll ?? null, arc: arcView(session), characters: characterSheets(session) };
+    // The live-table scene block: the full map ONLY when the location changed; deltas otherwise.
+    // `rev` is the monotonic scene revision — a client seeing a gap does a full re-render instead
+    // of applying deltas to a stale map.
+    const world = session.engine.getState().world;
+    const map = world?.currentLocationId ? world.locations[world.currentLocationId] : undefined;
+    const scene = {
+      changed: !!turn.sceneChanged,
+      ...(turn.sceneChanged && map ? { map } : {}),
+      deltas: turn.deltas ?? [],
+      rev: session.sceneRev,
+    };
+    return { turn, scene, totalCostUsd: session.totalCostUsd, totalLatencyMs: session.totalLatencyMs, pendingRoll: session.pendingRoll ?? null, arc: arcView(session), characters: characterSheets(session) };
   } catch (err) {
     app.log.error(err, 'dm lab session turn failed');
     reply.code(502);
@@ -776,6 +787,46 @@ app.get('/dm/lab/session/:id/characters', async (req, reply) => {
     return { error: 'session not found — start a new one' };
   }
   return { characters: characterSheets(session) };
+});
+
+// The live table (:6985/dm) — list the joinable in-memory lab sessions.
+app.get('/dm/lab/sessions', async () => {
+  return {
+    sessions: [...dmLabSessions.entries()].map(([id, s]) => ({
+      sessionId: id,
+      scenarioId: s.scenarioId,
+      scene: s.scene,
+      party: s.party,
+      turnIndex: s.turnIndex,
+      sceneEngine: s.sceneEngine,
+      totalCostUsd: s.totalCostUsd,
+    })),
+  };
+});
+
+// The live table's cold-boot hydration: everything one screen needs to join a running session.
+app.get('/dm/lab/session/:id/view', async (req, reply) => {
+  const session = dmLabSessions.get((req.params as { id: string }).id);
+  if (!session) {
+    reply.code(404);
+    return { error: 'session not found — start a new one' };
+  }
+  const world = session.engine.getState().world;
+  const map = world?.currentLocationId ? world.locations[world.currentLocationId] : undefined;
+  return {
+    sessionId: (req.params as { id: string }).id,
+    scenarioId: session.scenarioId,
+    sceneEngine: session.sceneEngine,
+    party: session.party,
+    turnIndex: session.turnIndex,
+    recent: session.recent,
+    pendingRoll: session.pendingRoll ?? null,
+    totalCostUsd: session.totalCostUsd,
+    totalLatencyMs: session.totalLatencyMs,
+    arc: arcView(session),
+    characters: characterSheets(session),
+    scene: { ...(map ? { map } : {}), rev: session.sceneRev },
+  };
 });
 
 function badRequest(reply: FastifyReply, message: string) {

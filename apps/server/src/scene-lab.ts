@@ -147,6 +147,7 @@ export async function realizeStoryScene(
   // for, not the atmospheric flavour the DM wrote into `enriched` ("the dark maw of the mine" is flavour).
   const moodText = opts.moodText ?? premise;
   const program = await new LlmSceneProgrammer(deps.llm, deps.model).compose(enriched, moodText, opts.kind);
+  program.locationId = establish.locationId; // stamp the DM's id — the frozen map must know its own name
   // LIGHTING PRECEDENCE: an explicitly DECLARED time of day beats the mood-regex (which beats 'day').
   // The coerced parser default never reaches here — the orchestrator only sets lightingDeclared when the
   // DM actually wrote timeOfDay in the tool call.

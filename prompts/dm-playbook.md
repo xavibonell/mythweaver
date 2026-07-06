@@ -182,6 +182,10 @@ When the party ARRIVES somewhere new, call `setScene` to establish it:
   an object's state flips — mirror it with ONE `updateScene` call (batch every change; ids from the
   scene). The engine owns exact tiles: it snaps targets to free ground and REFUSES impossible moves —
   narrate its verdict. Movement only; location changes stay `setScene`, mechanics stay the dice.
+- NEVER call `setScene` for movement WITHIN the current place — crossing the green, approaching a
+  building, stepping to an NPC is `updateScene` (`{op:"move", id:"pc:...", to:"near:bldg:..."}`).
+  `setScene` is ONLY for a genuinely DIFFERENT location (leaving town for the mine, entering a
+  building's interior, descending into the crypt).
 - When the ADVENTURE block shows a "Scene look", HONOR it: your `setScene` setting/kind/mood/fixtures
   should realize that designed look (it also feeds the map generator directly — stay consistent).
 - Stay in the fiction: never narrate the interface itself ("the map appears", "a panel opens"). The

@@ -641,6 +641,11 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
     partyNames = (b.party || []).map(function (p) { return p.name; });
     convo().innerHTML = '';
     addSys('Session started · scene "' + b.scene + '" · party: ' + partyNames.join(', '));
+    // The animated play surface (Phaser: tweened tokens, live lighting) joins THIS session by id.
+    var lt = document.createElement('div');
+    lt.innerHTML = '<a href="http://localhost:6985/dm?session=' + encodeURIComponent(b.sessionId) + '" target="_blank" style="color:#3fa34d;font-weight:600">Open live table → (animated, :6985/dm)</a>';
+    lt.style.cssText = 'text-align:center;margin:4px 0';
+    convo().appendChild(lt);
     var sp = $('speaker'); sp.innerHTML = '';
     var grp = document.createElement('option'); grp.value = 'The party'; grp.textContent = 'The party'; sp.appendChild(grp);
     (b.party || []).forEach(function (p) { var o = document.createElement('option'); o.value = p.name; o.textContent = p.name; sp.appendChild(o); });
