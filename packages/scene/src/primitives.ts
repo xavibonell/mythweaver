@@ -12,7 +12,7 @@
  * code. (Whether an LLM can COMPOSE them reliably is the second half — see scene-program.ts.)
  */
 
-import { FEET_PER_TILE, type AmbianceItem, type BuildingType, type Entrance, type LayoutGrammar, type Lighting, type MapObject, type SceneMap } from '@mythweaver/shared';
+import { FEET_PER_TILE, type AmbianceItem, type BuildingType, type Entrance, type LayoutGrammar, type Lighting, type MapObject, type RoofCell, type SceneMap } from '@mythweaver/shared';
 import { bakeAutoTiles, bakeRockMass, bakeWoodWalls, BUILDING_TEMPLATES, furnishRoom, makeRng, reachabilityCarve, ROOM_PROGRAMS, ROOM_RECIPES, ROOM_TEMPLATES, scatterGroundDecals, wallTagFor, type RoomFunction, type RoomTemplate } from './cartographer.js';
 import { isCharacter, propDef, terrainWalkable } from './catalog.js';
 import { inside, maskFor, ringCells, type ShapeKind } from './footprint.js';
@@ -26,6 +26,23 @@ export interface Rect {
   y: number;
   w: number;
   h: number;
+}
+
+/** A placed building's footprint, recorded so `finalize` can lay a ROOF over it. `rect` is the wall-inclusive
+ *  bounds; the roof covers only the WALL + interior-FLOOR cells inside it (so shaped footprints and open
+ *  courtyards stay un-roofed). `roof` is the material style (thatch/tile/slate/wood). */
+export interface BuildingFootprint { id: string; rect: Rect; roof: string; }
+/** The only interior floor tags (from BUILDING/ROOM templates) — a cell with one of these, or a wall, is
+ *  "under roof"; everything else in the footprint (grass/dirt courtyard, paving) is open sky. */
+const ROOFED_FLOOR = new Set(['stone', 'wood_floor']);
+
+/** Map a building TYPE to a roof material — thatch cottages, tiled civic/faith, slate works, wood shops. */
+export function roofStyleFor(type: BuildingType): string {
+  const t = String(type);
+  if (/temple|cathedral|chapel|church|shrine|keep|castle|manor|court|guild|library|town.?hall|inn|tavern/.test(t)) return 'tile';
+  if (/smith|forge|foundry|workshop|armou?ry|barracks|jail|mine|warehouse|vault/.test(t)) return 'slate';
+  if (/shop|store|market|curio|stall|trading/.test(t)) return 'wood';
+  return 'thatch'; // house / cottage / default
 }
 
 /** The mutable scene under construction. Primitives read/write its grids + registries. */
@@ -47,6 +64,7 @@ export class Canvas {
   readonly objects: MapObject[] = [];
   readonly ambiance: AmbianceItem[] = [];
   readonly entrances: Entrance[] = [];
+  readonly buildings: BuildingFootprint[] = []; // footprints for the ROOF pass (finalize)
   readonly rng: () => number;
 
   constructor(readonly cols: number, readonly rows: number, readonly seed: number, base = 'grass') {
@@ -426,6 +444,7 @@ export function building(cv: Canvas, region: Rect, type: BuildingType, opts: { d
     cv.occ[door.oR]![door.oC] = false;
   }
   const safe = (opts.id && opts.id.includes(':') ? opts.id.slice(opts.id.indexOf(':') + 1) : opts.id ?? type).replace(/[^a-z0-9_-]/gi, '-').toLowerCase() || type;
+  cv.buildings.push({ id: `bldg:${safe}`, rect: R, roof: roofStyleFor(type) }); // record for the roof pass
   if (opts.locationId) cv.entrances.push({ toLocationId: opts.locationId, col: door.dC, row: door.dR, ...(opts.id ? { fixtureId: opts.id } : {}) });
   furnishRoom(cv.tiles, cv.walkable, cv.occ, cv.objects, R, tmpl, { c: door.dC, r: door.dR }, cv.rng, cv.cols, safe, `bldg:${safe}`, 0, opts.name);
   const rd: RealizedDoor = { c: door.dC, r: door.dR, oC: door.oC, oR: door.oR };
@@ -592,6 +611,7 @@ export function compound(cv: Canvas, region: Rect, type: BuildingType, opts: { d
   const rest = leaves.slice(1).map((_, j) => program[Math.min(j + 1, program.length - 1)]!).sort((a, b) => (PRIV[a] ?? 0) - (PRIV[b] ?? 0));
   const fnForLeaf = (i: number): RoomFunction => (i === 0 ? program[0]! : (rest[i - 1] ?? program[0]!));
   const safe = (opts.id && opts.id.includes(':') ? opts.id.slice(opts.id.indexOf(':') + 1) : opts.id ?? type).replace(/[^a-z0-9_-]/gi, '-').toLowerCase() || type;
+  cv.buildings.push({ id: `bldg:${safe}`, rect: R, roof: roofStyleFor(type) }); // record for the roof pass
   // (entrance record is pushed AFTER the repair pass, so it reflects the final door position.)
   const onBorder = (lf: Rect, p: { c: number; r: number }) => p.c >= lf.x && p.c <= lf.x + lf.w - 1 && p.r >= lf.y && p.r <= lf.y + lf.h - 1 && (p.c === lf.x || p.c === lf.x + lf.w - 1 || p.r === lf.y || p.r === lf.y + lf.h - 1);
   // COURTYARD: a big compound (any type) turns its biggest back room into an open inner garden (grass +
@@ -1186,6 +1206,29 @@ function scatterMist(cv: Canvas): void {
     }
 }
 
+/** ROOF PASS — lay a gabled roof over every recorded building. A cell is "under roof" if it is a wall or an
+ *  interior floor (so open courtyards / L-shape notches stay sky); the roof tile per cell is the gable part
+ *  (ridge down the long axis, lit/shadow slopes, an eave drip on the outer ring) in the building's material.
+ *  Emitted as a separate layer the renderer draws ON TOP — hidden per-building on entry, or via the lab switch. */
+function bakeRoofs(cv: Canvas): RoofCell[] {
+  const roofs: RoofCell[] = [];
+  const roofed = (c: number, r: number): boolean => { const t = cv.tiles[r]?.[c] ?? ''; return t.startsWith('wall') || ROOFED_FLOOR.has(t); };
+  for (const b of cv.buildings) {
+    const { x, y, w, h } = b.rect;
+    if (w < 3 || h < 3) continue;
+    const horiz = w >= h;
+    const ridge = horiz ? y + Math.floor((h - 1) / 2) : x + Math.floor((w - 1) / 2);
+    for (let r = y; r < y + h; r++)
+      for (let c = x; c < x + w; c++) {
+        if (!cv.inB(c, r) || !roofed(c, r)) continue;
+        const edge = !roofed(c - 1, r) || !roofed(c + 1, r) || !roofed(c, r - 1) || !roofed(c, r + 1);
+        const part = edge ? 'eave' : horiz ? (r === ridge ? 'ridge_h' : r < ridge ? 'lit' : 'sha') : (c === ridge ? 'ridge_v' : c < ridge ? 'lit' : 'sha');
+        roofs.push({ col: c, row: r, tag: `roof_${b.roof}_${part}`, buildingId: b.id });
+      }
+  }
+  return roofs;
+}
+
 export function finalize(
   cv: Canvas,
   meta: { locationId: string; biome: string; lighting: Lighting; grammar: LayoutGrammar; outdoor: boolean; skipReachability?: boolean; skipDecals?: boolean },
@@ -1214,5 +1257,6 @@ export function finalize(
     objects: cv.objects,
     ambiance: cv.ambiance,
     entrances: cv.entrances,
+    roofs: bakeRoofs(cv),
   };
 }

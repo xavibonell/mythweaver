@@ -70,7 +70,7 @@ function loadPng(assetsRoot: string, art: string): PNG | null {
 }
 
 /** Render a SceneMap to a PNG Buffer (cols·16 × rows·16). `assetsRoot` is the absolute path to apps/web/public. */
-export function renderSceneMapToPng(scene: SceneMap, opts: { assetsRoot: string }): Buffer {
+export function renderSceneMapToPng(scene: SceneMap, opts: { assetsRoot: string; showRoofs?: boolean }): Buffer {
   const { assetsRoot } = opts;
   const { cols, rows } = scene.grid;
   const seed = scene.seed ?? 0;
@@ -123,6 +123,13 @@ export function renderSceneMapToPng(scene: SceneMap, opts: { assetsRoot: string 
     const dstY = it.float ? Math.round((it.row + 0.5) * TILE - fh / 2) // floating boats: centred on the cell
       : Math.round((it.row + it.footH) * TILE - fh * anchorY);
     blit(png, dstX, dstY, fw, fh);
+  }
+
+  // Pass 3 — ROOFS: the closed-building cover, one 16×16 tile per building cell, drawn ON TOP of the walls +
+  // interior. Hidden when `showRoofs === false` (the lab operator's switch / a revealed building in play).
+  if (opts.showRoofs !== false) for (const rf of scene.roofs ?? []) {
+    const asset = prop.get(rf.tag); if (!asset?.art) continue;
+    const png = loadPng(assetsRoot, asset.art); if (png) blit(png, rf.col * TILE, rf.row * TILE, TILE, TILE);
   }
 
   // TIME-OF-DAY tint — a global colour MULTIPLY matching the Phaser renderer (SceneCanvas), so headless

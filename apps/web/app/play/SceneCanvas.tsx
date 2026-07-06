@@ -137,6 +137,11 @@ function renderFullImpl(scene: any, data: any): void {
     else drawProp(scene, o.tag, o.col, o.row, o.footprint?.w ?? 1, o.footprint?.h ?? 1, o.row + 0.1, tint);
   }
 
+  // ROOFS — the closed-building cover (one 16×16 tile per building cell), drawn ABOVE walls/props so a player
+  // sees only rooftops from outside. Hidden when the operator flips the lab switch (or a building is revealed
+  // in play). Depth 90000+row sits above every row-depth object but below the fog wash. Tinted like everything.
+  if (scene.showRoofs !== false) for (const rf of data.roofs ?? []) drawProp(scene, rf.tag, rf.col, rf.row, 1, 1, 90000 + rf.row, tint);
+
   // FOG = a LIGHT pale haze laid over the WHOLE scene (a soft overlay, NOT a darkening multiply tint) —
   // reads as a cold sea-fog. Kept light so the scene stays legible; the real sense of fog comes from the
   // scattered mist CLOUDS (`mist_*`) drifting above the scene — drawn on TOP of the thin wash so they read
@@ -198,7 +203,7 @@ interface Bridge {
 
 /** A self-contained Phaser surface that renders the SceneMap passed as `data` (null = nothing yet).
  *  `freeCamera` (Lab) enables drag-pan + wheel-zoom; bumping `fitNonce` re-frames the whole scene. */
-export default function SceneCanvas({ data, freeCamera = false, fitNonce = 0 }: { data: any; freeCamera?: boolean; fitNonce?: number }) {
+export default function SceneCanvas({ data, freeCamera = false, fitNonce = 0, showRoofs = true }: { data: any; freeCamera?: boolean; fitNonce?: number; showRoofs?: boolean }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const bridgeRef = useRef<Bridge>({ scene: null, pending: null, game: null });
 
@@ -254,6 +259,7 @@ export default function SceneCanvas({ data, freeCamera = false, fitNonce = 0 }: 
             }
             bridge.scene = scene;
             if (bridge.pending) {
+              scene.showRoofs = bridge.pendingShowRoofs ?? true;
               scene.renderFull(bridge.pending);
               bridge.pending = null;
             }
@@ -273,13 +279,13 @@ export default function SceneCanvas({ data, freeCamera = false, fitNonce = 0 }: 
     };
   }, []);
 
-  // Re-render whenever the SceneMap changes (queue it if Phaser isn't ready yet).
+  // Re-render whenever the SceneMap OR the roofs toggle changes (queue it if Phaser isn't ready yet).
   useEffect(() => {
     if (!data) return;
     const b = bridgeRef.current;
-    if (b.scene) b.scene.renderFull(data);
-    else b.pending = data;
-  }, [data]);
+    if (b.scene) { b.scene.showRoofs = showRoofs; b.scene.renderFull(data); }
+    else { b.pending = data; b.pendingShowRoofs = showRoofs; }
+  }, [data, showRoofs]);
 
   // "Fit/Reset" — the Lab bumps fitNonce to re-frame the whole scene after free-panning/zooming.
   useEffect(() => {

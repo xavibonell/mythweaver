@@ -306,6 +306,16 @@ export interface Entrance {
   fixtureId?: EntityId;
 }
 
+/** A roof-cover tile — the "closed building" layer. Drawn ON TOP of the walls + interior so a player sees
+ *  only rooftops from outside; hidden per-building when the party enters (reveal), or globally via the lab
+ *  Roofs switch. Computed from building footprints in the tiler, so both renderers stay pixel-identical. */
+export interface RoofCell {
+  col: number;
+  row: number;
+  tag: string; // a roof_* art tag (material + part: slope/ridge/eave)
+  buildingId: string; // which building this roof belongs to (so play can reveal one at a time)
+}
+
 /** The frozen, canonical scene — the single source of truth for renderer AND DM digest. */
 export interface SceneMap {
   locationId: LocationId;
@@ -319,6 +329,8 @@ export interface SceneMap {
   objects: MapObject[]; // the object_map (id-addressed registry)
   ambiance: AmbianceItem[];
   entrances: Entrance[];
+  /** Rooftop cover, one entry per building cell (optional; absent = no roofs, e.g. dungeons/open scenes). */
+  roofs?: RoofCell[];
 }
 
 // ---------------------------------------------------------------------------

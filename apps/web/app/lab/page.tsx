@@ -55,6 +55,7 @@ export default function LabPage() {
   const [mode, setMode] = useState<'story' | 'primitives' | 'classic' | 'city' | 'large' | 'component' | 'blueprint'>('story');
   const [cityCount, setCityCount] = useState(6); // number of districts to stitch (city mode)
   const [fitNonce, setFitNonce] = useState(0); // bump to re-frame the whole scene in the free camera
+  const [showRoofs, setShowRoofs] = useState(true); // operator switch: roofs ON = the player view; OFF = see building contents
   // Component mode — a contact sheet of N seed-varied instances of ONE micro-generator, for isolated
   // iteration. Mirrors COMPONENT_KINDS on the server (packages/scene/src/component-lab.ts).
   const COMPONENT_KINDS = ['building:tavern', 'building:temple', 'building:smithy', 'building:shop', 'building:house', 'building:inn', 'building:general_store', 'building:cathedral', 'building:jail', 'building:vault', 'building:keep', 'building:library', 'building:armory', 'building:barracks', 'building:guildhall', 'building:goblin_warren', 'building:manor', 'building:tomb', 'building:courthouse', 'building:workshop', 'building:curio', 'shape:rect', 'shape:ell', 'shape:tee', 'shape:you', 'shape:plus', 'shape:compose', 'shape:compose:temple', 'shape:compose:tavern', 'shape:compose:smithy', 'shape:compose:shop', 'vignette:market', 'vignette:forge', 'vignette:shrine', 'vignette:well', 'vignette:camp', 'vignette:graveyard', 'plaza', 'streets', 'density:trees', 'density:flowers', 'density:furniture', 'clearing', 'cave', 'rooms', 'maze', 'town', 'village', 'precinct', 'block:cottage', 'blocktown'];
@@ -252,11 +253,15 @@ export default function LabPage() {
         {blueprint ? (
           <CityMeshBlueprint server={SERVER} />
         ) : (
-          <SceneCanvas data={m ?? null} freeCamera fitNonce={fitNonce} />
+          <SceneCanvas data={m ?? null} freeCamera fitNonce={fitNonce} showRoofs={showRoofs} />
         )}
         {!blueprint && m && (
           <div style={{ position: 'absolute', top: 8, right: 8, display: 'flex', gap: 8, alignItems: 'center', background: 'rgba(13,11,10,0.7)', padding: '4px 8px', borderRadius: 6, fontSize: '0.78rem', color: '#b8ad99' }}>
             <span style={{ opacity: 0.7 }}>drag = pan · wheel = zoom</span>
+            <label style={{ display: 'flex', gap: 4, alignItems: 'center', cursor: 'pointer', color: showRoofs ? '#c9a227' : '#8a8072' }} title="Roofs ON = the player view · OFF = see building contents">
+              <input type="checkbox" checked={showRoofs} onChange={(e) => setShowRoofs(e.target.checked)} />
+              Roofs
+            </label>
             <button onClick={() => setFitNonce((n) => n + 1)} style={{ fontSize: '0.78rem', padding: '2px 8px', background: '#241f1a', color: '#c9a227', border: '1px solid #2a241f', borderRadius: 4, cursor: 'pointer' }}>
               Fit
             </button>
