@@ -377,73 +377,38 @@ _c.alpha_composite(_sh)
 _c.save(os.path.join(OUT, "peak_c.png"))
 print("wrote peak_a/b/c (procedural grey stone)")
 
-# ---- ROOF tileset: SHINGLED hip-roof tiles, laid by the organic roof builder (bakeRoofs) ----
-# Per material, 4 SLOPE facings (n/s/e/w — lit on the N/W sun sides, shadowed on S/E; shingle rows run
-# PERPENDICULAR to the fall line so they read as a pitched plane), 2 RIDGE caps (h/v) and a PEAK. Tiles
-# tile seamlessly (bands on a 4px grid). Opaque — a roof HIDES the interior until the player enters.
-RT = 16
-# each material: (lightest, light, base, dark, ridgecap)  — five shades, dark→light
-ROOF_MAT = {
-    "thatch": [(0x6e, 0x54, 0x2e), (0x9c, 0x7c, 0x46), (0xc0, 0x9c, 0x5c), (0xd8, 0xba, 0x7c), (0xec, 0xd6, 0x9a)],
-    "tile":   [(0x6a, 0x28, 0x1c), (0x94, 0x3c, 0x28), (0xb8, 0x50, 0x34), (0xd4, 0x6c, 0x48), (0xe8, 0x9a, 0x6a)],
-    "slate":  [(0x34, 0x34, 0x40), (0x52, 0x54, 0x60), (0x74, 0x78, 0x86), (0x9c, 0xa6, 0xb2), (0xc4, 0xd0, 0xda)],
-    "wood":   [(0x40, 0x2a, 0x18), (0x64, 0x44, 0x26), (0x86, 0x5c, 0x34), (0xa6, 0x78, 0x46), (0xc8, 0x98, 0x5c)],
-}
+# ---- ROOF sprites: the VECTOR roof builder draws the faces/hips/rim itself; it only needs CHIMNEY + DORMER
+# sprites, drawn centred on the roof. Copied from the approved prototype (brick chimney + blue-glass dormer). --
+from PIL import ImageDraw  # noqa: E402
 
-
-def _px(img, x, y, col):
-    if 0 <= x < RT and 0 <= y < RT:
-        img.putpixel((x, y), (col[0], col[1], col[2], 255))
-
-
-def _field(shades):
-    """A neutral shingled roof FIELD tile drawn at the LIT tone — the builder darkens it per cell (shade), so
-    the four hip faces read as distinct planes. Courses are subtle horizontal shingle rows; kept CLEAN (a
-    highlight + a soft shadow line per course, one seam tick) so a big roof doesn't read as a busy weave."""
-    body, hi, edge = shades[3], shades[4], shades[2]
-    img = Image.new("RGBA", (RT, RT), (body[0], body[1], body[2], 255))
-    unit = 4
-    for band in range(0, RT, unit):
-        stagger = (unit // 2) if (band // unit) % 2 else 0
-        for x in range(RT):
-            _px(img, x, band, hi)                    # course highlight
-            _px(img, x, band + unit - 1, edge)       # course shadow line
-        for s in range(stagger, RT, unit):
-            _px(img, s, band + 2, edge)              # a single seam tick per shingle
-    return img
-
-
-def _ridge(shades, horiz):
-    """A bright ridge CAP over the field — the crisp peak line (h = runs left-right, v = up-down)."""
-    img = _field(shades)
-    cap = shades[4]
-    for k in range(RT):
-        if horiz:
-            _px(img, k, RT // 2 - 1, cap); _px(img, k, RT // 2, cap)
-        else:
-            _px(img, RT // 2 - 1, k, cap); _px(img, RT // 2, k, cap)
-    return img
-
-
-for style, shades in ROOF_MAT.items():
-    _field(shades).save(os.path.join(OUT, f"roof_{style}_field.png"))
-    _ridge(shades, True).save(os.path.join(OUT, f"roof_{style}_ridge_h.png"))
-    _ridge(shades, False).save(os.path.join(OUT, f"roof_{style}_ridge_v.png"))
-    print(f"wrote roof_{style}_* (3 tiles: field + ridge h/v)")
-
-# ---- chimney: a small brick stack on the ridge (drawn on TOP of the roof, with a faint smoke wisp) ----
-ch = Image.new("RGBA", (RT, RT), (0, 0, 0, 0))
-BRICK = (0x8a, 0x4c, 0x38, 255); BRICK_D = (0x5a, 0x2e, 0x22, 255); BRICK_L = (0xb0, 0x6c, 0x50, 255); FLUE = (0x1a, 0x14, 0x18, 255)
-for y in range(5, 14):
-    for x in range(5, 12):
-        edge = (x == 5 or x == 11 or y == 5 or y == 13)
-        ch.putpixel((x, y), BRICK_D if edge else (BRICK_L if (x + y) % 2 == 0 else BRICK))
-for x in range(6, 11):
-    ch.putpixel((x, 6), (0x2a, 0x22, 0x22, 255))   # the dark flue opening on top
-for (sx, sy, a) in [(8, 3, 120), (9, 1, 80), (7, 2, 90)]:  # a faint smoke wisp
-    ch.putpixel((sx, sy), (0xd0, 0xcc, 0xc8, a))
+CW, CH = 16, 18
+ch = Image.new("RGBA", (CW, CH), (0, 0, 0, 0))
+d = ImageDraw.Draw(ch)
+cx = CW // 2
+BR, BRD, MOR, CAP = (0x9a, 0x4e, 0x38, 255), (0x5e, 0x30, 0x26, 255), (0x4a, 0x24, 0x1e, 255), (0xba, 0x6c, 0x50, 255)
+d.ellipse([cx - 6, CH - 6, cx + 6, CH - 1], fill=(0, 0, 0, 70))                 # cast shadow
+bx0, by0, bx1, by1 = cx - 5, 3, cx + 5, CH - 3
+d.rectangle([bx0, by0 + 3, bx1, by1], fill=BR, outline=BRD)                     # brick stack
+for my in range(by0 + 6, by1, 3):
+    d.line([(bx0 + 1, my), (bx1 - 1, my)], fill=MOR)                            # mortar courses
+d.rectangle([bx0 - 1, by0, bx1 + 1, by0 + 4], fill=CAP, outline=BRD)            # lit cap
+d.rectangle([bx0 + 2, by0 + 1, bx1 - 2, by0 + 3], fill=(0x16, 0x10, 0x12, 255))  # dark flue
 ch.save(os.path.join(OUT, "roof_chimney.png"))
 print("wrote roof_chimney")
+
+DW, DH = 22, 15
+dm = Image.new("RGBA", (DW, DH), (0, 0, 0, 0))
+d2 = ImageDraw.Draw(dm)
+dcx = DW // 2
+ROOFC, FR, EDG = (0x7c, 0x36, 0x26, 255), (0xcc, 0x9a, 0x74, 255), (0x22, 0x14, 0x14, 255)
+GLASS, GHI = (0x5f, 0x9b, 0xb4, 255), (0x9d, 0xc6, 0xd6, 255)
+d2.polygon([(dcx - 10, DH - 2), (dcx + 10, DH - 2), (dcx + 6, 3), (dcx - 6, 3)], fill=ROOFC, outline=EDG)  # rooflet
+d2.rectangle([dcx - 6, 3, dcx + 6, DH - 3], fill=FR, outline=EDG)               # frame
+d2.rectangle([dcx - 4, 5, dcx + 4, DH - 5], fill=GLASS)                         # blue glass
+d2.rectangle([dcx - 4, 5, dcx + 4, 8], fill=GHI)                                # highlight
+d2.line([(dcx, 5), (dcx, DH - 5)], fill=(0x2a, 0x4a, 0x54, 255))                # mullion
+dm.save(os.path.join(OUT, "roof_dormer.png"))
+print("wrote roof_dormer")
 
 # ---- rope_coil ----
 RW, RH = 12, 10

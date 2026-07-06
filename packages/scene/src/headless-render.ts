@@ -69,6 +69,44 @@ function loadPng(assetsRoot: string, art: string): PNG | null {
   return p;
 }
 
+// ── Vector rasterisers for the roof geometry (mirror the Phaser Graphics draw). ──
+function setPx(out: PNG, x: number, y: number, r: number, g: number, b: number): void {
+  x = Math.round(x); y = Math.round(y);
+  if (x < 0 || y < 0 || x >= out.width || y >= out.height) return;
+  const i = ((y * out.width) + x) << 2;
+  out.data[i] = r; out.data[i + 1] = g; out.data[i + 2] = b; out.data[i + 3] = 255;
+}
+/** Scanline-fill a polygon with a vertical gradient (top colour at the poly's top → bot at its bottom). */
+function fillGradPoly(out: PNG, pts: number[], top: number, bot: number): void {
+  const tr = (top >> 16) & 255, tg = (top >> 8) & 255, tb = top & 255;
+  const br = (bot >> 16) & 255, bg = (bot >> 8) & 255, bb = bot & 255;
+  const n = pts.length / 2; if (n < 3) return;
+  let ymin = Infinity, ymax = -Infinity;
+  for (let i = 1; i < pts.length; i += 2) { ymin = Math.min(ymin, pts[i]!); ymax = Math.max(ymax, pts[i]!); }
+  ymin = Math.floor(ymin); ymax = Math.ceil(ymax);
+  for (let y = ymin; y <= ymax; y++) {
+    const xs: number[] = [];
+    for (let i = 0; i < n; i++) {
+      const ax = pts[i * 2]!, ay = pts[i * 2 + 1]!, j = (i + 1) % n, bx = pts[j * 2]!, by = pts[j * 2 + 1]!;
+      if ((ay <= y && by > y) || (by <= y && ay > y)) xs.push(ax + (bx - ax) * (y - ay) / (by - ay));
+    }
+    xs.sort((a, b) => a - b);
+    const t = ymax > ymin ? (y - ymin) / (ymax - ymin) : 0;
+    const r = Math.round(tr + (br - tr) * t), g = Math.round(tg + (bg - tg) * t), b = Math.round(tb + (bb - tb) * t);
+    for (let k = 0; k + 1 < xs.length; k += 2) for (let x = Math.round(xs[k]!); x < Math.round(xs[k + 1]!); x++) setPx(out, x, y, r, g, b);
+  }
+}
+/** Stroke a line of pixel width `w`. */
+function strokeLine(out: PNG, x1: number, y1: number, x2: number, y2: number, c: number, w: number): void {
+  const r = (c >> 16) & 255, g = (c >> 8) & 255, b = c & 255;
+  const dx = x2 - x1, dy = y2 - y1, steps = Math.max(1, Math.ceil(Math.hypot(dx, dy)));
+  const lo = Math.floor((w - 1) / 2), hi = Math.ceil((w - 1) / 2);
+  for (let s = 0; s <= steps; s++) {
+    const px = x1 + dx * s / steps, py = y1 + dy * s / steps;
+    for (let oy = -lo; oy <= hi; oy++) for (let ox = -lo; ox <= hi; ox++) setPx(out, px + ox, py + oy, r, g, b);
+  }
+}
+
 /** Render a SceneMap to a PNG Buffer (cols·16 × rows·16). `assetsRoot` is the absolute path to apps/web/public. */
 export function renderSceneMapToPng(scene: SceneMap, opts: { assetsRoot: string; showRoofs?: boolean }): Buffer {
   const { assetsRoot } = opts;
@@ -125,21 +163,16 @@ export function renderSceneMapToPng(scene: SceneMap, opts: { assetsRoot: string;
     blit(png, dstX, dstY, fw, fh);
   }
 
-  // Pass 3 — ROOFS: the closed-building cover, one 16×16 tile per building cell, drawn ON TOP of the walls +
-  // interior. Each tile is MULTIPLIED by its per-cell shade (the hip-face lighting). Hidden when
-  // `showRoofs === false` (the lab operator's switch / a revealed building in play).
-  if (opts.showRoofs !== false) for (const rf of scene.roofs ?? []) {
-    const asset = prop.get(rf.tag); if (!asset?.art) continue;
-    const png = loadPng(assetsRoot, asset.art); if (!png) continue;
-    const s = rf.shade ?? 1, dx0 = rf.col * TILE, dy0 = rf.row * TILE;
-    for (let yy = 0; yy < TILE; yy++) for (let xx = 0; xx < TILE; xx++) {
-      const si = ((yy * png.width) + xx) << 2; const a = png.data[si + 3]! / 255; if (a === 0) continue;
-      const dx = dx0 + xx, dy = dy0 + yy; if (dx < 0 || dy < 0 || dx >= out.width || dy >= out.height) continue;
-      const di = ((dy * out.width) + dx) << 2;
-      out.data[di] = Math.round(png.data[si]! * s * a + out.data[di]! * (1 - a));
-      out.data[di + 1] = Math.round(png.data[si + 1]! * s * a + out.data[di + 1]! * (1 - a));
-      out.data[di + 2] = Math.round(png.data[si + 2]! * s * a + out.data[di + 2]! * (1 - a));
-      out.data[di + 3] = 255;
+  // Pass 3 — ROOFS: the closed-building cover, drawn as VECTOR geometry (gradient polygon faces + hip/ridge/
+  // rim lines + chimney/dormer sprites) ON TOP of walls + interior. Hidden when `showRoofs === false`.
+  if (opts.showRoofs !== false) for (const rb of scene.roofs ?? []) {
+    for (const f of rb.faces) fillGradPoly(out, f.pts, f.top, f.bot);
+    for (const ln of rb.lines) strokeLine(out, ln.x1, ln.y1, ln.x2, ln.y2, ln.c, ln.w);
+    for (const sp of rb.sprites) {
+      const asset = prop.get(sp.tag); if (!asset?.art) continue;
+      const png = loadPng(assetsRoot, asset.art); if (!png) continue;
+      const fw = asset.frameW ?? TILE, fh = asset.frameH ?? TILE;
+      blit(png, Math.round(sp.x - fw / 2), Math.round(sp.y - fh / 2), fw, fh);
     }
   }
 

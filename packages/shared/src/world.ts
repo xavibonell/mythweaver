@@ -309,14 +309,18 @@ export interface Entrance {
 /** A roof-cover tile — the "closed building" layer. Drawn ON TOP of the walls + interior so a player sees
  *  only rooftops from outside; hidden per-building when the party enters (reveal), or globally via the lab
  *  Roofs switch. Computed from building footprints in the tiler, so both renderers stay pixel-identical. */
-export interface RoofCell {
-  col: number;
-  row: number;
-  tag: string; // a roof_* art tag (material field / ridge cap)
-  buildingId: string; // which building this roof belongs to (so play can reveal one at a time)
-  /** Per-cell brightness in [0,1] from the roof-surface normal vs. the light — the renderer MULTIPLIES the
-   *  tile by it, so the four hip faces read as distinctly-lit planes and hips shade smoothly. 1 = full/lit. */
-  shade?: number;
+/** A roof is emitted as VECTOR geometry (not tiles): gradient-filled polygon FACES, crisp hip/ridge/rim
+ *  LINES, and chimney/dormer SPRITES. Both renderers rasterise the same ops and apply the day/night tint,
+ *  so a clean 45° hip and a solid rim are actually drawn, not approximated by shaded squares. Coordinates
+ *  are in SCENE PIXELS (col*16 …). Colours are packed 0xRRGGBB (the builder does all the shading math). */
+export interface RoofFace { pts: number[]; top: number; bot: number } // flat [x0,y0,x1,y1,…]; vertical gradient top→bot
+export interface RoofLine { x1: number; y1: number; x2: number; y2: number; c: number; w: number } // hips, ridge, rim
+export interface RoofSprite { x: number; y: number; tag: string } // 'roof_chimney' | 'roof_dormer', drawn centred
+export interface RoofBuilding {
+  id: string; // buildingId — so play can reveal one building at a time
+  faces: RoofFace[];
+  lines: RoofLine[];
+  sprites: RoofSprite[];
 }
 
 /** The frozen, canonical scene — the single source of truth for renderer AND DM digest. */
@@ -332,8 +336,8 @@ export interface SceneMap {
   objects: MapObject[]; // the object_map (id-addressed registry)
   ambiance: AmbianceItem[];
   entrances: Entrance[];
-  /** Rooftop cover, one entry per building cell (optional; absent = no roofs, e.g. dungeons/open scenes). */
-  roofs?: RoofCell[];
+  /** Rooftop cover as vector geometry, one entry per building (optional; absent = no roofs). */
+  roofs?: RoofBuilding[];
 }
 
 // ---------------------------------------------------------------------------

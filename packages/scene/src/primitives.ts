@@ -12,7 +12,8 @@
  * code. (Whether an LLM can COMPOSE them reliably is the second half — see scene-program.ts.)
  */
 
-import { FEET_PER_TILE, type AmbianceItem, type BuildingType, type Entrance, type LayoutGrammar, type Lighting, type MapObject, type RoofCell, type SceneMap } from '@mythweaver/shared';
+import { FEET_PER_TILE, type AmbianceItem, type BuildingType, type Entrance, type LayoutGrammar, type Lighting, type MapObject, type SceneMap } from '@mythweaver/shared';
+import { buildRoofs } from './roofs.js';
 import { bakeAutoTiles, bakeRockMass, bakeWoodWalls, BUILDING_TEMPLATES, furnishRoom, makeRng, reachabilityCarve, ROOM_PROGRAMS, ROOM_RECIPES, ROOM_TEMPLATES, scatterGroundDecals, wallTagFor, type RoomFunction, type RoomTemplate } from './cartographer.js';
 import { isCharacter, propDef, terrainWalkable } from './catalog.js';
 import { inside, maskFor, ringCells, type ShapeKind } from './footprint.js';
@@ -32,9 +33,6 @@ export interface Rect {
  *  bounds; the roof covers only the WALL + interior-FLOOR cells inside it (so shaped footprints and open
  *  courtyards stay un-roofed). `roof` is the material style (thatch/tile/slate/wood). */
 export interface BuildingFootprint { id: string; rect: Rect; roof: string; }
-/** The only interior floor tags (from BUILDING/ROOM templates) — a cell with one of these, or a wall, is
- *  "under roof"; everything else in the footprint (grass/dirt courtyard, paving) is open sky. */
-const ROOFED_FLOOR = new Set(['stone', 'wood_floor']);
 
 /** Map a building TYPE to a roof material — thatch cottages, tiled civic/faith, slate works, wood shops. */
 export function roofStyleFor(type: BuildingType): string {
@@ -1206,89 +1204,6 @@ function scatterMist(cv: Canvas): void {
     }
 }
 
-/** ORGANIC ROOF BUILDER — lay a hip roof over every recorded building that follows its FORM. Per building:
- *  (1) build a SOLID mask of wall + interior-floor cells and FILL enclosed courtyards (so the roof has no
- *  holes); (2) a distance-transform gives each cell its height above the eaves — its medial axis is the
- *  RIDGE (so an L / T / multi-wing building gets a ridge per wing, meeting at hips); (3) each slope cell
- *  faces its nearest eave (n/s/e/w → lit on the N/W sun sides, shadowed on S/E). Plus a chimney on the ridge.
- *  Emitted as a layer the renderer draws ON TOP — hidden per-building on entry, or via the lab switch. */
-function bakeRoofs(cv: Canvas): RoofCell[] {
-  const roofs: RoofCell[] = [];
-  const isBuild = (c: number, r: number): boolean => { const t = cv.tiles[r]?.[c] ?? ''; return t.startsWith('wall') || ROOFED_FLOOR.has(t); };
-  for (const b of cv.buildings) {
-    const { x, y, w, h } = b.rect;
-    if (w < 3 || h < 3) continue;
-    // Local grid padded by a 1-cell margin: local (cc,rr) ↔ world (x-1+cc, y-1+rr).
-    const GW = w + 2, GH = h + 2, N = GW * GH, li = (cc: number, rr: number) => rr * GW + cc;
-    const mask = new Uint8Array(N);
-    for (let rr = 1; rr <= h; rr++) for (let cc = 1; cc <= w; cc++) if (isBuild(x - 1 + cc, y - 1 + rr)) mask[li(cc, rr)] = 1;
-    // Fill enclosed courtyards: flood the non-mask cells from the padded border; any non-mask cell NOT reached
-    // is walled in on all sides → part of the building → fill it (an inner courtyard gets a roof, no holes).
-    const out = new Uint8Array(N), st: number[] = [];
-    for (let cc = 0; cc < GW; cc++) { st.push(li(cc, 0), li(cc, GH - 1)); }
-    for (let rr = 0; rr < GH; rr++) { st.push(li(0, rr), li(GW - 1, rr)); }
-    while (st.length) {
-      const i = st.pop()!; if (out[i] || mask[i]) continue; out[i] = 1;
-      const cc = i % GW, rr = (i / GW) | 0;
-      if (cc > 0) st.push(li(cc - 1, rr)); if (cc < GW - 1) st.push(li(cc + 1, rr));
-      if (rr > 0) st.push(li(cc, rr - 1)); if (rr < GH - 1) st.push(li(cc, rr + 1));
-    }
-    for (let i = 0; i < N; i++) if (!mask[i] && !out[i]) mask[i] = 1;
-    // Chebyshev distance transform to the nearest non-mask cell (two chamfer passes) = height above the eave.
-    const D = new Int16Array(N);
-    for (let rr = 0; rr < GH; rr++) for (let cc = 0; cc < GW; cc++) {
-      const i = li(cc, rr); if (!mask[i]) { D[i] = 0; continue; }
-      let m = 9999;
-      for (const [dc, dr] of [[0, -1], [-1, 0], [-1, -1], [1, -1]] as const) { const nc = cc + dc, nr = rr + dr; m = Math.min(m, (nc < 0 || nr < 0 || nc >= GW || nr >= GH) ? 0 : D[li(nc, nr)]!); }
-      D[i] = m + 1;
-    }
-    for (let rr = GH - 1; rr >= 0; rr--) for (let cc = GW - 1; cc >= 0; cc--) {
-      const i = li(cc, rr); if (!mask[i]) continue;
-      let m = D[i]!;
-      for (const [dc, dr] of [[0, 1], [1, 0], [1, 1], [-1, 1]] as const) { const nc = cc + dc, nr = rr + dr; const d = (nc < 0 || nr < 0 || nc >= GW || nr >= GH) ? 0 : D[li(nc, nr)]!; m = Math.min(m, d + 1); }
-      D[i] = Math.min(D[i]!, m);
-    }
-    const Dat = (cc: number, rr: number): number => (cc < 0 || rr < 0 || cc >= GW || rr >= GH) ? 0 : D[li(cc, rr)]!;
-    // A SMOOTHED height field (one 3×3 box blur over the mask) — the raw chamfer distance is kinky, so its
-    // gradient (and the shading) comes out blotchy; the blur gives clean planar faces. Ridge detection still
-    // uses the crisp raw D.
-    const Ds = new Float32Array(N);
-    for (let rr = 0; rr < GH; rr++) for (let cc = 0; cc < GW; cc++) {
-      const i = li(cc, rr); if (!mask[i]) { Ds[i] = 0; continue; }
-      let s = 0, n2 = 0;
-      for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) { const nc = cc + dc, nr = rr + dr; if (nc < 0 || nr < 0 || nc >= GW || nr >= GH) continue; s += D[li(nc, nr)]!; n2++; }
-      Ds[i] = s / n2;
-    }
-    const Sat = (cc: number, rr: number): number => (cc < 0 || rr < 0 || cc >= GW || rr >= GH) ? 0 : Ds[li(cc, rr)]!;
-    // Classify + SHADE each roofed cell. A local max of D is a RIDGE (flat top → full light). Otherwise it is
-    // a slope: its downhill direction (−gradient of the smoothed height, toward the nearest eave) IS the face
-    // normal, so shading it against a top-left light makes the four hip faces read as distinct planes and hips
-    // fall off smoothly along the 45° diagonal (no stair-stepping). The outer eave ring is darkened for a border.
-    const LX = -0.387, LY = -0.922; // unit vector toward the light (top-left, mostly from the top)
-    const ridgeCells: Array<{ c: number; r: number }> = [];
-    for (let rr = 1; rr <= h; rr++) for (let cc = 1; cc <= w; cc++) {
-      const i = li(cc, rr); if (!mask[i]) continue;
-      const d = D[i]!, up = Dat(cc, rr - 1), dn = Dat(cc, rr + 1), lf = Dat(cc - 1, rr), rt = Dat(cc + 1, rr);
-      const hR = up < d && dn < d, vR = lf < d && rt < d;
-      const wc = x - 1 + cc, wr = y - 1 + rr;
-      let tag: string, shade: number;
-      if (hR || vR) { tag = `roof_${b.roof}_${vR && !hR ? 'ridge_v' : 'ridge_h'}`; shade = 1.0; ridgeCells.push({ c: wc, r: wr }); }
-      else {
-        tag = `roof_${b.roof}_field`;
-        let ddx = (Sat(cc - 1, rr) - Sat(cc + 1, rr)) / 2, ddy = (Sat(cc, rr - 1) - Sat(cc, rr + 1)) / 2; // downhill = face normal
-        const len = Math.hypot(ddx, ddy) || 1; ddx /= len; ddy /= len;
-        shade = 0.82 + 0.18 * (ddx * LX + ddy * LY);
-      }
-      // a crisp dark border: a boundary cell (touches a non-mask cell) is the eave edge → darken it hard.
-      const border = !mask[li(cc - 1, rr)] || !mask[li(cc + 1, rr)] || !mask[li(cc, rr - 1)] || !mask[li(cc, rr + 1)];
-      if (border) shade *= 0.68;
-      roofs.push({ col: wc, row: wr, tag, buildingId: b.id, shade: Math.max(0.5, Math.min(1, shade)) });
-    }
-    // A chimney sits on the ridge, offset from dead-centre toward one end (pushed last → drawn over the roof).
-    if (ridgeCells.length) { const p = ridgeCells[Math.floor(ridgeCells.length * 0.28)]!; roofs.push({ col: p.c, row: p.r, tag: 'roof_chimney', buildingId: b.id }); }
-  }
-  return roofs;
-}
 
 export function finalize(
   cv: Canvas,
@@ -1318,6 +1233,6 @@ export function finalize(
     objects: cv.objects,
     ambiance: cv.ambiance,
     entrances: cv.entrances,
-    roofs: bakeRoofs(cv),
+    roofs: buildRoofs(cv),
   };
 }

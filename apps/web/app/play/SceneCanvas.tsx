@@ -137,16 +137,34 @@ function renderFullImpl(scene: any, data: any): void {
     else drawProp(scene, o.tag, o.col, o.row, o.footprint?.w ?? 1, o.footprint?.h ?? 1, o.row + 0.1, tint);
   }
 
-  // ROOFS — the closed-building cover (one 16×16 tile per building cell), drawn ABOVE walls/props so a player
-  // sees only rooftops from outside. Each tile is MULTIPLIED by its per-cell shade (the hip-face lighting),
-  // folded into the lighting tint. Hidden when the operator flips the lab switch (or a building is revealed in
-  // play). Depth 90000+row sits above every row-depth object but below the fog wash.
-  if (scene.showRoofs !== false) {
-    const shadeTint = (base: number | null, s: number): number => {
-      const b = base ?? 0xffffff;
-      return (Math.round(((b >> 16) & 0xff) * s) << 16) | (Math.round(((b >> 8) & 0xff) * s) << 8) | Math.round((b & 0xff) * s);
+  // ROOFS — the closed-building cover as VECTOR geometry (gradient polygon faces + hip/ridge/rim lines +
+  // chimney/dormer sprites), drawn ABOVE walls/props so a player sees only rooftops. Hidden when the operator
+  // flips the lab switch (or a building is revealed in play). Depth 90000 sits above every row-depth object,
+  // below the fog wash. Colours are multiplied by the day/night tint.
+  if (scene.showRoofs !== false && (data.roofs?.length ?? 0) > 0) {
+    const lit = (c: number): number => {
+      if (!tint) return c;
+      const tr = (tint >> 16) & 0xff, tg = (tint >> 8) & 0xff, tb = tint & 0xff;
+      return (Math.round(((c >> 16) & 0xff) * tr / 255) << 16) | (Math.round(((c >> 8) & 0xff) * tg / 255) << 8) | Math.round((c & 0xff) * tb / 255);
     };
-    for (const rf of data.roofs ?? []) drawProp(scene, rf.tag, rf.col, rf.row, 1, 1, 90000 + rf.row, shadeTint(tint, rf.shade ?? 1));
+    const g = scene.add.graphics().setDepth(90000);
+    for (const rb of data.roofs) {
+      for (const f of rb.faces) {
+        const top = lit(f.top), bot = lit(f.bot);
+        g.fillGradientStyle(top, top, bot, bot, 1);
+        const pts: { x: number; y: number }[] = [];
+        for (let i = 0; i < f.pts.length; i += 2) pts.push({ x: f.pts[i], y: f.pts[i + 1] });
+        g.fillPoints(pts, true);
+      }
+      for (const ln of rb.lines) { g.lineStyle(ln.w, lit(ln.c), 1); g.lineBetween(ln.x1, ln.y1, ln.x2, ln.y2); }
+    }
+    scene.sceneObjs.push(g);
+    for (const rb of data.roofs) for (const sp of rb.sprites) {
+      if (!PROP_ART[sp.tag]) continue;
+      const img = scene.add.image(sp.x, sp.y, `prop_${sp.tag}`).setOrigin(0.5, 0.5).setDepth(90001);
+      if (tint) img.setTint(tint);
+      scene.sceneObjs.push(img);
+    }
   }
 
   // FOG = a LIGHT pale haze laid over the WHOLE scene (a soft overlay, NOT a darkening multiply tint) —
