@@ -183,6 +183,12 @@ export interface EngineTools {
   /** Raise a dead character (Revivify / Raise Dead) — the one path back from dead. P3d. */
   revive(args: { combatantId: string; hpRestored?: number }): { current: number };
 
+  /** Re-prepare a caster's spells (typically on a long rest); enforces the derived cap. P3f. */
+  prepareSpells(args: { combatantId: string; prepared: string[] }): { prepared: string[]; max: number };
+
+  /** Cast a ritual-tagged spell with NO slot spent (engine verifies the ritual tag). P3f. */
+  castRitual(args: { combatantId: string; spell: string }): { ritual: true; spell: string };
+
   /** Spend a spell slot (resource:'slot' + level) or a named class pool (ki/rage/channelDivinity/…). P3a. */
   spendResource(args: { combatantId: string; resource: string; level?: number; amount?: number }): { remaining: number };
 

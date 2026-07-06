@@ -33,7 +33,7 @@ import {
 } from '@mythweaver/shared';
 import { rollDice, validateDeclaredRoll, type Rng } from './dice.js';
 import { statBlockToCombatant } from './state.js';
-import { abilityMod, deriveAbilityCheckModifier, deriveArmorClass, deriveProficiencyBonus, deriveSaveModifier, deriveSkillModifier } from './derive.js';
+import { abilityMod, deriveAbilityCheckModifier, deriveArmorClass, deriveProficiencyBonus, deriveSaveModifier, deriveSkillModifier, deriveSpellsPreparedMax } from './derive.js';
 import { ASI_LEVELS, XP_THRESHOLDS, hitDieAvg, hitDieForClass, levelForXp } from './progression.js';
 
 /** Coin math in the smallest unit so change-making is exact (1 gp = 10 sp = 100 cp). */
@@ -941,5 +941,34 @@ export class Engine implements EngineTools {
     c.currentHitPoints = Math.max(1, Math.min(c.maxHitPoints, Math.floor(args.hpRestored ?? 1)));
     this.record('engine', `${c.name} is restored to life (${c.currentHitPoints} HP)`, { combatantId: c.id, current: c.currentHitPoints });
     return { current: c.currentHitPoints };
+  }
+
+  // --- P3f: caster completeness (prepared-spell limits + ritual casting) ---
+
+  /** Re-prepare a caster's spell list (typically on a long rest). Enforces the derived cap. */
+  prepareSpells(args: { combatantId: string; prepared: string[] }): { prepared: string[]; max: number } {
+    const c = this.state.combatants[args.combatantId];
+    if (!c) throw new Error(`Unknown combatant: ${args.combatantId}`);
+    const sheet = this.state.sheets?.[args.combatantId];
+    if (!sheet?.spellcasting) throw new Error(`${c.name} is not a spellcaster.`);
+    const max = deriveSpellsPreparedMax(sheet, this.state.characters?.[args.combatantId]) ?? 0;
+    const prepared = [...new Set(args.prepared.map((s) => s.trim()).filter(Boolean))];
+    if (prepared.length > max) throw new Error(`${c.name} can prepare at most ${max} spells (tried ${prepared.length}).`);
+    c.preparedSpells = prepared;
+    this.record('engine', `${c.name} prepares ${prepared.length}/${max} spells`, { combatantId: c.id, prepared, max });
+    return { prepared, max };
+  }
+
+  /** Cast a spell as a RITUAL — no spell slot spent. The engine verifies the spell is ritual-tagged. */
+  castRitual(args: { combatantId: string; spell: string }): { ritual: true; spell: string } {
+    const c = this.state.combatants[args.combatantId];
+    if (!c) throw new Error(`Unknown combatant: ${args.combatantId}`);
+    const sheet = this.state.sheets?.[args.combatantId];
+    if (!sheet?.spellcasting) throw new Error(`${c.name} is not a spellcaster.`);
+    const spell = args.spell.trim();
+    const rituals = sheet.spellcasting.rituals ?? [];
+    if (!rituals.some((r) => r.toLowerCase() === spell.toLowerCase())) throw new Error(`${spell} can't be cast as a ritual by ${c.name}.`);
+    this.record('engine', `${c.name} casts ${spell} as a ritual (no slot spent)`, { combatantId: c.id, spell, ritual: true });
+    return { ritual: true, spell };
   }
 }

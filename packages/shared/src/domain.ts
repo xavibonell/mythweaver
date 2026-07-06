@@ -140,6 +140,10 @@ export interface SpellcastingBlock {
   slots: number[];
   cantrips: string[];
   prepared: string[];
+  /** Spells this caster can cast as RITUALS — no spell slot spent (P3f). */
+  rituals?: string[];
+  /** Explicit cap on prepared spells; when omitted the engine derives it (ability mod + level) (P3f). */
+  preparedMax?: number;
 }
 
 export interface CharacterSheet {
@@ -269,6 +273,9 @@ export interface Combatant {
   /** The concentration spell this caster is holding, if any (P3b). `dc` is the save DC of the most recent
    *  hit, set by applyDamage. Only one at a time — starting a new concentration spell drops the old one. */
   concentratingOn?: { spell: string; dc?: number };
+  /** The caster's currently-prepared spells (P3f) — seeded from the sheet, re-set on a long rest via
+   *  prepareSpells (validated against the derived cap). Volatile (changes daily), so it lives here. */
+  preparedSpells?: string[];
 }
 
 export interface CombatState {

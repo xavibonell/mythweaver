@@ -58,6 +58,14 @@ export function deriveSpellSaveDc(sheet: CharacterSheet, cs: CharacterState | un
   return 8 + profOf(sheet, cs) + abilityMod(sheet.abilities[sheet.spellcasting.ability]);
 }
 
+/** How many spells a prepared caster may have ready (P3f): the sheet's explicit cap, else casting-ability
+ *  modifier + level (min 1). Known casters (no preparation) simply won't call prepareSpells. */
+export function deriveSpellsPreparedMax(sheet: CharacterSheet, cs: CharacterState | undefined): number | undefined {
+  if (!sheet.spellcasting) return undefined;
+  if (sheet.spellcasting.preparedMax !== undefined) return sheet.spellcasting.preparedMax;
+  return Math.max(1, abilityMod(sheet.abilities[sheet.spellcasting.ability]) + (cs?.level ?? sheet.level));
+}
+
 /**
  * Armor Class from EQUIPPED armor/shield (P3d) — the single AC formula. Nothing equipped → fall back to
  * the sheet's printed AC, so a legacy pregen (whose gear is baked into that number) stays byte-identical

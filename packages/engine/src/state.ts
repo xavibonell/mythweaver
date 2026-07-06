@@ -24,7 +24,7 @@ export function pcToCombatant(pc: CharacterSheet): Combatant {
     armorClass: pc.armorClass,
     conditions: [],
     initiativeBonus: abilityMod(pc.abilities.dex),
-    ...(pc.spellcasting ? { slotsRemaining: [...pc.spellcasting.slots], slotsMax: [...pc.spellcasting.slots] } : {}),
+    ...(pc.spellcasting ? { slotsRemaining: [...pc.spellcasting.slots], slotsMax: [...pc.spellcasting.slots], preparedSpells: [...pc.spellcasting.prepared] } : {}),
     ...(hitDiceCount > 0 ? { hitDice: { size: hitDieSize, remaining: hitDiceCount, max: hitDiceCount } } : {}),
     ...(Object.keys(resources).length ? { resources } : {}),
   };

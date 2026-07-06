@@ -126,6 +126,10 @@
         "Healing Word",
         "Bless",
         "Guiding Bolt"
+      ],
+      "rituals": [
+        "Detect Magic",
+        "Purify Food and Drink"
       ]
     },
     "features": [
@@ -279,6 +283,11 @@
         "Shield",
         "Sleep",
         "Burning Hands"
+      ],
+      "rituals": [
+        "Detect Magic",
+        "Identify",
+        "Comprehend Languages"
       ]
     },
     "features": [

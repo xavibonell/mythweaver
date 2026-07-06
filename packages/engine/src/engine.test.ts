@@ -676,3 +676,24 @@ describe('Engine — P3e checks + saves (engine owns the +N)', () => {
     expect(e.findCombatantId('nobody')).toBeUndefined();
   });
 });
+
+describe('Engine — P3f caster completeness (rituals + prepared limits)', () => {
+  const engineWith = (party: CharacterSheet[]) => new Engine(createInitialState({ sessionId: 's', scenarioId: 't', startSceneId: 'x', party }), () => 0.5);
+  const caster = (): CharacterSheet => ({ ...wizard(), spellcasting: { ...wizard().spellcasting!, rituals: ['Detect Magic', 'Identify'] } });
+
+  it('caps prepared spells at (ability mod + level) and re-prepares within it', () => {
+    const e = engineWith([caster()]); // INT 16 (+3), L3 → cap 6
+    const six = ['Magic Missile', 'Shield', 'Sleep', 'Detect Magic', 'Mage Armor', 'Fog Cloud'];
+    expect(e.prepareSpells({ combatantId: 'pc:wizard', prepared: six })).toEqual({ prepared: six, max: 6 });
+    expect(e.getState().combatants['pc:wizard']!.preparedSpells).toEqual(six);
+    expect(() => e.prepareSpells({ combatantId: 'pc:wizard', prepared: [...six, 'Web'] })).toThrow(/at most 6/);
+  });
+
+  it('casts a ritual with no slot spent; refuses a non-ritual spell', () => {
+    const e = engineWith([caster()]);
+    const before = [...e.getState().combatants['pc:wizard']!.slotsRemaining!];
+    expect(e.castRitual({ combatantId: 'pc:wizard', spell: 'detect magic' })).toEqual({ ritual: true, spell: 'detect magic' });
+    expect(e.getState().combatants['pc:wizard']!.slotsRemaining).toEqual(before); // no slot debited
+    expect(() => e.castRitual({ combatantId: 'pc:wizard', spell: 'Fireball' })).toThrow(/can't be cast as a ritual/);
+  });
+});

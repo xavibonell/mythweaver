@@ -18,7 +18,7 @@
  * configurable, swappable prompt. No real person is named or imitated.
  */
 
-import { deriveProficiencyBonus, derivePassive, deriveSpellSaveDc, type Engine } from '@mythweaver/engine';
+import { deriveProficiencyBonus, derivePassive, deriveSpellSaveDc, deriveSpellsPreparedMax, type Engine } from '@mythweaver/engine';
 import {
   estimateCostUsd,
   responseToAssistantMessage,
@@ -92,6 +92,9 @@ RESOURCES & REST (the engine tracks every pool — the party's HP snapshot shows
   call "startConcentration". If they later take damage while concentrating, "applyDamage" returns a
   Con-save DC — "requestRoll" that save; on a FAILURE call "breakConcentration" (the spell ends). A caster
   holds only ONE concentration spell at a time.
+- RITUALS: when a caster casts a ritual-tagged spell as a ritual (Detect Magic, Identify…), call
+  "castRitual" — it spends NO slot (getState lists each caster's rituals). On a long rest, a prepared
+  caster may re-prepare via "prepareSpells" (the engine enforces how many they can ready).
 - When the party takes a SHORT rest, call "shortRest" per character; to heal, requestRoll their hit dice
   and pass the declared total + how many dice they spent. When they take a LONG rest, call "longRest"
   (no args = the whole party) — it restores HP, spell slots, and features. Spell slots ONLY come back on
@@ -456,6 +459,31 @@ export function buildToolDefs(retrieval: boolean, scene: boolean): ToolDef[] {
         additionalProperties: false,
       },
     },
+    {
+      name: 'prepareSpells',
+      description:
+        "Re-prepare a prepared caster's spell list — usually on a long rest. Pass the COMPLETE new list of prepared spell names; the engine enforces how many they can ready (their ability modifier + level). getState shows the current list and the cap.",
+      inputSchema: {
+        type: 'object',
+        properties: {
+          combatantId: { type: 'string' },
+          prepared: { type: 'array', items: { type: 'string' }, description: 'The complete new prepared-spell list.' },
+        },
+        required: ['combatantId', 'prepared'],
+        additionalProperties: false,
+      },
+    },
+    {
+      name: 'castRitual',
+      description:
+        'Cast a spell as a RITUAL — it takes 10 minutes longer but spends NO spell slot. Only works for a spell tagged as a ritual for that caster (see getState). Use this INSTEAD of spendResource when a caster ritual-casts (e.g. Detect Magic, Identify).',
+      inputSchema: {
+        type: 'object',
+        properties: { combatantId: { type: 'string' }, spell: { type: 'string', description: 'The ritual spell, e.g. "Detect Magic".' } },
+        required: ['combatantId', 'spell'],
+        additionalProperties: false,
+      },
+    },
   );
   // Economy + inventory + equipment (P3d). The engine owns coins, item state, AC, and attunement — the
   // DM narrates the shop/loot/gear fiction and calls these; it never invents a price, an AC, or a total.
@@ -759,6 +787,15 @@ function serializeStateForModel(state: GameState): string {
                 insight: derivePassive(sheet, cs, 'insight', c.exhaustion),
               },
               ...(dc !== undefined ? { spellSaveDc: dc } : {}),
+              ...(sheet.spellcasting
+                ? {
+                    spells: {
+                      preparedMax: deriveSpellsPreparedMax(sheet, cs),
+                      prepared: c.preparedSpells ?? sheet.spellcasting.prepared,
+                      ...(sheet.spellcasting.rituals?.length ? { rituals: sheet.spellcasting.rituals } : {}),
+                    },
+                  }
+                : {}),
             }
           : {}),
         ...(cs
@@ -1431,6 +1468,21 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
       } else if (tc.name === 'revive') {
         try {
           const r = engine.revive({ combatantId: (engine.findCombatantId(String(tc.input.combatantId ?? '')) ?? String(tc.input.combatantId ?? '')), ...(tc.input.hpRestored !== undefined ? { hpRestored: Number(tc.input.hpRestored) } : {}) });
+          resolved.push({ toolUseId: tc.id, content: JSON.stringify(r) });
+        } catch (e) {
+          resolved.push({ toolUseId: tc.id, content: JSON.stringify({ error: (e as Error).message }) });
+        }
+      } else if (tc.name === 'prepareSpells') {
+        try {
+          const prepared = Array.isArray(tc.input.prepared) ? tc.input.prepared.map(String) : [];
+          const r = engine.prepareSpells({ combatantId: (engine.findCombatantId(String(tc.input.combatantId ?? '')) ?? String(tc.input.combatantId ?? '')), prepared });
+          resolved.push({ toolUseId: tc.id, content: JSON.stringify(r) });
+        } catch (e) {
+          resolved.push({ toolUseId: tc.id, content: JSON.stringify({ error: (e as Error).message }) });
+        }
+      } else if (tc.name === 'castRitual') {
+        try {
+          const r = engine.castRitual({ combatantId: (engine.findCombatantId(String(tc.input.combatantId ?? '')) ?? String(tc.input.combatantId ?? '')), spell: String(tc.input.spell ?? '') });
           resolved.push({ toolUseId: tc.id, content: JSON.stringify(r) });
         } catch (e) {
           resolved.push({ toolUseId: tc.id, content: JSON.stringify({ error: (e as Error).message }) });

@@ -101,6 +101,9 @@ exhaustion, inspiration. The engine owns every pool; you narrate the fiction and
   `startConcentration`. If they take damage while concentrating, `applyDamage` hands you the Con-save DC —
   `requestRoll` that save, and on a failure call `breakConcentration` (the spell ends). One at a time:
   casting a new concentration spell drops the old.
+- RITUALS & PREPARATION: a ritual-tagged spell cast as a ritual spends NO slot — call `castRitual`
+  (getState lists each caster's rituals). On a long rest, a prepared caster may swap their readied spells
+  via `prepareSpells`; the engine enforces how many they can prepare (ability modifier + level).
 - SHORT REST (~1h): call `shortRest` per character. To heal, `requestRoll` their hit dice (e.g.
   `"2d10+4"`) and pass the declared total as `rolledTotal` with how many dice they spent — the engine
   heals and tracks the pool. It also recharges short-rest features. Spell slots do NOT come back here.
