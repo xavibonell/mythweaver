@@ -6883,14 +6883,14 @@
     },
     {
       "kind": "prop",
-      "tag": "roof_thatch_slope_n",
-      "desc": "thatch roof (slope_n)",
+      "tag": "roof_chimney",
+      "desc": "a brick chimney",
       "biomes": [
         "village",
         "town",
         "city"
       ],
-      "art": "/assets/proc/props/roof_thatch_slope_n.png",
+      "art": "/assets/proc/props/roof_chimney.png",
       "frameW": 16,
       "frameH": 16,
       "frames": 1,
@@ -6906,60 +6906,14 @@
     },
     {
       "kind": "prop",
-      "tag": "roof_thatch_slope_s",
-      "desc": "thatch roof (slope_s)",
+      "tag": "roof_thatch_field",
+      "desc": "thatch roof (field)",
       "biomes": [
         "village",
         "town",
         "city"
       ],
-      "art": "/assets/proc/props/roof_thatch_slope_s.png",
-      "frameW": 16,
-      "frameH": 16,
-      "frames": 1,
-      "footW": 1,
-      "footH": 1,
-      "blocks": false,
-      "from": {
-        "pack": "proc",
-        "gen": "scripts/gen-boats-proc.py"
-      },
-      "license": "hand-drawn procedural pixel art in the DB16 palette (scripts/gen-boats-proc.py); owned, NOT DawnLike",
-      "attribution": "procedural asset (MythWeaver)"
-    },
-    {
-      "kind": "prop",
-      "tag": "roof_thatch_slope_e",
-      "desc": "thatch roof (slope_e)",
-      "biomes": [
-        "village",
-        "town",
-        "city"
-      ],
-      "art": "/assets/proc/props/roof_thatch_slope_e.png",
-      "frameW": 16,
-      "frameH": 16,
-      "frames": 1,
-      "footW": 1,
-      "footH": 1,
-      "blocks": false,
-      "from": {
-        "pack": "proc",
-        "gen": "scripts/gen-boats-proc.py"
-      },
-      "license": "hand-drawn procedural pixel art in the DB16 palette (scripts/gen-boats-proc.py); owned, NOT DawnLike",
-      "attribution": "procedural asset (MythWeaver)"
-    },
-    {
-      "kind": "prop",
-      "tag": "roof_thatch_slope_w",
-      "desc": "thatch roof (slope_w)",
-      "biomes": [
-        "village",
-        "town",
-        "city"
-      ],
-      "art": "/assets/proc/props/roof_thatch_slope_w.png",
+      "art": "/assets/proc/props/roof_thatch_field.png",
       "frameW": 16,
       "frameH": 16,
       "frames": 1,
@@ -7021,106 +6975,14 @@
     },
     {
       "kind": "prop",
-      "tag": "roof_thatch_peak",
-      "desc": "thatch roof (peak)",
+      "tag": "roof_tile_field",
+      "desc": "tile roof (field)",
       "biomes": [
         "village",
         "town",
         "city"
       ],
-      "art": "/assets/proc/props/roof_thatch_peak.png",
-      "frameW": 16,
-      "frameH": 16,
-      "frames": 1,
-      "footW": 1,
-      "footH": 1,
-      "blocks": false,
-      "from": {
-        "pack": "proc",
-        "gen": "scripts/gen-boats-proc.py"
-      },
-      "license": "hand-drawn procedural pixel art in the DB16 palette (scripts/gen-boats-proc.py); owned, NOT DawnLike",
-      "attribution": "procedural asset (MythWeaver)"
-    },
-    {
-      "kind": "prop",
-      "tag": "roof_tile_slope_n",
-      "desc": "tile roof (slope_n)",
-      "biomes": [
-        "village",
-        "town",
-        "city"
-      ],
-      "art": "/assets/proc/props/roof_tile_slope_n.png",
-      "frameW": 16,
-      "frameH": 16,
-      "frames": 1,
-      "footW": 1,
-      "footH": 1,
-      "blocks": false,
-      "from": {
-        "pack": "proc",
-        "gen": "scripts/gen-boats-proc.py"
-      },
-      "license": "hand-drawn procedural pixel art in the DB16 palette (scripts/gen-boats-proc.py); owned, NOT DawnLike",
-      "attribution": "procedural asset (MythWeaver)"
-    },
-    {
-      "kind": "prop",
-      "tag": "roof_tile_slope_s",
-      "desc": "tile roof (slope_s)",
-      "biomes": [
-        "village",
-        "town",
-        "city"
-      ],
-      "art": "/assets/proc/props/roof_tile_slope_s.png",
-      "frameW": 16,
-      "frameH": 16,
-      "frames": 1,
-      "footW": 1,
-      "footH": 1,
-      "blocks": false,
-      "from": {
-        "pack": "proc",
-        "gen": "scripts/gen-boats-proc.py"
-      },
-      "license": "hand-drawn procedural pixel art in the DB16 palette (scripts/gen-boats-proc.py); owned, NOT DawnLike",
-      "attribution": "procedural asset (MythWeaver)"
-    },
-    {
-      "kind": "prop",
-      "tag": "roof_tile_slope_e",
-      "desc": "tile roof (slope_e)",
-      "biomes": [
-        "village",
-        "town",
-        "city"
-      ],
-      "art": "/assets/proc/props/roof_tile_slope_e.png",
-      "frameW": 16,
-      "frameH": 16,
-      "frames": 1,
-      "footW": 1,
-      "footH": 1,
-      "blocks": false,
-      "from": {
-        "pack": "proc",
-        "gen": "scripts/gen-boats-proc.py"
-      },
-      "license": "hand-drawn procedural pixel art in the DB16 palette (scripts/gen-boats-proc.py); owned, NOT DawnLike",
-      "attribution": "procedural asset (MythWeaver)"
-    },
-    {
-      "kind": "prop",
-      "tag": "roof_tile_slope_w",
-      "desc": "tile roof (slope_w)",
-      "biomes": [
-        "village",
-        "town",
-        "city"
-      ],
-      "art": "/assets/proc/props/roof_tile_slope_w.png",
+      "art": "/assets/proc/props/roof_tile_field.png",
       "frameW": 16,
       "frameH": 16,
       "frames": 1,
@@ -7182,106 +7044,14 @@
     },
     {
       "kind": "prop",
-      "tag": "roof_tile_peak",
-      "desc": "tile roof (peak)",
+      "tag": "roof_slate_field",
+      "desc": "slate roof (field)",
       "biomes": [
         "village",
         "town",
         "city"
       ],
-      "art": "/assets/proc/props/roof_tile_peak.png",
-      "frameW": 16,
-      "frameH": 16,
-      "frames": 1,
-      "footW": 1,
-      "footH": 1,
-      "blocks": false,
-      "from": {
-        "pack": "proc",
-        "gen": "scripts/gen-boats-proc.py"
-      },
-      "license": "hand-drawn procedural pixel art in the DB16 palette (scripts/gen-boats-proc.py); owned, NOT DawnLike",
-      "attribution": "procedural asset (MythWeaver)"
-    },
-    {
-      "kind": "prop",
-      "tag": "roof_slate_slope_n",
-      "desc": "slate roof (slope_n)",
-      "biomes": [
-        "village",
-        "town",
-        "city"
-      ],
-      "art": "/assets/proc/props/roof_slate_slope_n.png",
-      "frameW": 16,
-      "frameH": 16,
-      "frames": 1,
-      "footW": 1,
-      "footH": 1,
-      "blocks": false,
-      "from": {
-        "pack": "proc",
-        "gen": "scripts/gen-boats-proc.py"
-      },
-      "license": "hand-drawn procedural pixel art in the DB16 palette (scripts/gen-boats-proc.py); owned, NOT DawnLike",
-      "attribution": "procedural asset (MythWeaver)"
-    },
-    {
-      "kind": "prop",
-      "tag": "roof_slate_slope_s",
-      "desc": "slate roof (slope_s)",
-      "biomes": [
-        "village",
-        "town",
-        "city"
-      ],
-      "art": "/assets/proc/props/roof_slate_slope_s.png",
-      "frameW": 16,
-      "frameH": 16,
-      "frames": 1,
-      "footW": 1,
-      "footH": 1,
-      "blocks": false,
-      "from": {
-        "pack": "proc",
-        "gen": "scripts/gen-boats-proc.py"
-      },
-      "license": "hand-drawn procedural pixel art in the DB16 palette (scripts/gen-boats-proc.py); owned, NOT DawnLike",
-      "attribution": "procedural asset (MythWeaver)"
-    },
-    {
-      "kind": "prop",
-      "tag": "roof_slate_slope_e",
-      "desc": "slate roof (slope_e)",
-      "biomes": [
-        "village",
-        "town",
-        "city"
-      ],
-      "art": "/assets/proc/props/roof_slate_slope_e.png",
-      "frameW": 16,
-      "frameH": 16,
-      "frames": 1,
-      "footW": 1,
-      "footH": 1,
-      "blocks": false,
-      "from": {
-        "pack": "proc",
-        "gen": "scripts/gen-boats-proc.py"
-      },
-      "license": "hand-drawn procedural pixel art in the DB16 palette (scripts/gen-boats-proc.py); owned, NOT DawnLike",
-      "attribution": "procedural asset (MythWeaver)"
-    },
-    {
-      "kind": "prop",
-      "tag": "roof_slate_slope_w",
-      "desc": "slate roof (slope_w)",
-      "biomes": [
-        "village",
-        "town",
-        "city"
-      ],
-      "art": "/assets/proc/props/roof_slate_slope_w.png",
+      "art": "/assets/proc/props/roof_slate_field.png",
       "frameW": 16,
       "frameH": 16,
       "frames": 1,
@@ -7343,106 +7113,14 @@
     },
     {
       "kind": "prop",
-      "tag": "roof_slate_peak",
-      "desc": "slate roof (peak)",
+      "tag": "roof_wood_field",
+      "desc": "wood roof (field)",
       "biomes": [
         "village",
         "town",
         "city"
       ],
-      "art": "/assets/proc/props/roof_slate_peak.png",
-      "frameW": 16,
-      "frameH": 16,
-      "frames": 1,
-      "footW": 1,
-      "footH": 1,
-      "blocks": false,
-      "from": {
-        "pack": "proc",
-        "gen": "scripts/gen-boats-proc.py"
-      },
-      "license": "hand-drawn procedural pixel art in the DB16 palette (scripts/gen-boats-proc.py); owned, NOT DawnLike",
-      "attribution": "procedural asset (MythWeaver)"
-    },
-    {
-      "kind": "prop",
-      "tag": "roof_wood_slope_n",
-      "desc": "wood roof (slope_n)",
-      "biomes": [
-        "village",
-        "town",
-        "city"
-      ],
-      "art": "/assets/proc/props/roof_wood_slope_n.png",
-      "frameW": 16,
-      "frameH": 16,
-      "frames": 1,
-      "footW": 1,
-      "footH": 1,
-      "blocks": false,
-      "from": {
-        "pack": "proc",
-        "gen": "scripts/gen-boats-proc.py"
-      },
-      "license": "hand-drawn procedural pixel art in the DB16 palette (scripts/gen-boats-proc.py); owned, NOT DawnLike",
-      "attribution": "procedural asset (MythWeaver)"
-    },
-    {
-      "kind": "prop",
-      "tag": "roof_wood_slope_s",
-      "desc": "wood roof (slope_s)",
-      "biomes": [
-        "village",
-        "town",
-        "city"
-      ],
-      "art": "/assets/proc/props/roof_wood_slope_s.png",
-      "frameW": 16,
-      "frameH": 16,
-      "frames": 1,
-      "footW": 1,
-      "footH": 1,
-      "blocks": false,
-      "from": {
-        "pack": "proc",
-        "gen": "scripts/gen-boats-proc.py"
-      },
-      "license": "hand-drawn procedural pixel art in the DB16 palette (scripts/gen-boats-proc.py); owned, NOT DawnLike",
-      "attribution": "procedural asset (MythWeaver)"
-    },
-    {
-      "kind": "prop",
-      "tag": "roof_wood_slope_e",
-      "desc": "wood roof (slope_e)",
-      "biomes": [
-        "village",
-        "town",
-        "city"
-      ],
-      "art": "/assets/proc/props/roof_wood_slope_e.png",
-      "frameW": 16,
-      "frameH": 16,
-      "frames": 1,
-      "footW": 1,
-      "footH": 1,
-      "blocks": false,
-      "from": {
-        "pack": "proc",
-        "gen": "scripts/gen-boats-proc.py"
-      },
-      "license": "hand-drawn procedural pixel art in the DB16 palette (scripts/gen-boats-proc.py); owned, NOT DawnLike",
-      "attribution": "procedural asset (MythWeaver)"
-    },
-    {
-      "kind": "prop",
-      "tag": "roof_wood_slope_w",
-      "desc": "wood roof (slope_w)",
-      "biomes": [
-        "village",
-        "town",
-        "city"
-      ],
-      "art": "/assets/proc/props/roof_wood_slope_w.png",
+      "art": "/assets/proc/props/roof_wood_field.png",
       "frameW": 16,
       "frameH": 16,
       "frames": 1,
@@ -7489,52 +7167,6 @@
         "city"
       ],
       "art": "/assets/proc/props/roof_wood_ridge_v.png",
-      "frameW": 16,
-      "frameH": 16,
-      "frames": 1,
-      "footW": 1,
-      "footH": 1,
-      "blocks": false,
-      "from": {
-        "pack": "proc",
-        "gen": "scripts/gen-boats-proc.py"
-      },
-      "license": "hand-drawn procedural pixel art in the DB16 palette (scripts/gen-boats-proc.py); owned, NOT DawnLike",
-      "attribution": "procedural asset (MythWeaver)"
-    },
-    {
-      "kind": "prop",
-      "tag": "roof_wood_peak",
-      "desc": "wood roof (peak)",
-      "biomes": [
-        "village",
-        "town",
-        "city"
-      ],
-      "art": "/assets/proc/props/roof_wood_peak.png",
-      "frameW": 16,
-      "frameH": 16,
-      "frames": 1,
-      "footW": 1,
-      "footH": 1,
-      "blocks": false,
-      "from": {
-        "pack": "proc",
-        "gen": "scripts/gen-boats-proc.py"
-      },
-      "license": "hand-drawn procedural pixel art in the DB16 palette (scripts/gen-boats-proc.py); owned, NOT DawnLike",
-      "attribution": "procedural asset (MythWeaver)"
-    },
-    {
-      "kind": "prop",
-      "tag": "roof_chimney",
-      "desc": "a brick chimney",
-      "biomes": [
-        "village",
-        "town",
-        "city"
-      ],
-      "art": "/assets/proc/props/roof_chimney.png",
       "frameW": 16,
       "frameH": 16,
       "frames": 1,

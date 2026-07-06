@@ -126,10 +126,21 @@ export function renderSceneMapToPng(scene: SceneMap, opts: { assetsRoot: string;
   }
 
   // Pass 3 — ROOFS: the closed-building cover, one 16×16 tile per building cell, drawn ON TOP of the walls +
-  // interior. Hidden when `showRoofs === false` (the lab operator's switch / a revealed building in play).
+  // interior. Each tile is MULTIPLIED by its per-cell shade (the hip-face lighting). Hidden when
+  // `showRoofs === false` (the lab operator's switch / a revealed building in play).
   if (opts.showRoofs !== false) for (const rf of scene.roofs ?? []) {
     const asset = prop.get(rf.tag); if (!asset?.art) continue;
-    const png = loadPng(assetsRoot, asset.art); if (png) blit(png, rf.col * TILE, rf.row * TILE, TILE, TILE);
+    const png = loadPng(assetsRoot, asset.art); if (!png) continue;
+    const s = rf.shade ?? 1, dx0 = rf.col * TILE, dy0 = rf.row * TILE;
+    for (let yy = 0; yy < TILE; yy++) for (let xx = 0; xx < TILE; xx++) {
+      const si = ((yy * png.width) + xx) << 2; const a = png.data[si + 3]! / 255; if (a === 0) continue;
+      const dx = dx0 + xx, dy = dy0 + yy; if (dx < 0 || dy < 0 || dx >= out.width || dy >= out.height) continue;
+      const di = ((dy * out.width) + dx) << 2;
+      out.data[di] = Math.round(png.data[si]! * s * a + out.data[di]! * (1 - a));
+      out.data[di + 1] = Math.round(png.data[si + 1]! * s * a + out.data[di + 1]! * (1 - a));
+      out.data[di + 2] = Math.round(png.data[si + 2]! * s * a + out.data[di + 2]! * (1 - a));
+      out.data[di + 3] = 255;
+    }
   }
 
   // TIME-OF-DAY tint — a global colour MULTIPLY matching the Phaser renderer (SceneCanvas), so headless

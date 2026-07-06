@@ -1249,18 +1249,40 @@ function bakeRoofs(cv: Canvas): RoofCell[] {
       D[i] = Math.min(D[i]!, m);
     }
     const Dat = (cc: number, rr: number): number => (cc < 0 || rr < 0 || cc >= GW || rr >= GH) ? 0 : D[li(cc, rr)]!;
-    // Classify each roofed cell: a local max of D (in a direction) is a RIDGE/peak; else a slope facing its
-    // nearest eave. Collect ridge cells for the chimney.
+    // A SMOOTHED height field (one 3×3 box blur over the mask) — the raw chamfer distance is kinky, so its
+    // gradient (and the shading) comes out blotchy; the blur gives clean planar faces. Ridge detection still
+    // uses the crisp raw D.
+    const Ds = new Float32Array(N);
+    for (let rr = 0; rr < GH; rr++) for (let cc = 0; cc < GW; cc++) {
+      const i = li(cc, rr); if (!mask[i]) { Ds[i] = 0; continue; }
+      let s = 0, n2 = 0;
+      for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) { const nc = cc + dc, nr = rr + dr; if (nc < 0 || nr < 0 || nc >= GW || nr >= GH) continue; s += D[li(nc, nr)]!; n2++; }
+      Ds[i] = s / n2;
+    }
+    const Sat = (cc: number, rr: number): number => (cc < 0 || rr < 0 || cc >= GW || rr >= GH) ? 0 : Ds[li(cc, rr)]!;
+    // Classify + SHADE each roofed cell. A local max of D is a RIDGE (flat top → full light). Otherwise it is
+    // a slope: its downhill direction (−gradient of the smoothed height, toward the nearest eave) IS the face
+    // normal, so shading it against a top-left light makes the four hip faces read as distinct planes and hips
+    // fall off smoothly along the 45° diagonal (no stair-stepping). The outer eave ring is darkened for a border.
+    const LX = -0.387, LY = -0.922; // unit vector toward the light (top-left, mostly from the top)
     const ridgeCells: Array<{ c: number; r: number }> = [];
     for (let rr = 1; rr <= h; rr++) for (let cc = 1; cc <= w; cc++) {
       const i = li(cc, rr); if (!mask[i]) continue;
       const d = D[i]!, up = Dat(cc, rr - 1), dn = Dat(cc, rr + 1), lf = Dat(cc - 1, rr), rt = Dat(cc + 1, rr);
       const hR = up < d && dn < d, vR = lf < d && rt < d;
-      const part = (hR && vR) ? 'peak' : hR ? 'ridge_h' : vR ? 'ridge_v'
-        : (() => { const mn = Math.min(up, dn, lf, rt); return up === mn ? 'slope_n' : dn === mn ? 'slope_s' : lf === mn ? 'slope_w' : 'slope_e'; })();
       const wc = x - 1 + cc, wr = y - 1 + rr;
-      roofs.push({ col: wc, row: wr, tag: `roof_${b.roof}_${part}`, buildingId: b.id });
-      if (part === 'ridge_h' || part === 'ridge_v' || part === 'peak') ridgeCells.push({ c: wc, r: wr });
+      let tag: string, shade: number;
+      if (hR || vR) { tag = `roof_${b.roof}_${vR && !hR ? 'ridge_v' : 'ridge_h'}`; shade = 1.0; ridgeCells.push({ c: wc, r: wr }); }
+      else {
+        tag = `roof_${b.roof}_field`;
+        let ddx = (Sat(cc - 1, rr) - Sat(cc + 1, rr)) / 2, ddy = (Sat(cc, rr - 1) - Sat(cc, rr + 1)) / 2; // downhill = face normal
+        const len = Math.hypot(ddx, ddy) || 1; ddx /= len; ddy /= len;
+        shade = 0.82 + 0.18 * (ddx * LX + ddy * LY);
+      }
+      // a crisp dark border: a boundary cell (touches a non-mask cell) is the eave edge → darken it hard.
+      const border = !mask[li(cc - 1, rr)] || !mask[li(cc + 1, rr)] || !mask[li(cc, rr - 1)] || !mask[li(cc, rr + 1)];
+      if (border) shade *= 0.68;
+      roofs.push({ col: wc, row: wr, tag, buildingId: b.id, shade: Math.max(0.5, Math.min(1, shade)) });
     }
     // A chimney sits on the ridge, offset from dead-centre toward one end (pushed last → drawn over the roof).
     if (ridgeCells.length) { const p = ridgeCells[Math.floor(ridgeCells.length * 0.28)]!; roofs.push({ col: p.c, row: p.r, tag: 'roof_chimney', buildingId: b.id }); }

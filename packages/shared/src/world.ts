@@ -312,8 +312,11 @@ export interface Entrance {
 export interface RoofCell {
   col: number;
   row: number;
-  tag: string; // a roof_* art tag (material + part: slope/ridge/eave)
+  tag: string; // a roof_* art tag (material field / ridge cap)
   buildingId: string; // which building this roof belongs to (so play can reveal one at a time)
+  /** Per-cell brightness in [0,1] from the roof-surface normal vs. the light — the renderer MULTIPLIES the
+   *  tile by it, so the four hip faces read as distinctly-lit planes and hips shade smoothly. 1 = full/lit. */
+  shade?: number;
 }
 
 /** The frozen, canonical scene — the single source of truth for renderer AND DM digest. */

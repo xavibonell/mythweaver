@@ -138,9 +138,16 @@ function renderFullImpl(scene: any, data: any): void {
   }
 
   // ROOFS — the closed-building cover (one 16×16 tile per building cell), drawn ABOVE walls/props so a player
-  // sees only rooftops from outside. Hidden when the operator flips the lab switch (or a building is revealed
-  // in play). Depth 90000+row sits above every row-depth object but below the fog wash. Tinted like everything.
-  if (scene.showRoofs !== false) for (const rf of data.roofs ?? []) drawProp(scene, rf.tag, rf.col, rf.row, 1, 1, 90000 + rf.row, tint);
+  // sees only rooftops from outside. Each tile is MULTIPLIED by its per-cell shade (the hip-face lighting),
+  // folded into the lighting tint. Hidden when the operator flips the lab switch (or a building is revealed in
+  // play). Depth 90000+row sits above every row-depth object but below the fog wash.
+  if (scene.showRoofs !== false) {
+    const shadeTint = (base: number | null, s: number): number => {
+      const b = base ?? 0xffffff;
+      return (Math.round(((b >> 16) & 0xff) * s) << 16) | (Math.round(((b >> 8) & 0xff) * s) << 8) | Math.round((b & 0xff) * s);
+    };
+    for (const rf of data.roofs ?? []) drawProp(scene, rf.tag, rf.col, rf.row, 1, 1, 90000 + rf.row, shadeTint(tint, rf.shade ?? 1));
+  }
 
   // FOG = a LIGHT pale haze laid over the WHOLE scene (a soft overlay, NOT a darkening multiply tint) —
   // reads as a cold sea-fog. Kept light so the scene stays legible; the real sense of fog comes from the
