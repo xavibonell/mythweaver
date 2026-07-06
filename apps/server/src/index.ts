@@ -8,7 +8,7 @@ import { createProvider } from '@mythweaver/llm';
 import { CHARACTERS, FakeSceneComposer, LlmSceneComposer, PROPS, TERRAINS, buildSceneMap, cityBspBlueprint, cityMeshBlueprint, loadAssetLibrary, realizeCityBsp, realizeCityMesh, renderSceneMapToPng } from '@mythweaver/scene';
 import { BIOMES, BUILDING_TYPES, classToSpriteTag, validateEstablishScene, type EstablishScene } from '@mythweaver/shared';
 import { Db } from './db.js';
-import { loadScenario, readScenarioRaw, writeScenarioRaw, parseScenario, loadSharedParty, loadSharedBestiary, resolveParty } from './content.js';
+import { loadScenario, readScenarioRaw, writeScenarioRaw, parseScenario, loadSharedParty, loadSharedBestiary, loadItemCatalog, resolveParty } from './content.js';
 import {
   loadPlaybook,
   savePlaybook,
@@ -796,6 +796,7 @@ app.post('/sessions', async (req, reply) => {
     adventure,
     encounters: bundle.scenario.encounters,
     bestiary: Object.fromEntries(bundle.bestiary.map((b) => [b.id, b])),
+    itemCatalog: loadItemCatalog(),
   });
   await db.createSession(id, bundle.scenario.id, state);
   return {

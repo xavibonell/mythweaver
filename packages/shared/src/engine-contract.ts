@@ -153,6 +153,36 @@ export interface EngineTools {
   /** Milestone leveling — the DM grants a target level directly (no XP); engine applies the full gain. P3c. */
   setMilestoneLevel(args: { combatantId: string; level: number }): { level: number; maxHitPoints: number; hitDiceRemaining: number; proficiencyBonus: number; asiDue: boolean; hpGained: number };
 
+  /** Add a catalog item to a character (loot); returns the created instance ids. P3d. */
+  addItem(args: { combatantId: string; itemDefId: string; qty?: number }): { item: string; qty: number; instanceIds: string[] };
+
+  /** Remove an item — by instanceId (one) or itemDefId + qty (from a stack). P3d. */
+  removeItem(args: { combatantId: string; instanceId?: string; itemDefId?: string; qty?: number }): { removed: string; qty: number };
+
+  /** Buy a catalog item with exact cp/sp/gp change; refuses if unaffordable. P3d. */
+  buyItem(args: { combatantId: string; itemDefId: string; qty?: number }): { currency: { cp: number; sp: number; gp: number }; item: string; qty: number; instanceIds: string[] };
+
+  /** Sell an item back for half its market value (SRD). P3d. */
+  sellItem(args: { combatantId: string; instanceId?: string; itemDefId?: string; qty?: number }): { currency: { cp: number; sp: number; gp: number }; sold: string; qty: number };
+
+  /** Equip an item into its slot; recomputes AC from armor/shield. P3d. */
+  equipItem(args: { combatantId: string; instanceId: string }): { slot: string; armorClass: number };
+
+  /** Unequip a slot or a specific instance; recomputes AC. P3d. */
+  unequipItem(args: { combatantId: string; slot?: 'armor' | 'shield' | 'mainHand' | 'offHand' | 'ranged'; instanceId?: string }): { armorClass: number };
+
+  /** Attune to a magic item — enforces the SRD cap of 3 and identify-first. P3d. */
+  attuneItem(args: { combatantId: string; instanceId: string }): { attunedInstanceIds: string[] };
+
+  /** End attunement to an item. P3d. */
+  unattuneItem(args: { combatantId: string; instanceId: string }): { attunedInstanceIds: string[] };
+
+  /** Identify a (magic) item so its effects/attunement unlock. P3d. */
+  identifyItem(args: { combatantId: string; instanceId: string }): { identified: true; item: string };
+
+  /** Raise a dead character (Revivify / Raise Dead) — the one path back from dead. P3d. */
+  revive(args: { combatantId: string; hpRestored?: number }): { current: number };
+
   /** Spend a spell slot (resource:'slot' + level) or a named class pool (ki/rage/channelDivinity/…). P3a. */
   spendResource(args: { combatantId: string; resource: string; level?: number; amount?: number }): { remaining: number };
 

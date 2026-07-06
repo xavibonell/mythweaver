@@ -170,6 +170,11 @@ export interface CharacterSheet {
   hitDice?: { size: number; count: number };
   /** Class resource pools this character starts with (ki, rage, channel divinity, …). */
   classResources?: { id: string; name: string; max: number; recharge: 'short' | 'long' }[];
+  /** Starting coin purse (P3d) — seeds CharacterState.currency at spawn. */
+  startingCurrency?: { cp?: number; sp?: number; gp?: number };
+  /** Starting kit as catalog references (P3d) — seeds CharacterState.items. Legacy `inventory` (freeform
+   *  strings) still works for flavor; carriedItems are the mechanical ones. */
+  carriedItems?: ItemRef[];
 }
 
 // ---------------------------------------------------------------------------
@@ -426,6 +431,45 @@ export interface LedgerState {
 }
 
 /**
+ * A catalog item DEFINITION (P3d) — data, loaded from content/shared/items.json like the bestiary. The
+ * catalog is the single source of an item's rules; a character owns lightweight ItemRefs pointing at it.
+ */
+export interface ItemDef {
+  id: string;
+  name: string;
+  /** e.g. "weapon" | "armor" | "shield" | "gear" | "potion" | "wondrous" | "ring" | "scroll". */
+  category: string;
+  weightLb: number;
+  /** Market price in gold; omitted = priceless / not for sale. Selling returns half (SRD). */
+  costGp?: number;
+  /** Equip slot this occupies, if wearable/wieldable. */
+  slot?: 'armor' | 'shield' | 'mainHand' | 'offHand' | 'ranged';
+  /** Armor: base AC (heavy sets the floor); acDexCap limits the Dex bonus (0 heavy, 2 medium, none light). */
+  acBase?: number;
+  acDexCap?: number;
+  /** Shield / wondrous flat AC bonus. */
+  acBonus?: number;
+  /** True if the item is magical (its effects/attunement stay gated until identified). */
+  magic?: boolean;
+  requiresAttunement?: boolean;
+  /** Limited-use charges + which rest recharges them. */
+  charges?: { max: number; recharge: 'short' | 'long' | 'dawn' };
+  /** Passive grants while equipped/attuned (a skill proficiency or a save proficiency). */
+  grants?: { skill?: Skill; save?: Ability };
+}
+
+/** An owned instance of a catalog item (P3d) — points at an ItemDef by id, carries per-instance state. */
+export interface ItemRef {
+  defId: string;
+  /** Unique per-owner instance id (so two of the same item can be equipped/attuned/tracked apart). */
+  instanceId: string;
+  qty?: number;
+  chargesRemaining?: number;
+  /** Magic items start unidentified; identifyItem flips this and unlocks effects/attunement. */
+  identified?: boolean;
+}
+
+/**
  * Progression + economy that persists ACROSS and around combat (P3c+) — the third character "home",
  * keyed by combatant id in GameState.characters. The immutable CharacterSheet is the STARTING spec;
  * the Combatant holds volatile combat pools; THIS holds what grows over the campaign. Derived numbers
@@ -436,8 +480,14 @@ export interface CharacterState {
   xp: number;
   /** Current character level — starts at the sheet's level; grows via levelUp / setMilestoneLevel. */
   level: number;
-  /** Coin purse (copper / silver / gold). The economy tools that move it land in P3d. */
+  /** Coin purse (copper / silver / gold). */
   currency: { cp: number; sp: number; gp: number };
+  /** Everything carried (P3d) — loot, gear, consumables. */
+  items: ItemRef[];
+  /** instanceIds currently attuned (hard cap of 3, SRD). */
+  attunedInstanceIds: string[];
+  /** Which instance fills each equip slot. AC + item grants derive from these. */
+  equipped: { armor?: string; shield?: string; mainHand?: string; offHand?: string; ranged?: string };
 }
 
 export interface GameState {
@@ -485,4 +535,6 @@ export interface GameState {
   /** Immutable character sheets keyed by combatant id — the spec the engine DERIVES from (con mod for
    *  level-up HP; abilities/proficiencies for checks in P3e). Read-only; never mutated at runtime. */
   sheets?: Record<string, CharacterSheet>;
+  /** The item catalog (P3d), loaded on boot from content/shared/items.json. ItemRefs point into it. */
+  itemCatalog?: Record<string, ItemDef>;
 }

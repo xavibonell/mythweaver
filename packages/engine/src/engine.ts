@@ -33,8 +33,13 @@ import {
 } from '@mythweaver/shared';
 import { rollDice, validateDeclaredRoll, type Rng } from './dice.js';
 import { statBlockToCombatant } from './state.js';
-import { abilityMod, deriveProficiencyBonus } from './derive.js';
+import { abilityMod, deriveArmorClass, deriveProficiencyBonus } from './derive.js';
 import { ASI_LEVELS, XP_THRESHOLDS, hitDieAvg, hitDieForClass, levelForXp } from './progression.js';
+
+/** Coin math in the smallest unit so change-making is exact (1 gp = 10 sp = 100 cp). */
+const toCopper = (c: { cp: number; sp: number; gp: number }): number => Math.round(c.cp + c.sp * 10 + c.gp * 100);
+const fromCopper = (total: number): { cp: number; sp: number; gp: number } => ({ gp: Math.floor(total / 100), sp: Math.floor((total % 100) / 10), cp: total % 10 });
+const gpToCopper = (gp: number): number => Math.round(gp * 100);
 
 export class Engine implements EngineTools {
   private readonly pending = new Map<string, RollRequest>();
@@ -684,5 +689,214 @@ export class Engine implements EngineTools {
     const proficiencyBonus = deriveProficiencyBonus(cs.level);
     this.record('engine', `${c.name} reaches level ${cs.level} (+${hpGained} HP, prof +${proficiencyBonus})${asiDue ? ' — ASI/feat available' : ''}`, { combatantId, level: cs.level, hpGained, proficiencyBonus, asiDue });
     return { level: cs.level, maxHitPoints: c.maxHitPoints, hitDiceRemaining: c.hitDice?.remaining ?? 0, proficiencyBonus, asiDue, hpGained };
+  }
+
+  // --- P3d: economy + inventory + equipment + attunement + revival ---------
+
+  private itemDef(defId: string) {
+    const def = this.state.itemCatalog?.[defId];
+    if (!def) throw new Error(`Unknown item "${defId}" (not in the catalog).`);
+    return def;
+  }
+
+  /** Unique-across-the-session instance id (scan the max numeric suffix so a fresh per-turn Engine never collides). */
+  private nextInstanceId(defId: string): string {
+    let max = 0;
+    for (const cs of Object.values(this.state.characters ?? {})) {
+      for (const it of cs.items) {
+        const m = /#(\d+)$/.exec(it.instanceId);
+        if (m) max = Math.max(max, Number(m[1]));
+      }
+    }
+    return `${defId}#${max + 1}`;
+  }
+
+  /** Recompute + cache the live AC from equipped gear (the single formula lives in derive.ts). */
+  private recomputeArmorClass(combatantId: string): void {
+    const c = this.state.combatants[combatantId];
+    const cs = this.state.characters?.[combatantId];
+    const sheet = this.state.sheets?.[combatantId];
+    if (c && cs && sheet) c.armorClass = deriveArmorClass(sheet, cs, this.state.itemCatalog);
+  }
+
+  /** Detach an instance from every equip slot + attunement (used on remove/sell so nothing dangles). */
+  private detach(cs: CharacterState, instanceId: string): void {
+    for (const slot of Object.keys(cs.equipped) as (keyof CharacterState['equipped'])[]) {
+      if (cs.equipped[slot] === instanceId) delete cs.equipped[slot];
+    }
+    cs.attunedInstanceIds = cs.attunedInstanceIds.filter((id) => id !== instanceId);
+  }
+
+  /** Add an item to a character. Plain gear/consumables STACK (qty); equippable/magic items get their own
+   *  instance so they can be equipped/attuned/tracked apart. Returns the created instance ids. */
+  addItem(args: { combatantId: string; itemDefId: string; qty?: number }): { item: string; qty: number; instanceIds: string[] } {
+    const cs = this.character(args.combatantId);
+    const def = this.itemDef(args.itemDefId);
+    const qty = Math.max(1, Math.floor(args.qty ?? 1));
+    const stackable = !def.slot && !def.magic && !def.requiresAttunement;
+    const instanceIds: string[] = [];
+    if (stackable) {
+      const existing = cs.items.find((i) => i.defId === def.id);
+      if (existing) existing.qty = (existing.qty ?? 1) + qty;
+      else {
+        const id = this.nextInstanceId(def.id);
+        cs.items.push({ defId: def.id, instanceId: id, qty });
+        instanceIds.push(id);
+      }
+    } else {
+      for (let i = 0; i < qty; i++) {
+        const id = this.nextInstanceId(def.id);
+        cs.items.push({ defId: def.id, instanceId: id, qty: 1, ...(def.charges ? { chargesRemaining: def.charges.max } : {}), identified: !def.magic });
+        instanceIds.push(id);
+      }
+    }
+    this.record('engine', `${this.state.combatants[args.combatantId]?.name ?? args.combatantId} gains ${qty}× ${def.name}`, { combatantId: args.combatantId, itemDefId: def.id, qty });
+    return { item: def.name, qty, instanceIds };
+  }
+
+  /** Remove an item — by instanceId (one instance) or by itemDefId + qty (from a stack). Detaches first. */
+  removeItem(args: { combatantId: string; instanceId?: string; itemDefId?: string; qty?: number }): { removed: string; qty: number } {
+    const cs = this.character(args.combatantId);
+    if (args.instanceId) {
+      const idx = cs.items.findIndex((i) => i.instanceId === args.instanceId);
+      if (idx < 0) throw new Error(`No item ${args.instanceId} carried.`);
+      const ref = cs.items[idx]!;
+      const name = this.state.itemCatalog?.[ref.defId]?.name ?? ref.defId;
+      this.detach(cs, args.instanceId);
+      cs.items.splice(idx, 1);
+      this.recomputeArmorClass(args.combatantId);
+      this.record('engine', `${this.state.combatants[args.combatantId]?.name ?? args.combatantId} loses ${name}`, { combatantId: args.combatantId, instanceId: args.instanceId });
+      return { removed: name, qty: 1 };
+    }
+    if (!args.itemDefId) throw new Error('removeItem needs an instanceId or an itemDefId.');
+    const def = this.itemDef(args.itemDefId);
+    let qty = Math.max(1, Math.floor(args.qty ?? 1));
+    let removed = 0;
+    for (let i = cs.items.length - 1; i >= 0 && qty > 0; i--) {
+      const ref = cs.items[i]!;
+      if (ref.defId !== def.id) continue;
+      const take = Math.min(qty, ref.qty ?? 1);
+      ref.qty = (ref.qty ?? 1) - take;
+      qty -= take;
+      removed += take;
+      if ((ref.qty ?? 0) <= 0) {
+        this.detach(cs, ref.instanceId);
+        cs.items.splice(i, 1);
+      }
+    }
+    if (removed === 0) throw new Error(`${this.state.combatants[args.combatantId]?.name ?? args.combatantId} isn't carrying ${def.name}.`);
+    this.recomputeArmorClass(args.combatantId);
+    this.record('engine', `${this.state.combatants[args.combatantId]?.name ?? args.combatantId} loses ${removed}× ${def.name}`, { combatantId: args.combatantId, itemDefId: def.id, qty: removed });
+    return { removed: def.name, qty: removed };
+  }
+
+  /** Buy a catalog item: exact cp/sp/gp change-making, refuses if unaffordable, then adds the item. */
+  buyItem(args: { combatantId: string; itemDefId: string; qty?: number }): { currency: { cp: number; sp: number; gp: number }; item: string; qty: number; instanceIds: string[] } {
+    const cs = this.character(args.combatantId);
+    const def = this.itemDef(args.itemDefId);
+    if (def.costGp === undefined) throw new Error(`${def.name} is not for sale.`);
+    const qty = Math.max(1, Math.floor(args.qty ?? 1));
+    const cost = gpToCopper(def.costGp) * qty;
+    const have = toCopper(cs.currency);
+    if (have < cost) throw new Error(`Can't afford ${qty}× ${def.name} (needs ${def.costGp * qty} gp, has ${(have / 100).toFixed(2)} gp).`);
+    cs.currency = fromCopper(have - cost);
+    const added = this.addItem(args);
+    this.record('engine', `${this.state.combatants[args.combatantId]?.name ?? args.combatantId} buys ${qty}× ${def.name} for ${def.costGp * qty} gp`, { combatantId: args.combatantId, itemDefId: def.id, qty, currency: cs.currency });
+    return { currency: cs.currency, item: def.name, qty, instanceIds: added.instanceIds };
+  }
+
+  /** Sell an item back for HALF its market value (SRD). Removes it, credits the coins. */
+  sellItem(args: { combatantId: string; instanceId?: string; itemDefId?: string; qty?: number }): { currency: { cp: number; sp: number; gp: number }; sold: string; qty: number } {
+    const cs = this.character(args.combatantId);
+    const defId = args.itemDefId ?? cs.items.find((i) => i.instanceId === args.instanceId)?.defId;
+    if (!defId) throw new Error('Nothing to sell (unknown item).');
+    const def = this.itemDef(defId);
+    if (def.costGp === undefined) throw new Error(`${def.name} has no resale value.`);
+    const { qty } = this.removeItem(args);
+    const credit = Math.floor((gpToCopper(def.costGp) * qty) / 2);
+    cs.currency = fromCopper(toCopper(cs.currency) + credit);
+    this.record('engine', `${this.state.combatants[args.combatantId]?.name ?? args.combatantId} sells ${qty}× ${def.name} for ${(credit / 100).toFixed(2)} gp`, { combatantId: args.combatantId, itemDefId: def.id, qty, currency: cs.currency });
+    return { currency: cs.currency, sold: def.name, qty };
+  }
+
+  /** Equip an item into its slot (replacing whatever was there). Recomputes AC from armor/shield. */
+  equipItem(args: { combatantId: string; instanceId: string }): { slot: string; armorClass: number } {
+    const cs = this.character(args.combatantId);
+    const ref = cs.items.find((i) => i.instanceId === args.instanceId);
+    if (!ref) throw new Error(`No item ${args.instanceId} carried.`);
+    const def = this.itemDef(ref.defId);
+    if (!def.slot) throw new Error(`${def.name} can't be equipped.`);
+    cs.equipped[def.slot] = args.instanceId;
+    this.recomputeArmorClass(args.combatantId);
+    const ac = this.state.combatants[args.combatantId]?.armorClass ?? 0;
+    this.record('engine', `${this.state.combatants[args.combatantId]?.name ?? args.combatantId} equips ${def.name} (AC ${ac})`, { combatantId: args.combatantId, slot: def.slot, instanceId: args.instanceId, armorClass: ac });
+    return { slot: def.slot, armorClass: ac };
+  }
+
+  /** Unequip a slot (or a specific instance). Recomputes AC (falling back to the sheet's printed value). */
+  unequipItem(args: { combatantId: string; slot?: 'armor' | 'shield' | 'mainHand' | 'offHand' | 'ranged'; instanceId?: string }): { armorClass: number } {
+    const cs = this.character(args.combatantId);
+    if (args.slot) delete cs.equipped[args.slot];
+    else if (args.instanceId) this.detachEquip(cs, args.instanceId);
+    else throw new Error('unequipItem needs a slot or an instanceId.');
+    this.recomputeArmorClass(args.combatantId);
+    const ac = this.state.combatants[args.combatantId]?.armorClass ?? 0;
+    this.record('engine', `${this.state.combatants[args.combatantId]?.name ?? args.combatantId} unequips an item (AC ${ac})`, { combatantId: args.combatantId, armorClass: ac });
+    return { armorClass: ac };
+  }
+
+  private detachEquip(cs: CharacterState, instanceId: string): void {
+    for (const slot of Object.keys(cs.equipped) as (keyof CharacterState['equipped'])[]) {
+      if (cs.equipped[slot] === instanceId) delete cs.equipped[slot];
+    }
+  }
+
+  /** Attune to a magic item — enforces the SRD cap of 3 and that the item is identified first. */
+  attuneItem(args: { combatantId: string; instanceId: string }): { attunedInstanceIds: string[] } {
+    const cs = this.character(args.combatantId);
+    const ref = cs.items.find((i) => i.instanceId === args.instanceId);
+    if (!ref) throw new Error(`No item ${args.instanceId} carried.`);
+    const def = this.itemDef(ref.defId);
+    if (!def.requiresAttunement) throw new Error(`${def.name} doesn't require attunement.`);
+    if (def.magic && !ref.identified) throw new Error(`${def.name} must be identified before attuning.`);
+    if (cs.attunedInstanceIds.includes(args.instanceId)) return { attunedInstanceIds: cs.attunedInstanceIds };
+    if (cs.attunedInstanceIds.length >= 3) throw new Error(`Already attuned to 3 items — unattune one first.`);
+    cs.attunedInstanceIds.push(args.instanceId);
+    this.record('engine', `${this.state.combatants[args.combatantId]?.name ?? args.combatantId} attunes to ${def.name} (${cs.attunedInstanceIds.length}/3)`, { combatantId: args.combatantId, instanceId: args.instanceId });
+    return { attunedInstanceIds: cs.attunedInstanceIds };
+  }
+
+  /** Drop attunement to an item. */
+  unattuneItem(args: { combatantId: string; instanceId: string }): { attunedInstanceIds: string[] } {
+    const cs = this.character(args.combatantId);
+    cs.attunedInstanceIds = cs.attunedInstanceIds.filter((id) => id !== args.instanceId);
+    this.record('engine', `${this.state.combatants[args.combatantId]?.name ?? args.combatantId} ends attunement`, { combatantId: args.combatantId, instanceId: args.instanceId });
+    return { attunedInstanceIds: cs.attunedInstanceIds };
+  }
+
+  /** Identify a (magic) item so its effects/attunement unlock — via a short rest with it or an Identify spell. */
+  identifyItem(args: { combatantId: string; instanceId: string }): { identified: true; item: string } {
+    const cs = this.character(args.combatantId);
+    const ref = cs.items.find((i) => i.instanceId === args.instanceId);
+    if (!ref) throw new Error(`No item ${args.instanceId} carried.`);
+    const def = this.itemDef(ref.defId);
+    ref.identified = true;
+    this.record('engine', `${this.state.combatants[args.combatantId]?.name ?? args.combatantId} identifies ${def.name}`, { combatantId: args.combatantId, instanceId: args.instanceId });
+    return { identified: true, item: def.name };
+  }
+
+  /** Raise a dead character (Revivify / Raise Dead): clears death and restores HP. The one path back
+   *  from dead — heal() deliberately refuses a dead target. */
+  revive(args: { combatantId: string; hpRestored?: number }): { current: number } {
+    const c = this.state.combatants[args.combatantId];
+    if (!c) throw new Error(`Unknown combatant: ${args.combatantId}`);
+    if (!c.dead) throw new Error(`${c.name} isn't dead.`);
+    c.dead = false;
+    c.downed = false;
+    delete c.deathSaves;
+    c.conditions = c.conditions.filter((x) => x !== 'unconscious');
+    c.currentHitPoints = Math.max(1, Math.min(c.maxHitPoints, Math.floor(args.hpRestored ?? 1)));
+    this.record('engine', `${c.name} is restored to life (${c.currentHitPoints} HP)`, { combatantId: c.id, current: c.currentHitPoints });
+    return { current: c.currentHitPoints };
   }
 }

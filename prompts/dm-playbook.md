@@ -119,6 +119,16 @@ The party's HP snapshot shows each character's level. The engine owns XP, levels
 - MILESTONE campaigns: skip XP and call `setMilestoneLevel` at story milestones instead. Pick one scheme
   per campaign, not both.
 
+## GEAR & GOLD (engine-authoritative)
+`getState` lists each character's items (with instanceIds), their coin purse, and a `shop` of buyable
+ids + prices. The engine owns every coin, item, and AC:
+- SHOPPING: `buyItem` (the engine makes change across cp/sp/gp and refuses if they cannot afford it) and
+  `sellItem` (half the price). Hand out loot with `addItem`; remove spent/lost items with `removeItem`.
+- EQUIPMENT: `equipItem` by the item's instanceId fills its slot and recomputes AC — narrate from that
+  new AC, never invent it. Many magic items need `attuneItem` (the engine enforces the SRD limit of 3 and
+  that the item is identified first). An unidentified magic item must be `identifyItem`-ed to work.
+- DEATH & REVIVAL: `heal` never works on a dead character — only `revive` (Revivify / Raise Dead) does.
+
 ## NARRATE FROM TRUTH
 - Every number in your narration must trace to engine state or an engine result. If you haven't read
   it or rolled for it, don't state it. When in doubt, `getState` first.

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { NotImplemented, type CharacterSheet, type StatBlock } from '@mythweaver/shared';
+import { NotImplemented, type CharacterSheet, type ItemDef, type StatBlock } from '@mythweaver/shared';
 import { Engine } from './engine.js';
 import { createInitialState } from './state.js';
 
@@ -521,7 +521,7 @@ describe('Engine — P3c progression (XP + leveling)', () => {
 
   it('seeds a character progression record and awards XP without auto-leveling', () => {
     const e = engineWith([fighter()]);
-    expect(e.getState().characters!['pc:fighter']).toEqual({ xp: 0, level: 1, currency: { cp: 0, sp: 0, gp: 0 } });
+    expect(e.getState().characters!['pc:fighter']).toEqual({ xp: 0, level: 1, currency: { cp: 0, sp: 0, gp: 0 }, items: [], attunedInstanceIds: [], equipped: {} });
     expect(e.awardXp({ combatantId: 'pc:fighter', amount: 100 })).toEqual({ xp: 100, level: 1, levelUpAvailable: false });
     expect(e.awardXp({ combatantId: 'pc:fighter', amount: 250 })).toEqual({ xp: 350, level: 1, levelUpAvailable: true }); // 350 ≥ 300
     expect(e.getState().characters!['pc:fighter']!.level).toBe(1); // still 1 — awardXp never levels
@@ -550,5 +550,79 @@ describe('Engine — P3c progression (XP + leveling)', () => {
     expect(r).toEqual({ level: 4, maxHitPoints: 36, hitDiceRemaining: 4, proficiencyBonus: 2, asiDue: true, hpGained: 24 }); // 3 × (avg 6 + CON 2)
     expect(e.getState().characters!['pc:fighter']!.xp).toBe(2700); // synced to the L4 threshold
     expect(() => e.setMilestoneLevel({ combatantId: 'pc:fighter', level: 3 })).toThrow(/already level 4/);
+  });
+});
+
+const TEST_CATALOG: Record<string, ItemDef> = {
+  'leather-armor': { id: 'leather-armor', name: 'Leather Armor', category: 'armor', slot: 'armor', weightLb: 10, costGp: 10, acBase: 11 },
+  'plate-armor': { id: 'plate-armor', name: 'Plate Armor', category: 'armor', slot: 'armor', weightLb: 65, costGp: 1500, acBase: 18, acDexCap: 0 },
+  shield: { id: 'shield', name: 'Shield', category: 'shield', slot: 'shield', weightLb: 6, costGp: 10, acBonus: 2 },
+  torch: { id: 'torch', name: 'Torch', category: 'gear', weightLb: 1, costGp: 0.01 },
+  'ring-protection': { id: 'ring-protection', name: 'Ring of Protection', category: 'ring', weightLb: 0, magic: true, requiresAttunement: true, acBonus: 1 },
+  'cloak-elvenkind': { id: 'cloak-elvenkind', name: 'Cloak of Elvenkind', category: 'wondrous', weightLb: 1, magic: true, requiresAttunement: true },
+  'boots-striding': { id: 'boots-striding', name: 'Boots of Striding', category: 'wondrous', weightLb: 1, magic: true, requiresAttunement: true },
+  'belt-giant': { id: 'belt-giant', name: 'Belt of Giant Strength', category: 'wondrous', weightLb: 1, magic: true, requiresAttunement: true },
+};
+
+describe('Engine — P3d economy + inventory + equipment', () => {
+  const engineWith = (party: CharacterSheet[]) => new Engine(createInitialState({ sessionId: 's', scenarioId: 't', startSceneId: 'x', party, itemCatalog: TEST_CATALOG }), () => 0.5);
+
+  it('buys with exact change, refuses when unaffordable, and sells for half', () => {
+    const e = engineWith([fighter()]);
+    e.getState().characters!['pc:fighter']!.currency = { cp: 0, sp: 0, gp: 100 };
+    expect(e.buyItem({ combatantId: 'pc:fighter', itemDefId: 'leather-armor' }).currency).toEqual({ gp: 90, sp: 0, cp: 0 });
+    expect(() => e.buyItem({ combatantId: 'pc:fighter', itemDefId: 'plate-armor' })).toThrow(/afford/);
+    // change-making across cp/sp/gp: a 1-cp torch off 90 gp → 89 gp 9 sp 9 cp
+    expect(e.buyItem({ combatantId: 'pc:fighter', itemDefId: 'torch' }).currency).toEqual({ gp: 89, sp: 9, cp: 9 });
+    // sell the leather back for half its 10 gp value (+5 gp)
+    expect(e.sellItem({ combatantId: 'pc:fighter', itemDefId: 'leather-armor' }).currency).toEqual({ gp: 94, sp: 9, cp: 9 });
+  });
+
+  it('equipping armor + shield recomputes AC; unequipping falls back to the sheet AC', () => {
+    const e = engineWith([fighter()]); // sheet AC 16, DEX 12 (+1)
+    const plate = e.addItem({ combatantId: 'pc:fighter', itemDefId: 'plate-armor' }).instanceIds[0]!;
+    const shield = e.addItem({ combatantId: 'pc:fighter', itemDefId: 'shield' }).instanceIds[0]!;
+    expect(e.equipItem({ combatantId: 'pc:fighter', instanceId: plate }).armorClass).toBe(18); // 18 + min(1,0 cap)
+    expect(e.equipItem({ combatantId: 'pc:fighter', instanceId: shield }).armorClass).toBe(20); // + 2 shield
+    expect(e.getState().combatants['pc:fighter']!.armorClass).toBe(20);
+    e.unequipItem({ combatantId: 'pc:fighter', slot: 'armor' });
+    e.unequipItem({ combatantId: 'pc:fighter', slot: 'shield' });
+    expect(e.getState().combatants['pc:fighter']!.armorClass).toBe(16); // nothing equipped → sheet fallback
+  });
+
+  it('enforces identify-first and the hard cap of 3 attuned items', () => {
+    const e = engineWith([fighter()]);
+    const ids = ['ring-protection', 'cloak-elvenkind', 'boots-striding', 'belt-giant'].map((d) => e.addItem({ combatantId: 'pc:fighter', itemDefId: d }).instanceIds[0]!);
+    expect(() => e.attuneItem({ combatantId: 'pc:fighter', instanceId: ids[0]! })).toThrow(/identified/);
+    for (const id of ids) e.identifyItem({ combatantId: 'pc:fighter', instanceId: id });
+    e.attuneItem({ combatantId: 'pc:fighter', instanceId: ids[0]! });
+    e.attuneItem({ combatantId: 'pc:fighter', instanceId: ids[1]! });
+    e.attuneItem({ combatantId: 'pc:fighter', instanceId: ids[2]! });
+    expect(() => e.attuneItem({ combatantId: 'pc:fighter', instanceId: ids[3]! })).toThrow(/3 items/);
+    expect(e.getState().characters!['pc:fighter']!.attunedInstanceIds).toHaveLength(3);
+  });
+
+  it('gear stacks vs instances, and removing an item detaches it from equip/attune', () => {
+    const e = engineWith([fighter()]);
+    e.addItem({ combatantId: 'pc:fighter', itemDefId: 'torch', qty: 3 });
+    e.addItem({ combatantId: 'pc:fighter', itemDefId: 'torch', qty: 2 });
+    const torches = e.getState().characters!['pc:fighter']!.items.filter((i) => i.defId === 'torch');
+    expect(torches).toHaveLength(1); // stacked
+    expect(torches[0]!.qty).toBe(5);
+    const shield = e.addItem({ combatantId: 'pc:fighter', itemDefId: 'shield' }).instanceIds[0]!;
+    e.equipItem({ combatantId: 'pc:fighter', instanceId: shield });
+    e.removeItem({ combatantId: 'pc:fighter', instanceId: shield }); // detaches from the slot
+    expect(e.getState().characters!['pc:fighter']!.equipped.shield).toBeUndefined();
+  });
+
+  it('revive brings back a dead character; heal cannot', () => {
+    const e = engineWith([fighter()]);
+    e.setExhaustion({ combatantId: 'pc:fighter', level: 6 }); // exhaustion 6 = death
+    expect(e.getState().combatants['pc:fighter']!.dead).toBe(true);
+    expect(() => e.heal({ targetId: 'pc:fighter', amount: 5 })).toThrow(/dead/);
+    expect(e.revive({ combatantId: 'pc:fighter', hpRestored: 8 }).current).toBe(8);
+    const c = e.getState().combatants['pc:fighter']!;
+    expect(c.dead).toBe(false);
+    expect(c.currentHitPoints).toBe(8);
   });
 });

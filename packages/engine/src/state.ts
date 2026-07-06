@@ -1,6 +1,6 @@
 /** GameState construction helpers (the engine is the sole mutator — spec §4.1). */
 
-import { classToSpriteTag, type AdventureContext, type CharacterSheet, type CharacterState, type Combatant, type EncounterDef, type GameState, type StatBlock } from '@mythweaver/shared';
+import { classToSpriteTag, type AdventureContext, type CharacterSheet, type CharacterState, type Combatant, type EncounterDef, type GameState, type ItemDef, type StatBlock } from '@mythweaver/shared';
 import { abilityMod } from './derive.js';
 import { hitDieForClass, XP_THRESHOLDS } from './progression.js';
 
@@ -59,6 +59,8 @@ export function createInitialState(args: {
   /** Authored encounters + resolved stat blocks, so the engine can spawn monsters (P2). */
   encounters?: EncounterDef[];
   bestiary?: Record<string, StatBlock>;
+  /** The item catalog ItemRefs point into (P3d). */
+  itemCatalog?: Record<string, ItemDef>;
 }): GameState {
   const combatants: Record<string, Combatant> = {};
   const characters: Record<string, CharacterState> = {};
@@ -69,7 +71,15 @@ export function createInitialState(args: {
     // Progression home (P3c): xp seeded at the threshold for the starting level so awardXp/levelForXp
     // stay consistent (a level-3 pregen sits at 900 XP, needs 2700 for level 4). Sheet stored read-only
     // as the immutable spec the engine derives from (con mod for level-up HP, abilities/profs for checks).
-    characters[c.id] = { xp: XP_THRESHOLDS[Math.max(1, Math.min(20, pc.level))] ?? 0, level: pc.level, currency: { cp: 0, sp: 0, gp: 0 } };
+    const sc = pc.startingCurrency ?? {};
+    characters[c.id] = {
+      xp: XP_THRESHOLDS[Math.max(1, Math.min(20, pc.level))] ?? 0,
+      level: pc.level,
+      currency: { cp: sc.cp ?? 0, sp: sc.sp ?? 0, gp: sc.gp ?? 0 },
+      items: (pc.carriedItems ?? []).map((r) => ({ ...r })),
+      attunedInstanceIds: [],
+      equipped: {},
+    };
     sheets[c.id] = pc;
   }
   return {
@@ -86,5 +96,6 @@ export function createInitialState(args: {
     ...(args.adventure ? { adventure: args.adventure } : {}),
     ...(args.encounters ? { encounters: args.encounters } : {}),
     ...(args.bestiary ? { bestiary: args.bestiary } : {}),
+    ...(args.itemCatalog ? { itemCatalog: args.itemCatalog } : {}),
   };
 }

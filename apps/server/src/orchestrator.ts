@@ -29,7 +29,7 @@ import {
   type ToolDef,
 } from '@mythweaver/llm';
 import type { Retriever } from '@mythweaver/rag';
-import { isEntityId, type ArcBrief, type Combatant, type DamageType, type EntityCard, type EstablishScene, type FixtureDecl, type GameState, type NpcDecl, type PartyMemberRef, type PendingTurn, type SceneMap } from '@mythweaver/shared';
+import { isEntityId, type ArcBrief, type CharacterSheet, type CharacterState, type Combatant, type DamageType, type EntityCard, type EstablishScene, type FixtureDecl, type GameState, type ItemDef, type NpcDecl, type PartyMemberRef, type PendingTurn, type SceneMap } from '@mythweaver/shared';
 import type { ArcPlanner } from './arc-planner.js';
 import { CHARACTERS, PROMPT_PROPS, buildSceneMap, type SceneComposer } from '@mythweaver/scene';
 
@@ -99,7 +99,17 @@ PROGRESSION (the engine owns levels + XP):
   It NEVER auto-levels; you choose when (usually on a long rest). Then call "levelUp" and the engine
   raises HP/hit dice/proficiency and flags any Ability Score Improvement / feat for you to narrate.
 - For a milestone campaign (no XP tracking), skip awardXp and call "setMilestoneLevel" at story beats.
-  Use one scheme or the other, not both.`;
+  Use one scheme or the other, not both.
+
+GEAR & GOLD (the engine owns coins, items, and AC — read them from getState, which lists each PC's
+items with their instanceIds, their coin purse, and a "shop" of buyable ids + prices):
+- Shops: use "buyItem" (the engine makes change and refuses if they can't afford it) and "sellItem"
+  (half value). Hand out loot with "addItem"; remove used/lost items with "removeItem".
+- Equipment: "equipItem" (by the item's instanceId) fills the slot and recomputes AC — narrate from the
+  new AC, never invent it. Magic items often need "attuneItem" (the engine enforces the limit of 3 and
+  that the item is identified first); an unidentified magic item must be "identifyItem"-ed before it works.
+- Death & revival: heal NEVER works on a dead character. Only "revive" (a Revivify/Raise Dead effect)
+  brings them back.`;
 
 const MAX_STEPS = 6;
 const MAX_OUTPUT_TOKENS = 700;
@@ -438,6 +448,110 @@ export function buildToolDefs(retrieval: boolean, scene: boolean): ToolDef[] {
       },
     },
   );
+  // Economy + inventory + equipment (P3d). The engine owns coins, item state, AC, and attunement — the
+  // DM narrates the shop/loot/gear fiction and calls these; it never invents a price, an AC, or a total.
+  tools.push(
+    {
+      name: 'buyItem',
+      description: 'Buy an item from a shop by its catalog id. The engine checks the character can afford it, makes exact change across cp/sp/gp, and adds it — refusing if they are too poor.',
+      inputSchema: {
+        type: 'object',
+        properties: { combatantId: { type: 'string' }, itemDefId: { type: 'string', description: 'Catalog id, e.g. "leather-armor", "potion-healing", "shield".' }, qty: { type: 'number' } },
+        required: ['combatantId', 'itemDefId'],
+        additionalProperties: false,
+      },
+    },
+    {
+      name: 'sellItem',
+      description: 'Sell a carried item back for half its value (identify it by instanceId, or itemDefId for a stack). The engine removes it and credits the coins.',
+      inputSchema: {
+        type: 'object',
+        properties: { combatantId: { type: 'string' }, instanceId: { type: 'string' }, itemDefId: { type: 'string' }, qty: { type: 'number' } },
+        required: ['combatantId'],
+        additionalProperties: false,
+      },
+    },
+    {
+      name: 'addItem',
+      description: 'Give a character an item (loot, a gift, a found object) by catalog id — no cost. Returns the new instanceId(s) you can then equip or attune.',
+      inputSchema: {
+        type: 'object',
+        properties: { combatantId: { type: 'string' }, itemDefId: { type: 'string' }, qty: { type: 'number' } },
+        required: ['combatantId', 'itemDefId'],
+        additionalProperties: false,
+      },
+    },
+    {
+      name: 'removeItem',
+      description: 'Remove an item (used up, dropped, stolen, destroyed) — by instanceId (one), or itemDefId + qty (from a stack).',
+      inputSchema: {
+        type: 'object',
+        properties: { combatantId: { type: 'string' }, instanceId: { type: 'string' }, itemDefId: { type: 'string' }, qty: { type: 'number' } },
+        required: ['combatantId'],
+        additionalProperties: false,
+      },
+    },
+    {
+      name: 'equipItem',
+      description: 'Equip a carried item (armor, shield, weapon) by its instanceId. The engine fills the slot and recomputes AC from the gear.',
+      inputSchema: {
+        type: 'object',
+        properties: { combatantId: { type: 'string' }, instanceId: { type: 'string' } },
+        required: ['combatantId', 'instanceId'],
+        additionalProperties: false,
+      },
+    },
+    {
+      name: 'unequipItem',
+      description: 'Unequip a slot ("armor"/"shield"/"mainHand"/"offHand"/"ranged") or a specific instanceId; AC recomputes.',
+      inputSchema: {
+        type: 'object',
+        properties: { combatantId: { type: 'string' }, slot: { type: 'string', enum: ['armor', 'shield', 'mainHand', 'offHand', 'ranged'] }, instanceId: { type: 'string' } },
+        required: ['combatantId'],
+        additionalProperties: false,
+      },
+    },
+    {
+      name: 'attuneItem',
+      description: 'Attune a character to a magic item (by instanceId) — required for many magic items to function. The engine enforces the SRD limit of 3 attuned items and that the item is identified first.',
+      inputSchema: {
+        type: 'object',
+        properties: { combatantId: { type: 'string' }, instanceId: { type: 'string' } },
+        required: ['combatantId', 'instanceId'],
+        additionalProperties: false,
+      },
+    },
+    {
+      name: 'unattuneItem',
+      description: "End a character's attunement to an item, freeing an attunement slot.",
+      inputSchema: {
+        type: 'object',
+        properties: { combatantId: { type: 'string' }, instanceId: { type: 'string' } },
+        required: ['combatantId', 'instanceId'],
+        additionalProperties: false,
+      },
+    },
+    {
+      name: 'identifyItem',
+      description: 'Identify a magic item (an Identify spell, or a short rest spent studying it) so its properties and attunement unlock.',
+      inputSchema: {
+        type: 'object',
+        properties: { combatantId: { type: 'string' }, instanceId: { type: 'string' } },
+        required: ['combatantId', 'instanceId'],
+        additionalProperties: false,
+      },
+    },
+    {
+      name: 'revive',
+      description: 'Bring a DEAD character back to life (Revivify, Raise Dead, a divine boon). The engine clears death and restores HP (pass hpRestored; default 1). This is the ONLY way back — heal does not work on the dead.',
+      inputSchema: {
+        type: 'object',
+        properties: { combatantId: { type: 'string' }, hpRestored: { type: 'number' } },
+        required: ['combatantId'],
+        additionalProperties: false,
+      },
+    },
+  );
   // Arc / Game-Master steering (D1): move the story by following the players, and remember branch choices.
   tools.push(
     {
@@ -543,9 +657,10 @@ function sceneDigest(map: SceneMap): string {
 }
 
 /** Compact per-PC character-engine tail for the state block — NON-DEFAULT pools only, so a mundane L1
- *  martial adds ~0 tokens and a loaded caster adds ~15 (spell slots, spent hit dice, class pools,
- *  exhaustion, inspiration). Keeps the token budget honest while the DM still sees what's left to spend. */
-function characterTail(c: Combatant): string {
+ *  martial adds ~0 tokens and a loaded caster/adventurer adds ~15–25 (spell slots, class pools, exhaustion,
+ *  inspiration, concentration, gold, attunement, overload). Keeps the token budget honest while the DM
+ *  still sees what each character has left to spend / is carrying. */
+function characterTail(c: Combatant, cs?: CharacterState, sheet?: CharacterSheet, catalog?: Record<string, ItemDef>): string {
   const parts: string[] = [];
   if (c.slotsRemaining && c.slotsMax) {
     const slots = c.slotsRemaining
@@ -562,6 +677,17 @@ function characterTail(c: Combatant): string {
   if (c.exhaustion) parts.push(`exhaustion ${c.exhaustion}`);
   if (c.inspiration) parts.push('inspiration');
   if (c.concentratingOn) parts.push(`concentrating: ${c.concentratingOn.spell}`);
+  if (cs) {
+    const { cp, sp, gp } = cs.currency;
+    const coins = [gp ? `${gp}gp` : '', sp ? `${sp}sp` : '', cp ? `${cp}cp` : ''].filter(Boolean).join(' ');
+    if (coins) parts.push(coins);
+    if (cs.attunedInstanceIds.length) parts.push(`attuned ${cs.attunedInstanceIds.length}/3`);
+    if (sheet && catalog) {
+      const weight = cs.items.reduce((w, i) => w + (catalog[i.defId]?.weightLb ?? 0) * (i.qty ?? 1), 0);
+      const cap = sheet.abilities.str * 15;
+      if (weight > cap) parts.push(`OVERLOADED ${Math.round(weight)}/${cap}lb`);
+    }
+  }
   return parts.length ? ` — ${parts.join('; ')}` : '';
 }
 
@@ -573,7 +699,7 @@ function summarizeState(state: GameState): string {
       return (
         `- ${c.name}${cs ? ` (L${cs.level})` : ''}: ${c.currentHitPoints}/${c.maxHitPoints} HP, AC ${c.armorClass}` +
         (c.conditions.length ? `, conditions: ${c.conditions.join(', ')}` : '') +
-        characterTail(c)
+        characterTail(c, cs, state.sheets?.[c.id], state.itemCatalog)
       );
     })
     .join('\n');
@@ -597,20 +723,42 @@ function summarizeState(state: GameState): string {
 /** The JSON the getState tool returns to the model. */
 function serializeStateForModel(state: GameState): string {
   const map = currentMap(state);
+  const catalog = state.itemCatalog ?? {};
   return JSON.stringify({
     scene: state.currentSceneId,
     inCombat: state.combat.active,
     round: state.combat.round,
-    combatants: Object.values(state.combatants).map((c) => ({
-      id: c.id,
-      name: c.name,
-      kind: c.kind,
-      hp: `${c.currentHitPoints}/${c.maxHitPoints}`,
-      ac: c.armorClass,
-      conditions: c.conditions,
-      ...(state.characters?.[c.id] ? { level: state.characters[c.id]!.level, xp: state.characters[c.id]!.xp } : {}),
-    })),
+    combatants: Object.values(state.combatants).map((c) => {
+      const cs = state.characters?.[c.id];
+      return {
+        id: c.id,
+        name: c.name,
+        kind: c.kind,
+        hp: `${c.currentHitPoints}/${c.maxHitPoints}`,
+        ac: c.armorClass,
+        conditions: c.conditions,
+        ...(cs
+          ? {
+              level: cs.level,
+              xp: cs.xp,
+              currency: cs.currency,
+              // Instance ids the DM needs to equip/attune/sell, with live flags.
+              items: cs.items.map((i) => ({
+                instanceId: i.instanceId,
+                id: i.defId,
+                name: catalog[i.defId]?.name ?? i.defId,
+                ...(i.qty && i.qty > 1 ? { qty: i.qty } : {}),
+                ...(Object.values(cs.equipped).includes(i.instanceId) ? { equipped: true } : {}),
+                ...(cs.attunedInstanceIds.includes(i.instanceId) ? { attuned: true } : {}),
+                ...(i.identified === false ? { unidentified: true } : {}),
+              })),
+            }
+          : {}),
+      };
+    }),
     flags: state.flags,
+    // The buyable catalog (id + name + price) so the DM can run a shop with real ids + prices.
+    ...(Object.keys(catalog).length ? { shop: Object.values(catalog).filter((d) => d.costGp !== undefined).map((d) => ({ id: d.id, name: d.name, gp: d.costGp })) } : {}),
     // The frozen object_map so the DM references real entity ids + positions (slice 5: deltas).
     ...(map
       ? {
@@ -1169,6 +1317,77 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
       } else if (tc.name === 'setMilestoneLevel') {
         try {
           const r = engine.setMilestoneLevel({ combatantId: String(tc.input.combatantId ?? ''), level: Number(tc.input.level) });
+          resolved.push({ toolUseId: tc.id, content: JSON.stringify(r) });
+        } catch (e) {
+          resolved.push({ toolUseId: tc.id, content: JSON.stringify({ error: (e as Error).message }) });
+        }
+      } else if (tc.name === 'buyItem') {
+        try {
+          const r = engine.buyItem({ combatantId: String(tc.input.combatantId ?? ''), itemDefId: String(tc.input.itemDefId ?? ''), ...(tc.input.qty !== undefined ? { qty: Number(tc.input.qty) } : {}) });
+          resolved.push({ toolUseId: tc.id, content: JSON.stringify(r) });
+        } catch (e) {
+          resolved.push({ toolUseId: tc.id, content: JSON.stringify({ error: (e as Error).message }) });
+        }
+      } else if (tc.name === 'sellItem') {
+        try {
+          const r = engine.sellItem({ combatantId: String(tc.input.combatantId ?? ''), ...(tc.input.instanceId !== undefined ? { instanceId: String(tc.input.instanceId) } : {}), ...(tc.input.itemDefId !== undefined ? { itemDefId: String(tc.input.itemDefId) } : {}), ...(tc.input.qty !== undefined ? { qty: Number(tc.input.qty) } : {}) });
+          resolved.push({ toolUseId: tc.id, content: JSON.stringify(r) });
+        } catch (e) {
+          resolved.push({ toolUseId: tc.id, content: JSON.stringify({ error: (e as Error).message }) });
+        }
+      } else if (tc.name === 'addItem') {
+        try {
+          const r = engine.addItem({ combatantId: String(tc.input.combatantId ?? ''), itemDefId: String(tc.input.itemDefId ?? ''), ...(tc.input.qty !== undefined ? { qty: Number(tc.input.qty) } : {}) });
+          resolved.push({ toolUseId: tc.id, content: JSON.stringify(r) });
+        } catch (e) {
+          resolved.push({ toolUseId: tc.id, content: JSON.stringify({ error: (e as Error).message }) });
+        }
+      } else if (tc.name === 'removeItem') {
+        try {
+          const r = engine.removeItem({ combatantId: String(tc.input.combatantId ?? ''), ...(tc.input.instanceId !== undefined ? { instanceId: String(tc.input.instanceId) } : {}), ...(tc.input.itemDefId !== undefined ? { itemDefId: String(tc.input.itemDefId) } : {}), ...(tc.input.qty !== undefined ? { qty: Number(tc.input.qty) } : {}) });
+          resolved.push({ toolUseId: tc.id, content: JSON.stringify(r) });
+        } catch (e) {
+          resolved.push({ toolUseId: tc.id, content: JSON.stringify({ error: (e as Error).message }) });
+        }
+      } else if (tc.name === 'equipItem') {
+        try {
+          const r = engine.equipItem({ combatantId: String(tc.input.combatantId ?? ''), instanceId: String(tc.input.instanceId ?? '') });
+          resolved.push({ toolUseId: tc.id, content: JSON.stringify(r) });
+        } catch (e) {
+          resolved.push({ toolUseId: tc.id, content: JSON.stringify({ error: (e as Error).message }) });
+        }
+      } else if (tc.name === 'unequipItem') {
+        try {
+          const slot = ['armor', 'shield', 'mainHand', 'offHand', 'ranged'].includes(String(tc.input.slot)) ? (String(tc.input.slot) as 'armor' | 'shield' | 'mainHand' | 'offHand' | 'ranged') : undefined;
+          const r = engine.unequipItem({ combatantId: String(tc.input.combatantId ?? ''), ...(slot ? { slot } : {}), ...(tc.input.instanceId !== undefined ? { instanceId: String(tc.input.instanceId) } : {}) });
+          resolved.push({ toolUseId: tc.id, content: JSON.stringify(r) });
+        } catch (e) {
+          resolved.push({ toolUseId: tc.id, content: JSON.stringify({ error: (e as Error).message }) });
+        }
+      } else if (tc.name === 'attuneItem') {
+        try {
+          const r = engine.attuneItem({ combatantId: String(tc.input.combatantId ?? ''), instanceId: String(tc.input.instanceId ?? '') });
+          resolved.push({ toolUseId: tc.id, content: JSON.stringify(r) });
+        } catch (e) {
+          resolved.push({ toolUseId: tc.id, content: JSON.stringify({ error: (e as Error).message }) });
+        }
+      } else if (tc.name === 'unattuneItem') {
+        try {
+          const r = engine.unattuneItem({ combatantId: String(tc.input.combatantId ?? ''), instanceId: String(tc.input.instanceId ?? '') });
+          resolved.push({ toolUseId: tc.id, content: JSON.stringify(r) });
+        } catch (e) {
+          resolved.push({ toolUseId: tc.id, content: JSON.stringify({ error: (e as Error).message }) });
+        }
+      } else if (tc.name === 'identifyItem') {
+        try {
+          const r = engine.identifyItem({ combatantId: String(tc.input.combatantId ?? ''), instanceId: String(tc.input.instanceId ?? '') });
+          resolved.push({ toolUseId: tc.id, content: JSON.stringify(r) });
+        } catch (e) {
+          resolved.push({ toolUseId: tc.id, content: JSON.stringify({ error: (e as Error).message }) });
+        }
+      } else if (tc.name === 'revive') {
+        try {
+          const r = engine.revive({ combatantId: String(tc.input.combatantId ?? ''), ...(tc.input.hpRestored !== undefined ? { hpRestored: Number(tc.input.hpRestored) } : {}) });
           resolved.push({ toolUseId: tc.id, content: JSON.stringify(r) });
         } catch (e) {
           resolved.push({ toolUseId: tc.id, content: JSON.stringify({ error: (e as Error).message }) });

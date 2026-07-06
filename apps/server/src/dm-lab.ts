@@ -26,7 +26,7 @@ import type { Retriever } from '@mythweaver/rag';
 import { FakeSceneComposer, type SceneComposer } from '@mythweaver/scene';
 import type { CharacterSheet, EntityCard, EstablishScene, GameState, PartyMemberRef, SceneMap, StatBlock } from '@mythweaver/shared';
 import { createHash } from 'node:crypto';
-import { loadScenario, parseScenario, resolveParty } from './content.js';
+import { loadItemCatalog, loadScenario, parseScenario, resolveParty } from './content.js';
 import { buildRetriever } from './corpus.js';
 import { loadDirectorArchitect, loadDirectorComposer, loadDirectorPlanner, loadPlaybook } from './prompts.js';
 import { buildArcPlanner, type ArcPlanner } from './arc-planner.js';
@@ -142,10 +142,12 @@ export function autoRollTotal(expr: string): number {
 interface CombatantSnap {
   id: string;
   hp: string;
+  ac: number;
   conditions: string[];
   downed: boolean;
-  /** Compact character-engine pool signature (spell slots / hit dice / class resources / exhaustion /
-   *  inspiration) so the lab trace shows progression + rests unfold, the way it already shows HP. */
+  /** Compact character-engine signature (level/xp, spell slots, hit dice, class resources, exhaustion,
+   *  inspiration, concentration, gold, item count, attunement) so the lab trace shows progression, rests,
+   *  and shopping/loot unfold, the way it already shows HP. */
   res: string;
 }
 interface StateSnap {
@@ -164,23 +166,28 @@ function snapshot(state: GameState): StateSnap {
     combat: state.combat.active ? `round ${state.combat.round}` : 'no',
     pending: state.pendingTurn ? `${state.pendingTurn.rollExpr} — ${state.pendingTurn.rollReason}` : null,
     // All combatants (PCs + spawned monsters), so the lab trace shows the fight unfold.
-    combatants: Object.values(state.combatants).map((c) => ({
-      id: c.id,
-      hp: `${c.currentHitPoints}/${c.maxHitPoints}`,
-      conditions: [...c.conditions],
-      downed: !!c.downed,
-      res: [
-        state.characters?.[c.id] ? `lvl:${state.characters[c.id]!.level} xp:${state.characters[c.id]!.xp}` : '',
-        c.slotsRemaining ? `slots:${c.slotsRemaining.slice(1).join('/')}` : '',
-        c.hitDice ? `hd:${c.hitDice.remaining}/${c.hitDice.max}` : '',
-        ...Object.entries(c.resources ?? {}).map(([k, v]) => `${k}:${v.current}/${v.max}`),
-        c.exhaustion ? `exh:${c.exhaustion}` : '',
-        c.inspiration ? 'insp' : '',
-        c.concentratingOn ? `conc:${c.concentratingOn.spell}` : '',
-      ]
-        .filter(Boolean)
-        .join(' '),
-    })),
+    combatants: Object.values(state.combatants).map((c) => {
+      const cs = state.characters?.[c.id];
+      return {
+        id: c.id,
+        hp: `${c.currentHitPoints}/${c.maxHitPoints}`,
+        ac: c.armorClass,
+        conditions: [...c.conditions],
+        downed: !!c.downed,
+        res: [
+          cs ? `lvl:${cs.level} xp:${cs.xp}` : '',
+          c.slotsRemaining ? `slots:${c.slotsRemaining.slice(1).join('/')}` : '',
+          c.hitDice ? `hd:${c.hitDice.remaining}/${c.hitDice.max}` : '',
+          ...Object.entries(c.resources ?? {}).map(([k, v]) => `${k}:${v.current}/${v.max}`),
+          c.exhaustion ? `exh:${c.exhaustion}` : '',
+          c.inspiration ? 'insp' : '',
+          c.concentratingOn ? `conc:${c.concentratingOn.spell}` : '',
+          cs ? `gp:${cs.currency.gp} items:${cs.items.length}${cs.attunedInstanceIds.length ? ` atn:${cs.attunedInstanceIds.length}` : ''}` : '',
+        ]
+          .filter(Boolean)
+          .join(' '),
+      };
+    }),
     flags: { ...state.flags },
   };
 }
@@ -201,6 +208,7 @@ function diffSnaps(before: StateSnap, after: StateSnap): string[] {
       continue;
     }
     if (b.hp !== a.hp) out.push(`${a.id} HP: ${b.hp} → ${a.hp}`);
+    if (b.ac !== a.ac) out.push(`${a.id} AC: ${b.ac} → ${a.ac}`);
     if (!b.downed && a.downed) out.push(`${a.id} DOWNED`);
     if (b.downed && !a.downed) out.push(`${a.id} back up`);
     if (b.res !== a.res) out.push(`${a.id} resources: ${b.res || '∅'} → ${a.res || '∅'}`);
@@ -297,6 +305,7 @@ export function createDmLabSession(deps: DmLabDeps, scenarioId: string): DmLabSe
     ...(adventure ? { adventure } : {}),
     ...(encounters ? { encounters } : {}),
     bestiary,
+    itemCatalog: loadItemCatalog(),
   });
   // Pre-prime the architected blueprint so the orchestrator SKIPS the architect step in generate-mode.
   if (gen) state.arc = { blueprint: gen.blueprint, genMeta: gen.genMeta };

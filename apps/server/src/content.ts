@@ -3,7 +3,7 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import type { CharacterSheet, StatBlock } from '@mythweaver/shared';
+import type { CharacterSheet, ItemDef, StatBlock } from '@mythweaver/shared';
 
 const CONTENT_DIR =
   process.env.MYTHWEAVER_CONTENT_DIR ?? resolve(dirname(fileURLToPath(import.meta.url)), '../../../content');
@@ -105,6 +105,19 @@ export function loadSharedBestiary(): StatBlock[] {
     }
   }
   return bestiary;
+}
+
+/** The game-wide item catalog (P3d): loaded on boot like the bestiary; ItemRefs on a character point into it. */
+export function loadItemCatalog(): Record<string, ItemDef> {
+  const items = readJson<ItemDef[]>(resolve(SHARED_DIR, 'items.json'));
+  const catalog: Record<string, ItemDef> = {};
+  for (const it of items) {
+    if (!it.id || !it.name || !it.category || typeof it.weightLb !== 'number') {
+      throw new Error(`Shared item is invalid (need id, name, category, numeric weightLb): ${JSON.stringify(it).slice(0, 80)}`);
+    }
+    catalog[it.id] = it;
+  }
+  return catalog;
 }
 
 /**
