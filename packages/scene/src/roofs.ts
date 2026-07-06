@@ -114,6 +114,57 @@ function rimInto(rb: RoofBuilding, r: IRect, base: RGB): void {
   }
 }
 
+// ── Chimney / dormer / door PLACEMENT — organic, off the hip junctions, and marking the real entrance. ──
+function mulberry(seed: number): () => number {
+  let s = seed >>> 0;
+  return () => { s = (s + 0x6d2b79f5) >>> 0; let t = s; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+}
+const segLen = (l: { x1: number; y1: number; x2: number; y2: number }): number => Math.hypot(l.x2 - l.x1, l.y2 - l.y1);
+/** Distance from a point to the nearest of a building's roof LINES (hips / ridge / rim) — so a sprite can be
+ *  kept clear of every junction (a window on a hip reads as an error). */
+function minLineDist(lines: Array<{ x1: number; y1: number; x2: number; y2: number }>, px: number, py: number): number {
+  let best = Infinity;
+  for (const l of lines) {
+    const dx = l.x2 - l.x1, dy = l.y2 - l.y1, len2 = dx * dx + dy * dy;
+    const t = len2 ? Math.max(0, Math.min(1, ((px - l.x1) * dx + (py - l.y1) * dy) / len2)) : 0;
+    best = Math.min(best, Math.hypot(px - (l.x1 + dx * t), py - (l.y1 + dy * t)));
+  }
+  return best;
+}
+function placeSprites(rb: RoofBuilding, b: BuildingFootprint, entrances: Array<{ col: number; row: number; fixtureId?: string }>): void {
+  const { x, y, w, h } = b.rect, X = x * T, Y = y * T, W = w * T, H = h * T;
+  const rng = mulberry(((x * 73856093) ^ (y * 19349663) ^ (w * 83492791) ^ (h * 2971215073)) >>> 0);
+  // DOOR — a top-down entrance marker at the recorded door, oriented to its wall side, so the way in shows.
+  const ent = entrances.find((e) => e.fixtureId === b.id);
+  let doorX = -999, doorY = -999;
+  if (ent) {
+    const side = ent.row <= y ? 'n' : ent.row >= y + h - 1 ? 's' : ent.col <= x ? 'w' : 'e';
+    doorX = (ent.col + 0.5) * T; doorY = (ent.row + 0.5) * T;
+    rb.sprites.push({ x: doorX, y: doorY, tag: `roof_door_${side}` });
+  }
+  // CHIMNEYS — on the longest ridge (the w:2 lines), 1 or 2, at varied positions along it.
+  const ridges = rb.lines.filter((l) => l.w === 2);
+  if (ridges.length) {
+    const ridge = ridges.reduce((a, c) => (segLen(a) >= segLen(c) ? a : c));
+    const nCh = segLen(ridge) > 9 * T && rng() < 0.5 ? 2 : 1;
+    for (let i = 0; i < nCh; i++) {
+      const t = nCh === 1 ? 0.26 + rng() * 0.42 : (i + 1) / (nCh + 1) + (rng() - 0.5) * 0.08;
+      rb.sprites.push({ x: ridge.x1 + (ridge.x2 - ridge.x1) * t, y: ridge.y1 + (ridge.y2 - ridge.y1) * t, tag: 'roof_chimney' });
+    }
+  }
+  // DORMERS — along the SOUTH eave (facing the viewer, near the border where dormers belong), kept CLEAR of
+  // the hip junctions and the door, spaced apart, in a VARIED count. Never on a ridge/hip.
+  const IN = 13, cands: Array<{ x: number; y: number }> = [];
+  for (let px = X + 18; px <= X + W - 18; px += 20) cands.push({ x: px, y: Y + H - IN });
+  const safe = cands.filter((p) => minLineDist(rb.lines, p.x, p.y) > 10 && Math.hypot(p.x - doorX, p.y - doorY) > 20);
+  for (let i = safe.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); const tmp = safe[i]!; safe[i] = safe[j]!; safe[j] = tmp; }
+  const area = w * h;
+  const want = Math.min(safe.length, area >= 64 ? 1 + Math.floor(rng() * 3) : area >= 30 ? Math.floor(rng() * 2) : 0);
+  const picked: Array<{ x: number; y: number }> = [];
+  for (const p of safe) { if (picked.length >= want) break; if (picked.every((q) => Math.hypot(p.x - q.x, p.y - q.y) > 26)) picked.push(p); }
+  for (const p of picked) rb.sprites.push({ x: p.x, y: p.y, tag: 'roof_dormer' });
+}
+
 /** Build vector roof geometry for every recorded building. */
 export function buildRoofs(cv: Canvas): RoofBuilding[] {
   const out: RoofBuilding[] = [];
@@ -142,19 +193,12 @@ export function buildRoofs(cv: Canvas): RoofBuilding[] {
     if (!rects.length) continue;
     const base: RGB = MAT[b.roof] ?? [0xc6, 0xa2, 0x62];
     const rb: RoofBuilding = { id: b.id, faces: [], lines: [], sprites: [] };
-    let big = rects[0]!, bigA = 0;
     for (const r of rects) {
       const long = Math.max(r.w, r.h), short = Math.min(r.w, r.h);
       if (long / short >= 2.3 && short <= 4) gableInto(rb, r, base); else hipInto(rb, r, base);
       rimInto(rb, r, base);
-      if (r.w * r.h > bigA) { bigA = r.w * r.h; big = r; }
     }
-    // A chimney near the biggest block's ridge; a pair of dormers if that block is roomy.
-    rb.sprites.push({ x: (big.x + big.w * 0.32) * T, y: (big.y + big.h * 0.30) * T, tag: 'roof_chimney' });
-    if (big.w >= 6 && big.h >= 5) {
-      rb.sprites.push({ x: (big.x + big.w * 0.34) * T, y: (big.y + big.h * 0.72) * T, tag: 'roof_dormer' });
-      rb.sprites.push({ x: (big.x + big.w * 0.66) * T, y: (big.y + big.h * 0.72) * T, tag: 'roof_dormer' });
-    }
+    placeSprites(rb, b, cv.entrances);
     out.push(rb);
   }
   return out;

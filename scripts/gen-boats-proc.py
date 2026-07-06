@@ -410,6 +410,27 @@ d2.line([(dcx, 5), (dcx, DH - 5)], fill=(0x2a, 0x4a, 0x54, 255))                
 dm.save(os.path.join(OUT, "roof_dormer.png"))
 print("wrote roof_dormer")
 
+# ---- ENTRANCE marker: a top-down doorway shown ON the roof so the player sees where to go in. The DawnLike
+# door is a 3/4 sprite; roofs are cenital, so this is a bespoke top-down door (recessed frame + slab + knob +
+# a stone threshold that spills onto the ground under the eave). Drawn facing SOUTH, emitted in 4 headings. ----
+door = Image.new("RGBA", (16, 16), (0, 0, 0, 0))
+dd = ImageDraw.Draw(door)
+WOOD, WOODD, WOODL = (0x6e, 0x46, 0x28, 255), (0x30, 0x20, 0x14, 255), (0x8e, 0x60, 0x38, 255)
+STEP, STEPD, KNOB = (0xc2, 0xb8, 0xa6, 255), (0x86, 0x7c, 0x6c, 255), (0xd8, 0xc0, 0x66, 255)
+dd.rectangle([2, 1, 13, 3], fill=(0, 0, 0, 95))                 # eave overhang shadow over the door
+dd.rectangle([4, 3, 11, 13], fill=WOODD)                        # recessed frame
+dd.rectangle([5, 4, 10, 12], fill=WOOD)                         # door slab
+dd.line([(5, 4), (10, 4)], fill=WOODL)                          # lit top edge
+for px in (7, 9):
+    dd.line([(px, 5), (px, 11)], fill=WOODD)                    # plank seams
+dd.point((9, 8), fill=KNOB)                                     # brass knob
+dd.rectangle([3, 13, 12, 15], fill=STEP, outline=STEPD)         # stone threshold onto the ground
+door.save(os.path.join(OUT, "roof_door_s.png"))
+door.transpose(Image.ROTATE_180).save(os.path.join(OUT, "roof_door_n.png"))
+door.transpose(Image.ROTATE_270).save(os.path.join(OUT, "roof_door_e.png"))  # bottom → right
+door.transpose(Image.ROTATE_90).save(os.path.join(OUT, "roof_door_w.png"))   # bottom → left
+print("wrote roof_door_n/s/e/w")
+
 # ---- rope_coil ----
 RW, RH = 12, 10
 img = Image.new("RGBA", (RW, RH), CLEAR)

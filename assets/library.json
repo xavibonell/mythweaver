@@ -6926,6 +6926,98 @@
       },
       "license": "hand-drawn procedural pixel art in the DB16 palette (scripts/gen-boats-proc.py); owned, NOT DawnLike",
       "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "roof_door_n",
+      "desc": "a top-down entrance marker",
+      "biomes": [
+        "village",
+        "town",
+        "city"
+      ],
+      "art": "/assets/proc/props/roof_door_n.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-boats-proc.py"
+      },
+      "license": "hand-drawn procedural pixel art in the DB16 palette (scripts/gen-boats-proc.py); owned, NOT DawnLike",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "roof_door_s",
+      "desc": "a top-down entrance marker",
+      "biomes": [
+        "village",
+        "town",
+        "city"
+      ],
+      "art": "/assets/proc/props/roof_door_s.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-boats-proc.py"
+      },
+      "license": "hand-drawn procedural pixel art in the DB16 palette (scripts/gen-boats-proc.py); owned, NOT DawnLike",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "roof_door_e",
+      "desc": "a top-down entrance marker",
+      "biomes": [
+        "village",
+        "town",
+        "city"
+      ],
+      "art": "/assets/proc/props/roof_door_e.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-boats-proc.py"
+      },
+      "license": "hand-drawn procedural pixel art in the DB16 palette (scripts/gen-boats-proc.py); owned, NOT DawnLike",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "roof_door_w",
+      "desc": "a top-down entrance marker",
+      "biomes": [
+        "village",
+        "town",
+        "city"
+      ],
+      "art": "/assets/proc/props/roof_door_w.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-boats-proc.py"
+      },
+      "license": "hand-drawn procedural pixel art in the DB16 palette (scripts/gen-boats-proc.py); owned, NOT DawnLike",
+      "attribution": "procedural asset (MythWeaver)"
     }
   ]
 }
