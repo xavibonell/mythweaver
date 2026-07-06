@@ -122,8 +122,9 @@ function renderFullImpl(scene: any, data: any): void {
   if (tint) terrainRT.setTint(tint);
   scene.sceneObjs.push(terrainRT);
 
-  // Seed-scattered ambiance (decor) sits just behind the placed objects on its row.
-  for (const a of data.ambiance ?? []) drawProp(scene, a.tag, a.col, a.row, 1, 1, a.row - 0.1, tint);
+  // Seed-scattered ambiance (decor) sits just behind the placed objects on its row. `mist_wisp` is drawn
+  // separately as a top layer (see the fog block below), so it drifts OVER the scene, not behind props.
+  for (const a of data.ambiance ?? []) if (a.tag !== 'mist_wisp') drawProp(scene, a.tag, a.col, a.row, 1, 1, a.row - 0.1, tint);
 
   // The object_map: fixtures/props are drawn as art; actors as sprites. Hidden objects are NOT drawn.
   for (const o of data.objects ?? []) {
@@ -132,9 +133,13 @@ function renderFullImpl(scene: any, data: any): void {
     else drawProp(scene, o.tag, o.col, o.row, o.footprint?.w ?? 1, o.footprint?.h ?? 1, o.row + 0.1, tint);
   }
 
-  // FOG = a pale, desaturating HAZE laid over the WHOLE scene (a light overlay, NOT a darkening multiply
-  // tint) — reads as a cold sea-fog. Sits above everything at a high depth.
-  if (data.lighting === 'fog') scene.add.rectangle(0, 0, cols * TILE, rows * TILE, 0xb0bac4, 0.42).setOrigin(0, 0).setDepth(100000);
+  // FOG = a LIGHT pale haze laid over the WHOLE scene (a soft overlay, NOT a darkening multiply tint) —
+  // reads as a cold sea-fog. Kept light so the scene stays legible; the real sense of fog comes from the
+  // scattered `mist_wisp` ambiance drifting above the scene (drawn on top, below this thin wash).
+  if (data.lighting === 'fog') {
+    for (const a of data.ambiance ?? []) if (a.tag === 'mist_wisp') drawProp(scene, a.tag, a.col, a.row, 1, 1, 99998 + a.row * 0.001, null);
+    scene.add.rectangle(0, 0, cols * TILE, rows * TILE, 0xb2bcc6, 0.24).setOrigin(0, 0).setDepth(100000);
+  }
 
   fitCamera(scene, data);
 }

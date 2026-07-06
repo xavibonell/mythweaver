@@ -154,15 +154,30 @@ function placeFrontierFeature(cv: Canvas, band: Rect, edge: FieldSide, kind: 'po
   const put = (tag: string, p: Pt, kindOf: 'prop' | 'actor', role?: 'npc'): void => { if (cv.inB(p.c, p.r)) place(cv, { id: `${kindOf}:frontier-${slug(locationId, 0)}-${p.c}-${p.r}`, tag, kind: kindOf, ...(role ? { role } : {}), at: p }); };
 
   if (kind === 'port') {
-    const dock = edge === 'east' || edge === 'west' ? 'dock_ew' : 'dock_ns';
-    const pierLen = Math.max(3, Math.min(6, Math.floor((edge === 'east' || edge === 'west' ? band.w : band.h) * 0.7)));
-    // a 2-wide plank pier from the beach (d=0) out into the water — walkable over the water
-    for (let d = 0; d < pierLen; d++) { deco(dock, cellAt(mid, d), true); if (d > 0) deco(dock, cellAt(mid + 1, d), true); }
-    // boats moored at the pier head, cargo at its base, dockworkers on the planks
-    cv.ambiance.push({ tag: 'boat_sail', col: cellAt(mid - 1, pierLen - 1).c, row: cellAt(mid - 1, pierLen - 1).r });
-    cv.ambiance.push({ tag: 'boat', col: cellAt(mid + 2, pierLen - 2).c, row: cellAt(mid + 2, pierLen - 2).r });
-    put('crate', cellAt(mid - 1, 0), 'prop'); put('barrel', cellAt(mid + 1, 0), 'prop');
-    for (let i = 0; i < 2; i++) put('villager', cellAt(mid, 1 + i), 'actor', 'npc');
+    // A real WHARF, not a rope-bridge: a wooden QUAY (plank boardwalk) along the shore + a plank PIER
+    // finger reaching into the water, both painted as `wood_floor` terrain (proper planks) and made
+    // walkable. Mooring pilings line the pier, boats lie alongside, crates/rope/workers clutter the quay.
+    const along = g.len;
+    const maxDepth = edge === 'east' || edge === 'west' ? band.w : band.h;
+    const pierLen = Math.max(4, Math.min(7, maxDepth - 1));
+    const inAlong = (a: number) => a >= 0 && a < along;
+    const plank = (a: number, d: number): void => { const p = cellAt(a, d); if (cv.inB(p.c, p.r)) { cv.tiles[p.r]![p.c] = 'wood_floor'; cv.walkable[p.r]![p.c] = true; } };
+    const moor = (tag: string, a: number, d: number): void => { if (inAlong(a)) deco(tag, cellAt(a, d)); };
+    // (1) QUAY — a plank boardwalk hugging the shore (d = 0..1), a few tiles either side of the pier.
+    const quayHalf = Math.max(1, Math.min(4, Math.floor(along / 2) - 1));
+    for (let a = mid - quayHalf; a <= mid + quayHalf; a++) if (inAlong(a)) { plank(a, 0); plank(a, 1); }
+    // (2) PIER — a 2-wide plank finger out into the water.
+    for (let d = 1; d <= pierLen; d++) { plank(mid, d); plank(mid + 1, d); }
+    // (3) PILINGS — mooring posts down the pier edges + a pair at the head (decorative, in the water).
+    for (let d = 2; d <= pierLen; d += 2) { moor('piling', mid - 1, d); moor('piling', mid + 2, d); }
+    moor('piling', mid, pierLen + 1); moor('piling', mid + 1, pierLen + 1);
+    // (4) BOATS moored alongside the pier — the sailboat to port, a rowboat to starboard.
+    moor('boat_sail', mid - 2, pierLen - 2);
+    moor('boat', mid + 2, pierLen - 3);
+    // (5) QUAY CLUTTER — crates/barrels/rope + a couple of dockworkers on the planks.
+    put('crate', cellAt(mid - quayHalf, 0), 'prop'); put('barrel', cellAt(mid + quayHalf, 0), 'prop');
+    moor('rope_coil', mid - 1, 1); moor('crate', mid + quayHalf - 1, 1);
+    for (let i = 0; i < 2; i++) put('villager', cellAt(mid + i, 2 + i), 'actor', 'npc');
   } else {
     // MINE: a mouth in the rock face (frontier cell, made walkable so it reads as an opening), an ore
     // vein glinting deeper in the rock, cargo + dwarf miners on the land apron just outside.
@@ -243,7 +258,12 @@ function townGen(cv: Canvas, ctx: GenContext): void {
   // town an anvil/forge, a market its stalls; a rough camp gets nothing but a firepit. A vignette the DM
   // explicitly named still wins.
   const CENTERPIECE: Record<NonNullable<Contents['character']>, string | undefined> = { mining: 'forge', port: 'market', market: 'market', civic: 'well', rough: undefined, grim: undefined };
-  const namedVig = contents.landmarks.map((l) => l.tag).find((t) => TOWN_VIGNETTES.has(t));
+  // A fountain (the 'well' vignette) belongs ONLY on a civic plaza — a mining/port/rough/grim town never
+  // gets one even if the DM's landmarks name a "well". This is the single choke-point: every other fountain
+  // placement (garden, yard, park) has been removed, so gating 'well' here means the fountain can appear in
+  // exactly one place in the whole town, and never in a horror village or a working dock.
+  const civic = (contents.character ?? 'civic') === 'civic';
+  const namedVig = contents.landmarks.map((l) => l.tag).find((t) => TOWN_VIGNETTES.has(t) && !(t === 'well' && !civic));
   const vig = namedVig ?? CENTERPIECE[contents.character ?? 'civic'];
   if (vig) vignette(cv, plazaCtr, vig, `plaza-${slug(locationId, 0)}`);
   else place(cv, { id: `prop:plaza-centre-${slug(locationId, 0)}`, tag: contents.character === 'grim' ? 'gravestone' : 'brazier', kind: 'prop', at: plazaCtr }); // grim: a graveyard marker; rough: a firepit — never a fountain

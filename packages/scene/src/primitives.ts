@@ -1171,6 +1171,20 @@ export function entrance(cv: Canvas, at: Pt, toLocationId: string): void {
 
 /** Run the shared post-passes and emit a frozen SceneMap. `outdoor` gates the terrain auto-tile bake +
  *  decal scatter (interiors skip them). reachabilityCarve is the LAST-RESORT safety net only. */
+/** Sparse drifting MIST — sprinkle `mist_wisp` decals across a fog scene on a coarse jittered grid, so
+ *  fog reads as patchy drifting mist floating OVER the map (the renderer draws these on top of everything),
+ *  not just a flat colour wash. Low density + grid spacing so it never obscures the scene. */
+function scatterMist(cv: Canvas): void {
+  const STEP = 7;
+  for (let gy = 2; gy < cv.rows - 1; gy += STEP)
+    for (let gx = 2; gx < cv.cols - 1; gx += STEP) {
+      if (cv.rng() < 0.42) continue; // ~58% of grid cells get a wisp
+      const c = Math.min(cv.cols - 1, gx + Math.floor(cv.rng() * STEP));
+      const r = Math.min(cv.rows - 1, gy + Math.floor(cv.rng() * STEP));
+      cv.ambiance.push({ tag: 'mist_wisp', col: c, row: r });
+    }
+}
+
 export function finalize(
   cv: Canvas,
   meta: { locationId: string; biome: string; lighting: Lighting; grammar: LayoutGrammar; outdoor: boolean; skipReachability?: boolean; skipDecals?: boolean },
@@ -1186,6 +1200,7 @@ export function finalize(
     if (!meta.skipDecals) scatterGroundDecals(cv.tiles, cv.walkable, cv.occ, cv.cols, cv.rows, cv.ambiance, cv.rng);
     bakeAutoTiles(cv.tiles, cv.cols, cv.rows);
   }
+  if (meta.lighting === 'fog') scatterMist(cv);
   return {
     locationId: meta.locationId,
     seed: cv.seed,

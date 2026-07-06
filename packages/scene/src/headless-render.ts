@@ -104,7 +104,7 @@ export function renderSceneMapToPng(scene: SceneMap, opts: { assetsRoot: string 
   // Pass 2 — ambiance + objects, painter's order (ambiance behind, props, actors on top).
   interface Draw { asset: AssetEntry | undefined; col: number; row: number; depth: number; footW: number; footH: number; actor: boolean; }
   const items: Draw[] = [];
-  for (const a of scene.ambiance ?? []) items.push({ asset: prop.get(a.tag), col: a.col, row: a.row, depth: a.row - 0.1, footW: 1, footH: 1, actor: false });
+  for (const a of scene.ambiance ?? []) { if (a.tag === 'mist_wisp') continue; items.push({ asset: prop.get(a.tag), col: a.col, row: a.row, depth: a.row - 0.1, footW: 1, footH: 1, actor: false }); }
   for (const o of scene.objects ?? []) {
     if (o.visible === false) continue;
     const actor = o.kind === 'actor';
@@ -128,8 +128,9 @@ export function renderSceneMapToPng(scene: SceneMap, opts: { assetsRoot: string 
   const interior = scene.grammar === 'enclosed-interior';
   if (scene.lighting === 'fog') {
     // FOG = desaturate toward luminance + blend toward a pale cool grey (a washed-out, low-contrast HAZE,
-    // the opposite of a darkening multiply). Reads as a cold sea-fog.
-    const FR = 176, FG = 186, FB = 196, DESAT = 0.5, A = 0.42;
+    // the opposite of a darkening multiply). Reads as a cold sea-fog. Kept LIGHT — the scene must stay
+    // legible; the sense of "fog" comes mostly from the scattered mist wisps (a prop), not this wash.
+    const FR = 178, FG = 188, FB = 198, DESAT = 0.38, A = 0.26;
     for (let i = 0; i < out.data.length; i += 4) {
       const r = out.data[i]!, g = out.data[i + 1]!, b = out.data[i + 2]!;
       const lum = 0.299 * r + 0.587 * g + 0.114 * b;
@@ -137,6 +138,15 @@ export function renderSceneMapToPng(scene: SceneMap, opts: { assetsRoot: string 
       out.data[i] = Math.round(dr + (FR - dr) * A);
       out.data[i + 1] = Math.round(dg + (FG - dg) * A);
       out.data[i + 2] = Math.round(db + (FB - db) * A);
+    }
+    // Mist wisps drift ON TOP of the haze (a floating decal layer), so fog reads as patchy drifting mist,
+    // not just a flat wash. Blitted last, after the wash, at their own grid cells.
+    for (const a of scene.ambiance ?? []) {
+      if (a.tag !== 'mist_wisp') continue;
+      const asset = prop.get('mist_wisp'); if (!asset?.art) continue;
+      const png = loadPng(assetsRoot, asset.art); if (!png) continue;
+      const fw = asset.frameW ?? TILE, fh = asset.frameH ?? TILE;
+      blit(png, Math.round((a.col + 0.5) * TILE - fw / 2), Math.round((a.row + 1) * TILE - fh), fw, fh);
     }
   } else {
     const tint = scene.lighting === 'night' ? (interior ? 0xc2a886 : 0x7e8cc0)
