@@ -425,6 +425,21 @@ export interface LedgerState {
   plants: Record<string, Plant>;
 }
 
+/**
+ * Progression + economy that persists ACROSS and around combat (P3c+) — the third character "home",
+ * keyed by combatant id in GameState.characters. The immutable CharacterSheet is the STARTING spec;
+ * the Combatant holds volatile combat pools; THIS holds what grows over the campaign. Derived numbers
+ * (proficiency, AC, skill mods) are never stored here — they're computed from (sheet + this) in derive.ts.
+ */
+export interface CharacterState {
+  /** Cumulative experience points. */
+  xp: number;
+  /** Current character level — starts at the sheet's level; grows via levelUp / setMilestoneLevel. */
+  level: number;
+  /** Coin purse (copper / silver / gold). The economy tools that move it land in P3d. */
+  currency: { cp: number; sp: number; gp: number };
+}
+
 export interface GameState {
   sessionId: string;
   scenarioId: string;
@@ -464,4 +479,10 @@ export interface GameState {
   /** Persistent, lazily-generated, frozen world graph for the visual layer
    *  (docs/SCENE-CONTRACTS.md). Locations are generated once and reused on re-entry. */
   world?: WorldState;
+  /** Character progression + economy (P3c), keyed by combatant id. Optional/additive — legacy sessions
+   *  without it still run; the tools that read it throw a clear error until a session is (re)created. */
+  characters?: Record<string, CharacterState>;
+  /** Immutable character sheets keyed by combatant id — the spec the engine DERIVES from (con mod for
+   *  level-up HP; abilities/proficiencies for checks in P3e). Read-only; never mutated at runtime. */
+  sheets?: Record<string, CharacterSheet>;
 }

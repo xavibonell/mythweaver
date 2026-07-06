@@ -170,6 +170,7 @@ function snapshot(state: GameState): StateSnap {
       conditions: [...c.conditions],
       downed: !!c.downed,
       res: [
+        state.characters?.[c.id] ? `lvl:${state.characters[c.id]!.level} xp:${state.characters[c.id]!.xp}` : '',
         c.slotsRemaining ? `slots:${c.slotsRemaining.slice(1).join('/')}` : '',
         c.hitDice ? `hd:${c.hitDice.remaining}/${c.hitDice.max}` : '',
         ...Object.entries(c.resources ?? {}).map(([k, v]) => `${k}:${v.current}/${v.max}`),

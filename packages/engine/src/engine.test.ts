@@ -515,3 +515,40 @@ describe('Engine — P3b concentration', () => {
     expect(e.applyDamage({ targetId: 'pc:wizard', amount: 3, type: 'cold' }).concentration).toBeUndefined();
   });
 });
+
+describe('Engine — P3c progression (XP + leveling)', () => {
+  const engineWith = (party: CharacterSheet[]) => new Engine(createInitialState({ sessionId: 's', scenarioId: 't', startSceneId: 'x', party }), () => 0.5);
+
+  it('seeds a character progression record and awards XP without auto-leveling', () => {
+    const e = engineWith([fighter()]);
+    expect(e.getState().characters!['pc:fighter']).toEqual({ xp: 0, level: 1, currency: { cp: 0, sp: 0, gp: 0 } });
+    expect(e.awardXp({ combatantId: 'pc:fighter', amount: 100 })).toEqual({ xp: 100, level: 1, levelUpAvailable: false });
+    expect(e.awardXp({ combatantId: 'pc:fighter', amount: 250 })).toEqual({ xp: 350, level: 1, levelUpAvailable: true }); // 350 ≥ 300
+    expect(e.getState().characters!['pc:fighter']!.level).toBe(1); // still 1 — awardXp never levels
+  });
+
+  it('levels up by one when XP allows: HP + hit dice + proficiency grow, ASI flagged not applied', () => {
+    const e = engineWith([fighter()]); // L1, d10 hit die, CON 14 (+2), 12 HP
+    expect(() => e.levelUp({ combatantId: 'pc:fighter' })).toThrow(/XP for level 2/);
+    e.awardXp({ combatantId: 'pc:fighter', amount: 300 });
+    expect(e.levelUp({ combatantId: 'pc:fighter' })).toEqual({ level: 2, maxHitPoints: 20, hitDiceRemaining: 2, proficiencyBonus: 2, asiDue: false, hpGained: 8 }); // avg d10 (6) + CON (2)
+    const c = e.getState().combatants['pc:fighter']!;
+    expect(c.currentHitPoints).toBe(20);
+    expect(c.hitDice).toEqual({ size: 10, remaining: 2, max: 2 });
+  });
+
+  it('level-up HP can use a rolled hit die instead of the average', () => {
+    const e = engineWith([fighter()]);
+    e.awardXp({ combatantId: 'pc:fighter', amount: 300 });
+    expect(e.levelUp({ combatantId: 'pc:fighter', hpMode: 'roll', rolledTotal: 9 }).hpGained).toBe(11); // 9 + CON 2
+    expect(e.getState().combatants['pc:fighter']!.maxHitPoints).toBe(23);
+  });
+
+  it('milestone leveling jumps multiple levels (avg HP), syncs XP, and flags a crossed ASI level', () => {
+    const e = engineWith([fighter()]); // L1 → L4
+    const r = e.setMilestoneLevel({ combatantId: 'pc:fighter', level: 4 });
+    expect(r).toEqual({ level: 4, maxHitPoints: 36, hitDiceRemaining: 4, proficiencyBonus: 2, asiDue: true, hpGained: 24 }); // 3 × (avg 6 + CON 2)
+    expect(e.getState().characters!['pc:fighter']!.xp).toBe(2700); // synced to the L4 threshold
+    expect(() => e.setMilestoneLevel({ combatantId: 'pc:fighter', level: 3 })).toThrow(/already level 4/);
+  });
+});

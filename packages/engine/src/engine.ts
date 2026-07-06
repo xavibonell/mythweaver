@@ -13,6 +13,7 @@ import {
   type Ability,
   type AdvantageState,
   type AttackResult,
+  type CharacterState,
   type CheckResult,
   type Combatant,
   type Condition,
@@ -32,6 +33,8 @@ import {
 } from '@mythweaver/shared';
 import { rollDice, validateDeclaredRoll, type Rng } from './dice.js';
 import { statBlockToCombatant } from './state.js';
+import { abilityMod, deriveProficiencyBonus } from './derive.js';
+import { ASI_LEVELS, XP_THRESHOLDS, hitDieAvg, hitDieForClass, levelForXp } from './progression.js';
 
 export class Engine implements EngineTools {
   private readonly pending = new Map<string, RollRequest>();
@@ -602,5 +605,84 @@ export class Engine implements EngineTools {
       this.record('engine', `${c.name}'s concentration on ${was} ends`, { combatantId: c.id, concentrationBroken: was });
     }
     return { was };
+  }
+
+  // --- P3c: progression (XP + leveling; the engine owns every number from a table) -------------------
+
+  private character(combatantId: string): CharacterState {
+    const cs = this.state.characters?.[combatantId];
+    if (!cs) throw new Error(`No character progression tracked for ${combatantId}.`);
+    return cs;
+  }
+
+  /**
+   * Award experience. Pure accumulation — it NEVER auto-levels (leveling stays an explicit beat, so the
+   * DM controls pacing and the player chooses when). Reports whether a level-up is now available.
+   */
+  awardXp(args: { combatantId: string; amount: number }): { xp: number; level: number; levelUpAvailable: boolean } {
+    const cs = this.character(args.combatantId);
+    const amount = Math.max(0, Math.floor(args.amount));
+    const before = cs.xp;
+    cs.xp = before + amount;
+    const levelUpAvailable = levelForXp(cs.xp) > cs.level;
+    const name = this.state.combatants[args.combatantId]?.name ?? args.combatantId;
+    this.record('engine', `${name} gains ${amount} XP (${before} -> ${cs.xp})${levelUpAvailable ? ` — level ${cs.level + 1} available` : ''}`, { combatantId: args.combatantId, xp: cs.xp, level: cs.level, levelUpAvailable });
+    return { xp: cs.xp, level: cs.level, levelUpAvailable };
+  }
+
+  /**
+   * Level up ONE level when the character's XP supports it. The engine computes the new HP (fixed average
+   * by default, or a validated hit-die roll passed as `rolledTotal`), grows the hit-dice pool, derives the
+   * new proficiency bonus, and FLAGS an ASI/feat rather than auto-applying it (the player's choice).
+   */
+  levelUp(args: { combatantId: string; hpMode?: 'avg' | 'roll'; rolledTotal?: number }): { level: number; maxHitPoints: number; hitDiceRemaining: number; proficiencyBonus: number; asiDue: boolean; hpGained: number } {
+    const cs = this.character(args.combatantId);
+    if (levelForXp(cs.xp) <= cs.level) {
+      throw new Error(`${this.state.combatants[args.combatantId]?.name ?? args.combatantId} needs ${XP_THRESHOLDS[cs.level + 1] ?? '—'} XP for level ${cs.level + 1} (has ${cs.xp}).`);
+    }
+    return this.applyLevelGain(args.combatantId, cs.level + 1, args.hpMode ?? 'avg', args.rolledTotal);
+  }
+
+  /**
+   * Milestone leveling: the DM grants a level directly (no XP needed). Applies the full gain to the target
+   * level with fixed-average HP, and syncs XP up to that level's threshold so the two modes never disagree.
+   */
+  setMilestoneLevel(args: { combatantId: string; level: number }): { level: number; maxHitPoints: number; hitDiceRemaining: number; proficiencyBonus: number; asiDue: boolean; hpGained: number } {
+    const cs = this.character(args.combatantId);
+    const target = Math.max(1, Math.min(20, Math.floor(args.level)));
+    if (target <= cs.level) throw new Error(`${this.state.combatants[args.combatantId]?.name ?? args.combatantId} is already level ${cs.level}.`);
+    const result = this.applyLevelGain(args.combatantId, target, 'avg', undefined);
+    cs.xp = Math.max(cs.xp, XP_THRESHOLDS[target] ?? cs.xp);
+    return result;
+  }
+
+  /** Shared level-gain math: raise the character from its current level to `targetLevel`, one level at a
+   *  time, granting HP + a hit die per level and flagging any ASI level crossed. Engine-owned throughout. */
+  private applyLevelGain(combatantId: string, targetLevel: number, hpMode: 'avg' | 'roll', rolledTotal?: number): { level: number; maxHitPoints: number; hitDiceRemaining: number; proficiencyBonus: number; asiDue: boolean; hpGained: number } {
+    const cs = this.character(combatantId);
+    const c = this.state.combatants[combatantId];
+    if (!c) throw new Error(`Unknown combatant: ${combatantId}`);
+    const sheet = this.state.sheets?.[combatantId];
+    const conMod = sheet ? abilityMod(sheet.abilities.con) : 0;
+    const dieSize = c.hitDice?.size ?? (sheet ? hitDieForClass(sheet.className) : 8);
+    let hpGained = 0;
+    let asiDue = false;
+    for (let lvl = cs.level + 1; lvl <= targetLevel; lvl++) {
+      // A single-level XP level-up may pass a rolled hit die for the first level gained; anything beyond
+      // (a multi-level milestone jump) uses the fixed average. Every gain is at least 1 HP.
+      const base = hpMode === 'roll' && lvl === cs.level + 1 && rolledTotal !== undefined ? Math.max(1, Math.floor(rolledTotal)) : hitDieAvg(dieSize);
+      hpGained += Math.max(1, base + conMod);
+      if (c.hitDice) {
+        c.hitDice.max += 1;
+        c.hitDice.remaining += 1;
+      }
+      if (ASI_LEVELS.includes(lvl)) asiDue = true;
+    }
+    c.maxHitPoints += hpGained;
+    c.currentHitPoints += hpGained;
+    cs.level = targetLevel;
+    const proficiencyBonus = deriveProficiencyBonus(cs.level);
+    this.record('engine', `${c.name} reaches level ${cs.level} (+${hpGained} HP, prof +${proficiencyBonus})${asiDue ? ' — ASI/feat available' : ''}`, { combatantId, level: cs.level, hpGained, proficiencyBonus, asiDue });
+    return { level: cs.level, maxHitPoints: c.maxHitPoints, hitDiceRemaining: c.hitDice?.remaining ?? 0, proficiencyBonus, asiDue, hpGained };
   }
 }

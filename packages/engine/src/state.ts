@@ -1,8 +1,8 @@
 /** GameState construction helpers (the engine is the sole mutator — spec §4.1). */
 
-import { classToSpriteTag, type AdventureContext, type CharacterSheet, type Combatant, type EncounterDef, type GameState, type StatBlock } from '@mythweaver/shared';
+import { classToSpriteTag, type AdventureContext, type CharacterSheet, type CharacterState, type Combatant, type EncounterDef, type GameState, type StatBlock } from '@mythweaver/shared';
 import { abilityMod } from './derive.js';
-import { hitDieForClass } from './progression.js';
+import { hitDieForClass, XP_THRESHOLDS } from './progression.js';
 
 export function pcToCombatant(pc: CharacterSheet): Combatant {
   // Character-engine volatile pools (P3a): seed the live resources the table spends + recovers, from the
@@ -61,9 +61,16 @@ export function createInitialState(args: {
   bestiary?: Record<string, StatBlock>;
 }): GameState {
   const combatants: Record<string, Combatant> = {};
+  const characters: Record<string, CharacterState> = {};
+  const sheets: Record<string, CharacterSheet> = {};
   for (const pc of args.party) {
     const c = pcToCombatant(pc);
     combatants[c.id] = c;
+    // Progression home (P3c): xp seeded at the threshold for the starting level so awardXp/levelForXp
+    // stay consistent (a level-3 pregen sits at 900 XP, needs 2700 for level 4). Sheet stored read-only
+    // as the immutable spec the engine derives from (con mod for level-up HP, abilities/profs for checks).
+    characters[c.id] = { xp: XP_THRESHOLDS[Math.max(1, Math.min(20, pc.level))] ?? 0, level: pc.level, currency: { cp: 0, sp: 0, gp: 0 } };
+    sheets[c.id] = pc;
   }
   return {
     sessionId: args.sessionId,
@@ -74,6 +81,8 @@ export function createInitialState(args: {
     flags: {},
     log: [],
     spentUsd: 0,
+    characters,
+    sheets,
     ...(args.adventure ? { adventure: args.adventure } : {}),
     ...(args.encounters ? { encounters: args.encounters } : {}),
     ...(args.bestiary ? { bestiary: args.bestiary } : {}),

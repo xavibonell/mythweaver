@@ -92,7 +92,14 @@ RESOURCES & REST (the engine tracks every pool — the party's HP snapshot shows
   (no args = the whole party) — it restores HP, spell slots, and features. Spell slots ONLY come back on
   a long rest, so track them across the day.
 - Reward great play with "grantInspiration"; a player may later spend it ("spendInspiration") for
-  advantage. Use "setExhaustion" when they push past their limits.`;
+  advantage. Use "setExhaustion" when they push past their limits.
+
+PROGRESSION (the engine owns levels + XP):
+- Award XP after a real challenge with "awardXp" — the engine tells you when a level-up is available.
+  It NEVER auto-levels; you choose when (usually on a long rest). Then call "levelUp" and the engine
+  raises HP/hit dice/proficiency and flags any Ability Score Improvement / feat for you to narrate.
+- For a milestone campaign (no XP tracking), skip awardXp and call "setMilestoneLevel" at story beats.
+  Use one scheme or the other, not both.`;
 
 const MAX_STEPS = 6;
 const MAX_OUTPUT_TOKENS = 700;
@@ -390,6 +397,46 @@ export function buildToolDefs(retrieval: boolean, scene: boolean): ToolDef[] {
       description: "Spend a character's Heroic Inspiration for advantage on a roll. Fails if they hold none.",
       inputSchema: { type: 'object', properties: { combatantId: { type: 'string' } }, required: ['combatantId'], additionalProperties: false },
     },
+    {
+      name: 'awardXp',
+      description:
+        'Award experience to a character after a real challenge (a defeated foe, a solved problem, a story beat). The engine adds it and reports when a level-up becomes available — it NEVER levels them up on its own; that stays your call as a beat.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          combatantId: { type: 'string', description: 'The character, e.g. "pc:aldric".' },
+          amount: { type: 'number', description: 'XP to award (e.g. ~100 for a CR 1/2 foe, split among the party).' },
+        },
+        required: ['combatantId', 'amount'],
+        additionalProperties: false,
+      },
+    },
+    {
+      name: 'levelUp',
+      description:
+        "Level a character up by one, when their XP allows it and the moment fits (usually on a rest). The engine raises HP, hit dice, and proficiency and tells you if an Ability Score Improvement / feat is due (you narrate that choice). Optionally pass hpMode:\"roll\" with a requestRoll'd hit-die total; default is the fixed average.",
+      inputSchema: {
+        type: 'object',
+        properties: {
+          combatantId: { type: 'string' },
+          hpMode: { type: 'string', enum: ['avg', 'roll'], description: '"avg" (fixed HP, default) or "roll" (pass rolledTotal).' },
+          rolledTotal: { type: 'number', description: "The rolled hit-die total, if hpMode is \"roll\"." },
+        },
+        required: ['combatantId'],
+        additionalProperties: false,
+      },
+    },
+    {
+      name: 'setMilestoneLevel',
+      description:
+        'Milestone leveling: set a character directly to a level (no XP needed) when the story reaches a milestone. The engine applies the full gain. Use this OR awardXp+levelUp for a campaign, not both.',
+      inputSchema: {
+        type: 'object',
+        properties: { combatantId: { type: 'string' }, level: { type: 'number', description: 'The new level (2–20).' } },
+        required: ['combatantId', 'level'],
+        additionalProperties: false,
+      },
+    },
   );
   // Arc / Game-Master steering (D1): move the story by following the players, and remember branch choices.
   tools.push(
@@ -521,12 +568,14 @@ function characterTail(c: Combatant): string {
 function summarizeState(state: GameState): string {
   const pcs = Object.values(state.combatants)
     .filter((c) => c.kind === 'pc')
-    .map(
-      (c) =>
-        `- ${c.name}: ${c.currentHitPoints}/${c.maxHitPoints} HP, AC ${c.armorClass}` +
+    .map((c) => {
+      const cs = state.characters?.[c.id];
+      return (
+        `- ${c.name}${cs ? ` (L${cs.level})` : ''}: ${c.currentHitPoints}/${c.maxHitPoints} HP, AC ${c.armorClass}` +
         (c.conditions.length ? `, conditions: ${c.conditions.join(', ')}` : '') +
-        characterTail(c),
-    )
+        characterTail(c)
+      );
+    })
     .join('\n');
   const npcs = Object.values(state.combatants)
     .filter((c) => c.kind === 'npc')
@@ -559,6 +608,7 @@ function serializeStateForModel(state: GameState): string {
       hp: `${c.currentHitPoints}/${c.maxHitPoints}`,
       ac: c.armorClass,
       conditions: c.conditions,
+      ...(state.characters?.[c.id] ? { level: state.characters[c.id]!.level, xp: state.characters[c.id]!.xp } : {}),
     })),
     flags: state.flags,
     // The frozen object_map so the DM references real entity ids + positions (slice 5: deltas).
@@ -1093,6 +1143,32 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
       } else if (tc.name === 'breakConcentration') {
         try {
           const r = engine.breakConcentration({ combatantId: String(tc.input.combatantId ?? '') });
+          resolved.push({ toolUseId: tc.id, content: JSON.stringify(r) });
+        } catch (e) {
+          resolved.push({ toolUseId: tc.id, content: JSON.stringify({ error: (e as Error).message }) });
+        }
+      } else if (tc.name === 'awardXp') {
+        try {
+          const r = engine.awardXp({ combatantId: String(tc.input.combatantId ?? ''), amount: Number(tc.input.amount) });
+          resolved.push({ toolUseId: tc.id, content: JSON.stringify(r) });
+        } catch (e) {
+          resolved.push({ toolUseId: tc.id, content: JSON.stringify({ error: (e as Error).message }) });
+        }
+      } else if (tc.name === 'levelUp') {
+        try {
+          const hpMode = tc.input.hpMode === 'roll' ? 'roll' : tc.input.hpMode === 'avg' ? 'avg' : undefined;
+          const r = engine.levelUp({
+            combatantId: String(tc.input.combatantId ?? ''),
+            ...(hpMode ? { hpMode } : {}),
+            ...(tc.input.rolledTotal !== undefined ? { rolledTotal: Number(tc.input.rolledTotal) } : {}),
+          });
+          resolved.push({ toolUseId: tc.id, content: JSON.stringify(r) });
+        } catch (e) {
+          resolved.push({ toolUseId: tc.id, content: JSON.stringify({ error: (e as Error).message }) });
+        }
+      } else if (tc.name === 'setMilestoneLevel') {
+        try {
+          const r = engine.setMilestoneLevel({ combatantId: String(tc.input.combatantId ?? ''), level: Number(tc.input.level) });
           resolved.push({ toolUseId: tc.id, content: JSON.stringify(r) });
         } catch (e) {
           resolved.push({ toolUseId: tc.id, content: JSON.stringify({ error: (e as Error).message }) });

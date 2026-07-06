@@ -144,6 +144,15 @@ export interface EngineTools {
   /** Apply/remove a condition. P2. */
   applyCondition(args: { combatantId: string; condition: Condition; add: boolean }): void;
 
+  /** Award XP. Pure accumulation — never auto-levels; reports when a level-up becomes available. P3c. */
+  awardXp(args: { combatantId: string; amount: number }): { xp: number; level: number; levelUpAvailable: boolean };
+
+  /** Advance one level when XP supports it; engine computes HP (avg or a rolled hit die) + prof, flags ASI. P3c. */
+  levelUp(args: { combatantId: string; hpMode?: 'avg' | 'roll'; rolledTotal?: number }): { level: number; maxHitPoints: number; hitDiceRemaining: number; proficiencyBonus: number; asiDue: boolean; hpGained: number };
+
+  /** Milestone leveling — the DM grants a target level directly (no XP); engine applies the full gain. P3c. */
+  setMilestoneLevel(args: { combatantId: string; level: number }): { level: number; maxHitPoints: number; hitDiceRemaining: number; proficiencyBonus: number; asiDue: boolean; hpGained: number };
+
   /** Spend a spell slot (resource:'slot' + level) or a named class pool (ki/rage/channelDivinity/…). P3a. */
   spendResource(args: { combatantId: string; resource: string; level?: number; amount?: number }): { remaining: number };
 
