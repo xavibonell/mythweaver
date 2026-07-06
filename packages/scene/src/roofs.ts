@@ -8,7 +8,7 @@
  * Coordinates are SCENE PIXELS (tile*16). Colours are packed 0xRRGGBB; the builder does all the shading so
  * the renderers stay dumb (fill a gradient poly, stroke a line, blit a sprite) and only apply the day/night tint.
  */
-import type { RoofBuilding } from '@mythweaver/shared';
+import type { RoofBuilding, RoofLine } from '@mythweaver/shared';
 import type { BuildingFootprint, Canvas } from './primitives.js';
 
 const T = 16;
@@ -131,6 +131,26 @@ function minLineDist(lines: Array<{ x1: number; y1: number; x2: number; y2: numb
   }
   return best;
 }
+/** Split the roof RIM where the door is, leaving a gap — so the entrance reads as an opening in the eave, not
+ *  a door drawn on top of an unbroken rim. Only cuts the axis-aligned rim lines (fascia w:3 + edge w:1) on the
+ *  door's edge; hips (diagonal) and the ridge (w:2) are untouched. */
+function cutRimAtDoor(rb: RoofBuilding, horiz: boolean, dx: number, dy: number, hw: number): void {
+  const out: RoofLine[] = [];
+  for (const l of rb.lines) {
+    const isRim = l.w === 3 || l.w === 1;
+    const lh = Math.abs(l.y1 - l.y2) < 1, lv = Math.abs(l.x1 - l.x2) < 1;
+    if (isRim && horiz && lh && Math.abs(l.y1 - dy) <= 4) {
+      const lo = Math.min(l.x1, l.x2), hi = Math.max(l.x1, l.x2);
+      if (lo < dx - hw && hi > dx + hw) { out.push({ ...l, x1: lo, x2: dx - hw, y1: l.y1, y2: l.y1 }, { ...l, x1: dx + hw, x2: hi, y1: l.y1, y2: l.y1 }); continue; }
+    }
+    if (isRim && !horiz && lv && Math.abs(l.x1 - dx) <= 4) {
+      const lo = Math.min(l.y1, l.y2), hi = Math.max(l.y1, l.y2);
+      if (lo < dy - hw && hi > dy + hw) { out.push({ ...l, y1: lo, y2: dy - hw, x1: l.x1, x2: l.x1 }, { ...l, y1: dy + hw, y2: hi, x1: l.x1, x2: l.x1 }); continue; }
+    }
+    out.push(l);
+  }
+  rb.lines = out;
+}
 function placeSprites(rb: RoofBuilding, b: BuildingFootprint, entrances: Array<{ col: number; row: number; fixtureId?: string }>): void {
   const { x, y, w, h } = b.rect, X = x * T, Y = y * T, W = w * T, H = h * T;
   const rng = mulberry(((x * 73856093) ^ (y * 19349663) ^ (w * 83492791) ^ (h * 2971215073)) >>> 0);
@@ -139,8 +159,12 @@ function placeSprites(rb: RoofBuilding, b: BuildingFootprint, entrances: Array<{
   let doorX = -999, doorY = -999;
   if (ent) {
     const side = ent.row <= y ? 'n' : ent.row >= y + h - 1 ? 's' : ent.col <= x ? 'w' : 'e';
-    doorX = (ent.col + 0.5) * T; doorY = (ent.row + 0.5) * T;
+    // Place the door ON the eave edge (not the wall-cell centre) so it straddles the rim, then CUT the rim
+    // there — so the entrance reads as an OPENING in the roof edge, not a door stuck on the roof surface.
+    doorX = side === 'e' ? (x + w) * T : side === 'w' ? x * T : (ent.col + 0.5) * T;
+    doorY = side === 's' ? (y + h) * T : side === 'n' ? y * T : (ent.row + 0.5) * T;
     rb.sprites.push({ x: doorX, y: doorY, tag: `roof_door_${side}` });
+    cutRimAtDoor(rb, side === 'n' || side === 's', doorX, doorY, 13);
   }
   // CHIMNEYS — on the longest ridge (the w:2 lines), 1 or 2, at varied positions along it.
   const ridges = rb.lines.filter((l) => l.w === 2);
