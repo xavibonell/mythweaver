@@ -151,18 +151,22 @@ function cutRimAtDoor(rb: RoofBuilding, horiz: boolean, dx: number, dy: number, 
   }
   rb.lines = out;
 }
-function placeSprites(rb: RoofBuilding, b: BuildingFootprint, entrances: Array<{ col: number; row: number; fixtureId?: string }>): void {
-  const { x, y, w, h } = b.rect, X = x * T, Y = y * T, W = w * T, H = h * T;
+function placeSprites(rb: RoofBuilding, b: BuildingFootprint, entrances: Array<{ col: number; row: number; fixtureId?: string }>, roofed: (c: number, r: number) => boolean): void {
+  const { x, y, w, h } = b.rect;
   const rng = mulberry(((x * 73856093) ^ (y * 19349663) ^ (w * 83492791) ^ (h * 2971215073)) >>> 0);
-  // DOOR — a top-down entrance marker at the recorded door, oriented to its wall side, so the way in shows.
+  // DOOR — at the REAL entrance cell, oriented by which neighbour is open air (the outward direction), so the
+  // marker lands exactly on the footprint's eave even for shaped/compound buildings (no misalignment). The rim
+  // is cut there so it reads as an opening, not a door stuck on the roof.
   const ent = entrances.find((e) => e.fixtureId === b.id);
   let doorX = -999, doorY = -999;
   if (ent) {
-    const side = ent.row <= y ? 'n' : ent.row >= y + h - 1 ? 's' : ent.col <= x ? 'w' : 'e';
-    // Place the door ON the eave edge (not the wall-cell centre) so it straddles the rim, then CUT the rim
-    // there — so the entrance reads as an OPENING in the roof edge, not a door stuck on the roof surface.
-    doorX = side === 'e' ? (x + w) * T : side === 'w' ? x * T : (ent.col + 0.5) * T;
-    doorY = side === 's' ? (y + h) * T : side === 'n' ? y * T : (ent.row + 0.5) * T;
+    const dc = ent.col, dr = ent.row;
+    let side = 's', ox = 0, oy = 1;
+    if (!roofed(dc, dr - 1)) { side = 'n'; ox = 0; oy = -1; }
+    else if (!roofed(dc, dr + 1)) { side = 's'; ox = 0; oy = 1; }
+    else if (!roofed(dc - 1, dr)) { side = 'w'; ox = -1; oy = 0; }
+    else if (!roofed(dc + 1, dr)) { side = 'e'; ox = 1; oy = 0; }
+    doorX = (dc + 0.5) * T + ox * (T / 2); doorY = (dr + 0.5) * T + oy * (T / 2);
     rb.sprites.push({ x: doorX, y: doorY, tag: `roof_door_${side}` });
     cutRimAtDoor(rb, side === 'n' || side === 's', doorX, doorY, 13);
   }
@@ -176,11 +180,13 @@ function placeSprites(rb: RoofBuilding, b: BuildingFootprint, entrances: Array<{
       rb.sprites.push({ x: ridge.x1 + (ridge.x2 - ridge.x1) * t, y: ridge.y1 + (ridge.y2 - ridge.y1) * t, tag: 'roof_chimney' });
     }
   }
-  // DORMERS — along the SOUTH eave (facing the viewer, near the border where dormers belong), kept CLEAR of
-  // the hip junctions and the door, spaced apart, in a VARIED count. Never on a ridge/hip.
-  const IN = 13, cands: Array<{ x: number; y: number }> = [];
-  for (let px = X + 18; px <= X + W - 18; px += 20) cands.push({ x: px, y: Y + H - IN });
-  const safe = cands.filter((p) => minLineDist(rb.lines, p.x, p.y) > 10 && Math.hypot(p.x - doorX, p.y - doorY) > 20);
+  // DORMERS — only on ACTUAL south-eave cells (a roofed cell with open air to the south), so a dormer never
+  // floats over an L/T notch. Kept clear of the JUNCTIONS (ridge w:2 + diagonal hips w:1) — NOT the rim, since
+  // dormers belong near the eave — and off the door; spaced, in a VARIED count.
+  const junctions = rb.lines.filter((l) => l.w === 2 || (l.w === 1 && Math.abs(l.x1 - l.x2) > 1 && Math.abs(l.y1 - l.y2) > 1));
+  const cand: Array<{ x: number; y: number }> = [];
+  for (let r = y; r < y + h; r++) for (let c = x; c < x + w; c++) if (roofed(c, r) && !roofed(c, r + 1)) cand.push({ x: (c + 0.5) * T, y: (r + 1) * T - 11 });
+  const safe = cand.filter((p) => minLineDist(junctions, p.x, p.y) > 11 && Math.hypot(p.x - doorX, p.y - doorY) > 22);
   for (let i = safe.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); const tmp = safe[i]!; safe[i] = safe[j]!; safe[j] = tmp; }
   const area = w * h;
   const want = Math.min(safe.length, area >= 64 ? 1 + Math.floor(rng() * 3) : area >= 30 ? Math.floor(rng() * 2) : 0);
@@ -210,6 +216,9 @@ export function buildRoofs(cv: Canvas): RoofBuilding[] {
       if (rr > 0) st.push(li(cc, rr - 1)); if (rr < GH - 1) st.push(li(cc, rr + 1));
     }
     for (let i = 0; i < N; i++) if (!mask[i] && !ext[i]) mask[i] = 1;
+    // Is a WORLD cell part of this building's (courtyard-filled) footprint? — sprite placement uses this so
+    // dormers land only on real roof, and the door orients by which neighbour is open air.
+    const roofed = (wc: number, wr: number): boolean => { const cc = wc - (x - 1), rr = wr - (y - 1); return cc >= 0 && rr >= 0 && cc < GW && rr < GH && mask[li(cc, rr)] === 1; };
     // Local w×h grid → decompose into rectangular blocks (world tile coords).
     const grid = new Uint8Array(w * h);
     for (let rr = 0; rr < h; rr++) for (let cc = 0; cc < w; cc++) grid[rr * w + cc] = mask[li(cc + 1, rr + 1)]!;
@@ -222,7 +231,7 @@ export function buildRoofs(cv: Canvas): RoofBuilding[] {
       if (long / short >= 2.3 && short <= 4) gableInto(rb, r, base); else hipInto(rb, r, base);
       rimInto(rb, r, base);
     }
-    placeSprites(rb, b, cv.entrances);
+    placeSprites(rb, b, cv.entrances, roofed);
     out.push(rb);
   }
   return out;
