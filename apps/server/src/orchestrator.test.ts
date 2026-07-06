@@ -3,8 +3,8 @@ import { Engine, createInitialState } from '@mythweaver/engine';
 import { FakeLlmProvider, fakeText, fakeToolUse, type LlmContentBlock } from '@mythweaver/llm';
 import { InMemoryRetriever } from '@mythweaver/rag';
 import { FakeSceneComposer, type SceneComposer } from '@mythweaver/scene';
-import { validateSceneMap, type CharacterSheet, type StatBlock } from '@mythweaver/shared';
-import { runTurn, canonBlock } from './orchestrator.js';
+import { validateSceneMap, type CharacterSheet, type EstablishScene, type SceneRealizeContext, type StatBlock } from '@mythweaver/shared';
+import { runTurn, canonBlock, parseEstablish } from './orchestrator.js';
 import { FakeArcPlanner } from './arc-planner.js';
 import type { GameState } from '@mythweaver/shared';
 
@@ -218,6 +218,79 @@ describe('orchestrator turn-loop', () => {
     expect(map.objects.some((o) => o.id === 'pc:aldric')).toBe(true); // party injected by the engine
     expect(map.objects.find((o) => o.id === 'npc:edda')!.visible).toBe(true);
     expect(map.objects.find((o) => o.id === 'npc:orc')!.visible).toBe(false); // the lurker is present but hidden
+  });
+
+  it('hands the modern realizer the campaign fiction (premise + beat) and the DM-declared kind/mood', async () => {
+    const state = createInitialState({
+      sessionId: 's1',
+      scenarioId: 'test',
+      startSceneId: 'beat-1',
+      party: [fighter()],
+      adventure: {
+        pitch: 'A drowned bell tolls beneath a flooded mining town.',
+        scenes: { 'beat-1': { title: 'The Rising Bell', summary: 'The party reaches the reservoir shore where the bell rope rises.' } },
+      },
+    });
+    state.arc = {
+      blueprint: {
+        premise: 'a gothic three-scene horror about a debt owed to a bell-founder',
+        centralProblem: 'the bell rises higher each night',
+        intendedEnding: 'the debt is paid',
+        opening: 'the shore',
+        spine: [],
+      },
+    };
+    const engine = new Engine(state, () => 0.5);
+    const captured: { est?: EstablishScene; ctx?: SceneRealizeContext } = {};
+    const realizeScene = async (est: EstablishScene, _party: unknown, ctx?: SceneRealizeContext) => {
+      captured.est = est;
+      captured.ctx = ctx;
+      return null; // decline → the classic composer still delivers a map (fallback intact)
+    };
+    const llm = new FakeLlmProvider([
+      fakeToolUse([{
+        id: 's1',
+        name: 'setScene',
+        input: {
+          locationId: 'loc:drowned-shore',
+          setting: 'the drowned shore of the reservoir',
+          kind: 'wild',
+          mood: 'grim predawn fog',
+          biome: 'village',
+          timeOfDay: 'dusk',
+        },
+      }]),
+      fakeText('The fog swallows the shore.'),
+    ]);
+
+    const result = await runTurn(
+      { engine, llm, composer: new FakeSceneComposer(), realizeScene, now: frozenClock },
+      { kind: 'message', speakerId: 'Aldric', text: 'We walk down to the water.' },
+    );
+
+    // The campaign fiction the tool call can't carry reached the realizer…
+    expect(captured.ctx?.premise).toBe('a gothic three-scene horror about a debt owed to a bell-founder');
+    expect(captured.ctx?.beat).toEqual({ id: 'beat-1', title: 'The Rising Bell', summary: 'The party reaches the reservoir shore where the bell rope rises.' });
+    // …and the DM's new declaration fields were parsed.
+    expect(captured.est?.kind).toBe('wild');
+    expect(captured.est?.brief.mood).toBe('grim predawn fog');
+    expect(captured.est?.timeOfDayExplicit).toBe(true);
+    // The decline fell back to the classic composer — the turn still produced a scene.
+    expect(result.sceneChanged).toBe(true);
+    expect(result.sceneMap).toBeTruthy();
+  });
+
+  it('parseEstablish: the coerced day default is NOT an explicit time declaration', () => {
+    const stub = { world: { currentLocationId: null, locations: {}, links: [] } } as unknown as GameState;
+    const est = parseEstablish({ setting: 'a quiet place' }, stub);
+    expect(est.brief.timeOfDay).toBe('day');
+    expect(est.timeOfDayExplicit).toBeUndefined(); // phantom 'day' must never beat mood-inferred lighting
+    expect(est.kind).toBeUndefined();
+
+    const est2 = parseEstablish({ setting: 'a crypt', timeOfDay: 'night', kind: 'interior', mood: 'grim and still' }, stub);
+    expect(est2.timeOfDayExplicit).toBe(true);
+    expect(est2.kind).toBe('interior');
+    expect(est2.brief.mood).toBe('grim and still');
   });
 
   it('reuses a frozen location on re-entry instead of regenerating it', async () => {

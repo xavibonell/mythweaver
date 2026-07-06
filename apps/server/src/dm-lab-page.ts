@@ -265,6 +265,10 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
         <input id="temp" type="range" min="0" max="1" step="0.05" value="1" />
         <span class="val" id="tempVal">1.00</span>
       </div>
+      <label style="display:flex;align-items:center;gap:6px;margin-bottom:4px;cursor:pointer">
+        <input id="sceneEngine" type="checkbox" checked />
+        <span>Real scene engine <span style="color:#6b7080">— programmer-generated maps (~$0.01-0.05/place; off = $0 deterministic)</span></span>
+      </label>
       <div class="hint" style="margin-bottom:10px">Captured when you start a session from the Generate tab.</div>
       <label>Suggested actions <span style="color:#6b7080">— arc-aware; click to prefill, then tweak &amp; send</span></label>
       <div class="row" id="presets"><span class="hint">start a campaign to see suggestions</span></div>
@@ -1027,6 +1031,7 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
         temperature: Number($('temp').value), // DM narration temp (Run tab)
         arcTemperature: Number($('gen-temp').value), // Director temp (Generate tab)
         playbook: $('ed-playbook').value,
+        sceneEngine: $('sceneEngine').checked ? 'modern' : 'fake', // real programmer scenes vs $0 fake
       }),
     }).then(function (r) { return r.json().then(function (b) { return { ok: r.ok, body: b }; }); }).then(function (x) {
       $('gen-start').disabled = false; $('gen-run').disabled = false; $('arc-start').disabled = false;

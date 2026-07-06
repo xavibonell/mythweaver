@@ -10,8 +10,8 @@
  */
 
 import type { LlmProvider } from '@mythweaver/llm';
-import { buildCityScene, buildComponentSheet, buildSceneMap, buildSpikeScene, GOLD_PROGRAMS, LlmCityPlanner, LlmSceneProgrammer, lookToSprite, runProgram, sceneKindOf, type CityDistrictSpec, type CityRequest, type SceneComposer, type SceneProgram } from '@mythweaver/scene';
-import type { EstablishScene, GameState, Lighting, PartyMemberRef, SceneComposition, SceneMap } from '@mythweaver/shared';
+import { buildCityScene, buildComponentSheet, buildSceneMap, buildSpikeScene, GOLD_PROGRAMS, LlmCityPlanner, LlmSceneProgrammer, lookToSprite, runProgram, type CityDistrictSpec, type CityRequest, type SceneComposer, type SceneProgram } from '@mythweaver/scene';
+import type { EstablishScene, GameState, Lighting, PartyMemberRef, SceneComposition, SceneKindHint, SceneMap, SceneRealizeContext } from '@mythweaver/shared';
 import { buildToolDefs, parseEstablish, seedFor } from './orchestrator.js';
 
 const SET_SCENE_TOOL = buildToolDefs(false, true).find((t) => t.name === 'setScene')!;
@@ -121,7 +121,20 @@ function edgeTerrainFieldOps(text: string, cols: number, rows: number): ScenePro
   return ops;
 }
 
-export async function realizeStoryScene(deps: { llm: LlmProvider; model?: string }, establish: EstablishScene, premise: string, party: PartyMemberRef[] = []): Promise<{ sceneMap: SceneMap; program: SceneProgram }> {
+export async function realizeStoryScene(
+  deps: { llm: LlmProvider; model?: string },
+  establish: EstablishScene,
+  premise: string,
+  party: PartyMemberRef[] = [],
+  opts: {
+    /** Overrides the mood source (default: the premise). The live path passes DM mood + campaign fiction. */
+    moodText?: string;
+    /** Forces the layout grammar (the DM's declared `kind` / a beat's ScenePlan kind). */
+    kind?: SceneKindHint;
+    /** The DM's EXPLICITLY declared time of day — beats mood-inferred lighting (declared > mood > day). */
+    lightingDeclared?: Lighting;
+  } = {},
+): Promise<{ sceneMap: SceneMap; program: SceneProgram }> {
   const npcLines = establish.npcs.filter((n) => n.visible !== false).map((n) => `${n.name}${n.look ? ` (${n.look})` : ''}`);
   const fixTags = [...new Set(establish.fixtures.map((f) => f.tag))];
   const enriched = [
@@ -132,7 +145,11 @@ export async function realizeStoryScene(deps: { llm: LlmProvider; model?: string
   ].filter(Boolean).join('\n');
   // Pass the raw PREMISE as the mood source: the scene's time-of-day/weather follows what the PLAYER asked
   // for, not the atmospheric flavour the DM wrote into `enriched` ("the dark maw of the mine" is flavour).
-  const program = await new LlmSceneProgrammer(deps.llm, deps.model).compose(enriched, premise);
+  const program = await new LlmSceneProgrammer(deps.llm, deps.model).compose(enriched, opts.moodText ?? premise, opts.kind);
+  // LIGHTING PRECEDENCE: an explicitly DECLARED time of day beats the mood-regex (which beats 'day').
+  // The coerced parser default never reaches here — the orchestrator only sets lightingDeclared when the
+  // DM actually wrote timeOfDay in the tool call.
+  if (opts.lightingDeclared) program.lighting = opts.lightingDeclared;
   // TERRAIN-FIELD EMISSION: if the fiction names a coast/mountains, splice the field fill in after any
   // leading full-map base fill(s) but before the content ops (so buildings draw over it). Skip interiors.
   if (program.grammar !== 'enclosed-interior') {
@@ -171,15 +188,29 @@ export async function realizeStoryScene(deps: { llm: LlmProvider; model?: string
 
 /**
  * The LIVE-PLAY hook (wire-in part 3): the orchestrator calls this on setScene BEFORE the classic
- * Director. SETTLEMENTS (the city/town scenario — the current scope) realize via the modern engine;
- * anything else returns null and falls back to the classic path. More biomes flip here as they prove
- * out. Failures also fall back — the game never breaks on a generation error.
+ * Director. ALL kinds (settlement / interior / wild) realize via the modern engine — the programmer +
+ * primitives now carry interiors (lighting, materials, caves) and wilds, not just towns. Failures fall
+ * back to the classic path — the game never breaks on a generation error.
+ *
+ * `ctx` is the campaign fiction the tool call can't carry: the arc premise + the current beat (and,
+ * later, its authored ScenePlan). It leads the enriched brief and joins the mood chain, so "gothic
+ * horror" reaches the map even when the DM's own setting string is short.
  */
-export function buildModernRealizer(deps: { llm: LlmProvider; model?: string }): (est: EstablishScene, party: PartyMemberRef[]) => Promise<SceneMap | null> {
-  return async (est, party) => {
-    if (sceneKindOf(est) !== 'settlement') return null; // city/town only for now — dungeons/wilds/coasts next
-    const { sceneMap } = await realizeStoryScene(deps, est, est.brief?.setting ?? '', party);
-    return sceneMap;
+export function buildModernRealizer(deps: { llm: LlmProvider; model?: string }): (est: EstablishScene, party: PartyMemberRef[], ctx?: SceneRealizeContext) => Promise<SceneMap | null> {
+  return async (est, party, ctx) => {
+    const plan = ctx?.scenePlan;
+    // The enriched brief LEADS with the designed look (else the campaign fiction), then the DM's declaration.
+    const premise = [plan?.look, ctx?.premise, ctx?.beat?.summary].filter(Boolean).join('\n') || (est.brief?.setting ?? '');
+    // Mood chain: the DM's declared mood > the beat's designed mood > the campaign fiction. The DM's
+    // explicitly declared timeOfDay still beats all of it (applied post-compose in realizeStoryScene).
+    const moodText = [est.brief?.mood, plan?.mood, ctx?.premise, ctx?.beat?.summary].filter(Boolean).join('. ') || (est.brief?.setting ?? '');
+    const kind = est.kind ?? plan?.kind; // absent → the programmer judges from the full brief
+    const features = plan?.features?.length ? `Must include: ${plan.features.join(', ')}` : '';
+    return (await realizeStoryScene(deps, est, features ? `${premise}\n${features}` : premise, party, {
+      moodText,
+      ...(kind ? { kind } : {}),
+      ...(est.timeOfDayExplicit ? { lightingDeclared: est.brief.timeOfDay } : {}),
+    })).sceneMap;
   };
 }
 

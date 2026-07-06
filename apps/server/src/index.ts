@@ -69,7 +69,7 @@ app.log.info(`Scene Composer: ${dirName}${dirModel ? ` (${dirModel})` : ''}`);
 // Kill-switch: MYTHWEAVER_SCENE_ENGINE=classic.
 const sceneEngineMode = (process.env.MYTHWEAVER_SCENE_ENGINE || 'modern').toLowerCase();
 const realizeScene = sceneEngineMode === 'classic' ? undefined : buildModernRealizer({ llm, ...(dmModel ? { model: dmModel } : {}) });
-app.log.info(`Scene engine: ${realizeScene ? 'modern (settlements) + classic fallback' : 'classic'}`);
+app.log.info(`Scene engine: ${realizeScene ? 'modern (all kinds: settlement/interior/wild) + classic fallback' : 'classic'}`);
 
 // Game Director / arc planner (Phase D / D2) — MYTHWEAVER_ARC_PLANNER = llm (default) | fake | off.
 // Director prompts are editable/hot-reloaded (prompts/director-*.md), mirroring the DM playbook.
@@ -650,7 +650,9 @@ app.post('/dm/lab/session', async (req, reply) => {
     startScene?: unknown;
     generatedArc?: unknown;
     party?: unknown;
+    sceneEngine?: unknown;
   };
+  const sceneEngine = body.sceneEngine === 'fake' ? 'fake' as const : 'modern' as const;
   const scenario = typeof body.scenario === 'string' && body.scenario ? body.scenario : DEFAULT_SCENARIO;
   if (!/^[a-z0-9-]+$/.test(scenario)) return badRequest(reply, 'invalid scenario');
   const playbook = typeof body.playbook === 'string' && body.playbook.trim() ? body.playbook : undefined;
@@ -686,6 +688,7 @@ app.post('/dm/lab/session', async (req, reply) => {
         ...(retriever ? { retriever } : {}),
         composer: new FakeSceneComposer(),
         ...(realizeScene ? { realizeScene } : {}),
+        sceneEngine,
         ...(arcPlanner ? { arcPlanner } : {}),
         ...(playbook ? { playbook } : {}),
         ...(scenarioJson ? { scenarioJson } : {}),
@@ -726,7 +729,7 @@ app.post('/dm/lab/session', async (req, reply) => {
   }
   const sessionId = randomUUID();
   dmLabSessions.set(sessionId, session);
-  return { sessionId, scenarioId: session.scenarioId, scene: session.scene, party: session.party, arc: arcView(session), characters: characterSheets(session) };
+  return { sessionId, scenarioId: session.scenarioId, scene: session.scene, party: session.party, sceneEngine: session.sceneEngine, arc: arcView(session), characters: characterSheets(session) };
 });
 
 app.post('/dm/lab/session/:id/turn', async (req, reply) => {

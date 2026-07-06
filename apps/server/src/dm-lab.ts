@@ -38,7 +38,7 @@ import {
 } from '@mythweaver/llm';
 import type { Retriever } from '@mythweaver/rag';
 import { FakeSceneComposer, type SceneComposer } from '@mythweaver/scene';
-import { ABILITIES, SKILLS, type Ability, type CharacterSheet, type EntityCard, type EstablishScene, type GameState, type PartyMemberRef, type SceneMap, type Skill, type StatBlock } from '@mythweaver/shared';
+import { ABILITIES, SKILLS, type Ability, type CharacterSheet, type EntityCard, type EstablishScene, type GameState, type PartyMemberRef, type SceneMap, type SceneRealizeContext, type Skill, type StatBlock } from '@mythweaver/shared';
 import { createHash } from 'node:crypto';
 import { loadItemCatalog, loadScenario, parseScenario, resolveParty } from './content.js';
 import { buildRetriever } from './corpus.js';
@@ -86,8 +86,11 @@ export interface DmLabDeps {
   retriever?: Retriever;
   /** Defaults to a deterministic FakeSceneComposer (no API cost). */
   composer?: SceneComposer;
-  /** LIVE-PLAY modern engine (wire-in part 3) — settlements realize via the story path; else classic. */
-  realizeScene?: (est: EstablishScene, party: PartyMemberRef[]) => Promise<SceneMap | null>;
+  /** LIVE-PLAY modern engine (wire-in part 3) — all kinds realize via the programmer path; classic on failure. */
+  realizeScene?: (est: EstablishScene, party: PartyMemberRef[], ctx?: SceneRealizeContext) => Promise<SceneMap | null>;
+  /** Scene engine for THIS session: 'modern' (default — the real programmer path, ~$0.01-0.05 per new
+   *  location) or 'fake' (the deterministic $0 composer, for cheap DM iteration). */
+  sceneEngine?: 'modern' | 'fake';
   /** DM persona. Defaults to the EDITED prompts/dm-playbook.md (loadPlaybook), so editing the
    *  file + re-running iterates the real persona — not the in-code DEFAULT_DM_PLAYBOOK fallback. */
   playbook?: string;
@@ -262,7 +265,9 @@ export interface DmLabSession {
   engine: Engine;
   recorder: RecordingProvider;
   composer: SceneComposer;
-  realizeScene?: (est: EstablishScene, party: PartyMemberRef[]) => Promise<SceneMap | null>;
+  realizeScene?: (est: EstablishScene, party: PartyMemberRef[], ctx?: SceneRealizeContext) => Promise<SceneMap | null>;
+  /** Which scene engine this session was created with (surfaced in the UI). */
+  sceneEngine: 'modern' | 'fake';
   retriever?: Retriever;
   arcPlanner?: ArcPlanner;
   playbook: string;
@@ -338,12 +343,17 @@ export function createDmLabSession(deps: DmLabDeps, scenarioId: string): DmLabSe
       plants: Object.fromEntries((gen?.ledger?.plants ?? []).map((p) => [p.id, p])),
     };
   }
+  // The sceneEngine knob: 'fake' drops the modern realizer so setScene uses the $0 deterministic
+  // composer — cheap DM iteration. Default is 'modern': the lab is the test-play surface, so scenes
+  // should look like the real thing unless you opt out.
+  const sceneEngine: 'modern' | 'fake' = deps.sceneEngine === 'fake' || !deps.realizeScene ? 'fake' : 'modern';
   return {
     scenarioId,
     engine: new Engine(state),
     recorder: new RecordingProvider(deps.llm),
     composer: deps.composer ?? new FakeSceneComposer(),
-    ...(deps.realizeScene ? { realizeScene: deps.realizeScene } : {}),
+    sceneEngine,
+    ...(sceneEngine === 'modern' && deps.realizeScene ? { realizeScene: deps.realizeScene } : {}),
     ...(deps.retriever ? { retriever: deps.retriever } : {}),
     ...(deps.arcPlanner ? { arcPlanner: deps.arcPlanner } : {}),
     playbook: deps.playbook ?? loadPlaybook(),

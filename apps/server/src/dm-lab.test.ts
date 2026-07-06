@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { Engine, createInitialState } from '@mythweaver/engine';
+import { FakeLlmProvider } from '@mythweaver/llm';
 import type { CharacterSheet } from '@mythweaver/shared';
-import { characterSheets, type DmLabSession } from './dm-lab.js';
+import { characterSheets, createDmLabSession, type DmLabSession } from './dm-lab.js';
 
 function wizard(): CharacterSheet {
   return {
@@ -22,6 +23,27 @@ function wizard(): CharacterSheet {
     startingCurrency: { gp: 10 },
   };
 }
+
+describe('sceneEngine knob (lab sessions pick real vs $0 scene generation)', () => {
+  const realizeScene = async () => null;
+
+  it("defaults to 'modern' when a realizer is wired (the lab is the test-play surface)", () => {
+    const s = createDmLabSession({ llm: new FakeLlmProvider([]), realizeScene }, 'the-sunken-bell');
+    expect(s.sceneEngine).toBe('modern');
+    expect(s.realizeScene).toBe(realizeScene);
+  });
+
+  it("'fake' drops the modern realizer so setScene costs $0", () => {
+    const s = createDmLabSession({ llm: new FakeLlmProvider([]), realizeScene, sceneEngine: 'fake' }, 'the-sunken-bell');
+    expect(s.sceneEngine).toBe('fake');
+    expect(s.realizeScene).toBeUndefined();
+  });
+
+  it("no realizer wired at all → the session reports 'fake' honestly", () => {
+    const s = createDmLabSession({ llm: new FakeLlmProvider([]) }, 'the-sunken-bell');
+    expect(s.sceneEngine).toBe('fake');
+  });
+});
 
 describe('characterSheets (Run-view sheet serializer)', () => {
   const view = () => {

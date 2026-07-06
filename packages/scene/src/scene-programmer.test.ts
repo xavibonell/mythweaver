@@ -193,4 +193,36 @@ describe('LLM scene programmer (G1b) — normalize + compose', () => {
     expect(m.objects.some((o) => o.tag === 'fountain')).toBe(true);
     expect(m.objects.filter((o) => o.role === 'mob').length).toBeGreaterThan(3);
   });
+
+  // The DM's declared `kind` (setScene) / a beat's ScenePlan kind FORCES the layout family — it beats
+  // both the LLM's grammar guess and the keyword nets ("flooded mining town" must not become a town
+  // when the DM said interior, nor an interior via the \bmine\b keyword when the DM said settlement).
+  it('kindHint interior beats settlement keywords + the LLM grammar (and fires the structural net)', () => {
+    const p = normalizeProgram(
+      { grammar: 'town-square', outdoor: true, ops: [] },
+      'a flooded mining town, gothic horror',
+      'gothic horror of the drowned dead',
+      'interior',
+    );
+    expect(p.grammar).toBe('enclosed-interior');
+    expect(p.outdoor).toBe(false);
+    expect(p.ops.some((o) => o.op === 'archetype')).toBe(false); // town routing suppressed
+    expect(p.ops.some((o) => o.op === 'rooms' || o.op === 'cave' || o.op === 'maze')).toBe(true); // backbone injected
+    expect(p.lighting).toBe('night'); // mood text still drives lighting
+    expect(validateSceneMap(runProgram(p))).toEqual({ ok: true, violations: [] });
+  });
+
+  it('kindHint settlement routes to the town generator even without town keywords', () => {
+    const p = normalizeProgram({ ops: [] }, 'a cluster of dwellings by the ford', 'a sunny morning', 'settlement');
+    expect(p.grammar).toBe('town-square');
+    expect(p.outdoor).toBe(true);
+    expect(p.ops.some((o) => o.op === 'archetype' && o.kind === 'town')).toBe(true);
+  });
+
+  it('kindHint wild keeps open nature open even when the brief names a mine', () => {
+    const p = normalizeProgram({ ops: [] }, 'the rocky path up to the old mine', 'day', 'wild');
+    expect(p.grammar).toBe('open-outdoor');
+    expect(p.ops.some((o) => o.op === 'archetype')).toBe(false);
+    expect(p.ops.some((o) => o.op === 'rooms' || o.op === 'cave' || o.op === 'maze')).toBe(false); // no interior net
+  });
 });

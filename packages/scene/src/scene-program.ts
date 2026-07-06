@@ -10,7 +10,7 @@
  */
 
 import type { LlmProvider } from '@mythweaver/llm';
-import { BIOMES, BUILDING_TYPES, LAYOUT_GRAMMARS, type BuildingType, type LayoutGrammar, type Lighting, type SceneMap } from '@mythweaver/shared';
+import { BIOMES, BUILDING_TYPES, LAYOUT_GRAMMARS, type BuildingType, type LayoutGrammar, type Lighting, type SceneKindHint, type SceneMap } from '@mythweaver/shared';
 import { ARCHETYPE_KINDS, GENERATORS, type ArchetypeKind, type Contents } from './archetypes.js';
 import { isCharacter, isProp, isTerrain } from './catalog.js';
 import { bridge, building, Canvas, bspRooms, cave, clearing, entrance, fill, finalize, island, maze, path, place, plaza, scatter, vignette, VIGNETTE_NAMES, wallRing, type Pt, type Rect } from './primitives.js';
@@ -582,9 +582,14 @@ function progSeed(s: string): number {
  *  time-of-day/weather is inferred from — the PLAYER'S premise in story mode, so the DM's atmospheric
  *  flavour prose can't silently flip the scene to night/fog. Defaults to `brief` (the direct /program path,
  *  where the brief IS the player's words). */
-export function normalizeProgram(raw: unknown, brief: string, moodText: string = brief): SceneProgram {
+export function normalizeProgram(raw: unknown, brief: string, moodText: string = brief, kindHint?: SceneKindHint): SceneProgram {
   const r = asRec(raw);
-  const grammar: LayoutGrammar = (LAYOUT_GRAMMARS as readonly string[]).includes(r.grammar as string) ? (r.grammar as LayoutGrammar) : 'open-outdoor';
+  // An explicitly DECLARED kind (the DM's setScene `kind`, or a beat's authored ScenePlan) FORCES the
+  // grammar — it beats both the LLM's guess and the keyword nets below ("flooded mining town" must not
+  // become an interior because the brief contains "mine").
+  const KIND_GRAMMAR: Record<SceneKindHint, LayoutGrammar> = { settlement: 'town-square', interior: 'enclosed-interior', wild: 'open-outdoor' };
+  const grammar: LayoutGrammar = kindHint ? KIND_GRAMMAR[kindHint]
+    : (LAYOUT_GRAMMARS as readonly string[]).includes(r.grammar as string) ? (r.grammar as LayoutGrammar) : 'open-outdoor';
   const seen = new Set<string>();
   const ops = (Array.isArray(r.ops) ? r.ops : []).map((o) => normalizeOp(o, seen)).filter((o): o is SceneOp => o !== null).slice(0, 24);
   if (!ops.length) ops.push({ op: 'scatter', idBase: 'prop:rock', tags: ['bush', 'tree'], kind: 'prop', region: 'all', count: 8 });
@@ -598,7 +603,7 @@ export function normalizeProgram(raw: unknown, brief: string, moodText: string =
   // towns looked like a spreadsheet). Harvest the LLM's named CAST and hand it to the generator, dropping
   // its coordinates. Skipped for water-dominant briefs (lake/coast villages, where geometry matters) and
   // when the model already emitted an archetype op directly.
-  const settlement = grammar === 'town-square' || /\b(town|village|city|hamlet|township|settlement|market town|burgh?|outpost)\b/.test(lcb);
+  const settlement = kindHint ? kindHint === 'settlement' : grammar === 'town-square' || /\b(town|village|city|hamlet|township|settlement|market town|burgh?|outpost)\b/.test(lcb);
   const hasArchetype = ops.some((o) => o.op === 'archetype');
   const dominantWater = ops.some((o) => o.op === 'fill' && o.tag.startsWith('water') && o.region === 'all');
   const routedTown = settlement && !hasArchetype && !dominantWater;
@@ -614,7 +619,7 @@ export function normalizeProgram(raw: unknown, brief: string, moodText: string =
     // so it can never come out a flat field. Inserted BEFORE the first object op (so terrain fills stay
     // the base and objects land in the carved structure). Deterministic, no extra LLM call.
     const STRUCT = new Set(['building', 'rooms', 'cave', 'maze']);
-    const interiorish = grammar === 'enclosed-interior' || /dungeon|crypt|cave|cavern|grotto|temple|vault|lair|tomb|catacomb|fortress|prison|sewer|\bmine\b|warren|labyrinth|maze/.test(lcb);
+    const interiorish = kindHint ? kindHint === 'interior' : grammar === 'enclosed-interior' || /dungeon|crypt|cave|cavern|grotto|temple|vault|lair|tomb|catacomb|fortress|prison|sewer|\bmine\b|warren|labyrinth|maze/.test(lcb);
     if (interiorish && !ops.some((o) => STRUCT.has(o.op))) {
       const inject: SceneOp = /labyrinth|maze/.test(lcb) ? { op: 'maze', region: 'all', wall: 'wall', floor: 'flagstone' }
         : /cave|cavern|grotto|\bmine\b|lair|warren|burrow/.test(lcb) ? { op: 'cave', region: 'all', wall: 'rock_wall', floor: 'stone' }
@@ -673,7 +678,8 @@ export function normalizeProgram(raw: unknown, brief: string, moodText: string =
       : 'day')(moodText.toLowerCase()),
     grammar,
     theme: themeNameFor(r.theme, brief, grammar), // one palette for the whole scene
-    outdoor: typeof r.outdoor === 'boolean' ? r.outdoor : grammar !== 'enclosed-interior',
+    // A declared kind also owns indoor/outdoor — the LLM's `outdoor` can't contradict a forced interior.
+    outdoor: kindHint ? kindHint !== 'interior' : typeof r.outdoor === 'boolean' ? r.outdoor : grammar !== 'enclosed-interior',
     ops,
   };
 }
@@ -682,7 +688,7 @@ export function normalizeProgram(raw: unknown, brief: string, moodText: string =
 export class LlmSceneProgrammer {
   constructor(private readonly llm: LlmProvider, private readonly model?: string) {}
 
-  async compose(brief: string, moodText?: string): Promise<SceneProgram> {
+  async compose(brief: string, moodText?: string, kindHint?: SceneKindHint): Promise<SceneProgram> {
     const res = await this.llm.complete({
       system: SCENE_PROGRAMMER_SYSTEM,
       messages: [{ role: 'user', content: brief }],
@@ -698,6 +704,6 @@ export class LlmSceneProgrammer {
     }
     // `moodText` (the player's premise) drives time-of-day, so the DM's flavour prose in the enriched brief
     // can't silently set night/fog. Falls back to the brief for the direct /program path.
-    return normalizeProgram(raw, brief, moodText ?? brief);
+    return normalizeProgram(raw, brief, moodText ?? brief, kindHint);
   }
 }

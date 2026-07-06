@@ -109,13 +109,64 @@ export interface NpcDecl {
   disposition?: 'friendly' | 'neutral' | 'hostile' | 'unknown';
 }
 
+/** Structural layout family — the DM's explicit routing declaration (beats keyword inference). */
+export type SceneKindHint = 'settlement' | 'interior' | 'wild';
+
 /** The DM's tool call to stand up a brand-new location (the fiction, semantic only). */
 export interface EstablishScene {
   locationId: LocationId;
   brief: { setting: string; biome: string; timeOfDay: Lighting; mood?: string };
+  /** DM-declared structural kind. When present it FORCES the layout grammar (settlement =
+   *  buildings+streets, interior = enclosed, wild = open nature); absent → the generator infers. */
+  kind?: SceneKindHint;
+  /** true when the DM explicitly declared timeOfDay — the parser's coerced 'day' default does NOT
+   *  count. Declared time beats mood-inferred lighting (declared > mood > day). */
+  timeOfDayExplicit?: boolean;
   fixtures: FixtureDecl[];
   npcs: NpcDecl[];
   size?: 'small' | 'medium' | 'large';
+}
+
+/** A per-beat scene design authored at ARC-GENERATION time, when the full campaign premise is in
+ *  context — the Director-quality brief the DM inherits instead of improvising one mid-turn. */
+export interface ScenePlan {
+  /** 1-3 sentences: what the place LOOKS like top-down — terrain, structures, water/edges. */
+  look: string;
+  kind: SceneKindHint;
+  /** Lighting/weather intent in plain words ("predawn fog", "grim, drowned dusk"). */
+  mood: string;
+  /** Must-exist landmark concepts (the generator's completeness nets pick them up). */
+  features?: string[];
+}
+
+/** Campaign fiction the live orchestrator hands the modern realizer alongside the DM's declaration —
+ *  the context a setScene tool call cannot carry (the premise/beat live in GameState, not the tool). */
+export interface SceneRealizeContext {
+  /** Campaign premise (arc blueprint premise, falling back to the adventure pitch). */
+  premise?: string;
+  /** The current arc beat this scene realizes. */
+  beat?: { id: string; title?: string; summary?: string };
+  /** The beat's authored scene design, when the arc composer produced one. */
+  scenePlan?: ScenePlan;
+}
+
+/** Where a rendered scene came from — attached to the turn (response-only, never persisted) so the
+ *  lab can show exactly what the DM asked, what the generator was given, and what it decided. */
+export interface SceneProvenance {
+  locationId: LocationId;
+  /** modern = programmer path · classic = zone composer · fake = deterministic test composer ·
+   *  frozen = an already-generated location was reused verbatim. */
+  engine: 'modern' | 'classic' | 'fake' | 'frozen';
+  reused: boolean;
+  toolInput?: Record<string, unknown>;
+  establish?: EstablishScene;
+  beat?: { id: string; title?: string };
+  scenePlan?: ScenePlan;
+  /** The exact brief handed to the scene programmer. */
+  enrichedBrief?: string;
+  /** The text lighting was inferred from + why the final lighting won. */
+  moodText?: string;
+  lightingReason?: 'declared' | 'mood' | 'default';
 }
 
 /** The Director's input = the DM's fiction + engine-authoritative party + the deterministic seed. */

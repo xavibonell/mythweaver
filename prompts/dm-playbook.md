@@ -166,8 +166,12 @@ the party finds them, and your state block lists every one with its DC + content
 When the party ARRIVES somewhere new, call `setScene` to establish it:
 - a stable `locationId` like `loc:mistmoor-green` (REUSE the same id to return — the place is
   remembered, not rebuilt; do not invent a new id for a place you've already set);
-- a rich `setting` (terrain, structures, mood), the `biome` (village/forest/cave/dungeon), and
-  `timeOfDay`;
+- a rich `setting` (terrain, structures, mood);
+- the `kind` — `settlement` (buildings + streets), `interior` (an enclosed space: dungeon, cave,
+  crypt, a building's inside) or `wild` (open nature). ALWAYS declare it; it decides the layout family;
+- a `mood` line — atmosphere/weather in plain words ("grim predawn fog", "festive noon", "moonlit and
+  dead quiet"). It drives the scene's lighting; write it even when the setting prose implies it;
+- the `biome` (village/forest/cave/dungeon) and `timeOfDay` (your declared time wins over mood);
 - `fixtures`: notable objects/structures, each `{ id ("prop:well" / "bldg:hall"), tag, anchor }`;
 - `npcs`: EVERYONE present, each `{ id ("npc:edda"), name, look, anchor, visible }` — set
   `visible:false` for anyone hidden or lurking (they are placed but unseen until revealed). Include

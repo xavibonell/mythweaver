@@ -29,7 +29,7 @@ import {
   type ToolDef,
 } from '@mythweaver/llm';
 import type { Retriever } from '@mythweaver/rag';
-import { ABILITIES, SKILLS, isEntityId, type Ability, type ArcBrief, type CharacterSheet, type CharacterState, type Combatant, type DamageType, type EntityCard, type EstablishScene, type FixtureDecl, type GameState, type ItemDef, type NpcDecl, type PartyMemberRef, type PendingTurn, type Poi, type PoiKind, type SceneMap, type Skill } from '@mythweaver/shared';
+import { ABILITIES, SKILLS, isEntityId, type Ability, type ArcBrief, type CharacterSheet, type CharacterState, type Combatant, type DamageType, type EntityCard, type EstablishScene, type FixtureDecl, type GameState, type ItemDef, type NpcDecl, type PartyMemberRef, type PendingTurn, type Poi, type PoiKind, type SceneMap, type SceneRealizeContext, type Skill } from '@mythweaver/shared';
 import type { ArcPlanner } from './arc-planner.js';
 import { CHARACTERS, PROMPT_PROPS, buildSceneMap, type SceneComposer } from '@mythweaver/scene';
 
@@ -68,7 +68,9 @@ ABSOLUTE RULES (non-negotiable):
 
 VISUAL SCENE (the table sees a live top-down map — docs/SCENE-CONTRACTS.md):
 - When the party arrives somewhere new, call "setScene" to establish it. Give a stable "locationId"
-  like "loc:mistmoor-green", a rich "setting" (terrain, structures, mood), the "biome"
+  like "loc:mistmoor-green", a rich "setting" (terrain, structures, mood), the "kind"
+  (settlement/interior/wild — ALWAYS declare it; it decides the layout family), a "mood" line
+  (atmosphere/weather in plain words — it drives the lighting), the "biome"
   (village/forest/cave/dungeon) and "timeOfDay", and LIST what is present:
   - "fixtures": notable objects/structures, each { id ("prop:well" / "bldg:hall"), tag, anchor }.
   - "npcs": everyone present, each { id ("npc:edda"), name, look, anchor, visible } — set visible:false
@@ -182,9 +184,9 @@ export interface OrchestratorDeps {
   /** Scene Composer for the visual layer (docs/SCENE-CONTRACTS.md). When present, the DM gets `setScene`. */
   composer?: SceneComposer;
   /** LIVE-PLAY modern engine (wire-in part 3): tried FIRST when a NEW location is established. Returns
-   *  null to decline (currently everything but settlements) → the classic Composer path runs. Any
-   *  failure also falls back — scene generation can never break a turn. */
-  realizeScene?: (est: EstablishScene, party: PartyMemberRef[]) => Promise<SceneMap | null>;
+   *  null to decline → the classic Composer path runs. Any failure also falls back — scene generation
+   *  can never break a turn. `ctx` carries the campaign fiction (premise/beat/plan) the tool call can't. */
+  realizeScene?: (est: EstablishScene, party: PartyMemberRef[], ctx?: SceneRealizeContext) => Promise<SceneMap | null>;
   /** Game Director (Phase D / D2). When present, the per-turn STEERING brief is (re)planned on triggers. */
   arcPlanner?: ArcPlanner;
   /** Sampling temperature for the DM model (omit to use the provider default). Used by the DM Lab. */
@@ -247,6 +249,8 @@ export function buildToolDefs(retrieval: boolean, scene: boolean): ToolDef[] {
         properties: {
           locationId: { type: 'string', description: 'Stable id for this place, e.g. "loc:mistmoor-green". Reuse it to return here.' },
           setting: { type: 'string', description: 'Rich description: terrain + structures + mood.' },
+          kind: { type: 'string', enum: ['settlement', 'interior', 'wild'], description: 'Structural kind — settlement (buildings + streets), interior (an enclosed space: dungeon, cave, crypt, building interior), wild (open nature). ALWAYS declare it; it decides the layout family.' },
+          mood: { type: 'string', description: 'Atmosphere/weather in plain words — e.g. "grim predawn fog", "festive noon", "moonlit and dead quiet". Drives the scene\'s lighting.' },
           biome: { type: 'string', enum: ['village', 'forest', 'cave', 'dungeon'] },
           timeOfDay: { type: 'string', enum: ['day', 'dusk', 'night'] },
           fixtures: {
@@ -1055,13 +1059,25 @@ export function parseEstablish(input: Record<string, unknown>, state: GameState)
   const setting = typeof input.setting === 'string' && input.setting.trim() ? input.setting : 'a quiet, dim place';
   const biome = typeof input.biome === 'string' ? input.biome : 'village';
   const tod = input.timeOfDay;
-  const timeOfDay = tod === 'day' || tod === 'dusk' || tod === 'night' ? tod : 'day';
+  // Track whether the DM actually DECLARED a time — the coerced 'day' default below must never count
+  // as a declaration (declared time beats mood-inferred lighting; a phantom 'day' would kill mood).
+  const timeOfDayExplicit = tod === 'day' || tod === 'dusk' || tod === 'night';
+  const timeOfDay = timeOfDayExplicit ? tod : 'day';
+  const kind = input.kind === 'settlement' || input.kind === 'interior' || input.kind === 'wild' ? input.kind : undefined;
+  const mood = typeof input.mood === 'string' && input.mood.trim() ? input.mood.trim() : undefined;
   let locationId = typeof input.locationId === 'string' && /^loc:[a-z0-9-]+$/.test(input.locationId) ? input.locationId : '';
   if (!locationId) {
     locationId = `loc:${slug(setting)}`;
     if (!/^loc:[a-z0-9-]+$/.test(locationId)) locationId = `loc:place-${Object.keys(state.world?.locations ?? {}).length}`;
   }
-  return { locationId, brief: { setting, biome, timeOfDay }, fixtures: parseFixtures(input.fixtures), npcs: parseNpcs(input.npcs) };
+  return {
+    locationId,
+    brief: { setting, biome, timeOfDay, ...(mood ? { mood } : {}) },
+    ...(kind ? { kind } : {}),
+    ...(timeOfDayExplicit ? { timeOfDayExplicit: true } : {}),
+    fixtures: parseFixtures(input.fixtures),
+    npcs: parseNpcs(input.npcs),
+  };
 }
 
 export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise<TurnResult> {
@@ -1300,7 +1316,17 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
               .filter((c) => c.kind === 'pc')
               .map((c) => ({ id: c.id, spriteTag: c.spriteTag ?? 'knight', name: c.name }));
             if (deps.realizeScene) {
-              try { map = (await deps.realizeScene(est, party)) ?? undefined; } catch { map = undefined; /* modern engine failed → classic path below */ }
+              // The campaign fiction the tool call can't carry: premise + the current beat (+ its
+              // authored ScenePlan when the arc composer produced one) — so the generator hears
+              // "gothic horror" even when the DM's own setting string is short.
+              const beatId = state.currentSceneId;
+              const beat = state.adventure?.scenes?.[beatId];
+              const premise = state.arc?.blueprint?.premise ?? state.adventure?.pitch;
+              const ctx: SceneRealizeContext = {
+                ...(premise ? { premise } : {}),
+                ...(beat ? { beat: { id: beatId, title: beat.title, summary: beat.summary } } : {}),
+              };
+              try { map = (await deps.realizeScene(est, party, ctx)) ?? undefined; } catch { map = undefined; /* modern engine failed → classic path below */ }
             }
             if (!map) {
               const comp = await deps.composer.compose({ establish: est, party, seed: seedFor(est.locationId) });
