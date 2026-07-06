@@ -29,7 +29,7 @@ import {
   type ToolDef,
 } from '@mythweaver/llm';
 import type { Retriever } from '@mythweaver/rag';
-import { ABILITIES, SKILLS, isEntityId, type Ability, type ArcBrief, type CharacterSheet, type CharacterState, type Combatant, type DamageType, type EntityCard, type EstablishScene, type FixtureDecl, type GameState, type ItemDef, type NpcDecl, type PartyMemberRef, type PendingTurn, type SceneMap, type Skill } from '@mythweaver/shared';
+import { ABILITIES, SKILLS, isEntityId, type Ability, type ArcBrief, type CharacterSheet, type CharacterState, type Combatant, type DamageType, type EntityCard, type EstablishScene, type FixtureDecl, type GameState, type ItemDef, type NpcDecl, type PartyMemberRef, type PendingTurn, type Poi, type PoiKind, type SceneMap, type Skill } from '@mythweaver/shared';
 import type { ArcPlanner } from './arc-planner.js';
 import { CHARACTERS, PROMPT_PROPS, buildSceneMap, type SceneComposer } from '@mythweaver/scene';
 
@@ -117,7 +117,19 @@ items with their instanceIds, their coin purse, and a "shop" of buyable ids + pr
   new AC, never invent it. Magic items often need "attuneItem" (the engine enforces the limit of 3 and
   that the item is identified first); an unidentified magic item must be "identifyItem"-ed before it works.
 - Death & revival: heal NEVER works on a dead character. Only "revive" (a Revivify/Raise Dead effect)
-  brings them back.`;
+  brings them back.
+
+POINTS OF INTEREST & SECRETS (you know the secret; the players don't until they find it):
+- When you set a scene, plant the interactive things the story hides — a chest behind the roots, a loose
+  flagstone, a secret cellar door — with "placePoi": an id, a "look", where it is ("anchor"), and for a
+  hidden one a "discoverDc" (the Perception/Investigation DC to spot it). For a container give "contents"
+  (catalog item ids + gold); for a passage give "leadsTo" (a "loc:…" place, or a scene id).
+- Finding it: the party searches, or you "requestRoll" a Perception/Investigation check vs the discoverDc —
+  on success call "discoverPoi" (the engine also auto-reveals anything a character's passive Perception
+  already beats). Then "searchPoi" to describe what's inside and "lootPoi" to hand the contents to a
+  character (they land on their sheet; it's idempotent — a looted chest is empty).
+- NEVER invent loot or a hidden door on the spot — "placePoi" it first, THEN let the players discover it.
+  Your state block lists every POI here with its DC + contents; the players never see that.`;
 
 const MAX_STEPS = 6;
 const MAX_OUTPUT_TOKENS = 700;
@@ -654,6 +666,54 @@ export function buildToolDefs(retrieval: boolean, scene: boolean): ToolDef[] {
       },
     },
   );
+  // Points of interest / interactables (P4). The engine owns the secret (discover DC, contents); players
+  // never see a hidden POI until they find it. The DM plants them when scene-setting.
+  tools.push({
+    name: 'placePoi',
+    description:
+      'Plant a point of interest the players can interact with — a hidden chest, a secret door, a searchable altar. YOU know it; the players do NOT until they find it. Give a short "look", where it is ("anchor"), and whether it is hidden (with a discoverDc = the Perception/Investigation DC to spot it). For a container, list "contents" (catalog item ids + gold). For a passage (a door/stairs), give "leadsTo" (a "loc:…" place to enter, or a scene id). Never invent loot or a secret door on the fly — place it first, then have the party find it.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        id: { type: 'string', description: 'Stable id, e.g. "poi:cellar-chest".' },
+        kind: { type: 'string', enum: ['container', 'passage', 'feature', 'hidden-cache'], description: 'container (chest/crate), passage (door/stairs → leadsTo), feature (statue/altar), hidden-cache.' },
+        look: { type: 'string', description: 'Short description read when found, e.g. "an iron-bound chest half-buried behind the roots".' },
+        anchor: { type: 'string', description: 'Coordinate-free placement: "behind:prop:tree-3" | "near:bldg:inn" | "waterside" | "center".' },
+        hidden: { type: 'boolean', description: 'true = not seen until discovered.' },
+        discoverDc: { type: 'number', description: 'The DC to spot a hidden POI (required when hidden).' },
+        contents: {
+          type: 'object',
+          description: 'What a container holds.',
+          properties: {
+            items: { type: 'array', items: { type: 'object', properties: { itemDefId: { type: 'string' }, qty: { type: 'number' } }, required: ['itemDefId'], additionalProperties: false } },
+            gold: { type: 'number' },
+          },
+          additionalProperties: false,
+        },
+        leadsTo: { type: 'string', description: 'For a passage: a "loc:…" location to enter, or an arc scene id.' },
+        notes: { type: 'string', description: 'A private GM note (never shown to players).' },
+      },
+      required: ['id', 'kind', 'look'],
+      additionalProperties: false,
+    },
+  });
+  tools.push(
+    {
+      name: 'discoverPoi',
+      description: "Reveal a hidden point of interest the party just FOUND — after they beat its discoverDc on a Perception/Investigation check, or searched the right spot. Pass the POI id. (The engine also auto-reveals a POI whose DC is ≤ a character's passive Perception when they arrive.)",
+      inputSchema: { type: 'object', properties: { id: { type: 'string' }, by: { type: 'string', description: 'How they found it (for the log).' } }, required: ['id'], additionalProperties: false },
+    },
+    {
+      name: 'searchPoi',
+      description: "Search a FOUND point of interest to see what's inside — describe it to the players (no transfer yet). Pass the POI id.",
+      inputSchema: { type: 'object', properties: { id: { type: 'string' } }, required: ['id'], additionalProperties: false },
+    },
+    {
+      name: 'lootPoi',
+      description: "Hand a FOUND point of interest's contents (items + gold) to a character — they land on that character's sheet. Pass the POI id + the looter's combatant id. Idempotent (a looted POI is empty).",
+      inputSchema: { type: 'object', properties: { id: { type: 'string' }, combatantId: { type: 'string' } }, required: ['id', 'combatantId'], additionalProperties: false },
+    },
+  );
   return tools;
 }
 
@@ -754,7 +814,23 @@ function summarizeState(state: GameState): string {
     ...(npcs ? [`Enemies/NPCs present:\n${npcs}`] : []),
     `In combat: ${inCombat}`,
     ...(map ? [`\n=== MAP (current location, authoritative) ===\n${sceneDigest(map)}`] : []),
+    ...(poiDigest(state) ? [poiDigest(state)] : []),
   ].join('\n');
+}
+
+/** DM-ONLY digest of the current location's points of interest — WITH their discover DCs + contents. The DM
+ *  knows these; the players never do (the narration + the map slice the client sees never carry them). */
+function poiDigest(state: GameState): string {
+  const loc = state.world?.currentLocationId;
+  const pois = Object.values(state.pois ?? {}).filter((p) => !loc || p.locationId === loc);
+  if (!pois.length) return '';
+  const lines = pois.map((p) => {
+    const status = p.looted ? 'looted' : p.searched ? 'searched' : p.discovered ? 'found' : p.hidden ? `HIDDEN, DC ${p.discoverDc}` : 'in plain sight';
+    const loot = p.contents ? ` — holds ${[...(p.contents.items ?? []).map((it) => `${it.qty && it.qty > 1 ? `${it.qty}× ` : ''}${it.itemDefId}`), ...(p.contents.gold ? [`${p.contents.gold} gp`] : [])].join(', ') || '(nothing)'}` : '';
+    const leads = p.leadsTo ? ` → leads to ${p.leadsTo}` : '';
+    return `- ${p.id} (${p.kind})${p.anchor ? ` ${p.anchor}` : ''} — ${status}${loot}${leads}: ${p.look}`;
+  });
+  return `\n=== POINTS OF INTEREST (you know these; the players don't until they find them) ===\n${lines.join('\n')}`;
 }
 
 /** The JSON the getState tool returns to the model. */
@@ -820,6 +896,14 @@ function serializeStateForModel(state: GameState): string {
     flags: state.flags,
     // The buyable catalog (id + name + price) so the DM can run a shop with real ids + prices.
     ...(Object.keys(catalog).length ? { shop: Object.values(catalog).filter((d) => d.costGp !== undefined).map((d) => ({ id: d.id, name: d.name, gp: d.costGp })) } : {}),
+    // POINTS OF INTEREST for the current location — DM-only (discover DC + contents). Never sent to players.
+    ...(state.pois && Object.keys(state.pois).length
+      ? {
+          pois: Object.values(state.pois)
+            .filter((p) => !map || p.locationId === map.locationId)
+            .map((p) => ({ id: p.id, kind: p.kind, look: p.look, anchor: p.anchor, hidden: p.hidden, discoverDc: p.discoverDc, discovered: p.discovered, searched: p.searched, looted: p.looted, contents: p.contents, leadsTo: p.leadsTo })),
+        }
+      : {}),
     // The frozen object_map so the DM references real entity ids + positions (slice 5: deltas).
     ...(map
       ? {
@@ -1483,6 +1567,52 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
       } else if (tc.name === 'castRitual') {
         try {
           const r = engine.castRitual({ combatantId: (engine.findCombatantId(String(tc.input.combatantId ?? '')) ?? String(tc.input.combatantId ?? '')), spell: String(tc.input.spell ?? '') });
+          resolved.push({ toolUseId: tc.id, content: JSON.stringify(r) });
+        } catch (e) {
+          resolved.push({ toolUseId: tc.id, content: JSON.stringify({ error: (e as Error).message }) });
+        }
+      } else if (tc.name === 'placePoi') {
+        try {
+          const i = tc.input;
+          const c = i.contents && typeof i.contents === 'object' ? (i.contents as Record<string, unknown>) : null;
+          const contents = c
+            ? {
+                ...(Array.isArray(c.items) ? { items: (c.items as unknown[]).map((x) => { const xx = (x && typeof x === 'object' ? x : {}) as Record<string, unknown>; return { itemDefId: String(xx.itemDefId ?? ''), ...(xx.qty !== undefined ? { qty: Number(xx.qty) } : {}) }; }) } : {}),
+                ...(c.gold !== undefined ? { gold: Number(c.gold) } : {}),
+              }
+            : undefined;
+          const r = engine.placePoi({
+            id: String(i.id ?? ''),
+            kind: String(i.kind ?? 'feature') as PoiKind,
+            look: String(i.look ?? ''),
+            ...(typeof i.anchor === 'string' ? { anchor: i.anchor } : {}),
+            ...(i.hidden !== undefined ? { hidden: !!i.hidden } : {}),
+            ...(i.discoverDc !== undefined ? { discoverDc: Number(i.discoverDc) } : {}),
+            ...(contents ? { contents } : {}),
+            ...(typeof i.leadsTo === 'string' ? { leadsTo: i.leadsTo } : {}),
+            ...(typeof i.notes === 'string' ? { notes: i.notes } : {}),
+          });
+          resolved.push({ toolUseId: tc.id, content: JSON.stringify(r) });
+        } catch (e) {
+          resolved.push({ toolUseId: tc.id, content: JSON.stringify({ error: (e as Error).message }) });
+        }
+      } else if (tc.name === 'discoverPoi') {
+        try {
+          const r = engine.discoverPoi({ id: String(tc.input.id ?? ''), ...(typeof tc.input.by === 'string' ? { by: tc.input.by } : {}) });
+          resolved.push({ toolUseId: tc.id, content: JSON.stringify(r) });
+        } catch (e) {
+          resolved.push({ toolUseId: tc.id, content: JSON.stringify({ error: (e as Error).message }) });
+        }
+      } else if (tc.name === 'searchPoi') {
+        try {
+          const r = engine.searchPoi({ id: String(tc.input.id ?? '') });
+          resolved.push({ toolUseId: tc.id, content: JSON.stringify(r) });
+        } catch (e) {
+          resolved.push({ toolUseId: tc.id, content: JSON.stringify({ error: (e as Error).message }) });
+        }
+      } else if (tc.name === 'lootPoi') {
+        try {
+          const r = engine.lootPoi({ id: String(tc.input.id ?? ''), combatantId: (engine.findCombatantId(String(tc.input.combatantId ?? '')) ?? String(tc.input.combatantId ?? '')) });
           resolved.push({ toolUseId: tc.id, content: JSON.stringify(r) });
         } catch (e) {
           resolved.push({ toolUseId: tc.id, content: JSON.stringify({ error: (e as Error).message }) });

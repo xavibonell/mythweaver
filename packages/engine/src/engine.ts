@@ -26,6 +26,9 @@ import {
   type LedgerState,
   type LogEntry,
   type Plant,
+  type Poi,
+  type PoiContents,
+  type PoiKind,
   type RollRequest,
   type RollResult,
   type Skill,
@@ -33,13 +36,14 @@ import {
 } from '@mythweaver/shared';
 import { rollDice, validateDeclaredRoll, type Rng } from './dice.js';
 import { statBlockToCombatant } from './state.js';
-import { abilityMod, deriveAbilityCheckModifier, deriveArmorClass, deriveProficiencyBonus, deriveSaveModifier, deriveSkillModifier, deriveSpellsPreparedMax } from './derive.js';
+import { abilityMod, deriveAbilityCheckModifier, deriveArmorClass, derivePassive, deriveProficiencyBonus, deriveSaveModifier, deriveSkillModifier, deriveSpellsPreparedMax } from './derive.js';
 import { ASI_LEVELS, XP_THRESHOLDS, hitDieAvg, hitDieForClass, levelForXp } from './progression.js';
 
 /** Coin math in the smallest unit so change-making is exact (1 gp = 10 sp = 100 cp). */
 const toCopper = (c: { cp: number; sp: number; gp: number }): number => Math.round(c.cp + c.sp * 10 + c.gp * 100);
 const fromCopper = (total: number): { cp: number; sp: number; gp: number } => ({ gp: Math.floor(total / 100), sp: Math.floor((total % 100) / 10), cp: total % 10 });
 const gpToCopper = (gp: number): number => Math.round(gp * 100);
+const slugify = (s: string): string => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'x';
 
 export class Engine implements EngineTools {
   private readonly pending = new Map<string, RollRequest>();
@@ -970,5 +974,135 @@ export class Engine implements EngineTools {
     if (!rituals.some((r) => r.toLowerCase() === spell.toLowerCase())) throw new Error(`${spell} can't be cast as a ritual by ${c.name}.`);
     this.record('engine', `${c.name} casts ${spell} as a ritual (no slot spent)`, { combatantId: c.id, spell, ritual: true });
     return { ritual: true, spell };
+  }
+
+  // --- P4: Points of Interest (hidden/interactive scene objects) -----------
+
+  private poiMap(): Record<string, Poi> {
+    return (this.state.pois ??= {});
+  }
+
+  private poi(id: string): Poi {
+    const p = this.state.pois?.[id];
+    if (!p) throw new Error(`Unknown POI "${id}".`);
+    return p;
+  }
+
+  /**
+   * Place a point of interest / interactable — a hidden chest, a secret cellar door, a searchable altar.
+   * The engine owns this DM-SECRET truth (discover DC, contents); players never see it until it's found.
+   * Contents are validated against the item catalog NOW so a typo fails at placement, not at loot.
+   */
+  placePoi(args: { id: string; locationId?: string; kind: PoiKind; look: string; anchor?: string; hidden?: boolean; discoverDc?: number; contents?: PoiContents; leadsTo?: string; fixtureId?: string; notes?: string }): { id: string; hidden: boolean; locationId: string } {
+    const raw = (args.id ?? '').trim();
+    const id = /^poi:/i.test(raw) ? raw : `poi:${slugify(raw || args.look || 'poi')}`;
+    if (!(['container', 'passage', 'feature', 'hidden-cache'] as PoiKind[]).includes(args.kind)) throw new Error(`Bad POI kind "${args.kind}".`);
+    const look = (args.look ?? '').trim();
+    if (!look) throw new Error('placePoi needs a look (a short description).');
+    const locationId = args.locationId?.trim() || this.state.world?.currentLocationId;
+    if (!locationId) throw new Error('placePoi needs a locationId (no current location established yet).');
+    const hidden = !!args.hidden;
+    if (hidden && !(typeof args.discoverDc === 'number' && args.discoverDc > 0)) throw new Error('a hidden POI needs a discoverDc (the DC to find it).');
+    if (args.kind === 'passage' && !args.leadsTo) throw new Error('a passage POI needs "leadsTo" (a loc: id or a scene id).');
+    let contents: PoiContents | undefined;
+    if (args.contents) {
+      const items = (args.contents.items ?? []).map((it) => {
+        this.itemDef(it.itemDefId); // throws on an unknown catalog id
+        return { itemDefId: it.itemDefId, ...(it.qty && it.qty > 1 ? { qty: Math.floor(it.qty) } : {}) };
+      });
+      const gold = Math.max(0, Math.floor(args.contents.gold ?? 0));
+      contents = { ...(items.length ? { items } : {}), ...(gold ? { gold } : {}) };
+    }
+    const poi: Poi = {
+      id,
+      locationId,
+      kind: args.kind,
+      look,
+      hidden,
+      discovered: false,
+      searched: false,
+      looted: false,
+      fixtureId: args.fixtureId?.trim() || `prop:${slugify(id.replace(/^poi:/, ''))}`,
+      ...(args.anchor ? { anchor: args.anchor.trim().slice(0, 60) } : {}),
+      ...(hidden ? { discoverDc: Math.floor(args.discoverDc!) } : {}),
+      ...(contents ? { contents } : {}),
+      ...(args.leadsTo ? { leadsTo: args.leadsTo.trim() } : {}),
+      ...(args.notes ? { notes: args.notes.trim().slice(0, 240) } : {}),
+    };
+    this.poiMap()[id] = poi;
+    this.record('engine', `POI placed: ${id} (${args.kind}) at ${locationId}${hidden ? ` — hidden DC ${poi.discoverDc}` : ''}`, { poiId: id, locationId, kind: args.kind, hidden });
+    return { id, hidden, locationId };
+  }
+
+  /** The party found a POI (a Perception/Investigation check beat its DC, or they looked in the right place).
+   *  Idempotent; clears `hidden` so the render-shadow can be revealed; echoes to canon. */
+  discoverPoi(args: { id: string; by?: string }): { id: string; revealed: boolean } {
+    const p = this.poi(args.id);
+    if (p.discovered) return { id: p.id, revealed: false };
+    p.discovered = true;
+    p.hidden = false;
+    this.record('engine', `POI discovered: ${p.id} (${p.look})${args.by ? ` — ${args.by}` : ''}`, { poiId: p.id, by: args.by });
+    this.recordFact({ subject: p.id, attribute: 'discovered', value: p.look, source: 'dm' });
+    return { id: p.id, revealed: true };
+  }
+
+  /** SRD passive notice: for each hidden POI in a location, if the party's best passive Perception ≥ its DC,
+   *  they spot it without looking. Returns the ids discovered (so the orchestrator can reveal their shadows). */
+  autoNoticePois(args?: { locationId?: string }): { discovered: string[] } {
+    const loc = args?.locationId ?? this.state.world?.currentLocationId;
+    const pcs = Object.values(this.state.combatants).filter((c) => c.kind === 'pc');
+    const passives = pcs.map((c) => {
+      const sheet = this.state.sheets?.[c.id];
+      return sheet ? derivePassive(sheet, this.state.characters?.[c.id], 'perception', c.exhaustion) : 10;
+    });
+    const best = passives.length ? Math.max(...passives) : 10;
+    const discovered: string[] = [];
+    for (const p of Object.values(this.state.pois ?? {})) {
+      if (p.hidden && !p.discovered && p.locationId === loc && (p.discoverDc ?? Infinity) <= best) {
+        this.discoverPoi({ id: p.id, by: `passive perception ${best}` });
+        discovered.push(p.id);
+      }
+    }
+    return { discovered };
+  }
+
+  /** Search a discovered POI — describe what's inside (no transfer). Requires it be found first. */
+  searchPoi(args: { id: string }): { id: string; contents: PoiContents | null; empty: boolean } {
+    const p = this.poi(args.id);
+    if (!p.discovered) throw new Error(`${p.id} hasn't been found yet.`);
+    p.searched = true;
+    const has = !!p.contents && ((p.contents.items?.length ?? 0) > 0 || (p.contents.gold ?? 0) > 0);
+    const empty = p.looted || !has;
+    this.record('engine', `POI searched: ${p.id}${empty ? ' — empty' : ''}`, { poiId: p.id, empty });
+    return { id: p.id, contents: p.looted || !has ? null : p.contents!, empty };
+  }
+
+  /** Credit gold to a character (internal — no public "give money" tool; gold moves only via loot/buy/sell). */
+  private creditGold(combatantId: string, gp: number): void {
+    const cs = this.character(combatantId);
+    cs.currency = fromCopper(toCopper(cs.currency) + gpToCopper(Math.max(0, Math.floor(gp))));
+  }
+
+  /** Loot a discovered POI: transfer its contents to a character (reuses P3d addItem + gold). Idempotent —
+   *  a looted POI never double-grants. Echoes the looted status to canon so it stays empty on re-entry. */
+  lootPoi(args: { id: string; combatantId: string }): { id: string; items: string[]; gold: number; alreadyLooted: boolean } {
+    const p = this.poi(args.id);
+    if (!p.discovered) throw new Error(`${p.id} hasn't been found yet.`);
+    const cid = this.findCombatantId(args.combatantId);
+    if (!cid) throw new Error(`Unknown combatant: ${args.combatantId}`);
+    if (p.looted) return { id: p.id, items: [], gold: 0, alreadyLooted: true };
+    const items: string[] = [];
+    for (const it of p.contents?.items ?? []) {
+      const added = this.addItem({ combatantId: cid, itemDefId: it.itemDefId, qty: it.qty ?? 1 });
+      items.push(`${it.qty && it.qty > 1 ? `${it.qty}× ` : ''}${added.item}`);
+    }
+    const gold = p.contents?.gold ?? 0;
+    if (gold > 0) this.creditGold(cid, gold);
+    p.looted = true;
+    p.searched = true;
+    const name = this.state.combatants[cid]?.name ?? cid;
+    this.record('engine', `${name} loots ${p.id} — ${items.join(', ') || 'no items'}${gold ? ` + ${gold} gp` : ''}`, { poiId: p.id, combatantId: cid, items, gold });
+    this.recordFact({ subject: p.id, attribute: 'status', value: 'looted', source: 'dm' });
+    return { id: p.id, items, gold, alreadyLooted: false };
   }
 }

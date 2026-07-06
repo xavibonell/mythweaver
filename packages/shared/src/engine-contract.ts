@@ -15,6 +15,8 @@ import type {
   DamageType,
   DiceExpr,
   GameState,
+  PoiContents,
+  PoiKind,
   Skill,
 } from './domain.js';
 
@@ -188,6 +190,21 @@ export interface EngineTools {
 
   /** Cast a ritual-tagged spell with NO slot spent (engine verifies the ritual tag). P3f. */
   castRitual(args: { combatantId: string; spell: string }): { ritual: true; spell: string };
+
+  /** Place a hidden/interactive point of interest (chest, secret door, searchable feature) — DM-secret. P4. */
+  placePoi(args: { id: string; locationId?: string; kind: PoiKind; look: string; anchor?: string; hidden?: boolean; discoverDc?: number; contents?: PoiContents; leadsTo?: string; fixtureId?: string; notes?: string }): { id: string; hidden: boolean; locationId: string };
+
+  /** Mark a POI found (a check beat its DC / they looked in the right place); idempotent. P4. */
+  discoverPoi(args: { id: string; by?: string }): { id: string; revealed: boolean };
+
+  /** Passive notice: hidden POIs whose DC ≤ the party's best passive Perception become discovered. P4. */
+  autoNoticePois(args?: { locationId?: string }): { discovered: string[] };
+
+  /** Search a discovered POI — reveal its contents (no transfer). P4. */
+  searchPoi(args: { id: string }): { id: string; contents: PoiContents | null; empty: boolean };
+
+  /** Loot a discovered POI to a character (reuses P3d addItem + gold); idempotent. P4. */
+  lootPoi(args: { id: string; combatantId: string }): { id: string; items: string[]; gold: number; alreadyLooted: boolean };
 
   /** Spend a spell slot (resource:'slot' + level) or a named class pool (ki/rage/channelDivinity/…). P3a. */
   spendResource(args: { combatantId: string; resource: string; level?: number; amount?: number }): { remaining: number };

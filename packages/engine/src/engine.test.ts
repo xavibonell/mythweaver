@@ -697,3 +697,48 @@ describe('Engine — P3f caster completeness (rituals + prepared limits)', () =>
     expect(() => e.castRitual({ combatantId: 'pc:wizard', spell: 'Fireball' })).toThrow(/can't be cast as a ritual/);
   });
 });
+
+describe('Engine — P4 points of interest (placePoi)', () => {
+  const engineWith = (party: CharacterSheet[]) => new Engine(createInitialState({ sessionId: 's', scenarioId: 't', startSceneId: 'x', party, itemCatalog: TEST_CATALOG }), () => 0.5);
+
+  it('places a POI (validates contents up front, defaults the fixtureId) and rejects bad state', () => {
+    const e = engineWith([fighter()]);
+    const r = e.placePoi({ id: 'chest', locationId: 'loc:crypt', kind: 'container', look: 'an iron-bound chest', anchor: 'behind:prop:tree-1', hidden: true, discoverDc: 15, contents: { items: [{ itemDefId: 'torch', qty: 2 }], gold: 30 } });
+    expect(r).toEqual({ id: 'poi:chest', hidden: true, locationId: 'loc:crypt' });
+    const poi = e.getState().pois!['poi:chest']!;
+    expect(poi).toMatchObject({ kind: 'container', locationId: 'loc:crypt', hidden: true, discoverDc: 15, discovered: false, searched: false, looted: false, fixtureId: 'prop:chest' });
+    expect(poi.contents).toEqual({ items: [{ itemDefId: 'torch', qty: 2 }], gold: 30 });
+    // a bad catalog id fails NOW, not at loot
+    expect(() => e.placePoi({ id: 'x', locationId: 'loc:crypt', kind: 'container', look: 'y', contents: { items: [{ itemDefId: 'not-a-real-item' }] } })).toThrow(/Unknown item/);
+    // hidden needs a DC; a passage needs leadsTo; a POI needs a location context
+    expect(() => e.placePoi({ id: 'z', locationId: 'loc:crypt', kind: 'feature', look: 'y', hidden: true })).toThrow(/discoverDc/);
+    expect(() => e.placePoi({ id: 'd', locationId: 'loc:crypt', kind: 'passage', look: 'a stair' })).toThrow(/leadsTo/);
+    expect(() => e.placePoi({ id: 'q', kind: 'feature', look: 'y' })).toThrow(/locationId/);
+  });
+
+  it('discover → search → loot transfers contents to a PC and is idempotent', () => {
+    const e = engineWith([fighter()]);
+    e.placePoi({ id: 'chest', locationId: 'loc:crypt', kind: 'container', look: 'a chest', hidden: true, discoverDc: 20, contents: { items: [{ itemDefId: 'ring-protection' }], gold: 25 } });
+    expect(() => e.lootPoi({ id: 'poi:chest', combatantId: 'pc:fighter' })).toThrow(/found/); // can't loot before found
+    e.discoverPoi({ id: 'poi:chest' });
+    expect(e.getState().pois!['poi:chest']!.hidden).toBe(false);
+    expect(e.discoverPoi({ id: 'poi:chest' }).revealed).toBe(false); // idempotent
+    expect(e.searchPoi({ id: 'poi:chest' }).contents).toEqual({ items: [{ itemDefId: 'ring-protection' }], gold: 25 });
+    const r = e.lootPoi({ id: 'poi:chest', combatantId: 'pc:fighter' });
+    expect(r).toEqual({ id: 'poi:chest', items: ['Ring of Protection'], gold: 25, alreadyLooted: false });
+    const cs = e.getState().characters!['pc:fighter']!;
+    expect(cs.currency.gp).toBe(25);
+    expect(cs.items.some((i) => i.defId === 'ring-protection')).toBe(true);
+    expect(e.lootPoi({ id: 'poi:chest', combatantId: 'pc:fighter' }).alreadyLooted).toBe(true); // no double-grant
+    expect(e.searchPoi({ id: 'poi:chest' }).empty).toBe(true);
+  });
+
+  it('auto-notices a hidden POI when the party passive Perception meets the DC', () => {
+    const e = engineWith([fighter()]); // WIS 11 (+0), perception NOT proficient → passive 10
+    e.placePoi({ id: 'easy', locationId: 'loc:x', kind: 'feature', look: 'fresh scratches', hidden: true, discoverDc: 8 });
+    e.placePoi({ id: 'hard', locationId: 'loc:x', kind: 'feature', look: 'a hairline seam', hidden: true, discoverDc: 18 });
+    expect(e.autoNoticePois({ locationId: 'loc:x' }).discovered).toEqual(['poi:easy']); // 8 ≤ 10; 18 > 10
+    expect(e.getState().pois!['poi:easy']!.discovered).toBe(true);
+    expect(e.getState().pois!['poi:hard']!.discovered).toBe(false);
+  });
+});

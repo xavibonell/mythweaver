@@ -501,6 +501,43 @@ export interface CharacterState {
   equipped: { armor?: string; shield?: string; mainHand?: string; offHand?: string; ranged?: string };
 }
 
+/**
+ * A POINT OF INTEREST / interactable (Phase-1 scene gameplay): a hidden chest behind a tree, a cellar
+ * door in the inn, a searchable altar. The ENGINE owns this authoritative, DM-SECRET state (discover DC,
+ * contents, discovered/looted flags); the frozen SceneMap carries only a `visible` render-shadow of it.
+ */
+export type PoiKind = 'container' | 'passage' | 'feature' | 'hidden-cache';
+
+/** What a POI holds — catalog item refs + gold. Validated against the item catalog at placement. */
+export interface PoiContents {
+  items?: { itemDefId: string; qty?: number }[];
+  gold?: number; // gp
+}
+
+export interface Poi {
+  /** "poi:chest-cellar" — its OWN namespace (outside the entity-id pattern); the render shadow uses fixtureId. */
+  id: string;
+  locationId: string;
+  kind: PoiKind;
+  /** Short description read out when the party finds it. */
+  look: string;
+  /** Coordinate-free placement, incl. a POI-only "behind:<id>" (down-projected to "near:<id>" for the shadow). */
+  anchor?: string;
+  /** The prop:/bldg: MapObject id that shadows this POI on the map (visible = discovery state). */
+  fixtureId?: string;
+  hidden: boolean;
+  /** Perception/Investigation DC to find a hidden POI (required when hidden). */
+  discoverDc?: number;
+  discovered: boolean;
+  searched: boolean;
+  looted: boolean;
+  contents?: PoiContents;
+  /** For a passage (a door): a "loc:…" location (setScene re-entry) or an arc sceneId (advanceScene). */
+  leadsTo?: string;
+  /** GM-facing note; never rendered or shown to players. */
+  notes?: string;
+}
+
 export interface GameState {
   sessionId: string;
   scenarioId: string;
@@ -548,4 +585,7 @@ export interface GameState {
   sheets?: Record<string, CharacterSheet>;
   /** The item catalog (P3d), loaded on boot from content/shared/items.json. ItemRefs point into it. */
   itemCatalog?: Record<string, ItemDef>;
+  /** Points of interest / interactables (hidden chests, secret doors) — engine-owned, DM-secret. Optional/
+   *  additive; keyed by POI id. The players never see this; a `visible` render-shadow lives on the map. */
+  pois?: Record<string, Poi>;
 }
