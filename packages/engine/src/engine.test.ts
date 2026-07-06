@@ -390,6 +390,10 @@ function construct(): StatBlock {
   return { ...goblin(), id: 'golem', name: 'Clay Golem', type: 'construct', conditionImmunities: ['charmed', 'frightened', 'poisoned'] };
 }
 
+function ogre(): StatBlock {
+  return { ...goblin(), id: 'ogre', name: 'Ogre Mystic', hitPoints: { average: 60, formula: '8d10+16' } };
+}
+
 describe('Engine — P3a character resources & rests', () => {
   const engineWith = (party: CharacterSheet[]) => new Engine(createInitialState({ sessionId: 's', scenarioId: 't', startSceneId: 'x', party }), () => 0.5);
 
@@ -472,5 +476,42 @@ describe('Engine — P3a character resources & rests', () => {
     expect(e.getState().combatants['pc:fighter']!.inspiration).toBe(true);
     expect(e.spendInspiration({ combatantId: 'pc:fighter' }).spent).toBe(true);
     expect(e.getState().combatants['pc:fighter']!.inspiration).toBe(false);
+  });
+});
+
+describe('Engine — P3b concentration', () => {
+  const engineWith = (party: CharacterSheet[]) => new Engine(createInitialState({ sessionId: 's', scenarioId: 't', startSceneId: 'x', party }), () => 0.5);
+
+  it('holds one concentration spell at a time (a new one drops the old)', () => {
+    const e = engineWith([wizard()]);
+    e.startConcentration({ combatantId: 'pc:wizard', spell: 'Bless' });
+    e.startConcentration({ combatantId: 'pc:wizard', spell: 'Haste' });
+    expect(e.getState().combatants['pc:wizard']!.concentratingOn).toEqual({ spell: 'Haste' });
+  });
+
+  it('a hit while concentrating returns a Con-save DC of max(10, half the damage)', () => {
+    const e = engineWith([fighter()]);
+    const o = e.spawnCombatant(ogre()); // 60 HP, survives both hits
+    e.startConcentration({ combatantId: o.id, spell: 'Hold Person' });
+    expect(e.applyDamage({ targetId: o.id, amount: 9, type: 'slashing' }).concentration).toEqual({ dc: 10, spell: 'Hold Person' }); // floor(9/2)=4 → 10
+    expect(e.applyDamage({ targetId: o.id, amount: 30, type: 'fire' }).concentration).toEqual({ dc: 15, spell: 'Hold Person' }); // floor(30/2)=15
+  });
+
+  it('being knocked to 0 HP ends concentration outright (no save offered)', () => {
+    const e = engineWith([wizard()]);
+    e.startConcentration({ combatantId: 'pc:wizard', spell: 'Bless' });
+    const r = e.applyDamage({ targetId: 'pc:wizard', amount: 25, type: 'necrotic' }); // 18 → 0, downed
+    expect(r.downed).toBe(true);
+    expect(r.concentration).toBeUndefined();
+    expect(e.getState().combatants['pc:wizard']!.concentratingOn).toBeUndefined();
+  });
+
+  it('breakConcentration ends the spell and is idempotent; a non-concentrator has nothing to break', () => {
+    const e = engineWith([wizard()]);
+    e.startConcentration({ combatantId: 'pc:wizard', spell: 'Hex' });
+    expect(e.breakConcentration({ combatantId: 'pc:wizard' }).was).toBe('Hex');
+    expect(e.breakConcentration({ combatantId: 'pc:wizard' }).was).toBe(null);
+    // a hit on a non-concentrating combatant carries no concentration prompt
+    expect(e.applyDamage({ targetId: 'pc:wizard', amount: 3, type: 'cold' }).concentration).toBeUndefined();
   });
 });

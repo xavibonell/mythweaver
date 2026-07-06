@@ -175,6 +175,7 @@ function snapshot(state: GameState): StateSnap {
         ...Object.entries(c.resources ?? {}).map(([k, v]) => `${k}:${v.current}/${v.max}`),
         c.exhaustion ? `exh:${c.exhaustion}` : '',
         c.inspiration ? 'insp' : '',
+        c.concentratingOn ? `conc:${c.concentratingOn.spell}` : '',
       ]
         .filter(Boolean)
         .join(' '),

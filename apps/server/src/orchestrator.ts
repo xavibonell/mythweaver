@@ -83,6 +83,10 @@ RESOURCES & REST (the engine tracks every pool — the party's HP snapshot shows
 - When a caster casts a LEVELLED spell, call "spendResource" (resource:"slot", the slot level). For a
   class feature with a pool (ki, rage, channel divinity), call "spendResource" with that pool name. The
   engine refuses if it's empty — respect that; a character can't use what they've spent.
+- CONCENTRATION: when a caster casts a spell that needs concentration (Bless, Hold Person, Hex, Haste…),
+  call "startConcentration". If they later take damage while concentrating, "applyDamage" returns a
+  Con-save DC — "requestRoll" that save; on a FAILURE call "breakConcentration" (the spell ends). A caster
+  holds only ONE concentration spell at a time.
 - When the party takes a SHORT rest, call "shortRest" per character; to heal, requestRoll their hit dice
   and pass the declared total + how many dice they spent. When they take a LONG rest, call "longRest"
   (no args = the whole party) — it restores HP, spell slots, and features. Spell slots ONLY come back on
@@ -294,6 +298,31 @@ export function buildToolDefs(retrieval: boolean, scene: boolean): ToolDef[] {
         'End the fight and clear the enemies from the field — call when combat is over (all foes defeated, or they flee/surrender). The engine auto-ends when the last foe drops, so mainly use this for a non-lethal end. Defeated/fled foes stop being listed as present.',
       inputSchema: { type: 'object', properties: {}, additionalProperties: false },
     },
+    {
+      name: 'startConcentration',
+      description:
+        'Mark a caster as concentrating on a spell the MOMENT they cast one that requires concentration (Bless, Hold Person, Hex, Haste…). A creature holds only ONE at a time — casting another drops the first. When a concentrating caster later takes damage, applyDamage returns the Con-save DC needed to keep it.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          combatantId: { type: 'string', description: 'The caster, e.g. "pc:elara".' },
+          spell: { type: 'string', description: 'The concentration spell, e.g. "Hold Person".' },
+        },
+        required: ['combatantId', 'spell'],
+        additionalProperties: false,
+      },
+    },
+    {
+      name: 'breakConcentration',
+      description:
+        "End a caster's concentration — call this when they FAIL the Con save after taking damage, cast another concentration spell, are incapacitated, or choose to drop it. The ongoing spell's effect ends.",
+      inputSchema: {
+        type: 'object',
+        properties: { combatantId: { type: 'string' } },
+        required: ['combatantId'],
+        additionalProperties: false,
+      },
+    },
   );
   // Character resources + rests (P3a). The engine owns every pool and every HP number — the DM narrates
   // the fiction ("she burns a spell", "they catch their breath") and calls these; it never invents a total.
@@ -485,6 +514,7 @@ function characterTail(c: Combatant): string {
   if (c.hitDice && c.hitDice.remaining < c.hitDice.max) parts.push(`hit dice ${c.hitDice.remaining}/${c.hitDice.max}d${c.hitDice.size}`);
   if (c.exhaustion) parts.push(`exhaustion ${c.exhaustion}`);
   if (c.inspiration) parts.push('inspiration');
+  if (c.concentratingOn) parts.push(`concentrating: ${c.concentratingOn.spell}`);
   return parts.length ? ` — ${parts.join('; ')}` : '';
 }
 
@@ -1049,6 +1079,20 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
       } else if (tc.name === 'spendInspiration') {
         try {
           const r = engine.spendInspiration({ combatantId: String(tc.input.combatantId ?? '') });
+          resolved.push({ toolUseId: tc.id, content: JSON.stringify(r) });
+        } catch (e) {
+          resolved.push({ toolUseId: tc.id, content: JSON.stringify({ error: (e as Error).message }) });
+        }
+      } else if (tc.name === 'startConcentration') {
+        try {
+          engine.startConcentration({ combatantId: String(tc.input.combatantId ?? ''), spell: String(tc.input.spell ?? '') });
+          resolved.push({ toolUseId: tc.id, content: JSON.stringify({ ok: true }) });
+        } catch (e) {
+          resolved.push({ toolUseId: tc.id, content: JSON.stringify({ error: (e as Error).message }) });
+        }
+      } else if (tc.name === 'breakConcentration') {
+        try {
+          const r = engine.breakConcentration({ combatantId: String(tc.input.combatantId ?? '') });
           resolved.push({ toolUseId: tc.id, content: JSON.stringify(r) });
         } catch (e) {
           resolved.push({ toolUseId: tc.id, content: JSON.stringify({ error: (e as Error).message }) });

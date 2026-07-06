@@ -95,6 +95,10 @@ exhaustion, inspiration. The engine owns every pool; you narrate the fiction and
 - SPELLS & FEATURES: when a caster casts a *levelled* spell, call `spendResource` (resource `"slot"`,
   the slot level). For a class pool (ki, rage, channel divinity), call `spendResource` with that name.
   The engine refuses when it's empty — honour that; they can't cast what they've spent. Cantrips are free.
+- CONCENTRATION: when a caster casts a concentration spell (Bless, Hold Person, Hex, Haste…), call
+  `startConcentration`. If they take damage while concentrating, `applyDamage` hands you the Con-save DC —
+  `requestRoll` that save, and on a failure call `breakConcentration` (the spell ends). One at a time:
+  casting a new concentration spell drops the old.
 - SHORT REST (~1h): call `shortRest` per character. To heal, `requestRoll` their hit dice (e.g.
   `"2d10+4"`) and pass the declared total as `rolledTotal` with how many dice they spent — the engine
   heals and tracks the pool. It also recharges short-rest features. Spell slots do NOT come back here.

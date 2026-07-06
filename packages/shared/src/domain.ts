@@ -257,6 +257,9 @@ export interface Combatant {
   inspiration?: boolean;
   /** Conditions this combatant can't suffer (copied from a monster stat block; applyCondition honors it). */
   conditionImmunities?: Condition[];
+  /** The concentration spell this caster is holding, if any (P3b). `dc` is the save DC of the most recent
+   *  hit, set by applyDamage. Only one at a time — starting a new concentration spell drops the old one. */
+  concentratingOn?: { spell: string; dc?: number };
 }
 
 export interface CombatState {

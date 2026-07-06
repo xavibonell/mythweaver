@@ -157,8 +157,24 @@ export class Engine implements EngineTools {
       `${c.name} takes ${amount} ${args.type} damage (${before} -> ${c.currentHitPoints} HP)${c.dead ? ' — dead' : downed ? ' — downed' : ''}`,
       { combatantId: c.id, field: 'currentHitPoints', before, after: c.currentHitPoints, type: args.type, raw, applied: amount, downed, dead: c.dead ?? false },
     );
+    // Concentration (P3b): a hit forces a Con save (DC = max 10, half the damage) to keep the spell;
+    // being knocked unconscious ends it outright. The engine sets the DC and surfaces the prompt — the
+    // caster's declared save (via requestRoll/submitRoll) decides it, and the DM calls breakConcentration
+    // on a failure. The engine owns the DC and the number; it never decides the save itself here.
+    let concentration: { dc: number; spell: string } | undefined;
+    if (c.concentratingOn) {
+      if (downed || c.dead) {
+        this.record('engine', `${c.name}'s concentration on ${c.concentratingOn.spell} breaks (unconscious)`, { combatantId: c.id, concentrationBroken: c.concentratingOn.spell });
+        delete c.concentratingOn;
+      } else if (amount > 0) {
+        const dc = Math.max(10, Math.floor(amount / 2));
+        c.concentratingOn.dc = dc;
+        concentration = { dc, spell: c.concentratingOn.spell };
+      }
+    }
+
     if (downed) this.maybeEndCombat(); // P0: when the last conscious foe drops, resolve the fight
-    return { remaining: c.currentHitPoints, downed };
+    return { remaining: c.currentHitPoints, downed, ...(concentration ? { concentration } : {}) };
   }
 
   /** Restore hit points. Healing a creature above 0 ends the dying state and resets death saves. */
@@ -558,5 +574,33 @@ export class Engine implements EngineTools {
     c.inspiration = false;
     this.record('engine', `${c.name} spends inspiration`, { combatantId: c.id, inspiration: false });
     return { spent: true };
+  }
+
+  // --- P3b: concentration (a combat-track throttle on the spell economy) ---
+
+  /**
+   * Begin concentrating on a spell. A creature can hold only ONE concentration spell — starting a new one
+   * drops whatever it was holding (5e). The save DC is set later, per hit, by applyDamage.
+   */
+  startConcentration(args: { combatantId: string; spell: string }): void {
+    const c = this.state.combatants[args.combatantId];
+    if (!c) throw new Error(`Unknown combatant: ${args.combatantId}`);
+    const spell = args.spell.trim().slice(0, 80);
+    if (!spell) throw new Error('startConcentration needs a spell name.');
+    const dropped = c.concentratingOn?.spell;
+    c.concentratingOn = { spell };
+    this.record('engine', `${c.name} concentrates on ${spell}${dropped && dropped !== spell ? ` (drops ${dropped})` : ''}`, { combatantId: c.id, spell, ...(dropped ? { dropped } : {}) });
+  }
+
+  /** Stop concentrating (the spell ends, the caster is incapacitated, or a save was failed). Idempotent. */
+  breakConcentration(args: { combatantId: string }): { was: string | null } {
+    const c = this.state.combatants[args.combatantId];
+    if (!c) throw new Error(`Unknown combatant: ${args.combatantId}`);
+    const was = c.concentratingOn?.spell ?? null;
+    if (c.concentratingOn) {
+      delete c.concentratingOn;
+      this.record('engine', `${c.name}'s concentration on ${was} ends`, { combatantId: c.id, concentrationBroken: was });
+    }
+    return { was };
   }
 }

@@ -125,8 +125,15 @@ export interface EngineTools {
   /** Resolve an attack vs AC (hit/miss only; damage is P2). P1. */
   resolveAttack(args: { attackerId: string; targetId: string; attackName: string; declaredTotal: number }): AttackResult;
 
-  /** Apply damage of a type, honoring resist/immunity/vuln. P2. */
-  applyDamage(args: { targetId: string; amount: number; type: DamageType }): { remaining: number; downed: boolean };
+  /** Apply damage of a type, honoring resist/immunity/vuln. P2. If the target was concentrating and
+   *  survives, `concentration` carries the Con-save DC the caster must make (max 10, half the damage). P3b. */
+  applyDamage(args: { targetId: string; amount: number; type: DamageType }): { remaining: number; downed: boolean; concentration?: { dc: number; spell: string } };
+
+  /** Begin concentrating on a spell (drops any spell already held — one at a time). P3b. */
+  startConcentration(args: { combatantId: string; spell: string }): void;
+
+  /** Stop concentrating (spell ends, incapacitation, or a failed save). P3b. */
+  breakConcentration(args: { combatantId: string }): { was: string | null };
 
   /** Begin combat from a list of combatant ids + their initiative totals. P2. */
   startCombat(initiatives: { combatantId: string; initiative: number }[]): void;
