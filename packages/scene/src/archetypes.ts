@@ -171,9 +171,13 @@ function placeFrontierFeature(cv: Canvas, band: Rect, edge: FieldSide, kind: 'po
     // (3) PILINGS — mooring posts down the pier edges + a pair at the head (decorative, in the water).
     for (let d = 2; d <= pierLen; d += 2) { moor('piling', mid - 1, d); moor('piling', mid + 2, d); }
     moor('piling', mid, pierLen + 1); moor('piling', mid + 1, pierLen + 1);
-    // (4) BOATS moored alongside the pier — the sailboat to port, a rowboat to starboard.
-    moor('boat_sail', mid - 2, pierLen - 2);
-    moor('boat', mid + 2, pierLen - 3);
+    // (4) BOATS moored ALONGSIDE the pier — floating in the water off each flank, hull PARALLEL to the pier
+    // (long axis = the pier's inward axis), bow pointing out to open sea. The oriented sprite (n/e/s/w) is
+    // chosen so the boat lies alongside, never bow-on and never on top of the planks.
+    const SEA_DIR = { east: 'e', west: 'w', north: 'n', south: 's' } as const;
+    const bd = SEA_DIR[edge];
+    moor(`boat_sail_${bd}`, mid - 3, Math.max(2, pierLen - 2)); // port side — a boat-length off, clear of the piling rail
+    moor(`boat_${bd}`, mid + 3, Math.max(2, pierLen - 2));      // starboard side, out in the water (clear of planks)
     // (5) QUAY CLUTTER — crates/barrels/rope + a couple of dockworkers on the planks.
     put('crate', cellAt(mid - quayHalf, 0), 'prop'); put('barrel', cellAt(mid + quayHalf, 0), 'prop');
     moor('rope_coil', mid - 1, 1); moor('crate', mid + quayHalf - 1, 1);

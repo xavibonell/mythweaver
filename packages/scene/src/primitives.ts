@@ -1175,13 +1175,14 @@ export function entrance(cv: Canvas, at: Pt, toLocationId: string): void {
  *  fog reads as patchy drifting mist floating OVER the map (the renderer draws these on top of everything),
  *  not just a flat colour wash. Low density + grid spacing so it never obscures the scene. */
 function scatterMist(cv: Canvas): void {
-  const STEP = 7;
+  const CLOUDS = ['mist_a', 'mist_b', 'mist_c'];
+  const STEP = 8;
   for (let gy = 2; gy < cv.rows - 1; gy += STEP)
     for (let gx = 2; gx < cv.cols - 1; gx += STEP) {
-      if (cv.rng() < 0.42) continue; // ~58% of grid cells get a wisp
+      if (cv.rng() < 0.45) continue; // ~55% of grid cells get a cloud
       const c = Math.min(cv.cols - 1, gx + Math.floor(cv.rng() * STEP));
       const r = Math.min(cv.rows - 1, gy + Math.floor(cv.rng() * STEP));
-      cv.ambiance.push({ tag: 'mist_wisp', col: c, row: r });
+      cv.ambiance.push({ tag: CLOUDS[Math.floor(cv.rng() * CLOUDS.length)]!, col: c, row: r });
     }
 }
 

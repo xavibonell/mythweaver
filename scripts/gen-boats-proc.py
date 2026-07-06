@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
-"""Procedural top-down boat + mist sprites in the DawnLike (DB16) idiom.
+"""Procedural top-down boat + cloud sprites in the DawnLike (DB16) idiom — hand-drawn, NOT a diffusion model.
 
-Replaces the AI-forged boat blobs: those downscaled 1024px art to 32x48 and turned to mud.
-These are hand-parameterised pixel art — a pointed-bow / rounded-stern hull with plank interior,
-gunwale rim, thwart seats, and per-type rigging (rowboat / sail / cargo / raft). Deterministic,
-DB16-quantised, 1px dark outline — reads as an 8-bit boat, not a smear.
+Boats are drawn ONCE in a canonical frame (bow UP) and emitted in four headings (n/e/s/w) by rotation, so a
+boat can moor ALONGSIDE a dock in any orientation. The sail is drawn ORTHOGONAL to the keel (a square sail on a
+yard perpendicular to the hull — basic boat logic), not a triangle along the hull. Clouds are fluffy, translucent
+cumulus puffs (see-through) for drifting mist.
 
-Output: apps/web/public/assets/proc/props/{boat,boat_sail,boat_cargo,boat_raft,mist_wisp}.png
+Output: apps/web/public/assets/proc/props/{boat,boat_sail,boat_cargo}_{n,e,s,w}.png, boat_raft, piling,
+        rope_coil, mist_a/b/c.png
 """
 import os
 from PIL import Image
@@ -15,55 +16,61 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT = os.path.join(ROOT, "apps/web/public/assets/proc/props")
 os.makedirs(OUT, exist_ok=True)
 
-# DB16 (DawnBringer) — the DawnLike palette.
 C = {
-    "out":   (0x14, 0x0c, 0x1c, 255),  # near-black outline
-    "hull":  (0x85, 0x4c, 0x30, 255),  # dark wood
-    "plank": (0xd2, 0x7d, 0x2c, 255),  # orange plank
-    "light": (0xd2, 0xaa, 0x99, 255),  # pale plank (gunwale / highlight)
-    "deck":  (0x5a, 0x34, 0x22, 255),  # interior shadow (darker than hull)
-    "seat":  (0xd2, 0x7d, 0x2c, 255),  # thwart
-    "sail":  (0xde, 0xee, 0xd6, 255),  # canvas
-    "sail2": (0x8b, 0x95, 0xa1, 255),  # sail shadow
-    "mast":  (0x4e, 0x4a, 0x4e, 255),  # grey wood
+    "out":   (0x14, 0x0c, 0x1c, 255),
+    "hull":  (0x85, 0x4c, 0x30, 255),
+    "plank": (0xd2, 0x7d, 0x2c, 255),
+    "light": (0xd2, 0xaa, 0x99, 255),
+    "deck":  (0x5a, 0x34, 0x22, 255),
+    "seat":  (0xd2, 0x7d, 0x2c, 255),
+    "sail":  (0xde, 0xee, 0xd6, 255),
+    "sail2": (0xb0, 0xba, 0xc6, 255),
+    "mast":  (0x4e, 0x4a, 0x4e, 255),
     "crate": (0xd2, 0x7d, 0x2c, 255),
     "crated":(0x85, 0x4c, 0x30, 255),
     "rope":  (0x75, 0x71, 0x61, 255),
 }
 CLEAR = (0, 0, 0, 0)
 
+# Canonical frame: bow UP. Width 32, height 48. Hull long axis = Y.
+W, H = 32, 48
+CX = 15.5
+Y0, Y1 = 4, 45
+HW = 8.5
+
 
 def hull_halfwidth(t, hw):
-    """Half-width of the hull at longitudinal fraction t in [0,1] (0=bow tip, 1=stern)."""
-    if t < 0.30:                      # pointed bow
+    if t < 0.30:
         return hw * (t / 0.30) ** 0.62
-    if t < 0.78:                      # full body
+    if t < 0.78:
         return hw
-    u = (t - 0.78) / 0.22             # rounded stern
+    u = (t - 0.78) / 0.22
     return hw * (1.0 - 0.45 * u) * (1.0 - (max(0.0, u - 0.72) / 0.28) ** 2 * 0.9)
 
 
-def draw_hull(px, W, H, y0, y1, cx, hw, plank_step=4):
-    """Paint a hull into px (a 2D list). Returns list of interior spans per row for rigging."""
+def new_px(w, h):
+    return [[CLEAR for _ in range(w)] for _ in range(h)]
+
+
+def draw_hull(px, hw=HW):
     spans = {}
-    L = y1 - y0
-    for y in range(y0, y1):
-        t = (y - y0) / L
+    L = Y1 - Y0
+    for y in range(Y0, Y1):
+        t = (y - Y0) / L
         h = hull_halfwidth(t, hw)
         if h < 0.7:
             continue
-        xl, xr = cx - h, cx + h
-        ixl, ixr = int(round(xl)), int(round(xr))
+        ixl, ixr = int(round(CX - h)), int(round(CX + h))
         interior = []
         for x in range(ixl, ixr + 1):
             if x < 0 or x >= W:
                 continue
-            d = abs(x - cx)
-            if d >= h - 1.0:                     # outline rim
+            d = abs(x - CX)
+            if d >= h - 1.0:
                 px[y][x] = C["out"]
-            elif d >= h - 2.2:                   # gunwale (pale plank edge)
+            elif d >= h - 2.2:
                 px[y][x] = C["light"]
-            else:                                # interior deck: solid wood + a longitudinal keel shadow
+            else:
                 px[y][x] = C["deck"] if d < 1.2 else C["hull"]
                 interior.append(x)
         if interior:
@@ -71,145 +78,216 @@ def draw_hull(px, W, H, y0, y1, cx, hw, plank_step=4):
     return spans, L
 
 
-def thwarts(px, spans, y0, L, rows_frac):
-    """Draw seat planks across the interior at the given longitudinal fractions."""
+def thwarts(px, spans, L, rows_frac):
     for f in rows_frac:
-        y = y0 + int(f * L)
+        y = Y0 + int(f * L)
         if y in spans:
             a, b = spans[y]
             for x in range(a, b + 1):
                 px[y][x] = C["seat"]
-            # a thin shadow line under the seat
-            if (y + 1) in spans:
-                aa, bb = spans[y + 1]
-                for x in range(max(a, aa), min(b, bb) + 1):
-                    px[y + 1][x] = C["deck"]
 
 
-def new_px(W, H):
-    return [[CLEAR for _ in range(W)] for _ in range(H)]
-
-
-def save(px, W, H, name):
+def save_rotations(px, base):
+    """Save the canonical (bow-up = north) image + its 3 rotations as {base}_{n,e,s,w}.png."""
     img = Image.new("RGBA", (W, H), CLEAR)
     for y in range(H):
         for x in range(W):
             img.putpixel((x, y), px[y][x])
+    # ROTATE_270 = 90° CW → bow up becomes bow right (east); ROTATE_90 CCW → west; ROTATE_180 → south.
+    variants = {"n": img,
+                "e": img.transpose(Image.ROTATE_270),
+                "s": img.transpose(Image.ROTATE_180),
+                "w": img.transpose(Image.ROTATE_90)}
+    for d, im in variants.items():
+        im.save(os.path.join(OUT, f"{base}_{d}.png"))
+    print("wrote", base, "n/e/s/w", f"({img.width}x{img.height} + rotations)")
+
+
+def save_one(img, name):
     img.save(os.path.join(OUT, name + ".png"))
-    print("wrote", name, f"{W}x{H}")
+    print("wrote", name, f"{img.width}x{img.height}")
 
 
-W, H = 32, 48
-cx = 15.5
-Y0, Y1 = 4, 45
-HW = 8.5
-
-# ---- rowboat: bare hull + two thwarts ----
+# ---- rowboat ----
 px = new_px(W, H)
-spans, L = draw_hull(px, W, H, Y0, Y1, cx, HW)
-thwarts(px, spans, Y0, L, [0.42, 0.66])
-save(px, W, H, "boat")
+spans, L = draw_hull(px)
+thwarts(px, spans, L, [0.42, 0.66])
+save_rotations(px, "boat")
 
-# ---- sailboat: hull + mast + a canvas sail ----
+# ---- sailboat: hull + mast + a SQUARE sail on a yard ORTHOGONAL to the keel ----
 px = new_px(W, H)
-spans, L = draw_hull(px, W, H, Y0, Y1, cx, HW)
-thwarts(px, spans, Y0, L, [0.70])
-my = Y0 + int(0.52 * L)               # mast base
-# mast (a short grey post at centre)
-for y in range(Y0 + int(0.30 * L), my):
-    px[y][int(cx)] = C["mast"]
-    px[y][int(cx) + 1] = C["mast"]
-# sail — a filled canvas triangle billowing forward (toward the bow), with a shadow edge
-for y in range(Y0 + int(0.20 * L), Y0 + int(0.54 * L)):
-    t = (y - (Y0 + int(0.20 * L))) / (0.34 * L)
-    half = 1 + int(6.5 * t)
-    for x in range(int(cx) - half, int(cx) + half + 1):
+spans, L = draw_hull(px)
+thwarts(px, spans, L, [0.72])
+mast_y = Y0 + int(0.46 * L)
+# mast: a short grey post at the hull centre
+for y in range(Y0 + int(0.30 * L), mast_y + 2):
+    px[y][int(CX)] = C["mast"]
+    px[y][int(CX) + 1] = C["mast"]
+# YARD (spar) — a dark horizontal bar PERPENDICULAR to the keel, a touch wider than the hull
+yard_y = Y0 + int(0.36 * L)
+yard_half = 10
+for x in range(int(CX) - yard_half, int(CX) + yard_half + 1):
+    if 0 <= x < W:
+        px[yard_y][x] = C["out"]
+# SAIL — a square canvas HANGING from the yard: full width at the head, tapering to a curved foot, with a
+# gentle billow. Spanning left-right (not up-down) is what makes it read as a sail seen from above.
+sail_top, sail_bot = yard_y + 1, yard_y + 1 + int(0.16 * L)
+for y in range(sail_top, sail_bot):
+    v = (y - sail_top) / max(1, (sail_bot - sail_top))
+    half = int(round((yard_half - 1) * (1.0 - 0.30 * v)))     # taper toward the foot
+    half += int(round(1.5 * (0.5 - abs(v - 0.5))))            # a slight belly
+    for x in range(int(CX) - half, int(CX) + half + 1):
         if 0 <= x < W:
-            px[y][x] = C["sail2"] if x >= int(cx) + half - 1 else C["sail"]
-# mast cap over the sail
-px[Y0 + int(0.30 * L)][int(cx)] = C["out"]
-save(px, W, H, "boat_sail")
+            # trailing (left) edge shaded, a seam highlight down the luff (right of mast)
+            px[y][x] = C["sail2"] if x <= int(CX) - half + 1 else C["sail"]
+# a curved outlined foot for definition
+foot = sail_bot
+for x in range(int(CX) - (yard_half - 3), int(CX) + (yard_half - 3) + 1):
+    yy = foot - (1 if abs(x - int(CX)) > yard_half - 5 else 0)
+    if 0 <= x < W and 0 <= yy < H and px[yy][x] != CLEAR:
+        px[yy][x] = C["sail2"]
+save_rotations(px, "boat_sail")
 
-# ---- cargo boat: wider hull + a stack of crates amidships ----
+# ---- cargo boat: hull + a stack of crates amidships ----
 px = new_px(W, H)
-spans, L = draw_hull(px, W, H, Y0, Y1, cx, HW + 0.6)
+spans, L = draw_hull(px, HW + 0.6)
 for (cy0, cy1, cx0, cxw) in [(0.40, 0.52, -5, 4), (0.40, 0.52, 1, 4), (0.55, 0.67, -2, 5)]:
     ya, yb = Y0 + int(cy0 * L), Y0 + int(cy1 * L)
-    xa, xb = int(cx) + cx0, int(cx) + cx0 + cxw
+    xa, xb = int(CX) + cx0, int(CX) + cx0 + cxw
     for y in range(ya, yb):
         for x in range(xa, xb):
             if 0 <= x < W and y in spans and spans[y][0] <= x <= spans[y][1]:
                 edge = (x == xa or x == xb - 1 or y == ya or y == yb - 1)
                 px[y][x] = C["out"] if edge else (C["crate"] if (x + y) % 2 == 0 else C["crated"])
-save(px, W, H, "boat_cargo")
+save_rotations(px, "boat_cargo")
 
-# ---- raft: a plain grid of lashed logs (no hull curve) ----
+# ---- raft: a plain grid of lashed logs (symmetric — one sprite) ----
 px = new_px(W, H)
 rx0, rx1, ry0, ry1 = 7, 25, 8, 40
 for y in range(ry0, ry1):
     for x in range(rx0, rx1):
         edge = (x == rx0 or x == rx1 - 1 or y == ry0 or y == ry1 - 1)
-        if edge:
-            px[y][x] = C["out"]
-        else:
-            px[y][x] = C["hull"] if ((x - rx0) // 3) % 2 == 0 else C["plank"]
-# two lashing ropes across
+        px[y][x] = C["out"] if edge else (C["hull"] if ((x - rx0) // 3) % 2 == 0 else C["plank"])
 for y in (ry0 + 6, ry1 - 7):
     for x in range(rx0, rx1):
         px[y][x] = C["rope"]
-save(px, W, H, "boat_raft")
+img = Image.new("RGBA", (W, H), CLEAR)
+for y in range(H):
+    for x in range(W):
+        img.putpixel((x, y), px[y][x])
+save_one(img, "boat_raft")
 
-# ---- mist wisp: a soft translucent grey blob (feathered, low alpha) ----
-MW, MH = 40, 24
-img = Image.new("RGBA", (MW, MH), CLEAR)
-mcx, mcy = MW / 2, MH / 2
-for y in range(MH):
-    for x in range(MW):
-        # elliptical falloff, elongated horizontally, soft edges
-        dx = (x - mcx) / (MW * 0.46)
-        dy = (y - mcy) / (MH * 0.42)
-        d = dx * dx + dy * dy
-        if d >= 1.0:
-            continue
-        a = int(96 * (1.0 - d) ** 1.6)       # peak alpha ~96/255, feathered to 0
-        # a touch of internal wispiness so it isn't a perfect blob
-        if (x * 7 + y * 13) % 11 == 0:
-            a = int(a * 0.6)
-        img.putpixel((x, y), (0xcf, 0xd6, 0xdd, a))
-img.save(os.path.join(OUT, "mist_wisp.png"))
-print("wrote mist_wisp", f"{MW}x{MH}")
-
-# ---- piling: a wooden mooring post (feet-bottom anchored, ~10x18) ----
+# ---- piling: a wooden mooring post (feet-bottom anchored) ----
 PW, PH = 10, 18
 px = new_px(PW, PH)
 pcx = PW // 2
-for y in range(3, PH):                    # the post shaft
+for y in range(3, PH):
     for x in range(pcx - 2, pcx + 3):
-        d = abs(x - pcx)
-        if d == 2:
-            px[y][x] = C["out"]
-        else:
-            px[y][x] = C["hull"] if x < pcx else C["plank"]
-for x in range(pcx - 2, pcx + 3):         # rounded top cap (lighter)
-    px[2][x] = C["out"]
-    px[3][x] = C["light"]
-for x in range(pcx - 2, pcx + 3):         # a rope wrap near the top
-    px[7][x] = C["rope"]
-    px[8][x] = C["out"]
-save(px, PW, PH, "piling")
+        px[y][x] = C["out"] if abs(x - pcx) == 2 else (C["hull"] if x < pcx else C["plank"])
+for x in range(pcx - 2, pcx + 3):
+    px[2][x] = C["out"]; px[3][x] = C["light"]
+for x in range(pcx - 2, pcx + 3):
+    px[7][x] = C["rope"]; px[8][x] = C["out"]
+img = Image.new("RGBA", (PW, PH), CLEAR)
+for y in range(PH):
+    for x in range(PW):
+        img.putpixel((x, y), px[y][x])
+save_one(img, "piling")
 
-# ---- rope_coil: a small coil of rope lying on the planks (~12x10) ----
+# ---- barrel: a solid wooden cask (DawnLike's blue-hooped barrel reads as a CAGE at 16px) ----
+# A 3/4 barrel: bulging staves (vertical), two DARK hoops, a lighter elliptical lid on top.
+BW, BH = 16, 16
+img = Image.new("RGBA", (BW, BH), CLEAR)
+bcx = BW / 2 - 0.5
+for y in range(2, 15):
+    # barrel half-width bulges in the middle (a cask silhouette)
+    t = (y - 2) / 12.0
+    hw = 4.6 + 1.4 * (1 - (2 * t - 1) ** 2)
+    for x in range(BW):
+        d = abs(x - bcx)
+        if d > hw:
+            continue
+        if d >= hw - 1.0:
+            img.putpixel((x, y), C["out"])                       # stave outline
+        elif y in (5, 10):
+            img.putpixel((x, y), C["deck"])                      # dark hoop bands (brown, not metal)
+        else:
+            # vertical staves: alternate wood shades; a highlight column left of centre
+            shade = C["plank"] if (x < bcx - 1) else (C["light"] if x < bcx + 1 else C["hull"])
+            img.putpixel((x, y), shade)
+# lid (top ellipse)
+for x in range(BW):
+    d = abs(x - bcx)
+    if d <= 4.6:
+        img.putpixel((x, 2), C["out"])
+        if d < 3.6:
+            img.putpixel((x, 3), C["light"])
+save_one(img, "barrel")
+
+# ---- crate: an X-braced wooden box (DawnLike's crate reads as a barred GRATE at 16px) ----
+# A warm-wood box with a dark frame and a diagonal X-brace — the universal, unmistakable "crate".
+CW = 16
+img = Image.new("RGBA", (CW, CW), CLEAR)
+lo, hi = 2, 13
+for y in range(lo, hi + 1):
+    for x in range(lo, hi + 1):
+        frame = (x == lo or x == hi or y == lo or y == hi)
+        img.putpixel((x, y), C["out"] if frame else C["hull"])
+# lighter top plank + a corner highlight
+for x in range(lo + 1, hi):
+    img.putpixel((x, lo + 1), C["light"])
+# diagonal X-brace (both diagonals), in pale plank so it reads as slats crossing the face
+n = hi - lo
+for i in range(1, n):
+    for (bx, by) in [(lo + i, lo + i), (hi - i, lo + i)]:
+        if lo < bx < hi and lo < by < hi:
+            img.putpixel((bx, by), C["plank"])
+            if lo < bx + 1 < hi:
+                img.putpixel((bx + 1, by), C["light"])
+save_one(img, "crate")
+
+# ---- rope_coil ----
 RW, RH = 12, 10
 img = Image.new("RGBA", (RW, RH), CLEAR)
 rcx, rcy = RW / 2 - 0.5, RH / 2 - 0.5
 for y in range(RH):
     for x in range(RW):
-        dx = (x - rcx) / (RW * 0.44)
-        dy = (y - rcy) / (RH * 0.44)
-        d = dx * dx + dy * dy
-        if 0.28 <= d <= 1.0:              # a ring (coil), hollow centre
+        d = ((x - rcx) / (RW * 0.44)) ** 2 + ((y - rcy) / (RH * 0.44)) ** 2
+        if 0.28 <= d <= 1.0:
             img.putpixel((x, y), C["rope"] if (x + y) % 2 == 0 else C["hull"])
         elif d < 0.28:
             img.putpixel((x, y), C["out"])
-img.save(os.path.join(OUT, "rope_coil.png"))
-print("wrote rope_coil", f"{RW}x{RH}")
+save_one(img, "rope_coil")
+
+# ---- CLOUDS: fluffy, translucent cumulus puffs (see-through drifting mist) ----
+# White canvas with a soft blue-grey underside, feathered edges, moderate alpha so terrain shows through.
+CLOUD_W, CLOUD_H = 56, 30
+SW = (0xde, 0xee, 0xd6)   # cloud white
+SH = (0xb6, 0xc4, 0xd6)   # cloud shadow (light blue)
+PEAK = 135                 # peak alpha — clearly visible, but TRANSLUCENT even at the core (terrain shows through)
+
+
+def cloud(lobes):
+    """lobes: list of (cx, cy, r) circles. Alpha = soft union of the lobes, feathered to 0; the whole puff
+    (not just the rim) stays see-through so the map reads underneath — a drifting cloud, not a cotton blob."""
+    img = Image.new("RGBA", (CLOUD_W, CLOUD_H), CLEAR)
+    for y in range(CLOUD_H):
+        for x in range(CLOUD_W):
+            best = 0.0
+            for (lx, ly, r) in lobes:
+                d = ((x - lx) ** 2 + (y - ly) ** 2) ** 0.5 / r
+                if d < 1.0:
+                    best = max(best, (1.0 - d))
+            if best <= 0.02:
+                continue
+            a = int(PEAK * best ** 0.7)   # core tops out at PEAK (~53% opacity), feathered to 0 at the rim
+            under = y > CLOUD_H * 0.52 and best < 0.6
+            col = SH if under else SW
+            img.putpixel((x, y), (col[0], col[1], col[2], a))
+    return img
+
+
+# three distinct cumulus silhouettes so the scatter isn't a repeated stamp
+save_one(cloud([(16, 17, 11), (27, 12, 13), (40, 16, 12), (33, 19, 10), (20, 20, 9)]), "mist_a")
+save_one(cloud([(14, 16, 10), (26, 14, 12), (37, 18, 11), (46, 16, 9)]), "mist_b")
+save_one(cloud([(18, 15, 12), (30, 18, 13), (42, 14, 10), (24, 20, 8)]), "mist_c")

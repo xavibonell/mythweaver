@@ -2229,7 +2229,7 @@
       "kind": "prop",
       "tag": "barrel",
       "desc": "a wooden barrel",
-      "art": "/assets/dawnlike/props/barrel.png",
+      "art": "/assets/proc/props/barrel.png",
       "frameW": 16,
       "frameH": 16,
       "footW": 1,
@@ -2242,25 +2242,19 @@
         "docks"
       ],
       "from": {
-        "pack": "DawnLike-atlas",
-        "sheet": "raw-packs/DawnLike-atlas/Dawnlike.png",
-        "rect": [
-          398,
-          531,
-          16,
-          16
-        ],
-        "note": "was a mis-crop (a barred cage) from Decor0 \u2014 repointed to the real closed_barrel"
+        "pack": "proc",
+        "gen": "scripts/gen-boats-proc.py",
+        "note": "DawnLike barrel had blue metal hoops that read as a CAGE at 16px \u2014 replaced with a solid procedural cask"
       },
       "fps": 0,
-      "license": "CC-BY-4.0",
-      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
+      "license": "hand-drawn procedural pixel art in the DB16 palette (scripts/gen-boats-proc.py); owned, NOT DawnLike",
+      "attribution": "procedural asset (MythWeaver)"
     },
     {
       "kind": "prop",
       "tag": "crate",
       "desc": "a wooden crate / supply box",
-      "art": "/assets/dawnlike/props/crate.png",
+      "art": "/assets/proc/props/crate.png",
       "frameW": 16,
       "frameH": 16,
       "footW": 1,
@@ -2273,18 +2267,13 @@
         "docks"
       ],
       "from": {
-        "pack": "DawnLike",
-        "crop": "Objects/Decor0.png",
-        "rect": [
-          32,
-          144,
-          16,
-          16
-        ]
+        "pack": "proc",
+        "gen": "scripts/gen-boats-proc.py",
+        "note": "DawnLike crate reads as a barred grate at 16px \u2014 replaced with an X-braced procedural crate"
       },
       "fps": 0,
-      "license": "CC-BY-4.0",
-      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
+      "license": "hand-drawn procedural pixel art in the DB16 palette (scripts/gen-boats-proc.py); owned, NOT DawnLike",
+      "attribution": "procedural asset (MythWeaver)"
     },
     {
       "kind": "prop",
@@ -2802,29 +2791,6 @@
       },
       "license": "CC-BY-4.0",
       "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
-    },
-    {
-      "kind": "prop",
-      "tag": "boat",
-      "desc": "a small wooden rowboat",
-      "biomes": [
-        "coast",
-        "village"
-      ],
-      "art": "/assets/proc/props/boat.png",
-      "frameW": 32,
-      "frameH": 48,
-      "frames": 1,
-      "footW": 2,
-      "footH": 3,
-      "blocks": false,
-      "platform": true,
-      "from": {
-        "pack": "proc",
-        "gen": "scripts/gen-boats-proc.py"
-      },
-      "license": "hand-drawn procedural pixel art in the DB16 palette (scripts/gen-boats-proc.py); owned, NOT DawnLike",
-      "attribution": "procedural asset (MythWeaver)"
     },
     {
       "kind": "prop",
@@ -6310,75 +6276,6 @@
     },
     {
       "kind": "prop",
-      "tag": "boat_sail",
-      "desc": "a sailboat",
-      "biomes": [
-        "coast",
-        "village"
-      ],
-      "art": "/assets/proc/props/boat_sail.png",
-      "frameW": 32,
-      "frameH": 48,
-      "frames": 1,
-      "footW": 2,
-      "footH": 3,
-      "blocks": false,
-      "platform": true,
-      "from": {
-        "pack": "proc",
-        "gen": "scripts/gen-boats-proc.py"
-      },
-      "license": "hand-drawn procedural pixel art in the DB16 palette (scripts/gen-boats-proc.py); owned, NOT DawnLike",
-      "attribution": "procedural asset (MythWeaver)"
-    },
-    {
-      "kind": "prop",
-      "tag": "boat_cargo",
-      "desc": "a cargo boat",
-      "biomes": [
-        "coast",
-        "village"
-      ],
-      "art": "/assets/proc/props/boat_cargo.png",
-      "frameW": 32,
-      "frameH": 48,
-      "frames": 1,
-      "footW": 2,
-      "footH": 3,
-      "blocks": false,
-      "platform": true,
-      "from": {
-        "pack": "proc",
-        "gen": "scripts/gen-boats-proc.py"
-      },
-      "license": "hand-drawn procedural pixel art in the DB16 palette (scripts/gen-boats-proc.py); owned, NOT DawnLike",
-      "attribution": "procedural asset (MythWeaver)"
-    },
-    {
-      "kind": "prop",
-      "tag": "boat_raft",
-      "desc": "a log raft",
-      "biomes": [
-        "coast",
-        "village"
-      ],
-      "art": "/assets/proc/props/boat_raft.png",
-      "frameW": 32,
-      "frameH": 48,
-      "frames": 1,
-      "footW": 2,
-      "footH": 3,
-      "blocks": false,
-      "platform": true,
-      "from": {
-        "pack": "proc",
-        "gen": "scripts/gen-boats-proc.py"
-      },
-      "license": "hand-drawn procedural pixel art in the DB16 palette (scripts/gen-boats-proc.py); owned, NOT DawnLike",
-      "attribution": "procedural asset (MythWeaver)"
-    },
-    {
-      "kind": "prop",
       "tag": "cliff_shadow",
       "desc": "a cast shadow at a cliff foot",
       "biomes": [
@@ -6483,31 +6380,6 @@
     },
     {
       "kind": "prop",
-      "tag": "mist_wisp",
-      "desc": "a drifting wisp of mist",
-      "biomes": [
-        "coast",
-        "village",
-        "town",
-        "forest",
-        "cave"
-      ],
-      "art": "/assets/proc/props/mist_wisp.png",
-      "frameW": 40,
-      "frameH": 24,
-      "frames": 1,
-      "footW": 1,
-      "footH": 1,
-      "blocks": false,
-      "from": {
-        "pack": "proc",
-        "gen": "scripts/gen-boats-proc.py"
-      },
-      "license": "hand-drawn procedural pixel art in the DB16 palette (scripts/gen-boats-proc.py); owned, NOT DawnLike",
-      "attribution": "procedural asset (MythWeaver)"
-    },
-    {
-      "kind": "prop",
       "tag": "piling",
       "desc": "a wooden mooring post",
       "biomes": [
@@ -6541,6 +6413,465 @@
       "art": "/assets/proc/props/rope_coil.png",
       "frameW": 12,
       "frameH": 10,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-boats-proc.py"
+      },
+      "license": "hand-drawn procedural pixel art in the DB16 palette (scripts/gen-boats-proc.py); owned, NOT DawnLike",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "boat_n",
+      "desc": "a small wooden rowboat",
+      "biomes": [
+        "coast",
+        "village",
+        "docks"
+      ],
+      "art": "/assets/proc/props/boat_n.png",
+      "frameW": 32,
+      "frameH": 48,
+      "frames": 1,
+      "footW": 2,
+      "footH": 3,
+      "blocks": false,
+      "platform": true,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-boats-proc.py"
+      },
+      "license": "hand-drawn procedural pixel art in the DB16 palette (scripts/gen-boats-proc.py); owned, NOT DawnLike",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "boat_e",
+      "desc": "a small wooden rowboat",
+      "biomes": [
+        "coast",
+        "village",
+        "docks"
+      ],
+      "art": "/assets/proc/props/boat_e.png",
+      "frameW": 48,
+      "frameH": 32,
+      "frames": 1,
+      "footW": 3,
+      "footH": 2,
+      "blocks": false,
+      "platform": true,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-boats-proc.py"
+      },
+      "license": "hand-drawn procedural pixel art in the DB16 palette (scripts/gen-boats-proc.py); owned, NOT DawnLike",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "boat_s",
+      "desc": "a small wooden rowboat",
+      "biomes": [
+        "coast",
+        "village",
+        "docks"
+      ],
+      "art": "/assets/proc/props/boat_s.png",
+      "frameW": 32,
+      "frameH": 48,
+      "frames": 1,
+      "footW": 2,
+      "footH": 3,
+      "blocks": false,
+      "platform": true,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-boats-proc.py"
+      },
+      "license": "hand-drawn procedural pixel art in the DB16 palette (scripts/gen-boats-proc.py); owned, NOT DawnLike",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "boat_w",
+      "desc": "a small wooden rowboat",
+      "biomes": [
+        "coast",
+        "village",
+        "docks"
+      ],
+      "art": "/assets/proc/props/boat_w.png",
+      "frameW": 48,
+      "frameH": 32,
+      "frames": 1,
+      "footW": 3,
+      "footH": 2,
+      "blocks": false,
+      "platform": true,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-boats-proc.py"
+      },
+      "license": "hand-drawn procedural pixel art in the DB16 palette (scripts/gen-boats-proc.py); owned, NOT DawnLike",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "boat",
+      "desc": "a small wooden rowboat",
+      "biomes": [
+        "coast",
+        "village",
+        "docks"
+      ],
+      "art": "/assets/proc/props/boat_n.png",
+      "frameW": 32,
+      "frameH": 48,
+      "frames": 1,
+      "footW": 2,
+      "footH": 3,
+      "blocks": false,
+      "platform": true,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-boats-proc.py"
+      },
+      "license": "hand-drawn procedural pixel art in the DB16 palette (scripts/gen-boats-proc.py); owned, NOT DawnLike",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "boat_sail_n",
+      "desc": "a sailboat",
+      "biomes": [
+        "coast",
+        "village",
+        "docks"
+      ],
+      "art": "/assets/proc/props/boat_sail_n.png",
+      "frameW": 32,
+      "frameH": 48,
+      "frames": 1,
+      "footW": 2,
+      "footH": 3,
+      "blocks": false,
+      "platform": true,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-boats-proc.py"
+      },
+      "license": "hand-drawn procedural pixel art in the DB16 palette (scripts/gen-boats-proc.py); owned, NOT DawnLike",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "boat_sail_e",
+      "desc": "a sailboat",
+      "biomes": [
+        "coast",
+        "village",
+        "docks"
+      ],
+      "art": "/assets/proc/props/boat_sail_e.png",
+      "frameW": 48,
+      "frameH": 32,
+      "frames": 1,
+      "footW": 3,
+      "footH": 2,
+      "blocks": false,
+      "platform": true,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-boats-proc.py"
+      },
+      "license": "hand-drawn procedural pixel art in the DB16 palette (scripts/gen-boats-proc.py); owned, NOT DawnLike",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "boat_sail_s",
+      "desc": "a sailboat",
+      "biomes": [
+        "coast",
+        "village",
+        "docks"
+      ],
+      "art": "/assets/proc/props/boat_sail_s.png",
+      "frameW": 32,
+      "frameH": 48,
+      "frames": 1,
+      "footW": 2,
+      "footH": 3,
+      "blocks": false,
+      "platform": true,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-boats-proc.py"
+      },
+      "license": "hand-drawn procedural pixel art in the DB16 palette (scripts/gen-boats-proc.py); owned, NOT DawnLike",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "boat_sail_w",
+      "desc": "a sailboat",
+      "biomes": [
+        "coast",
+        "village",
+        "docks"
+      ],
+      "art": "/assets/proc/props/boat_sail_w.png",
+      "frameW": 48,
+      "frameH": 32,
+      "frames": 1,
+      "footW": 3,
+      "footH": 2,
+      "blocks": false,
+      "platform": true,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-boats-proc.py"
+      },
+      "license": "hand-drawn procedural pixel art in the DB16 palette (scripts/gen-boats-proc.py); owned, NOT DawnLike",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "boat_sail",
+      "desc": "a sailboat",
+      "biomes": [
+        "coast",
+        "village",
+        "docks"
+      ],
+      "art": "/assets/proc/props/boat_sail_n.png",
+      "frameW": 32,
+      "frameH": 48,
+      "frames": 1,
+      "footW": 2,
+      "footH": 3,
+      "blocks": false,
+      "platform": true,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-boats-proc.py"
+      },
+      "license": "hand-drawn procedural pixel art in the DB16 palette (scripts/gen-boats-proc.py); owned, NOT DawnLike",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "boat_cargo_n",
+      "desc": "a cargo boat",
+      "biomes": [
+        "coast",
+        "village",
+        "docks"
+      ],
+      "art": "/assets/proc/props/boat_cargo_n.png",
+      "frameW": 32,
+      "frameH": 48,
+      "frames": 1,
+      "footW": 2,
+      "footH": 3,
+      "blocks": false,
+      "platform": true,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-boats-proc.py"
+      },
+      "license": "hand-drawn procedural pixel art in the DB16 palette (scripts/gen-boats-proc.py); owned, NOT DawnLike",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "boat_cargo_e",
+      "desc": "a cargo boat",
+      "biomes": [
+        "coast",
+        "village",
+        "docks"
+      ],
+      "art": "/assets/proc/props/boat_cargo_e.png",
+      "frameW": 48,
+      "frameH": 32,
+      "frames": 1,
+      "footW": 3,
+      "footH": 2,
+      "blocks": false,
+      "platform": true,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-boats-proc.py"
+      },
+      "license": "hand-drawn procedural pixel art in the DB16 palette (scripts/gen-boats-proc.py); owned, NOT DawnLike",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "boat_cargo_s",
+      "desc": "a cargo boat",
+      "biomes": [
+        "coast",
+        "village",
+        "docks"
+      ],
+      "art": "/assets/proc/props/boat_cargo_s.png",
+      "frameW": 32,
+      "frameH": 48,
+      "frames": 1,
+      "footW": 2,
+      "footH": 3,
+      "blocks": false,
+      "platform": true,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-boats-proc.py"
+      },
+      "license": "hand-drawn procedural pixel art in the DB16 palette (scripts/gen-boats-proc.py); owned, NOT DawnLike",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "boat_cargo_w",
+      "desc": "a cargo boat",
+      "biomes": [
+        "coast",
+        "village",
+        "docks"
+      ],
+      "art": "/assets/proc/props/boat_cargo_w.png",
+      "frameW": 48,
+      "frameH": 32,
+      "frames": 1,
+      "footW": 3,
+      "footH": 2,
+      "blocks": false,
+      "platform": true,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-boats-proc.py"
+      },
+      "license": "hand-drawn procedural pixel art in the DB16 palette (scripts/gen-boats-proc.py); owned, NOT DawnLike",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "boat_cargo",
+      "desc": "a cargo boat",
+      "biomes": [
+        "coast",
+        "village",
+        "docks"
+      ],
+      "art": "/assets/proc/props/boat_cargo_n.png",
+      "frameW": 32,
+      "frameH": 48,
+      "frames": 1,
+      "footW": 2,
+      "footH": 3,
+      "blocks": false,
+      "platform": true,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-boats-proc.py"
+      },
+      "license": "hand-drawn procedural pixel art in the DB16 palette (scripts/gen-boats-proc.py); owned, NOT DawnLike",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "boat_raft",
+      "desc": "a log raft",
+      "biomes": [
+        "coast",
+        "village",
+        "docks"
+      ],
+      "art": "/assets/proc/props/boat_raft.png",
+      "frameW": 32,
+      "frameH": 48,
+      "frames": 1,
+      "footW": 2,
+      "footH": 3,
+      "blocks": false,
+      "platform": true,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-boats-proc.py"
+      },
+      "license": "hand-drawn procedural pixel art in the DB16 palette (scripts/gen-boats-proc.py); owned, NOT DawnLike",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "mist_a",
+      "desc": "a drifting cloud of mist",
+      "biomes": [
+        "coast",
+        "village",
+        "town",
+        "forest",
+        "cave"
+      ],
+      "art": "/assets/proc/props/mist_a.png",
+      "frameW": 56,
+      "frameH": 30,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-boats-proc.py"
+      },
+      "license": "hand-drawn procedural pixel art in the DB16 palette (scripts/gen-boats-proc.py); owned, NOT DawnLike",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "mist_b",
+      "desc": "a drifting cloud of mist",
+      "biomes": [
+        "coast",
+        "village",
+        "town",
+        "forest",
+        "cave"
+      ],
+      "art": "/assets/proc/props/mist_b.png",
+      "frameW": 56,
+      "frameH": 30,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-boats-proc.py"
+      },
+      "license": "hand-drawn procedural pixel art in the DB16 palette (scripts/gen-boats-proc.py); owned, NOT DawnLike",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "mist_c",
+      "desc": "a drifting cloud of mist",
+      "biomes": [
+        "coast",
+        "village",
+        "town",
+        "forest",
+        "cave"
+      ],
+      "art": "/assets/proc/props/mist_c.png",
+      "frameW": 56,
+      "frameH": 30,
       "frames": 1,
       "footW": 1,
       "footH": 1,

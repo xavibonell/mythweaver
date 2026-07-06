@@ -102,14 +102,16 @@ export function renderSceneMapToPng(scene: SceneMap, opts: { assetsRoot: string 
   }
 
   // Pass 2 — ambiance + objects, painter's order (ambiance behind, props, actors on top).
-  interface Draw { asset: AssetEntry | undefined; col: number; row: number; depth: number; footW: number; footH: number; actor: boolean; }
+  interface Draw { asset: AssetEntry | undefined; col: number; row: number; depth: number; footW: number; footH: number; actor: boolean; float: boolean; }
   const items: Draw[] = [];
-  for (const a of scene.ambiance ?? []) { if (a.tag === 'mist_wisp') continue; items.push({ asset: prop.get(a.tag), col: a.col, row: a.row, depth: a.row - 0.1, footW: 1, footH: 1, actor: false }); }
+  // `float` = a boat lying ON the water: it is CENTRED on its cell, not feet-bottom anchored (a boat isn't
+  // "standing" on the ground), so a boat moored alongside a pier sits IN the water instead of extending up onto the planks.
+  for (const a of scene.ambiance ?? []) { if (a.tag.startsWith('mist')) continue; items.push({ asset: prop.get(a.tag), col: a.col, row: a.row, depth: a.row - 0.1, footW: 1, footH: 1, actor: false, float: a.tag.startsWith('boat') }); }
   for (const o of scene.objects ?? []) {
     if (o.visible === false) continue;
     const actor = o.kind === 'actor';
     const asset = actor ? (char.get(o.tag) ?? char.get('villager')) : prop.get(o.tag);
-    items.push({ asset, col: o.col, row: o.row, depth: o.row + (actor ? 0.5 : 0.1), footW: actor ? 1 : (o.footprint?.w ?? 1), footH: actor ? 1 : (o.footprint?.h ?? 1), actor });
+    items.push({ asset, col: o.col, row: o.row, depth: o.row + (actor ? 0.5 : 0.1), footW: actor ? 1 : (o.footprint?.w ?? 1), footH: actor ? 1 : (o.footprint?.h ?? 1), actor, float: !actor && o.tag.startsWith('boat') });
   }
   items.sort((p, q) => p.depth - q.depth);
   for (const it of items) {
@@ -118,7 +120,8 @@ export function renderSceneMapToPng(scene: SceneMap, opts: { assetsRoot: string 
     const fw = asset.frameW ?? TILE, fh = asset.frameH ?? TILE;
     const anchorY = it.actor ? (asset.anchorY ?? 1) : 1; // props anchor center-bottom; actors by anchorY
     const dstX = Math.round((it.col + it.footW / 2) * TILE - fw / 2);
-    const dstY = Math.round((it.row + it.footH) * TILE - fh * anchorY);
+    const dstY = it.float ? Math.round((it.row + 0.5) * TILE - fh / 2) // floating boats: centred on the cell
+      : Math.round((it.row + it.footH) * TILE - fh * anchorY);
     blit(png, dstX, dstY, fw, fh);
   }
 
@@ -139,14 +142,14 @@ export function renderSceneMapToPng(scene: SceneMap, opts: { assetsRoot: string 
       out.data[i + 1] = Math.round(dg + (FG - dg) * A);
       out.data[i + 2] = Math.round(db + (FB - db) * A);
     }
-    // Mist wisps drift ON TOP of the haze (a floating decal layer), so fog reads as patchy drifting mist,
-    // not just a flat wash. Blitted last, after the wash, at their own grid cells.
+    // Mist CLOUDS drift ON TOP of the haze (a floating translucent decal layer), so fog reads as patchy
+    // drifting mist, not just a flat wash. Blitted last, after the wash, at their own grid cells.
     for (const a of scene.ambiance ?? []) {
-      if (a.tag !== 'mist_wisp') continue;
-      const asset = prop.get('mist_wisp'); if (!asset?.art) continue;
+      if (!a.tag.startsWith('mist')) continue;
+      const asset = prop.get(a.tag); if (!asset?.art) continue;
       const png = loadPng(assetsRoot, asset.art); if (!png) continue;
       const fw = asset.frameW ?? TILE, fh = asset.frameH ?? TILE;
-      blit(png, Math.round((a.col + 0.5) * TILE - fw / 2), Math.round((a.row + 1) * TILE - fh), fw, fh);
+      blit(png, Math.round((a.col + 0.5) * TILE - fw / 2), Math.round((a.row + 0.5) * TILE - fh / 2), fw, fh);
     }
   } else {
     const tint = scene.lighting === 'night' ? (interior ? 0xc2a886 : 0x7e8cc0)

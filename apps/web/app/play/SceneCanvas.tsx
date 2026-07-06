@@ -72,10 +72,14 @@ function drawProp(scene: any, tag: string, col: number, row: number, footW: numb
     if (typeof console !== 'undefined') console.warn(`[renderer] no prop art for '${tag}'`);
     return;
   }
+  // A boat lies ON the water: CENTRE it on its cell (it isn't "standing" on the ground), so a boat moored
+  // alongside a pier floats in the water instead of extending up onto the planks. Everything else is feet-bottom.
+  const float = tag.startsWith('boat');
   const x = (col + footW / 2) * TILE; // center on the footprint, not the origin tile
-  const y = (row + footH) * TILE; // feet at the bottom of the footprint
+  const y = float ? (row + 0.5) * TILE : (row + footH) * TILE; // boats centred; else feet at the footprint bottom
+  const originY = float ? 0.5 : 1;
   const key = `prop_${tag}`;
-  const obj = art.frames > 1 ? scene.add.sprite(x, y, key).setOrigin(0.5, 1) : scene.add.image(x, y, key).setOrigin(0.5, 1);
+  const obj = art.frames > 1 ? scene.add.sprite(x, y, key).setOrigin(0.5, originY) : scene.add.image(x, y, key).setOrigin(0.5, originY);
   if (art.frames > 1) obj.play(`prop_${tag}-anim`);
   if (tint && !art.light) obj.setTint(tint); // light sources keep their glow under a night tint
   obj.setDepth(depth);
@@ -122,9 +126,9 @@ function renderFullImpl(scene: any, data: any): void {
   if (tint) terrainRT.setTint(tint);
   scene.sceneObjs.push(terrainRT);
 
-  // Seed-scattered ambiance (decor) sits just behind the placed objects on its row. `mist_wisp` is drawn
-  // separately as a top layer (see the fog block below), so it drifts OVER the scene, not behind props.
-  for (const a of data.ambiance ?? []) if (a.tag !== 'mist_wisp') drawProp(scene, a.tag, a.col, a.row, 1, 1, a.row - 0.1, tint);
+  // Seed-scattered ambiance (decor) sits just behind the placed objects on its row. Mist CLOUDS (`mist_*`)
+  // are drawn separately as a top layer (see the fog block below), so they drift OVER the scene, not behind props.
+  for (const a of data.ambiance ?? []) if (!a.tag.startsWith('mist')) drawProp(scene, a.tag, a.col, a.row, 1, 1, a.row - 0.1, tint);
 
   // The object_map: fixtures/props are drawn as art; actors as sprites. Hidden objects are NOT drawn.
   for (const o of data.objects ?? []) {
@@ -135,10 +139,11 @@ function renderFullImpl(scene: any, data: any): void {
 
   // FOG = a LIGHT pale haze laid over the WHOLE scene (a soft overlay, NOT a darkening multiply tint) —
   // reads as a cold sea-fog. Kept light so the scene stays legible; the real sense of fog comes from the
-  // scattered `mist_wisp` ambiance drifting above the scene (drawn on top, below this thin wash).
+  // scattered mist CLOUDS (`mist_*`) drifting above the scene — drawn on TOP of the thin wash so they read
+  // as visible, translucent drifting cloud.
   if (data.lighting === 'fog') {
-    for (const a of data.ambiance ?? []) if (a.tag === 'mist_wisp') drawProp(scene, a.tag, a.col, a.row, 1, 1, 99998 + a.row * 0.001, null);
     scene.add.rectangle(0, 0, cols * TILE, rows * TILE, 0xb2bcc6, 0.24).setOrigin(0, 0).setDepth(100000);
+    for (const a of data.ambiance ?? []) if (a.tag.startsWith('mist')) drawProp(scene, a.tag, a.col, a.row, 1, 1, 100001 + a.row * 0.001, null);
   }
 
   fitCamera(scene, data);
