@@ -29,9 +29,9 @@ import {
   type ToolDef,
 } from '@mythweaver/llm';
 import type { Retriever } from '@mythweaver/rag';
-import { ABILITIES, SKILLS, isEntityId, type Ability, type ArcBrief, type CharacterSheet, type CharacterState, type Combatant, type DamageType, type EntityCard, type EstablishScene, type FixtureDecl, type GameState, type ItemDef, type NpcDecl, type PartyMemberRef, type PendingTurn, type Poi, type PoiKind, type RealizeSceneResult, type SceneMap, type SceneProvenance, type SceneRealizeContext, type Skill } from '@mythweaver/shared';
+import { ABILITIES, SKILLS, isEntityId, type Ability, type ArcBrief, type CharacterSheet, type CharacterState, type Combatant, type DamageType, type EntityCard, type EstablishScene, type FixtureDecl, type GameState, type ItemDef, type NpcDecl, type PartyMemberRef, type PendingTurn, type Poi, type PoiKind, type RealizeSceneResult, type SceneDelta, type SceneMap, type SceneProvenance, type SceneRealizeContext, type Skill } from '@mythweaver/shared';
 import type { ArcPlanner } from './arc-planner.js';
-import { CHARACTERS, PROMPT_PROPS, buildSceneMap, type SceneComposer } from '@mythweaver/scene';
+import { CHARACTERS, PROMPT_PROPS, buildSceneMap, lookToSprite, type SceneComposer } from '@mythweaver/scene';
 
 // Catalog tag hints surfaced to the DM in the setScene tool, so it declares real art tags
 // (the Composer still maps near-misses, but exact tags render best). Internal props (the no-art
@@ -79,6 +79,10 @@ VISUAL SCENE (the table sees a live top-down map — docs/SCENE-CONTRACTS.md):
   tiles. Reuse the SAME locationId when the party returns — the place is remembered, not rebuilt.
 - When the ADVENTURE block shows a "Scene look", HONOR it: your setScene setting/kind/mood/fixtures
   should realize that designed look (it also feeds the map generator directly — stay consistent).
+- When your narration MOVES the world — someone walks somewhere, appears, vanishes, is revealed, or
+  an object's state flips — mirror it with ONE "updateScene" call (batch every change; ids from the
+  scene). The engine owns exact tiles: it snaps targets to free ground and REFUSES impossible moves —
+  narrate its verdict. Movement only; location changes stay setScene, mechanics stay the dice.
 
 CANON (keep the world consistent):
 - A "CANON" block may appear in the turn context — established truth (named NPCs + their voice/status,
@@ -175,6 +179,9 @@ export interface TurnResult {
   /** How the scene came to be (engine, briefs, mood chain, program + net injections). Present only
    *  when sceneChanged. Response-only — never persisted into the state blob. */
   sceneProvenance?: SceneProvenance;
+  /** APPLIED scene deltas this turn (updateScene + combat sync), moves/spawns normalized to concrete
+   *  tiles — the client tweens these instead of re-rendering. The map itself is already mutated. */
+  deltas?: SceneDelta[];
 }
 
 export interface OrchestratorDeps {
@@ -290,6 +297,38 @@ export function buildToolDefs(retrieval: boolean, scene: boolean): ToolDef[] {
           },
         },
         required: ['setting'],
+        additionalProperties: false,
+      },
+    });
+    tools.push({
+      name: 'updateScene',
+      description:
+        'Mirror CHANGES on the live map when your narration moves the world: someone walks somewhere, appears, vanishes, is revealed, or an object\'s state flips. ONE call per turn with every change batched. The engine owns exact tiles — it snaps targets to free ground and REFUSES impossible ones (narrate its verdict). Use ids from the scene (the setScene result / MAP digest). Do NOT use this to change location (that is setScene) or to resolve mechanics.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          changes: {
+            type: 'array',
+            description: 'The batched scene changes, applied in order.',
+            items: {
+              type: 'object',
+              properties: {
+                op: { type: 'string', enum: ['move', 'face', 'reveal', 'hide', 'setState', 'spawn', 'despawn'], description: 'What happens.' },
+                id: { type: 'string', description: 'The object/actor id, e.g. "npc:edda", "pc:aldric", "prop:chest".' },
+                to: { type: 'string', description: 'move/spawn: a coordinate-free anchor — "near:<id>", "center", "north", "entrance", "waterside", …' },
+                facing: { type: 'string', enum: ['up', 'down', 'left', 'right'], description: 'face: which way they turn.' },
+                state: { type: 'object', description: 'setState: flags to merge, e.g. {"door":"open"} or {"burning":true}.', additionalProperties: true },
+                look: { type: 'string', description: 'spawn: role/appearance, e.g. "a gaunt drowned villager" — mapped to a sprite.' },
+                name: { type: 'string', description: 'spawn: display name.' },
+                role: { type: 'string', enum: ['npc', 'mob'], description: 'spawn: npc (someone to talk to) or mob (a hostile).' },
+                visible: { type: 'boolean', description: 'spawn: false = present but hidden (reveal later).' },
+              },
+              required: ['op', 'id'],
+              additionalProperties: false,
+            },
+          },
+        },
+        required: ['changes'],
         additionalProperties: false,
       },
     });
@@ -1104,6 +1143,7 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
   let sceneChanged = false; // a setScene established/entered a location
   let sceneMap: SceneMap | undefined; // the frozen map to render
   let sceneProvenance: SceneProvenance | undefined; // how the scene came to be (response-only)
+  const sceneDeltas: SceneDelta[] = []; // APPLIED updateScene/combat-sync ops this turn (normalized tiles)
 
   const span = (deps.tracer ?? NOOP_TRACER).startTurn({
     sessionId: state.sessionId,
@@ -1375,9 +1415,73 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
         } catch {
           resolved.push({ toolUseId: tc.id, content: 'Scene setup failed; continue narrating.' });
         }
+      } else if (tc.name === 'updateScene' && deps.composer) {
+        // The DM mirrors narrated movement/appearances on the live map. The engine owns exact tiles:
+        // it snaps to free ground and refuses impossible ops with narratable reasons.
+        const changes = Array.isArray(tc.input.changes) ? (tc.input.changes as Record<string, unknown>[]) : [];
+        const proposals: SceneDelta[] = [];
+        const preRejected: { op: string; id: string; reason: string }[] = [];
+        for (const c of changes.slice(0, 16)) {
+          const op = String(c.op ?? '');
+          const id = String(c.id ?? '');
+          if (op === 'move') {
+            if (typeof c.to !== 'string' || !c.to.trim()) { preRejected.push({ op, id, reason: 'move needs a "to" anchor' }); continue; }
+            proposals.push({ op: 'move', id, to: { anchor: c.to.trim() } });
+          } else if (op === 'face') {
+            proposals.push({ op: 'face', id, facing: String(c.facing ?? '') as never });
+          } else if (op === 'reveal' || op === 'hide' || op === 'despawn') {
+            proposals.push({ op, id });
+          } else if (op === 'setState') {
+            const state = c.state && typeof c.state === 'object' ? (c.state as Record<string, string | number | boolean>) : undefined;
+            if (!state) { preRejected.push({ op, id, reason: 'setState needs a "state" object' }); continue; }
+            proposals.push({ op: 'setState', id, state });
+          } else if (op === 'spawn') {
+            const role = c.role === 'mob' ? 'mob' as const : 'npc' as const;
+            const look = typeof c.look === 'string' ? c.look : '';
+            const name = typeof c.name === 'string' ? c.name : undefined;
+            proposals.push({
+              op: 'spawn', id, kind: 'actor', role,
+              tag: lookToSprite(`${look} ${name ?? ''} ${id}`),
+              ...(name ? { name } : {}),
+              anchor: typeof c.to === 'string' && c.to.trim() ? c.to.trim() : 'center',
+              ...(c.visible === false ? { visible: false } : {}),
+            });
+          } else {
+            preRejected.push({ op, id, reason: `unknown op "${op}"` });
+          }
+        }
+        const res = engine.applySceneDeltas(proposals);
+        sceneDeltas.push(...res.applied);
+        const rej = [...preRejected, ...res.rejected.map((r) => ({ op: r.delta.op, id: 'id' in r.delta ? r.delta.id : '', reason: r.reason }))];
+        resolved.push({
+          toolUseId: tc.id,
+          content: JSON.stringify({
+            applied: res.applied.map((a) => (a.op === 'move' ? `move ${a.id} → (${(a.to as { col: number }).col},${(a.to as { row: number }).row})` : a.op === 'spawn' ? `spawn ${a.id} at (${a.at?.col},${a.at?.row})` : `${a.op} ${a.id}`)),
+            ...(rej.length ? { rejected: rej } : {}),
+          }),
+        });
       } else if (tc.name === 'startEncounter') {
         try {
           const r = engine.startEncounter(); // engine resolves the encounter from the current scene
+          // COMBAT SYNC: monsters that just entered initiative POP ONTO the map — one spawn delta per
+          // combatant that has no token yet, placed near the first PC. Engine-owned; the DM does nothing.
+          const world = state.world;
+          const map = world?.currentLocationId ? world.locations[world.currentLocationId] : undefined;
+          if (map && r.spawned.length) {
+            const firstPc = map.objects.find((o) => o.role === 'pc');
+            const spawnDeltas: SceneDelta[] = r.spawned
+              .filter((id) => !map.objects.some((o) => o.id === id))
+              .map((id) => {
+                const cb = engine.getState().combatants[id];
+                return {
+                  op: 'spawn' as const, id, kind: 'actor' as const, role: 'mob' as const,
+                  tag: cb?.spriteTag ?? lookToSprite(cb?.name ?? id),
+                  ...(cb?.name ? { name: cb.name } : {}),
+                  anchor: firstPc ? `near:${firstPc.id}` : 'center',
+                };
+              });
+            sceneDeltas.push(...engine.applySceneDeltas(spawnDeltas).applied);
+          }
           resolved.push({ toolUseId: tc.id, content: JSON.stringify({ started: true, ...r }) });
         } catch (e) {
           resolved.push({ toolUseId: tc.id, content: JSON.stringify({ started: false, error: (e as Error).message }) });
@@ -1407,6 +1511,17 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
         }
       } else if (tc.name === 'endEncounter') {
         const r = engine.endCombat();
+        // COMBAT SYNC: the fallen's tokens leave the map when the fight ends (survivors stay).
+        {
+          const world = state.world;
+          const map = world?.currentLocationId ? world.locations[world.currentLocationId] : undefined;
+          if (map) {
+            const downedIds = Object.values(state.combatants)
+              .filter((c) => c.kind !== 'pc' && c.downed && map.objects.some((o) => o.id === c.id))
+              .map((c) => c.id);
+            if (downedIds.length) sceneDeltas.push(...engine.applySceneDeltas(downedIds.map((id) => ({ op: 'despawn' as const, id }))).applied);
+          }
+        }
         resolved.push({ toolUseId: tc.id, content: JSON.stringify({ ended: true, ...r }) });
       } else if (tc.name === 'advanceScene') {
         try {
@@ -1711,7 +1826,10 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
   return finish({ narration: fallback, costUsd, model: lastModel, trace: makeTrace(), ...sceneDelta() });
 
   function sceneDelta(): { sceneChanged?: boolean; sceneMap?: SceneMap } {
-    return sceneChanged ? { sceneChanged: true, ...(sceneMap ? { sceneMap } : {}), ...(sceneProvenance ? { sceneProvenance } : {}) } : {};
+    return {
+      ...(sceneChanged ? { sceneChanged: true, ...(sceneMap ? { sceneMap } : {}), ...(sceneProvenance ? { sceneProvenance } : {}) } : {}),
+      ...(sceneDeltas.length ? { deltas: sceneDeltas } : {}),
+    };
   }
 
   function makeTrace(): TurnTrace {

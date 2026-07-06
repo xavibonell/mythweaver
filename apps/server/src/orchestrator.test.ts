@@ -366,6 +366,91 @@ describe('orchestrator turn-loop', () => {
     expect(Object.keys(engine.getState().world!.locations)).toEqual(['loc:green']);
   });
 
+  it('updateScene: the DM moves the world — applied deltas ride the turn, refusals come back as reasons', async () => {
+    const engine = newEngine();
+    const composer = new FakeSceneComposer();
+    const llm = new FakeLlmProvider([
+      fakeToolUse([{
+        id: 's1',
+        name: 'setScene',
+        input: {
+          locationId: 'loc:green',
+          setting: 'a quiet green with a bonfire',
+          biome: 'village',
+          fixtures: [{ id: 'prop:fire', tag: 'bonfire', anchor: 'center' }],
+          npcs: [{ id: 'npc:edda', name: 'Edda', look: 'a wary fisherwoman', visible: true }],
+        },
+      }]),
+      fakeText('The green at dusk.'),
+      fakeToolUse([{
+        id: 'u1',
+        name: 'updateScene',
+        input: {
+          changes: [
+            { op: 'move', id: 'npc:edda', to: 'near:prop:fire' },
+            { op: 'move', id: 'npc:ghost', to: 'center' }, // nobody by that id → refused with a reason
+            { op: 'spawn', id: 'npc:stranger', look: 'a hooded traveler', name: 'the stranger', to: 'entrance' },
+          ],
+        },
+      }]),
+      fakeText('Edda drifts to the fire as a stranger appears at the gate.'),
+    ]);
+
+    await runTurn({ engine, llm, composer, now: frozenClock }, { kind: 'message', speakerId: 'Aldric', text: 'We arrive.' });
+    const r2 = await runTurn({ engine, llm, composer, now: frozenClock }, { kind: 'message', speakerId: 'Aldric', text: 'We warm our hands.' });
+
+    expect(r2.trace.toolCalls).toContain('updateScene');
+    // Applied deltas ride the turn, moves normalized to concrete tiles.
+    const move = r2.deltas!.find((d) => d.op === 'move' && d.id === 'npc:edda') as { to: { col: number; row: number } };
+    expect(move).toBeTruthy();
+    const map = engine.getState().world!.locations['loc:green']!;
+    const edda = map.objects.find((o) => o.id === 'npc:edda')!;
+    expect({ col: edda.col, row: edda.row }).toEqual(move.to); // the map itself was mutated
+    const fire = map.objects.find((o) => o.id === 'prop:fire')!;
+    expect(Math.max(Math.abs(edda.col - fire.col), Math.abs(edda.row - fire.row))).toBeLessThanOrEqual(4); // she is BY the fire
+    // The spawn landed with a resolved tile.
+    const spawn = r2.deltas!.find((d) => d.op === 'spawn') as { at?: { col: number; row: number } };
+    expect(spawn?.at).toBeTruthy();
+    expect(map.objects.some((o) => o.id === 'npc:stranger')).toBe(true);
+    // The refusal was fed back to the DM as a narratable reason.
+    const toolResult = llm.requests[3]!.messages.at(-1)!.content as LlmContentBlock[];
+    const feedback = JSON.stringify(toolResult);
+    expect(feedback).toContain('npc:ghost');
+    expect(feedback).toContain('rejected');
+  });
+
+  it('combat sync: startEncounter pops monster tokens onto the map; endEncounter clears the fallen', async () => {
+    const state = createInitialState({
+      sessionId: 's1',
+      scenarioId: 'test',
+      startSceneId: 'lair',
+      party: [fighter()],
+      bestiary: { goblin: goblinStat() },
+      encounters: [{ id: 'e', sceneId: 'lair', monsters: [{ statBlockId: 'goblin', count: 2 }] }],
+    });
+    const engine = new Engine(state, () => 0.5);
+    const composer = new FakeSceneComposer();
+    const llm = new FakeLlmProvider([
+      fakeToolUse([{ id: 's1', name: 'setScene', input: { locationId: 'loc:lair', setting: 'a dank lair', biome: 'cave' } }]),
+      fakeText('The lair breathes cold.'),
+      fakeToolUse([{ id: 'se', name: 'startEncounter', input: {} }]),
+      fakeText('Goblins burst from the shadows!'),
+    ]);
+
+    await runTurn({ engine, llm, composer, now: frozenClock }, { kind: 'message', speakerId: 'Aldric', text: 'We enter.' });
+    const r2 = await runTurn({ engine, llm, composer, now: frozenClock }, { kind: 'message', speakerId: 'Aldric', text: 'We attack!' });
+
+    // The engine-owned sync spawned one token per combatant, near the party, without the DM doing anything.
+    const spawns = (r2.deltas ?? []).filter((d) => d.op === 'spawn');
+    expect(spawns).toHaveLength(2);
+    const map = engine.getState().world!.locations['loc:lair']!;
+    expect(map.objects.filter((o) => o.id.startsWith('npc:goblin')).length).toBe(2);
+    const pc = map.objects.find((o) => o.role === 'pc')!;
+    for (const s of spawns as { at: { col: number; row: number } }[]) {
+      expect(Math.max(Math.abs(s.at.col - pc.col), Math.abs(s.at.row - pc.row))).toBeLessThanOrEqual(5); // near the party
+    }
+  });
+
   it('runs engine-authoritative combat: startEncounter spawns + applyDamage downs a monster', async () => {
     const state = createInitialState({
       sessionId: 's1',

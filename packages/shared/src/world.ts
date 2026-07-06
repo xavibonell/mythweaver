@@ -439,6 +439,9 @@ export type SceneDelta =
       name?: string;
       anchor: SemanticAnchor;
       visible?: boolean;
+      /** The concrete tile the applier resolved the anchor to — filled on APPLIED deltas so the
+       *  renderer places the sprite without re-resolving. Absent on proposals. */
+      at?: { col: number; row: number };
     }
   | { op: 'enter'; id: EntityId; toLocationId: LocationId; via?: EntityId };
 

@@ -10,6 +10,9 @@
 import {
   NotImplemented,
   TERMINAL_ENTITY_STATUSES,
+  applySceneDeltas,
+  type ApplyResult,
+  type SceneDelta,
   type Ability,
   type AdvantageState,
   type AttackResult,
@@ -395,6 +398,35 @@ export class Engine implements EngineTools {
       .map((c) => ({ combatantId: c.id, initiative: this.rollDice('1d20') + (c.initiativeBonus ?? 0) }));
     this.startCombat(initiatives);
     return { spawned, order: this.state.combat.order };
+  }
+
+  /** Apply DM-proposed SceneDeltas to the CURRENT location's frozen map (Contract 4, wired).
+   *  The engine is the sole mutation gateway: the pure applier owns geometry (anchor resolution,
+   *  walkability, occupancy) and every refusal comes back as a narratable reason. Actor ids resolve
+   *  loosely (combatant handles vs map ids) before applying, mirroring findCombatantId. */
+  applySceneDeltas(deltas: SceneDelta[]): ApplyResult {
+    const world = this.state.world;
+    const map = world?.currentLocationId ? world.locations[world.currentLocationId] : undefined;
+    if (!map) return { applied: [], rejected: deltas.map((delta) => ({ delta, reason: 'no scene is established yet (call setScene first)' })) };
+    // Loose actor-id resolution: the DM may address a combatant handle ("npc:goblin-1") whose map
+    // object id differs, or vice versa. Map combatant ids/names onto map-object ids where possible.
+    const resolved = deltas.map((d) => {
+      if (!('id' in d) || map.objects.some((o) => o.id === d.id)) return d;
+      const cid = this.findCombatantId(d.id);
+      if (cid && map.objects.some((o) => o.id === cid)) return { ...d, id: cid } as SceneDelta;
+      const byName = cid ? this.state.combatants[cid]?.name : undefined;
+      if (byName) {
+        const obj = map.objects.find((o) => (o.name ?? '').toLowerCase() === byName.toLowerCase());
+        if (obj) return { ...d, id: obj.id } as SceneDelta;
+      }
+      return d; // the applier's own loose lookup gets a final try (or refuses with a reason)
+    });
+    const res = applySceneDeltas(map, resolved);
+    for (const a of res.applied) {
+      const detail = a.op === 'move' ? ` → (${(a.to as { col: number }).col},${(a.to as { row: number }).row})` : a.op === 'spawn' ? ` at (${a.at?.col},${a.at?.row})` : '';
+      this.record('engine', `scene: ${a.op} ${a.id}${detail}`, { sceneDelta: a });
+    }
+    return res;
   }
 
   // --- D1: soft arc steering (scene advancement + branch flags) ------------

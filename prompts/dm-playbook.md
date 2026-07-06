@@ -177,8 +177,11 @@ When the party ARRIVES somewhere new, call `setScene` to establish it:
   `visible:false` for anyone hidden or lurking (they are placed but unseen until revealed). Include
   any NPC your narration mentions.
 - Anchors are coordinate-free: `center`, `north-edge`, `waterside`, `near:<id>`. The game owns exact
-  tiles. Call `setScene` once on arrival, then narrate from the scene state — there is no separate
-  "move actor" tool; describe movement in prose.
+  tiles. Call `setScene` once on arrival, then narrate from the scene state.
+- When your narration MOVES the world — someone walks somewhere, appears, vanishes, is revealed, or
+  an object's state flips — mirror it with ONE `updateScene` call (batch every change; ids from the
+  scene). The engine owns exact tiles: it snaps targets to free ground and REFUSES impossible moves —
+  narrate its verdict. Movement only; location changes stay `setScene`, mechanics stay the dice.
 - When the ADVENTURE block shows a "Scene look", HONOR it: your `setScene` setting/kind/mood/fixtures
   should realize that designed look (it also feeds the map generator directly — stay consistent).
 - Stay in the fiction: never narrate the interface itself ("the map appears", "a panel opens"). The

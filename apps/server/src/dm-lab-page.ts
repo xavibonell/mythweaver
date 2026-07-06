@@ -503,8 +503,20 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
     var narr = t.narration ? '<div class="narr">' + esc(t.narration) + '</div>' : '<div class="narr" style="color:#6b7080;font-style:italic">(no narration — awaiting your roll)</div>';
     var meta = esc(t.model || '?') + ' · ' + t.steps + ' step(s) · ' + fmtTime(t.latencyMs) + ' · ' + fmtCost(t.costUsd);
     var d = document.createElement('div'); d.className = 'bubble dm';
-    d.innerHTML = '<div class="who">Dungeon Master</div>' + narr + roll + bf + sceneProvHtml(t) + '<div class="meta">' + meta + '</div>' + details;
+    d.innerHTML = '<div class="who">Dungeon Master</div>' + narr + roll + bf + sceneProvHtml(t) + deltaChips(t) + '<div class="meta">' + meta + '</div>' + details;
     convo().appendChild(d); scrollConvo();
+  }
+  // Scene-Δ chips — the map MOVED this turn (updateScene / combat sync): one chip per applied op.
+  function deltaChips(t) {
+    if (!t.deltas || !t.deltas.length) return '';
+    var chips = t.deltas.map(function (d) {
+      var txt = d.op === 'move' ? d.id + ' → ' + d.to.col + ',' + d.to.row
+        : d.op === 'spawn' ? '+ ' + (d.name || d.id) + (d.at ? ' @ ' + d.at.col + ',' + d.at.row : '')
+        : d.op === 'despawn' ? '− ' + d.id
+        : d.op + ' ' + d.id;
+      return '<span style="display:inline-block;background:#1d2530;border:1px solid #2b3542;border-radius:10px;padding:1px 8px;margin:1px 3px 1px 0;font-size:11px;color:#8fb8e0">Δ ' + esc(txt) + '</span>';
+    }).join('');
+    return '<div style="margin:3px 0">' + chips + '</div>';
   }
   // Scene provenance — the glass pipeline: exactly what the DM asked, what the generator was given,
   // and every intervention the safety nets made. Rendered on any turn that established a scene.
@@ -856,6 +868,7 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
         renderSuggestions(); // keep quick-starts arc-aware as the scene advances
         setBusy(false);
         if (t.sceneChanged) { refreshScene(); $('scene-panel').open = true; } // re-render ONLY when the scene actually changed
+        else if (t.deltas && t.deltas.length) refreshScene(); // …or when tokens moved on it
         $('status').textContent = 'turn ' + t.index + ' · total ' + fmtCost(x.body.totalCostUsd) + ' · ' + fmtTime(x.body.totalLatencyMs);
       }).catch(function (e) { addSys('error: ' + (e.message || e)); setBusy(false); $('status').textContent = ''; });
   }

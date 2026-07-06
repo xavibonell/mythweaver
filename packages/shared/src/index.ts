@@ -5,3 +5,4 @@ export * from './scene.js';
 export * from './scene-spec.js';
 export * from './world.js';
 export * from './world-validate.js';
+export * from './world-apply.js';

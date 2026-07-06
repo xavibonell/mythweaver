@@ -38,7 +38,7 @@ import {
 } from '@mythweaver/llm';
 import type { Retriever } from '@mythweaver/rag';
 import { FakeSceneComposer, type SceneComposer } from '@mythweaver/scene';
-import { ABILITIES, SKILLS, type Ability, type CharacterSheet, type EntityCard, type EstablishScene, type GameState, type PartyMemberRef, type RealizeSceneResult, type SceneMap, type SceneProvenance, type SceneRealizeContext, type Skill, type StatBlock } from '@mythweaver/shared';
+import { ABILITIES, SKILLS, type Ability, type CharacterSheet, type EntityCard, type EstablishScene, type GameState, type PartyMemberRef, type RealizeSceneResult, type SceneDelta, type SceneMap, type SceneProvenance, type SceneRealizeContext, type Skill, type StatBlock } from '@mythweaver/shared';
 import { createHash } from 'node:crypto';
 import { loadItemCatalog, loadScenario, parseScenario, resolveParty } from './content.js';
 import { buildRetriever } from './corpus.js';
@@ -72,6 +72,8 @@ export interface DmLabTurn {
   sceneChanged?: boolean;
   /** How the scene came to be — engine, briefs, mood chain, program + net injections. */
   sceneProvenance?: SceneProvenance;
+  /** APPLIED scene deltas (updateScene/combat sync) — the map moved this turn. */
+  deltas?: SceneDelta[];
   model: string;
   steps: number;
   costUsd: number;
@@ -440,6 +442,7 @@ export async function dmLabSubmit(
     diff: diffSnaps(before, after),
     ...(result.sceneChanged ? { sceneChanged: true } : {}),
     ...(result.sceneProvenance ? { sceneProvenance: result.sceneProvenance } : {}),
+    ...(result.deltas?.length ? { deltas: result.deltas } : {}),
     model: result.model,
     steps: result.trace.steps,
     costUsd: result.costUsd,
