@@ -18,7 +18,7 @@
  * configurable, swappable prompt. No real person is named or imitated.
  */
 
-import type { Engine } from '@mythweaver/engine';
+import { deriveProficiencyBonus, derivePassive, deriveSpellSaveDc, type Engine } from '@mythweaver/engine';
 import {
   estimateCostUsd,
   responseToAssistantMessage,
@@ -29,7 +29,7 @@ import {
   type ToolDef,
 } from '@mythweaver/llm';
 import type { Retriever } from '@mythweaver/rag';
-import { isEntityId, type ArcBrief, type CharacterSheet, type CharacterState, type Combatant, type DamageType, type EntityCard, type EstablishScene, type FixtureDecl, type GameState, type ItemDef, type NpcDecl, type PartyMemberRef, type PendingTurn, type SceneMap } from '@mythweaver/shared';
+import { ABILITIES, SKILLS, isEntityId, type Ability, type ArcBrief, type CharacterSheet, type CharacterState, type Combatant, type DamageType, type EntityCard, type EstablishScene, type FixtureDecl, type GameState, type ItemDef, type NpcDecl, type PartyMemberRef, type PendingTurn, type SceneMap, type Skill } from '@mythweaver/shared';
 import type { ArcPlanner } from './arc-planner.js';
 import { CHARACTERS, PROMPT_PROPS, buildSceneMap, type SceneComposer } from '@mythweaver/scene';
 
@@ -54,6 +54,11 @@ ABSOLUTE RULES (non-negotiable):
 - ALWAYS pass the target number to requestRoll: the DC for a check or save, or the target's AC for an
   attack. The engine returns "success": true/false — narrate the engine's verdict; NEVER decide
   success or failure yourself.
+- For a CHARACTER's ability check or saving throw, pass "combatantId" + "ability" (add "skill" for a
+  skill check, or "save": true for a save) with expr "1d20" — the engine adds that character's own bonus
+  (proficiency / expertise / exhaustion). Do NOT bake the bonus into the expression yourself. getState
+  lists each PC's passive Perception/Investigation/Insight + spell save DC for anything you judge WITHOUT
+  a roll.
 - Use the "getState" tool to read authoritative state (HP, scene, combatants) before stating any
   mechanical fact. A snapshot is also provided each turn, but call getState if you need it fresh.
 - Use the "lookupRule" tool to check a rule, spell, monster, or option from the sourcebooks before
@@ -185,13 +190,17 @@ export function buildToolDefs(retrieval: boolean, scene: boolean): ToolDef[] {
     {
       name: 'requestRoll',
       description:
-        'Ask a player to roll physical dice for a check, save, or attack. Provide the dice expression and the reason. Never invent the result; the player declares it. Make this your only tool call for the step.',
+        'Ask a player to roll physical dice for a check, save, or attack. For a CHARACTER\'s ability check or saving throw, pass "combatantId" + "ability" (add "skill" for a skill check, or "save": true for a save) with expr "1d20" — the ENGINE adds that character\'s bonus (proficiency / expertise / exhaustion), so you never invent it. For anything else (damage, a monster, a flat roll) give the full "expr". Always pass "dc"; the engine returns whether it succeeded. Never invent the result; the player declares it. Make this your only tool call for the step.',
       inputSchema: {
         type: 'object',
         properties: {
-          expr: { type: 'string', description: 'Dice expression, e.g. "1d20+5".' },
+          expr: { type: 'string', description: 'Dice expression: "1d20" for a character check/save (the engine adds the bonus), or a raw roll like "1d8+3".' },
           reason: { type: 'string', description: 'What the roll is for, e.g. "Athletics check to climb".' },
-          dc: { type: 'number', description: 'Target number to beat: the DC for a check or save, or a target AC for an attack. The engine returns whether the roll succeeded.' },
+          dc: { type: 'number', description: 'Target number to beat: the DC for a check/save, or a target AC for an attack.' },
+          combatantId: { type: 'string', description: 'The character rolling — set this WITH "ability" to have the engine supply the check/save bonus.' },
+          ability: { type: 'string', enum: ['str', 'dex', 'con', 'int', 'wis', 'cha'], description: 'The governing ability for the check/save.' },
+          skill: { type: 'string', description: 'The skill for a skill check, e.g. "athletics", "perception", "stealth" (omit for a raw ability check).' },
+          save: { type: 'boolean', description: 'true if this is a saving throw (uses the save bonus rather than a check bonus).' },
         },
         required: ['expr', 'reason'],
         additionalProperties: false,
@@ -730,6 +739,8 @@ function serializeStateForModel(state: GameState): string {
     round: state.combat.round,
     combatants: Object.values(state.combatants).map((c) => {
       const cs = state.characters?.[c.id];
+      const sheet = state.sheets?.[c.id];
+      const dc = sheet ? deriveSpellSaveDc(sheet, cs) : undefined;
       return {
         id: c.id,
         name: c.name,
@@ -737,6 +748,19 @@ function serializeStateForModel(state: GameState): string {
         hp: `${c.currentHitPoints}/${c.maxHitPoints}`,
         ac: c.armorClass,
         conditions: c.conditions,
+        // Engine-derived numbers the DM states WITHOUT a roll (passive senses, spell DC, prof). The bonus
+        // on an active check/save comes from requestRoll (combatantId+ability), so no full skill table here.
+        ...(sheet
+          ? {
+              proficiencyBonus: deriveProficiencyBonus(cs?.level ?? sheet.level),
+              passives: {
+                perception: derivePassive(sheet, cs, 'perception', c.exhaustion),
+                investigation: derivePassive(sheet, cs, 'investigation', c.exhaustion),
+                insight: derivePassive(sheet, cs, 'insight', c.exhaustion),
+              },
+              ...(dc !== undefined ? { spellSaveDc: dc } : {}),
+            }
+          : {}),
         ...(cs
           ? {
               level: cs.level,
@@ -1104,9 +1128,28 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
       toolCallLog.push(tc.name);
       span.event(`tool:${tc.name}`);
       if (tc.name === 'requestRoll' && !roll) {
-        const expr = typeof tc.input.expr === 'string' ? tc.input.expr : '1d20';
-        const reason = typeof tc.input.reason === 'string' ? tc.input.reason : 'check';
+        let expr = typeof tc.input.expr === 'string' ? tc.input.expr : '1d20';
+        let reason = typeof tc.input.reason === 'string' ? tc.input.reason : 'check';
         const dc = typeof tc.input.dc === 'number' ? tc.input.dc : undefined;
+        // P3e: when the DM names a character + ability, the ENGINE supplies the modifier (ability +
+        // proficiency/expertise/exhaustion) and builds the die expression, so the +N on a check/save is
+        // engine-owned rather than invented. Unknown combatant / bad ability falls back to the DM's expr.
+        const combatantId = engine.findCombatantId(typeof tc.input.combatantId === 'string' ? tc.input.combatantId : '') ?? '';
+        const ability = typeof tc.input.ability === 'string' ? tc.input.ability : '';
+        if (combatantId && (ABILITIES as readonly string[]).includes(ability)) {
+          try {
+            const skill = typeof tc.input.skill === 'string' && tc.input.skill in SKILLS ? (tc.input.skill as Skill) : undefined;
+            const m =
+              tc.input.save === true
+                ? engine.saveModifier({ combatantId, ability: ability as Ability })
+                : engine.checkModifier({ combatantId, ability: ability as Ability, ...(skill ? { skill } : {}) });
+            expr = `1d20${m >= 0 ? '+' : ''}${m}`;
+            const label = tc.input.save === true ? `${ability.toUpperCase()} save` : skill ? `${skill} check` : `${ability.toUpperCase()} check`;
+            reason = `${reason} [${label}, engine bonus ${m >= 0 ? '+' : ''}${m}]`;
+          } catch {
+            /* unknown combatant → keep the DM's expr */
+          }
+        }
         const rr = engine.requestRoll({ expr, reason, ...(dc !== undefined ? { dc } : {}) });
         roll = { toolUseId: tc.id, id: rr.id, expr: rr.expr, reason: rr.reason, ...(dc !== undefined ? { dc } : {}) };
       } else if (tc.name === 'getState') {
@@ -1165,7 +1208,7 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
       } else if (tc.name === 'applyDamage') {
         try {
           const amount = Number(tc.input.amount);
-          const r = engine.applyDamage({ targetId: String(tc.input.targetId ?? ''), amount: Number.isFinite(amount) ? amount : 0, type: String(tc.input.type ?? 'bludgeoning') as DamageType });
+          const r = engine.applyDamage({ targetId: (engine.findCombatantId(String(tc.input.targetId ?? '')) ?? String(tc.input.targetId ?? '')), amount: Number.isFinite(amount) ? amount : 0, type: String(tc.input.type ?? 'bludgeoning') as DamageType });
           resolved.push({ toolUseId: tc.id, content: JSON.stringify(r) });
         } catch (e) {
           resolved.push({ toolUseId: tc.id, content: JSON.stringify({ error: (e as Error).message }) });
@@ -1173,14 +1216,14 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
       } else if (tc.name === 'heal') {
         try {
           const amount = Number(tc.input.amount);
-          const r = engine.heal({ targetId: String(tc.input.targetId ?? ''), amount: Number.isFinite(amount) ? amount : 0 });
+          const r = engine.heal({ targetId: (engine.findCombatantId(String(tc.input.targetId ?? '')) ?? String(tc.input.targetId ?? '')), amount: Number.isFinite(amount) ? amount : 0 });
           resolved.push({ toolUseId: tc.id, content: JSON.stringify(r) });
         } catch (e) {
           resolved.push({ toolUseId: tc.id, content: JSON.stringify({ error: (e as Error).message }) });
         }
       } else if (tc.name === 'rollDeathSave') {
         try {
-          const r = engine.rollDeathSave(String(tc.input.combatantId ?? ''));
+          const r = engine.rollDeathSave((engine.findCombatantId(String(tc.input.combatantId ?? '')) ?? String(tc.input.combatantId ?? '')));
           resolved.push({ toolUseId: tc.id, content: JSON.stringify(r) });
         } catch (e) {
           resolved.push({ toolUseId: tc.id, content: JSON.stringify({ error: (e as Error).message }) });
@@ -1232,7 +1275,7 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
       } else if (tc.name === 'spendResource') {
         try {
           const r = engine.spendResource({
-            combatantId: String(tc.input.combatantId ?? ''),
+            combatantId: (engine.findCombatantId(String(tc.input.combatantId ?? '')) ?? String(tc.input.combatantId ?? '')),
             resource: String(tc.input.resource ?? ''),
             ...(tc.input.level !== undefined ? { level: Number(tc.input.level) } : {}),
             ...(tc.input.amount !== undefined ? { amount: Number(tc.input.amount) } : {}),
@@ -1244,7 +1287,7 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
       } else if (tc.name === 'shortRest') {
         try {
           const r = engine.shortRest({
-            combatantId: String(tc.input.combatantId ?? ''),
+            combatantId: (engine.findCombatantId(String(tc.input.combatantId ?? '')) ?? String(tc.input.combatantId ?? '')),
             ...(tc.input.spendHitDice !== undefined ? { spendHitDice: Number(tc.input.spendHitDice) } : {}),
             ...(tc.input.rolledTotal !== undefined ? { rolledTotal: Number(tc.input.rolledTotal) } : {}),
           });
@@ -1262,42 +1305,42 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
         }
       } else if (tc.name === 'setExhaustion') {
         try {
-          const r = engine.setExhaustion({ combatantId: String(tc.input.combatantId ?? ''), level: Number(tc.input.level) });
+          const r = engine.setExhaustion({ combatantId: (engine.findCombatantId(String(tc.input.combatantId ?? '')) ?? String(tc.input.combatantId ?? '')), level: Number(tc.input.level) });
           resolved.push({ toolUseId: tc.id, content: JSON.stringify(r) });
         } catch (e) {
           resolved.push({ toolUseId: tc.id, content: JSON.stringify({ error: (e as Error).message }) });
         }
       } else if (tc.name === 'grantInspiration') {
         try {
-          engine.grantInspiration({ combatantId: String(tc.input.combatantId ?? '') });
+          engine.grantInspiration({ combatantId: (engine.findCombatantId(String(tc.input.combatantId ?? '')) ?? String(tc.input.combatantId ?? '')) });
           resolved.push({ toolUseId: tc.id, content: JSON.stringify({ ok: true }) });
         } catch (e) {
           resolved.push({ toolUseId: tc.id, content: JSON.stringify({ error: (e as Error).message }) });
         }
       } else if (tc.name === 'spendInspiration') {
         try {
-          const r = engine.spendInspiration({ combatantId: String(tc.input.combatantId ?? '') });
+          const r = engine.spendInspiration({ combatantId: (engine.findCombatantId(String(tc.input.combatantId ?? '')) ?? String(tc.input.combatantId ?? '')) });
           resolved.push({ toolUseId: tc.id, content: JSON.stringify(r) });
         } catch (e) {
           resolved.push({ toolUseId: tc.id, content: JSON.stringify({ error: (e as Error).message }) });
         }
       } else if (tc.name === 'startConcentration') {
         try {
-          engine.startConcentration({ combatantId: String(tc.input.combatantId ?? ''), spell: String(tc.input.spell ?? '') });
+          engine.startConcentration({ combatantId: (engine.findCombatantId(String(tc.input.combatantId ?? '')) ?? String(tc.input.combatantId ?? '')), spell: String(tc.input.spell ?? '') });
           resolved.push({ toolUseId: tc.id, content: JSON.stringify({ ok: true }) });
         } catch (e) {
           resolved.push({ toolUseId: tc.id, content: JSON.stringify({ error: (e as Error).message }) });
         }
       } else if (tc.name === 'breakConcentration') {
         try {
-          const r = engine.breakConcentration({ combatantId: String(tc.input.combatantId ?? '') });
+          const r = engine.breakConcentration({ combatantId: (engine.findCombatantId(String(tc.input.combatantId ?? '')) ?? String(tc.input.combatantId ?? '')) });
           resolved.push({ toolUseId: tc.id, content: JSON.stringify(r) });
         } catch (e) {
           resolved.push({ toolUseId: tc.id, content: JSON.stringify({ error: (e as Error).message }) });
         }
       } else if (tc.name === 'awardXp') {
         try {
-          const r = engine.awardXp({ combatantId: String(tc.input.combatantId ?? ''), amount: Number(tc.input.amount) });
+          const r = engine.awardXp({ combatantId: (engine.findCombatantId(String(tc.input.combatantId ?? '')) ?? String(tc.input.combatantId ?? '')), amount: Number(tc.input.amount) });
           resolved.push({ toolUseId: tc.id, content: JSON.stringify(r) });
         } catch (e) {
           resolved.push({ toolUseId: tc.id, content: JSON.stringify({ error: (e as Error).message }) });
@@ -1306,7 +1349,7 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
         try {
           const hpMode = tc.input.hpMode === 'roll' ? 'roll' : tc.input.hpMode === 'avg' ? 'avg' : undefined;
           const r = engine.levelUp({
-            combatantId: String(tc.input.combatantId ?? ''),
+            combatantId: (engine.findCombatantId(String(tc.input.combatantId ?? '')) ?? String(tc.input.combatantId ?? '')),
             ...(hpMode ? { hpMode } : {}),
             ...(tc.input.rolledTotal !== undefined ? { rolledTotal: Number(tc.input.rolledTotal) } : {}),
           });
@@ -1316,42 +1359,42 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
         }
       } else if (tc.name === 'setMilestoneLevel') {
         try {
-          const r = engine.setMilestoneLevel({ combatantId: String(tc.input.combatantId ?? ''), level: Number(tc.input.level) });
+          const r = engine.setMilestoneLevel({ combatantId: (engine.findCombatantId(String(tc.input.combatantId ?? '')) ?? String(tc.input.combatantId ?? '')), level: Number(tc.input.level) });
           resolved.push({ toolUseId: tc.id, content: JSON.stringify(r) });
         } catch (e) {
           resolved.push({ toolUseId: tc.id, content: JSON.stringify({ error: (e as Error).message }) });
         }
       } else if (tc.name === 'buyItem') {
         try {
-          const r = engine.buyItem({ combatantId: String(tc.input.combatantId ?? ''), itemDefId: String(tc.input.itemDefId ?? ''), ...(tc.input.qty !== undefined ? { qty: Number(tc.input.qty) } : {}) });
+          const r = engine.buyItem({ combatantId: (engine.findCombatantId(String(tc.input.combatantId ?? '')) ?? String(tc.input.combatantId ?? '')), itemDefId: String(tc.input.itemDefId ?? ''), ...(tc.input.qty !== undefined ? { qty: Number(tc.input.qty) } : {}) });
           resolved.push({ toolUseId: tc.id, content: JSON.stringify(r) });
         } catch (e) {
           resolved.push({ toolUseId: tc.id, content: JSON.stringify({ error: (e as Error).message }) });
         }
       } else if (tc.name === 'sellItem') {
         try {
-          const r = engine.sellItem({ combatantId: String(tc.input.combatantId ?? ''), ...(tc.input.instanceId !== undefined ? { instanceId: String(tc.input.instanceId) } : {}), ...(tc.input.itemDefId !== undefined ? { itemDefId: String(tc.input.itemDefId) } : {}), ...(tc.input.qty !== undefined ? { qty: Number(tc.input.qty) } : {}) });
+          const r = engine.sellItem({ combatantId: (engine.findCombatantId(String(tc.input.combatantId ?? '')) ?? String(tc.input.combatantId ?? '')), ...(tc.input.instanceId !== undefined ? { instanceId: String(tc.input.instanceId) } : {}), ...(tc.input.itemDefId !== undefined ? { itemDefId: String(tc.input.itemDefId) } : {}), ...(tc.input.qty !== undefined ? { qty: Number(tc.input.qty) } : {}) });
           resolved.push({ toolUseId: tc.id, content: JSON.stringify(r) });
         } catch (e) {
           resolved.push({ toolUseId: tc.id, content: JSON.stringify({ error: (e as Error).message }) });
         }
       } else if (tc.name === 'addItem') {
         try {
-          const r = engine.addItem({ combatantId: String(tc.input.combatantId ?? ''), itemDefId: String(tc.input.itemDefId ?? ''), ...(tc.input.qty !== undefined ? { qty: Number(tc.input.qty) } : {}) });
+          const r = engine.addItem({ combatantId: (engine.findCombatantId(String(tc.input.combatantId ?? '')) ?? String(tc.input.combatantId ?? '')), itemDefId: String(tc.input.itemDefId ?? ''), ...(tc.input.qty !== undefined ? { qty: Number(tc.input.qty) } : {}) });
           resolved.push({ toolUseId: tc.id, content: JSON.stringify(r) });
         } catch (e) {
           resolved.push({ toolUseId: tc.id, content: JSON.stringify({ error: (e as Error).message }) });
         }
       } else if (tc.name === 'removeItem') {
         try {
-          const r = engine.removeItem({ combatantId: String(tc.input.combatantId ?? ''), ...(tc.input.instanceId !== undefined ? { instanceId: String(tc.input.instanceId) } : {}), ...(tc.input.itemDefId !== undefined ? { itemDefId: String(tc.input.itemDefId) } : {}), ...(tc.input.qty !== undefined ? { qty: Number(tc.input.qty) } : {}) });
+          const r = engine.removeItem({ combatantId: (engine.findCombatantId(String(tc.input.combatantId ?? '')) ?? String(tc.input.combatantId ?? '')), ...(tc.input.instanceId !== undefined ? { instanceId: String(tc.input.instanceId) } : {}), ...(tc.input.itemDefId !== undefined ? { itemDefId: String(tc.input.itemDefId) } : {}), ...(tc.input.qty !== undefined ? { qty: Number(tc.input.qty) } : {}) });
           resolved.push({ toolUseId: tc.id, content: JSON.stringify(r) });
         } catch (e) {
           resolved.push({ toolUseId: tc.id, content: JSON.stringify({ error: (e as Error).message }) });
         }
       } else if (tc.name === 'equipItem') {
         try {
-          const r = engine.equipItem({ combatantId: String(tc.input.combatantId ?? ''), instanceId: String(tc.input.instanceId ?? '') });
+          const r = engine.equipItem({ combatantId: (engine.findCombatantId(String(tc.input.combatantId ?? '')) ?? String(tc.input.combatantId ?? '')), instanceId: String(tc.input.instanceId ?? '') });
           resolved.push({ toolUseId: tc.id, content: JSON.stringify(r) });
         } catch (e) {
           resolved.push({ toolUseId: tc.id, content: JSON.stringify({ error: (e as Error).message }) });
@@ -1359,35 +1402,35 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
       } else if (tc.name === 'unequipItem') {
         try {
           const slot = ['armor', 'shield', 'mainHand', 'offHand', 'ranged'].includes(String(tc.input.slot)) ? (String(tc.input.slot) as 'armor' | 'shield' | 'mainHand' | 'offHand' | 'ranged') : undefined;
-          const r = engine.unequipItem({ combatantId: String(tc.input.combatantId ?? ''), ...(slot ? { slot } : {}), ...(tc.input.instanceId !== undefined ? { instanceId: String(tc.input.instanceId) } : {}) });
+          const r = engine.unequipItem({ combatantId: (engine.findCombatantId(String(tc.input.combatantId ?? '')) ?? String(tc.input.combatantId ?? '')), ...(slot ? { slot } : {}), ...(tc.input.instanceId !== undefined ? { instanceId: String(tc.input.instanceId) } : {}) });
           resolved.push({ toolUseId: tc.id, content: JSON.stringify(r) });
         } catch (e) {
           resolved.push({ toolUseId: tc.id, content: JSON.stringify({ error: (e as Error).message }) });
         }
       } else if (tc.name === 'attuneItem') {
         try {
-          const r = engine.attuneItem({ combatantId: String(tc.input.combatantId ?? ''), instanceId: String(tc.input.instanceId ?? '') });
+          const r = engine.attuneItem({ combatantId: (engine.findCombatantId(String(tc.input.combatantId ?? '')) ?? String(tc.input.combatantId ?? '')), instanceId: String(tc.input.instanceId ?? '') });
           resolved.push({ toolUseId: tc.id, content: JSON.stringify(r) });
         } catch (e) {
           resolved.push({ toolUseId: tc.id, content: JSON.stringify({ error: (e as Error).message }) });
         }
       } else if (tc.name === 'unattuneItem') {
         try {
-          const r = engine.unattuneItem({ combatantId: String(tc.input.combatantId ?? ''), instanceId: String(tc.input.instanceId ?? '') });
+          const r = engine.unattuneItem({ combatantId: (engine.findCombatantId(String(tc.input.combatantId ?? '')) ?? String(tc.input.combatantId ?? '')), instanceId: String(tc.input.instanceId ?? '') });
           resolved.push({ toolUseId: tc.id, content: JSON.stringify(r) });
         } catch (e) {
           resolved.push({ toolUseId: tc.id, content: JSON.stringify({ error: (e as Error).message }) });
         }
       } else if (tc.name === 'identifyItem') {
         try {
-          const r = engine.identifyItem({ combatantId: String(tc.input.combatantId ?? ''), instanceId: String(tc.input.instanceId ?? '') });
+          const r = engine.identifyItem({ combatantId: (engine.findCombatantId(String(tc.input.combatantId ?? '')) ?? String(tc.input.combatantId ?? '')), instanceId: String(tc.input.instanceId ?? '') });
           resolved.push({ toolUseId: tc.id, content: JSON.stringify(r) });
         } catch (e) {
           resolved.push({ toolUseId: tc.id, content: JSON.stringify({ error: (e as Error).message }) });
         }
       } else if (tc.name === 'revive') {
         try {
-          const r = engine.revive({ combatantId: String(tc.input.combatantId ?? ''), ...(tc.input.hpRestored !== undefined ? { hpRestored: Number(tc.input.hpRestored) } : {}) });
+          const r = engine.revive({ combatantId: (engine.findCombatantId(String(tc.input.combatantId ?? '')) ?? String(tc.input.combatantId ?? '')), ...(tc.input.hpRestored !== undefined ? { hpRestored: Number(tc.input.hpRestored) } : {}) });
           resolved.push({ toolUseId: tc.id, content: JSON.stringify(r) });
         } catch (e) {
           resolved.push({ toolUseId: tc.id, content: JSON.stringify({ error: (e as Error).message }) });

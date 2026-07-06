@@ -116,11 +116,11 @@ export interface EngineTools {
   /** Validate + record a player's declared physical-dice total (spec §4.3). P0. */
   submitRoll(requestId: string, declaredTotal: number): RollResult;
 
-  /** Resolve an ability/skill check against a DC. P1. */
-  resolveCheck(args: { combatantId: string; skill?: Skill; ability: Ability; dc: number; declaredTotal: number }): CheckResult;
+  /** Resolve an ability/skill check: the engine adds its derived modifier to the raw d20 + rules vs DC. P3e. */
+  resolveCheck(args: { combatantId: string; skill?: Skill; ability: Ability; dc: number; d20: number }): CheckResult;
 
-  /** Resolve a saving throw. P1. */
-  resolveSave(args: { combatantId: string; ability: Ability; dc: number; declaredTotal: number }): CheckResult;
+  /** Resolve a saving throw: the engine adds its derived save modifier to the raw d20 + rules vs DC. P3e. */
+  resolveSave(args: { combatantId: string; ability: Ability; dc: number; d20: number }): CheckResult;
 
   /** Resolve an attack vs AC (hit/miss only; damage is P2). P1. */
   resolveAttack(args: { attackerId: string; targetId: string; attackName: string; declaredTotal: number }): AttackResult;

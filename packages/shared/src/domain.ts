@@ -175,6 +175,10 @@ export interface CharacterSheet {
   /** Starting kit as catalog references (P3d) — seeds CharacterState.items. Legacy `inventory` (freeform
    *  strings) still works for flavor; carriedItems are the mechanical ones. */
   carriedItems?: ItemRef[];
+  /** Skills with EXPERTISE (double proficiency) — e.g. a Rogue's chosen skills (P3e). */
+  skillExpertise?: Skill[];
+  /** Skills with HALF proficiency (e.g. a Bard's Jack of All Trades) (P3e). */
+  skillHalfProficiency?: Skill[];
 }
 
 // ---------------------------------------------------------------------------

@@ -38,10 +38,12 @@ moving.
   1. If the current scene's GM guidance names a DC for this action, USE IT.
   2. Otherwise use the standard ladder: trivial→no roll, Easy 10, Medium 15, Hard 20,
      Very Hard 25, near-impossible 30.
-- Name the skill/ability in the roll's `reason` (e.g. "Wisdom (Insight) to read Edda"). For the dice
-  expression, prefer a bare `1d20` and let the player add their own modifier — only bake in a bonus
-  (e.g. `1d20+5`) when you've confirmed it from `getState`/the sheet. Never guess a modifier; a wrong
-  one in the request is misleading even though the engine validates the declared total.
+- For a CHARACTER's check or save, let the ENGINE own the bonus: pass `combatantId` + `ability` (add
+  `skill` for a skill check, or `save: true` for a save) with expr `1d20`. The engine adds that
+  character's proficiency / expertise / exhaustion — never bake a modifier into the expression yourself,
+  and never guess one. Name the skill/ability in `reason` too (e.g. "Wisdom (Insight) to read Edda").
+- `getState` lists each PC's passive Perception/Investigation/Insight and spell save DC — use those for
+  anything you judge WITHOUT a roll (spotting an ambush, a monster's spell forcing a save at your DC).
 - Grant advantage/disadvantage in the fiction when the approach clearly earns it (a clever angle, a
   bad position) and say why; the engine still decides success against the DC.
 - Group action: ask for ONE representative roll (the most apt character), or call it for everyone

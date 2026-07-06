@@ -33,7 +33,7 @@ import {
 } from '@mythweaver/shared';
 import { rollDice, validateDeclaredRoll, type Rng } from './dice.js';
 import { statBlockToCombatant } from './state.js';
-import { abilityMod, deriveArmorClass, deriveProficiencyBonus } from './derive.js';
+import { abilityMod, deriveAbilityCheckModifier, deriveArmorClass, deriveProficiencyBonus, deriveSaveModifier, deriveSkillModifier } from './derive.js';
 import { ASI_LEVELS, XP_THRESHOLDS, hitDieAvg, hitDieForClass, levelForXp } from './progression.js';
 
 /** Coin math in the smallest unit so change-making is exact (1 gp = 10 sp = 100 cp). */
@@ -51,6 +51,21 @@ export class Engine implements EngineTools {
 
   getState(): GameState {
     return this.state;
+  }
+
+  /**
+   * Resolve a combatant the DM names loosely — the LLM habitually invents "pc:<name>" ids instead of the
+   * real "pc:pc-1-fighter". Accept an exact id, a "pc:"/"npc:"-prefixed name, a bare name, or the refId,
+   * so every character tool works with the natural handle. Returns the real combatant id, or undefined.
+   */
+  findCombatantId(idOrName: string): string | undefined {
+    const raw = (idOrName ?? '').trim();
+    if (!raw) return undefined;
+    if (this.state.combatants[raw]) return raw;
+    const bare = raw.replace(/^(pc|npc):/i, '').toLowerCase();
+    const rawLower = raw.toLowerCase();
+    const match = Object.values(this.state.combatants).find((c) => c.id.toLowerCase() === rawLower || c.name.toLowerCase() === bare || c.id.toLowerCase() === bare || c.refId.toLowerCase() === bare);
+    return match?.id;
   }
 
   rollDice(expr: DiceExpr, advantage: AdvantageState = 'normal'): number {
@@ -88,18 +103,46 @@ export class Engine implements EngineTools {
     this.state.log.push({ seq: this.state.log.length + 1, kind, text, ...(data ? { data } : {}) });
   }
 
-  // --- P1: checks, saves, attacks ------------------------------------------
-  // NOTE: in this build the orchestrator resolves checks/saves/attacks through the
-  // dice-trust path — requestRoll(dc) -> submitRoll -> validateDeclaredRoll computes
-  // success vs the DC/AC (dice.ts). These typed resolve* APIs are reserved for a future
-  // direct-call path and remain unimplemented on purpose (the ramp guard, spec §4.2).
+  // --- P3e: checks + saves (the engine owns the +N on every d20) ------------
+  // The player rolls a RAW d20; the engine adds the modifier it derives from the sheet + progression
+  // (ability + proficiency/expertise/half + exhaustion) and rules success vs the DC. Nothing about the
+  // bonus is the LLM's to invent. (resolveAttack stays reserved — combat uses requestRoll/applyDamage.)
 
-  resolveCheck(_args: { combatantId: string; skill?: Skill; ability: Ability; dc: number; declaredTotal: number }): CheckResult {
-    throw new NotImplemented('resolveCheck', 'P1');
+  /** The engine's modifier for an ability/skill CHECK by this character (derive-don't-store). */
+  checkModifier(args: { combatantId: string; skill?: Skill; ability: Ability }): number {
+    const c = this.state.combatants[args.combatantId];
+    if (!c) throw new Error(`Unknown combatant: ${args.combatantId}`);
+    const sheet = this.state.sheets?.[args.combatantId];
+    if (!sheet) return abilityMod({ str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 }[args.ability]); // no sheet → +0
+    const cs = this.state.characters?.[args.combatantId];
+    return args.skill ? deriveSkillModifier(sheet, cs, args.skill, c.exhaustion) : deriveAbilityCheckModifier(sheet, args.ability, c.exhaustion);
   }
 
-  resolveSave(_args: { combatantId: string; ability: Ability; dc: number; declaredTotal: number }): CheckResult {
-    throw new NotImplemented('resolveSave', 'P1');
+  /** The engine's modifier for a SAVING THROW by this character. */
+  saveModifier(args: { combatantId: string; ability: Ability }): number {
+    const c = this.state.combatants[args.combatantId];
+    if (!c) throw new Error(`Unknown combatant: ${args.combatantId}`);
+    const sheet = this.state.sheets?.[args.combatantId];
+    if (!sheet) return 0;
+    return deriveSaveModifier(sheet, this.state.characters?.[args.combatantId], args.ability, c.exhaustion);
+  }
+
+  resolveCheck(args: { combatantId: string; skill?: Skill; ability: Ability; dc: number; d20: number }): CheckResult {
+    const modifier = this.checkModifier(args);
+    const d20 = Math.max(1, Math.min(20, Math.floor(args.d20)));
+    const total = d20 + modifier;
+    const success = total >= args.dc;
+    this.record('engine', `${this.state.combatants[args.combatantId]?.name ?? args.combatantId} ${args.skill ?? args.ability} check: ${d20}${modifier >= 0 ? '+' : ''}${modifier} = ${total} vs DC ${args.dc} — ${success ? 'success' : 'fail'}`, { combatantId: args.combatantId, skill: args.skill, ability: args.ability, d20, modifier, total, dc: args.dc, success });
+    return { total, dc: args.dc, success, ...(d20 === 20 ? { critical: 'hit' as const } : d20 === 1 ? { critical: 'miss' as const } : {}) };
+  }
+
+  resolveSave(args: { combatantId: string; ability: Ability; dc: number; d20: number }): CheckResult {
+    const modifier = this.saveModifier(args);
+    const d20 = Math.max(1, Math.min(20, Math.floor(args.d20)));
+    const total = d20 + modifier;
+    const success = total >= args.dc;
+    this.record('engine', `${this.state.combatants[args.combatantId]?.name ?? args.combatantId} ${args.ability} save: ${d20}${modifier >= 0 ? '+' : ''}${modifier} = ${total} vs DC ${args.dc} — ${success ? 'success' : 'fail'}`, { combatantId: args.combatantId, ability: args.ability, d20, modifier, total, dc: args.dc, success });
+    return { total, dc: args.dc, success, ...(d20 === 20 ? { critical: 'hit' as const } : d20 === 1 ? { critical: 'miss' as const } : {}) };
   }
 
   resolveAttack(_args: { attackerId: string; targetId: string; attackName: string; declaredTotal: number }): AttackResult {

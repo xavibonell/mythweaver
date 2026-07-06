@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { NotImplemented, type CharacterSheet, type ItemDef, type StatBlock } from '@mythweaver/shared';
+import { NotImplemented, type CharacterSheet, type ItemDef, type Skill, type StatBlock } from '@mythweaver/shared';
 import { Engine } from './engine.js';
 import { createInitialState } from './state.js';
+import { derivePassive, deriveSpellSaveDc } from './derive.js';
 
 function goblin(): StatBlock {
   return {
@@ -82,9 +83,9 @@ describe('Engine — P0', () => {
     expect(e.getState().log.length).toBeGreaterThanOrEqual(2);
   });
 
-  it('ramp guard: the unused direct-call resolve* APIs still throw (checks go via the dice path)', () => {
+  it('ramp guard: resolveAttack is still reserved (combat resolves via requestRoll/applyDamage)', () => {
     const e = newEngine();
-    expect(() => e.resolveCheck({ combatantId: 'pc:fighter', ability: 'str', dc: 12, declaredTotal: 15 })).toThrow(NotImplemented);
+    // resolveCheck/resolveSave are implemented as of P3e; resolveAttack stays on the ramp.
     expect(() => e.resolveAttack({ attackerId: 'pc:fighter', targetId: 'x', attackName: 'Longsword', declaredTotal: 18 })).toThrow(NotImplemented);
   });
 });
@@ -624,5 +625,54 @@ describe('Engine — P3d economy + inventory + equipment', () => {
     const c = e.getState().combatants['pc:fighter']!;
     expect(c.dead).toBe(false);
     expect(c.currentHitPoints).toBe(8);
+  });
+});
+
+describe('Engine — P3e checks + saves (engine owns the +N)', () => {
+  const engineWith = (party: CharacterSheet[]) => new Engine(createInitialState({ sessionId: 's', scenarioId: 't', startSceneId: 'x', party }), () => 0.5);
+
+  it('derives a check modifier across all four proficiency tiers + exhaustion', () => {
+    const e = engineWith([fighter()]); // STR 16 (+3), athletics proficient; DEX 12 (+1); prof 2
+    expect(e.checkModifier({ combatantId: 'pc:fighter', skill: 'athletics', ability: 'str' })).toBe(5); // +3 +prof
+    expect(e.checkModifier({ combatantId: 'pc:fighter', skill: 'acrobatics', ability: 'dex' })).toBe(1); // +1, no prof
+    expect(e.checkModifier({ combatantId: 'pc:fighter', ability: 'str' })).toBe(3); // raw STR check
+    const s: CharacterSheet = { ...fighter(), skillExpertise: ['athletics'] as Skill[], skillHalfProficiency: ['stealth'] as Skill[] };
+    const e2 = engineWith([s]);
+    expect(e2.checkModifier({ combatantId: 'pc:fighter', skill: 'athletics', ability: 'str' })).toBe(7); // +3 + 2×prof
+    expect(e2.checkModifier({ combatantId: 'pc:fighter', skill: 'stealth', ability: 'dex' })).toBe(2); // +1 + floor(prof×0.5)
+    e2.setExhaustion({ combatantId: 'pc:fighter', level: 2 }); // −2 per level
+    expect(e2.checkModifier({ combatantId: 'pc:fighter', skill: 'athletics', ability: 'str' })).toBe(3); // 7 − 4
+  });
+
+  it('resolveCheck adds the engine modifier to the raw d20 and rules vs the DC', () => {
+    const e = engineWith([fighter()]); // athletics +5
+    expect(e.resolveCheck({ combatantId: 'pc:fighter', skill: 'athletics', ability: 'str', dc: 15, d20: 10 })).toEqual({ total: 15, dc: 15, success: true });
+    expect(e.resolveCheck({ combatantId: 'pc:fighter', skill: 'athletics', ability: 'str', dc: 15, d20: 9 }).success).toBe(false);
+    expect(e.resolveCheck({ combatantId: 'pc:fighter', skill: 'athletics', ability: 'str', dc: 15, d20: 20 }).critical).toBe('hit');
+  });
+
+  it('derives save modifiers (proficiency adds) and resolves saves', () => {
+    const e = engineWith([fighter()]); // saves: STR, CON proficient; prof 2
+    expect(e.saveModifier({ combatantId: 'pc:fighter', ability: 'con' })).toBe(4); // CON +2 + prof
+    expect(e.saveModifier({ combatantId: 'pc:fighter', ability: 'int' })).toBe(0); // INT +0, not proficient
+    expect(e.resolveSave({ combatantId: 'pc:fighter', ability: 'con', dc: 13, d20: 9 })).toEqual({ total: 13, dc: 13, success: true });
+  });
+
+  it('spell save DC + passives recompute from the current level', () => {
+    const e = engineWith([wizard()]); // INT 16 (+3), L3 (prof 2) → 8+2+3
+    expect(deriveSpellSaveDc(wizard(), e.getState().characters!['pc:wizard'])).toBe(13);
+    e.getState().characters!['pc:wizard']!.level = 5; // prof 3 → DC 14
+    expect(deriveSpellSaveDc(wizard(), e.getState().characters!['pc:wizard'])).toBe(14);
+    const ef = engineWith([fighter()]); // WIS 11 (+0), perception NOT proficient → passive 10
+    expect(derivePassive(fighter(), ef.getState().characters!['pc:fighter'], 'perception')).toBe(10);
+  });
+
+  it('findCombatantId resolves the loose ids the DM invents (exact / prefixed name / bare name / refId)', () => {
+    const e = engineWith([fighter()]); // real id "pc:fighter", name "Test Fighter"
+    expect(e.findCombatantId('pc:fighter')).toBe('pc:fighter'); // exact
+    expect(e.findCombatantId('test fighter')).toBe('pc:fighter'); // bare name (case-insensitive)
+    expect(e.findCombatantId('pc:Test Fighter')).toBe('pc:fighter'); // "pc:"-prefixed name
+    expect(e.findCombatantId('fighter')).toBe('pc:fighter'); // refId
+    expect(e.findCombatantId('nobody')).toBeUndefined();
   });
 });
