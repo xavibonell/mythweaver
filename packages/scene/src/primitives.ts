@@ -1206,25 +1206,64 @@ function scatterMist(cv: Canvas): void {
     }
 }
 
-/** ROOF PASS — lay a gabled roof over every recorded building. A cell is "under roof" if it is a wall or an
- *  interior floor (so open courtyards / L-shape notches stay sky); the roof tile per cell is the gable part
- *  (ridge down the long axis, lit/shadow slopes, an eave drip on the outer ring) in the building's material.
- *  Emitted as a separate layer the renderer draws ON TOP — hidden per-building on entry, or via the lab switch. */
+/** ORGANIC ROOF BUILDER — lay a hip roof over every recorded building that follows its FORM. Per building:
+ *  (1) build a SOLID mask of wall + interior-floor cells and FILL enclosed courtyards (so the roof has no
+ *  holes); (2) a distance-transform gives each cell its height above the eaves — its medial axis is the
+ *  RIDGE (so an L / T / multi-wing building gets a ridge per wing, meeting at hips); (3) each slope cell
+ *  faces its nearest eave (n/s/e/w → lit on the N/W sun sides, shadowed on S/E). Plus a chimney on the ridge.
+ *  Emitted as a layer the renderer draws ON TOP — hidden per-building on entry, or via the lab switch. */
 function bakeRoofs(cv: Canvas): RoofCell[] {
   const roofs: RoofCell[] = [];
-  const roofed = (c: number, r: number): boolean => { const t = cv.tiles[r]?.[c] ?? ''; return t.startsWith('wall') || ROOFED_FLOOR.has(t); };
+  const isBuild = (c: number, r: number): boolean => { const t = cv.tiles[r]?.[c] ?? ''; return t.startsWith('wall') || ROOFED_FLOOR.has(t); };
   for (const b of cv.buildings) {
     const { x, y, w, h } = b.rect;
     if (w < 3 || h < 3) continue;
-    const horiz = w >= h;
-    const ridge = horiz ? y + Math.floor((h - 1) / 2) : x + Math.floor((w - 1) / 2);
-    for (let r = y; r < y + h; r++)
-      for (let c = x; c < x + w; c++) {
-        if (!cv.inB(c, r) || !roofed(c, r)) continue;
-        const edge = !roofed(c - 1, r) || !roofed(c + 1, r) || !roofed(c, r - 1) || !roofed(c, r + 1);
-        const part = edge ? 'eave' : horiz ? (r === ridge ? 'ridge_h' : r < ridge ? 'lit' : 'sha') : (c === ridge ? 'ridge_v' : c < ridge ? 'lit' : 'sha');
-        roofs.push({ col: c, row: r, tag: `roof_${b.roof}_${part}`, buildingId: b.id });
-      }
+    // Local grid padded by a 1-cell margin: local (cc,rr) ↔ world (x-1+cc, y-1+rr).
+    const GW = w + 2, GH = h + 2, N = GW * GH, li = (cc: number, rr: number) => rr * GW + cc;
+    const mask = new Uint8Array(N);
+    for (let rr = 1; rr <= h; rr++) for (let cc = 1; cc <= w; cc++) if (isBuild(x - 1 + cc, y - 1 + rr)) mask[li(cc, rr)] = 1;
+    // Fill enclosed courtyards: flood the non-mask cells from the padded border; any non-mask cell NOT reached
+    // is walled in on all sides → part of the building → fill it (an inner courtyard gets a roof, no holes).
+    const out = new Uint8Array(N), st: number[] = [];
+    for (let cc = 0; cc < GW; cc++) { st.push(li(cc, 0), li(cc, GH - 1)); }
+    for (let rr = 0; rr < GH; rr++) { st.push(li(0, rr), li(GW - 1, rr)); }
+    while (st.length) {
+      const i = st.pop()!; if (out[i] || mask[i]) continue; out[i] = 1;
+      const cc = i % GW, rr = (i / GW) | 0;
+      if (cc > 0) st.push(li(cc - 1, rr)); if (cc < GW - 1) st.push(li(cc + 1, rr));
+      if (rr > 0) st.push(li(cc, rr - 1)); if (rr < GH - 1) st.push(li(cc, rr + 1));
+    }
+    for (let i = 0; i < N; i++) if (!mask[i] && !out[i]) mask[i] = 1;
+    // Chebyshev distance transform to the nearest non-mask cell (two chamfer passes) = height above the eave.
+    const D = new Int16Array(N);
+    for (let rr = 0; rr < GH; rr++) for (let cc = 0; cc < GW; cc++) {
+      const i = li(cc, rr); if (!mask[i]) { D[i] = 0; continue; }
+      let m = 9999;
+      for (const [dc, dr] of [[0, -1], [-1, 0], [-1, -1], [1, -1]] as const) { const nc = cc + dc, nr = rr + dr; m = Math.min(m, (nc < 0 || nr < 0 || nc >= GW || nr >= GH) ? 0 : D[li(nc, nr)]!); }
+      D[i] = m + 1;
+    }
+    for (let rr = GH - 1; rr >= 0; rr--) for (let cc = GW - 1; cc >= 0; cc--) {
+      const i = li(cc, rr); if (!mask[i]) continue;
+      let m = D[i]!;
+      for (const [dc, dr] of [[0, 1], [1, 0], [1, 1], [-1, 1]] as const) { const nc = cc + dc, nr = rr + dr; const d = (nc < 0 || nr < 0 || nc >= GW || nr >= GH) ? 0 : D[li(nc, nr)]!; m = Math.min(m, d + 1); }
+      D[i] = Math.min(D[i]!, m);
+    }
+    const Dat = (cc: number, rr: number): number => (cc < 0 || rr < 0 || cc >= GW || rr >= GH) ? 0 : D[li(cc, rr)]!;
+    // Classify each roofed cell: a local max of D (in a direction) is a RIDGE/peak; else a slope facing its
+    // nearest eave. Collect ridge cells for the chimney.
+    const ridgeCells: Array<{ c: number; r: number }> = [];
+    for (let rr = 1; rr <= h; rr++) for (let cc = 1; cc <= w; cc++) {
+      const i = li(cc, rr); if (!mask[i]) continue;
+      const d = D[i]!, up = Dat(cc, rr - 1), dn = Dat(cc, rr + 1), lf = Dat(cc - 1, rr), rt = Dat(cc + 1, rr);
+      const hR = up < d && dn < d, vR = lf < d && rt < d;
+      const part = (hR && vR) ? 'peak' : hR ? 'ridge_h' : vR ? 'ridge_v'
+        : (() => { const mn = Math.min(up, dn, lf, rt); return up === mn ? 'slope_n' : dn === mn ? 'slope_s' : lf === mn ? 'slope_w' : 'slope_e'; })();
+      const wc = x - 1 + cc, wr = y - 1 + rr;
+      roofs.push({ col: wc, row: wr, tag: `roof_${b.roof}_${part}`, buildingId: b.id });
+      if (part === 'ridge_h' || part === 'ridge_v' || part === 'peak') ridgeCells.push({ c: wc, r: wr });
+    }
+    // A chimney sits on the ridge, offset from dead-centre toward one end (pushed last → drawn over the roof).
+    if (ridgeCells.length) { const p = ridgeCells[Math.floor(ridgeCells.length * 0.28)]!; roofs.push({ col: p.c, row: p.r, tag: 'roof_chimney', buildingId: b.id }); }
   }
   return roofs;
 }

@@ -377,57 +377,91 @@ _c.alpha_composite(_sh)
 _c.save(os.path.join(OUT, "peak_c.png"))
 print("wrote peak_a/b/c (procedural grey stone)")
 
-# ---- ROOF tileset: gabled roof cover per material (thatch / tile / slate / wood) ----
-# Tiles tile seamlessly (shingle lines at fixed rows). Per style: lit slope, shadow slope, ridge caps
-# (h/v), and an eave (dark drip edge). Fully opaque — a roof HIDES the interior until the player enters.
-ROOF_STYLES = {
-    "thatch": dict(lit=(0xc9, 0xa8, 0x6a), sha=(0x9c, 0x7b, 0x4a), cap=(0xe0, 0xc9, 0x8a), eave=(0x6e, 0x53, 0x30), line=(0x8a, 0x6a, 0x3a)),
-    "tile":   dict(lit=(0xc0, 0x54, 0x38), sha=(0x8a, 0x3a, 0x26), cap=(0xd8, 0x9a, 0x6a), eave=(0x4a, 0x24, 0x18), line=(0x6e, 0x2e, 0x1e)),
-    "slate":  dict(lit=(0x8a, 0x99, 0xa6), sha=(0x50, 0x4e, 0x58), cap=(0xb6, 0xc4, 0xd0), eave=(0x28, 0x28, 0x30), line=(0x3a, 0x3a, 0x42)),
-    "wood":   dict(lit=(0x9c, 0x6e, 0x40), sha=(0x6e, 0x4a, 0x2c), cap=(0xc2, 0x8e, 0x54), eave=(0x40, 0x2a, 0x18), line=(0x50, 0x36, 0x20)),
-}
+# ---- ROOF tileset: SHINGLED hip-roof tiles, laid by the organic roof builder (bakeRoofs) ----
+# Per material, 4 SLOPE facings (n/s/e/w — lit on the N/W sun sides, shadowed on S/E; shingle rows run
+# PERPENDICULAR to the fall line so they read as a pitched plane), 2 RIDGE caps (h/v) and a PEAK. Tiles
+# tile seamlessly (bands on a 4px grid). Opaque — a roof HIDES the interior until the player enters.
 RT = 16
+# each material: (lightest, light, base, dark, ridgecap)  — five shades, dark→light
+ROOF_MAT = {
+    "thatch": [(0x6e, 0x54, 0x2e), (0x9c, 0x7c, 0x46), (0xc0, 0x9c, 0x5c), (0xd8, 0xba, 0x7c), (0xec, 0xd6, 0x9a)],
+    "tile":   [(0x6a, 0x28, 0x1c), (0x94, 0x3c, 0x28), (0xb8, 0x50, 0x34), (0xd4, 0x6c, 0x48), (0xe8, 0x9a, 0x6a)],
+    "slate":  [(0x34, 0x34, 0x40), (0x52, 0x54, 0x60), (0x74, 0x78, 0x86), (0x9c, 0xa6, 0xb2), (0xc4, 0xd0, 0xda)],
+    "wood":   [(0x40, 0x2a, 0x18), (0x64, 0x44, 0x26), (0x86, 0x5c, 0x34), (0xa6, 0x78, 0x46), (0xc8, 0x98, 0x5c)],
+}
 
 
-def _slope(base, line, shingle_every=4):
-    img = Image.new("RGBA", (RT, RT), (*base, 255))
-    for y in range(0, RT):
-        if y % shingle_every == shingle_every - 1:          # a shingle/thatch seam every few rows
-            for x in range(RT):
-                img.putpixel((x, y), (*line, 255))
-        # a light stagger dab so it isn't a flat wash
-        if y % shingle_every == 0:
-            for x in range(1, RT, 4):
-                img.putpixel((x, y), (min(base[0] + 18, 255), min(base[1] + 18, 255), min(base[2] + 18, 255), 255))
+def _px(img, x, y, col):
+    if 0 <= x < RT and 0 <= y < RT:
+        img.putpixel((x, y), (col[0], col[1], col[2], 255))
+
+
+def _shingle(shades, lit, horiz):
+    """A shingled slope. `shades` = [darkest..lightest]. LIT slopes (N/W, sun side) sit a shade brighter than
+    SHADOW slopes (S/E). Shingle courses run PERPENDICULAR to the fall line: a course = a body band with a
+    HIGHLIGHT ridge at its top and a soft SHADOW line at its bottom; light seam ticks (every other shingle)
+    give the tile grain without turning into a busy weave."""
+    body = shades[3] if lit else shades[2]
+    hi = shades[4] if lit else shades[3]   # course highlight (top)
+    edge = shades[1] if lit else shades[0]  # course shadow (bottom) + seams
+    img = Image.new("RGBA", (RT, RT), (body[0], body[1], body[2], 255))
+    unit = 4
+    for band in range(0, RT, unit):
+        stagger = (unit // 2) if (band // unit) % 2 else 0
+        for a in range(RT):
+            (hx, hy) = (a, band) if horiz else (band, a)
+            _px(img, hx, hy, hi)                                   # course highlight
+            (sx, sy) = (a, band + unit - 1) if horiz else (band + unit - 1, a)
+            _px(img, sx, sy, edge)                                 # course shadow
+        for s in range(stagger, RT, unit):                        # a single seam tick per shingle (mid-course)
+            (px_, py_) = (s, band + 2) if horiz else (band + 2, s)
+            _px(img, px_, py_, edge)
     return img
 
 
-for style, cc in ROOF_STYLES.items():
-    _slope(cc["lit"], cc["line"]).save(os.path.join(OUT, f"roof_{style}_lit.png"))
-    _slope(cc["sha"], cc["line"]).save(os.path.join(OUT, f"roof_{style}_sha.png"))
-    # ridge caps: lit half + shadow half + a bright peak line down the centre
-    rh = Image.new("RGBA", (RT, RT), (0, 0, 0, 0))
+def _ridge(shades, horiz):
+    """A ridge cap: the two slopes meet at a bright capped line (h = runs left-right, v = up-down)."""
+    img = Image.new("RGBA", (RT, RT), (0, 0, 0, 0))
+    lit, sha, cap = shades[3], shades[1], shades[4]
     for y in range(RT):
         for x in range(RT):
-            rh.putpixel((x, y), (*cc["lit"], 255) if y < RT // 2 - 1 else (*cc["sha"], 255) if y > RT // 2 else (*cc["cap"], 255))
-    for x in range(RT):
-        rh.putpixel((x, RT // 2 - 1), (*cc["cap"], 255)); rh.putpixel((x, RT // 2), (*cc["cap"], 255))
-    rh.save(os.path.join(OUT, f"roof_{style}_ridge_h.png"))
-    rv = Image.new("RGBA", (RT, RT), (0, 0, 0, 0))
+            if horiz:
+                col = cap if RT // 2 - 1 <= y <= RT // 2 else (lit if y < RT // 2 else sha)
+            else:
+                col = cap if RT // 2 - 1 <= x <= RT // 2 else (lit if x < RT // 2 else sha)
+            _px(img, x, y, col)
+    return img
+
+
+for style, shades in ROOF_MAT.items():
+    _shingle(shades, True, True).save(os.path.join(OUT, f"roof_{style}_slope_n.png"))   # N slope: lit, horiz courses
+    _shingle(shades, False, True).save(os.path.join(OUT, f"roof_{style}_slope_s.png"))  # S slope: shadow, horiz
+    _shingle(shades, True, False).save(os.path.join(OUT, f"roof_{style}_slope_w.png"))  # W slope: lit, vert
+    _shingle(shades, False, False).save(os.path.join(OUT, f"roof_{style}_slope_e.png")) # E slope: shadow, vert
+    _ridge(shades, True).save(os.path.join(OUT, f"roof_{style}_ridge_h.png"))
+    _ridge(shades, False).save(os.path.join(OUT, f"roof_{style}_ridge_v.png"))
+    # peak: a bright apex (hip summit)
+    pk = Image.new("RGBA", (RT, RT), (0, 0, 0, 0))
     for y in range(RT):
         for x in range(RT):
-            rv.putpixel((x, y), (*cc["lit"], 255) if x < RT // 2 - 1 else (*cc["sha"], 255) if x > RT // 2 else (*cc["cap"], 255))
-    for y in range(RT):
-        rv.putpixel((RT // 2 - 1, y), (*cc["cap"], 255)); rv.putpixel((RT // 2, y), (*cc["cap"], 255))
-    rv.save(os.path.join(OUT, f"roof_{style}_ridge_v.png"))
-    # eave: the shadow slope with a dark drip edge (used on the roof's outer ring for edge definition)
-    ev = _slope(cc["sha"], cc["line"])
-    for x in range(RT):
-        ev.putpixel((x, RT - 1), (*cc["eave"], 255)); ev.putpixel((x, RT - 2), (*cc["eave"], 255))
-    for y in range(RT):
-        ev.putpixel((0, y), (*cc["eave"], 255)); ev.putpixel((RT - 1, y), (*cc["eave"], 255))
-    ev.save(os.path.join(OUT, f"roof_{style}_eave.png"))
-    print(f"wrote roof_{style}_* (5 tiles)")
+            d = max(abs(x - 7.5), abs(y - 7.5))
+            _px(pk, x, y, shades[4] if d < 3 else shades[3] if d < 6 else shades[2])
+    pk.save(os.path.join(OUT, f"roof_{style}_peak.png"))
+    print(f"wrote roof_{style}_* (7 tiles)")
+
+# ---- chimney: a small brick stack on the ridge (drawn on TOP of the roof, with a faint smoke wisp) ----
+ch = Image.new("RGBA", (RT, RT), (0, 0, 0, 0))
+BRICK = (0x8a, 0x4c, 0x38, 255); BRICK_D = (0x5a, 0x2e, 0x22, 255); BRICK_L = (0xb0, 0x6c, 0x50, 255); FLUE = (0x1a, 0x14, 0x18, 255)
+for y in range(5, 14):
+    for x in range(5, 12):
+        edge = (x == 5 or x == 11 or y == 5 or y == 13)
+        ch.putpixel((x, y), BRICK_D if edge else (BRICK_L if (x + y) % 2 == 0 else BRICK))
+for x in range(6, 11):
+    ch.putpixel((x, 6), (0x2a, 0x22, 0x22, 255))   # the dark flue opening on top
+for (sx, sy, a) in [(8, 3, 120), (9, 1, 80), (7, 2, 90)]:  # a faint smoke wisp
+    ch.putpixel((sx, sy), (0xd0, 0xcc, 0xc8, a))
+ch.save(os.path.join(OUT, "roof_chimney.png"))
+print("wrote roof_chimney")
 
 # ---- rope_coil ----
 RW, RH = 12, 10
