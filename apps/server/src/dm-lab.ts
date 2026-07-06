@@ -14,7 +14,21 @@
  * total so an unattended script keeps moving (flagged as `auto-roll`).
  */
 
-import { Engine, createInitialState, diceRange, parseDice } from '@mythweaver/engine';
+import {
+  Engine,
+  createInitialState,
+  diceRange,
+  parseDice,
+  abilityMod,
+  deriveProficiencyBonus,
+  deriveCarry,
+  deriveSkillModifier,
+  deriveSaveModifier,
+  derivePassive,
+  deriveSpellSaveDc,
+  deriveSpellsPreparedMax,
+  XP_THRESHOLDS,
+} from '@mythweaver/engine';
 import {
   createProvider,
   type LlmContentBlock,
@@ -24,7 +38,7 @@ import {
 } from '@mythweaver/llm';
 import type { Retriever } from '@mythweaver/rag';
 import { FakeSceneComposer, type SceneComposer } from '@mythweaver/scene';
-import type { CharacterSheet, EntityCard, EstablishScene, GameState, PartyMemberRef, SceneMap, StatBlock } from '@mythweaver/shared';
+import { ABILITIES, SKILLS, type Ability, type CharacterSheet, type EntityCard, type EstablishScene, type GameState, type PartyMemberRef, type SceneMap, type Skill, type StatBlock } from '@mythweaver/shared';
 import { createHash } from 'node:crypto';
 import { loadItemCatalog, loadScenario, parseScenario, resolveParty } from './content.js';
 import { buildRetriever } from './corpus.js';
@@ -453,6 +467,124 @@ export function arcView(session: DmLabSession) {
       }
     : null;
   return { blueprint: arc.blueprint ?? null, brief: arc.brief ?? null, currentScene: st.currentSceneId, beats, decisions, npcs, genMeta, stale, encounters, ledger };
+}
+
+/**
+ * Assemble a full, per-PC CHARACTER SHEET view for the Run-view sheet modal — the immutable sheet + live
+ * combatant pools + progression/economy + resolved inventory + every engine-DERIVED number. Pure read;
+ * the derived values reuse the exact functions the engine uses, so the sheet is a single source of truth
+ * and updates live as play progresses (it's rebuilt from state on every turn response).
+ */
+export function characterSheets(session: DmLabSession) {
+  const st = session.engine.getState();
+  const catalog = st.itemCatalog ?? {};
+  return Object.values(st.combatants)
+    .filter((c) => c.kind === 'pc')
+    .map((c) => {
+      const sheet = st.sheets?.[c.id];
+      const cs = st.characters?.[c.id];
+      const level = cs?.level ?? sheet?.level ?? 1;
+      const prof = deriveProficiencyBonus(level);
+      const exh = c.exhaustion;
+
+      const abilities = sheet
+        ? ABILITIES.map((a: Ability) => ({
+            key: a,
+            score: sheet.abilities[a],
+            mod: abilityMod(sheet.abilities[a]),
+            save: deriveSaveModifier(sheet, cs, a, exh),
+            saveProf: sheet.savingThrowProficiencies.includes(a),
+          }))
+        : [];
+
+      const skills = sheet
+        ? (Object.keys(SKILLS) as Skill[]).map((s) => ({
+            key: s,
+            ability: SKILLS[s],
+            mod: deriveSkillModifier(sheet, cs, s, exh),
+            tier: sheet.skillExpertise?.includes(s) ? 'expertise' : sheet.skillProficiencies.includes(s) ? 'proficient' : sheet.skillHalfProficiency?.includes(s) ? 'half' : 'none',
+          }))
+        : [];
+
+      const equipped = cs?.equipped ?? {};
+      const slotByInstance = new Map(Object.entries(equipped).filter(([, id]) => !!id).map(([slot, id]) => [id as string, slot]));
+      const attuned = new Set(cs?.attunedInstanceIds ?? []);
+      const items = (cs?.items ?? []).map((it) => {
+        const def = catalog[it.defId];
+        return {
+          instanceId: it.instanceId,
+          name: def?.name ?? it.defId,
+          category: def?.category ?? 'item',
+          weightLb: def?.weightLb ?? 0,
+          qty: it.qty ?? 1,
+          equippedSlot: slotByInstance.get(it.instanceId) ?? null,
+          attuned: attuned.has(it.instanceId),
+          identified: it.identified !== false,
+          magic: !!def?.magic,
+          ...(def?.charges ? { charges: { remaining: it.chargesRemaining ?? def.charges.max, max: def.charges.max } } : {}),
+        };
+      });
+      const weight = items.reduce((w, i) => w + i.weightLb * (i.qty ?? 1), 0);
+      const cap = sheet ? deriveCarry(sheet) : 0;
+
+      const slots = (c.slotsMax ?? [])
+        .map((max, lvl) => ({ level: lvl, cur: c.slotsRemaining?.[lvl] ?? 0, max }))
+        .filter((s) => s.level >= 1 && s.max > 0);
+
+      const sc = sheet?.spellcasting;
+      const spellcasting = sc && sheet
+        ? {
+            ability: sc.ability,
+            saveDc: deriveSpellSaveDc(sheet, cs) ?? sc.spellSaveDc,
+            attack: prof + abilityMod(sheet.abilities[sc.ability]),
+            preparedMax: deriveSpellsPreparedMax(sheet, cs) ?? null,
+            prepared: c.preparedSpells ?? sc.prepared,
+            rituals: sc.rituals ?? [],
+            cantrips: sc.cantrips,
+          }
+        : null;
+
+      return {
+        id: c.id,
+        name: c.name,
+        ancestry: sheet?.ancestry ?? '',
+        className: sheet?.className ?? '',
+        level,
+        xp: cs?.xp ?? 0,
+        xpNext: level < 20 ? XP_THRESHOLDS[level + 1] ?? null : null,
+        xpThis: XP_THRESHOLDS[level] ?? 0,
+        hp: { cur: c.currentHitPoints, max: c.maxHitPoints, temp: c.temporaryHitPoints },
+        ac: c.armorClass,
+        speed: sheet?.speedFt ?? 30,
+        prof,
+        initiative: c.initiativeBonus ?? 0,
+        abilities,
+        skills,
+        passives: sheet
+          ? {
+              perception: derivePassive(sheet, cs, 'perception', exh),
+              investigation: derivePassive(sheet, cs, 'investigation', exh),
+              insight: derivePassive(sheet, cs, 'insight', exh),
+            }
+          : null,
+        conditions: c.conditions,
+        exhaustion: c.exhaustion ?? 0,
+        inspiration: !!c.inspiration,
+        concentration: c.concentratingOn?.spell ?? null,
+        hitDice: c.hitDice ?? null,
+        slots,
+        resources: Object.entries(c.resources ?? {}).map(([k, v]) => ({ id: k, current: v.current, max: v.max, recharge: v.recharge })),
+        spellcasting,
+        attacks: sheet?.attacks ?? [],
+        currency: cs?.currency ?? { cp: 0, sp: 0, gp: 0 },
+        carry: { lb: Math.round(weight), cap, over: weight > cap },
+        items,
+        equipped,
+        attunement: { used: attuned.size, max: 3 },
+        features: sheet?.features ?? [],
+        backstory: sheet?.backstory ?? '',
+      };
+    });
 }
 
 /**

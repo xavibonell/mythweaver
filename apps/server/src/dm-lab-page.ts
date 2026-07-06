@@ -182,6 +182,55 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
   .empty-state { color: #6b7080; padding: 40px 0; text-align: center; }
   .spin { display: inline-block; width: 13px; height: 13px; border: 2px solid #ffffff60; border-top-color: #fff; border-radius: 50%; animation: s .7s linear infinite; vertical-align: -2px; margin-right: 7px; }
   @keyframes s { to { transform: rotate(360deg); } }
+
+  /* --- Character sheets (Run view party panel + modal) --- */
+  .party-panel { margin-bottom: 12px; }
+  .party-panel .ph { color: #8a90a0; font-size: 10px; text-transform: uppercase; letter-spacing: .06em; margin: 4px 0 6px; }
+  .pc-row { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid #23262e; border-radius: 9px; background: #0c0e12; margin-bottom: 6px; cursor: pointer; }
+  .pc-row:hover { border-color: #3a4560; background: #11141b; }
+  .pc-row .nm { font-weight: 600; color: #e6e8ee; font-size: 13px; }
+  .pc-row .sub { color: #8a90a0; font-size: 11px; }
+  .pc-row .right { margin-left: auto; text-align: right; font-size: 11px; color: #9aa0b0; white-space: nowrap; }
+  .pc-row .sheetbtn { color: #6ab0ff; }
+  .hpbar { height: 5px; border-radius: 3px; background: #23262e; overflow: hidden; margin-top: 4px; }
+  .hpbar > i { display: block; height: 100%; background: #8fd6a2; }
+
+  .modal-backdrop { position: fixed; inset: 0; background: rgba(6,7,10,.74); display: none; align-items: flex-start; justify-content: center; z-index: 50; overflow: auto; padding: 26px 16px; }
+  .modal-backdrop.open { display: flex; }
+  .sheet { width: min(940px, 100%); background: #0e1014; border: 1px solid #2b2f3a; border-radius: 14px; box-shadow: 0 24px 70px rgba(0,0,0,.55); }
+  .sheet-head { display: flex; align-items: flex-start; gap: 14px; padding: 16px 20px; border-bottom: 1px solid #23262e; position: sticky; top: 0; background: #0e1014; border-radius: 14px 14px 0 0; z-index: 1; }
+  .sheet-head .nm { font-size: 20px; font-weight: 700; color: #fff; }
+  .sheet-head .cls { color: #9aa0b0; font-size: 13px; margin-top: 2px; }
+  .sheet-head .x { margin-left: auto; background: #1b1f29; border: 1px solid #2b2f3a; color: #c7ccda; border-radius: 8px; width: 30px; height: 30px; cursor: pointer; font-size: 14px; }
+  .xpbar { height: 6px; background: #23262e; border-radius: 4px; overflow: hidden; margin-top: 7px; }
+  .xpbar > i { display: block; height: 100%; background: #4c6ef5; }
+  .sheet-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(232px, 1fr)); gap: 12px; padding: 16px 20px; }
+  .sheet-section { border: 1px solid #23262e; border-radius: 10px; background: #0c0e12; padding: 11px 13px; }
+  .sheet-section.wide { grid-column: 1 / -1; }
+  .sheet-section h4 { margin: 0 0 9px; font-size: 10px; text-transform: uppercase; letter-spacing: .07em; color: #8a90a0; font-weight: 700; }
+  .stat { display: flex; justify-content: space-between; gap: 8px; padding: 2px 0; font-size: 13px; }
+  .stat .k { color: #9aa0b0; } .stat b { color: #e6e8ee; }
+  .abil-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .abil { border: 1px solid #23262e; border-radius: 8px; padding: 7px 4px; text-align: center; background: #0e1014; }
+  .abil.prof { border-color: #3a5bd0; }
+  .abil .ab { font-size: 10px; text-transform: uppercase; color: #8a90a0; }
+  .abil .mod { font-size: 19px; font-weight: 700; color: #e6e8ee; }
+  .abil .sc { font-size: 11px; color: #9aa0b0; }
+  .abil .sv { font-size: 10px; color: #6b7080; }
+  .skill-row { display: flex; align-items: center; gap: 6px; font-size: 12px; padding: 2px 0; }
+  .skill-row .tier { width: 12px; text-align: center; color: #e8a13a; }
+  .skill-row .sk { flex: 1; color: #9aa0b0; }
+  .skill-row.p .sk { color: #e6e8ee; }
+  .skill-row .ab { color: #6b7080; font-size: 10px; text-transform: uppercase; }
+  .skill-row .m { color: #e6e8ee; font-weight: 600; width: 30px; text-align: right; }
+  .item-row { display: flex; align-items: center; gap: 8px; font-size: 12px; padding: 4px 0; border-bottom: 1px solid #171a20; }
+  .badge { display: inline-block; font-size: 10px; padding: 1px 6px; border-radius: 999px; border: 1px solid #2b2f3a; color: #9aa0b0; margin-left: 5px; }
+  .badge.eq { color: #8fd6a2; border-color: #2a6b40; }
+  .badge.at { color: #c08ae8; border-color: #5a3d78; }
+  .badge.un { color: #e8a13a; border-color: #7a5a1e; }
+  .pill-sm { display: inline-block; font-size: 11px; padding: 2px 7px; border-radius: 6px; background: #161922; border: 1px solid #2b2f3a; color: #c7ccda; margin: 2px 4px 2px 0; }
+  .coin { display: inline-block; margin-right: 12px; color: #9aa0b0; } .coin b { color: #e8c14a; }
+  .over { color: #f0a6b0 !important; }
 </style>
 </head>
 <body>
@@ -205,6 +254,7 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
       <input id="scenario" type="hidden" value="the-sunken-bell" />
       <select id="startScene" style="display:none"></select>
       <div id="nowplaying" class="nowplaying" style="display:none"></div>
+      <div id="party-panel" class="party-panel"></div>
       <details id="director-wrap" class="director-wrap" style="display:none">
         <summary>🎬 Director (live) — what the Showrunner is steering this turn</summary>
         <div class="arc-body" id="director-panel"></div>
@@ -241,6 +291,8 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
       </div>
     </div>
   </section>
+
+  <div id="sheet-modal" class="modal-backdrop"><div class="sheet" id="sheet-body"></div></div>
 
   <section class="view editor" id="view-playbook">
     <div class="ed-toolbar">
@@ -550,6 +602,7 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
     var grp = document.createElement('option'); grp.value = 'The party'; grp.textContent = 'The party'; sp.appendChild(grp);
     (b.party || []).forEach(function (p) { var o = document.createElement('option'); o.value = p.name; o.textContent = p.name; sp.appendChild(o); });
     latestArc = b.arc || null; renderDirectorPanel();
+    latestCharacters = b.characters || []; renderCharacterSheets();
     renderNowPlaying(b);
     renderSuggestions();
     $('run-empty').style.display = 'none';
@@ -571,6 +624,124 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
       '<div class="np-row"><b>Party:</b> ' + esc((b.party || []).map(function (p) { return p.name; }).join(', ')) + '</div>';
     el.style.display = '';
   }
+
+  // --- Character sheets: compact party rows in the Run left panel + a full per-PC modal, both live. ---
+  var latestCharacters = [];
+  var openSheetId = null;
+  function signed(n) { return (n >= 0 ? '+' : '') + n; }
+  function tierMark(t) { return t === 'expertise' ? '★' : t === 'proficient' ? '●' : t === 'half' ? '◐' : '·'; }
+  function skillName(k) { return k.replace(/([A-Z])/g, ' $1').replace(/^./, function (c) { return c.toUpperCase(); }); }
+  function sec(title, body, wide) { return '<div class="sheet-section' + (wide ? ' wide' : '') + '"><h4>' + esc(title) + '</h4>' + body + '</div>'; }
+  function st(k, v) { return '<div class="stat"><span class="k">' + k + '</span><b>' + v + '</b></div>'; }
+  function pcById(id) { return latestCharacters.filter(function (p) { return p.id === id; })[0] || null; }
+
+  function renderCharacterSheets() {
+    var box = $('party-panel'); if (!box) return;
+    if (!latestCharacters.length) { box.innerHTML = ''; return; }
+    var html = '<div class="ph">Party — click a character for the full sheet</div>';
+    latestCharacters.forEach(function (pc) {
+      var pct = pc.hp.max ? Math.max(0, Math.min(100, Math.round(100 * pc.hp.cur / pc.hp.max))) : 0;
+      var tags = [];
+      if (pc.concentration) tags.push('◎ ' + esc(pc.concentration));
+      if (pc.inspiration) tags.push('★ insp');
+      if (pc.exhaustion) tags.push('exh ' + pc.exhaustion);
+      if (pc.conditions && pc.conditions.length) tags.push(esc(pc.conditions.join(', ')));
+      html += '<div class="pc-row" data-id="' + esc(pc.id) + '">'
+        + '<div style="flex:1;min-width:0">'
+        + '<div class="nm">' + esc(pc.name) + ' <span class="sub">L' + pc.level + ' ' + esc(pc.className) + '</span></div>'
+        + '<div class="hpbar"><i style="width:' + pct + '%"></i></div>'
+        + (tags.length ? '<div class="sub" style="margin-top:4px">' + tags.join(' · ') + '</div>' : '')
+        + '</div>'
+        + '<div class="right">' + pc.hp.cur + '/' + pc.hp.max + ' HP<br>AC ' + pc.ac + ' · <span class="sheetbtn">Sheet ›</span></div>'
+        + '</div>';
+    });
+    box.innerHTML = html;
+    Array.prototype.forEach.call(box.querySelectorAll('.pc-row'), function (row) {
+      row.onclick = function () { openSheet(row.getAttribute('data-id')); };
+    });
+  }
+
+  function openSheet(id) {
+    openSheetId = id; renderSheet(id); $('sheet-modal').classList.add('open');
+    // Refresh from the server in the background so an opened sheet reflects the very latest state.
+    if (sessionId) fetch('/dm/lab/session/' + sessionId + '/characters').then(function (r) { return r.json(); })
+      .then(function (b) { if (b && b.characters) { latestCharacters = b.characters; renderCharacterSheets(); if (openSheetId) renderSheet(openSheetId); } }).catch(function () {});
+  }
+  function closeSheet() { openSheetId = null; $('sheet-modal').classList.remove('open'); }
+
+  function renderSheet(id) {
+    var pc = pcById(id); var b = $('sheet-body'); if (!pc || !b) return;
+    var xpPct = 100, xpLabel = pc.xp + ' XP (max level)';
+    if (pc.xpNext) { var span = pc.xpNext - pc.xpThis; xpPct = span > 0 ? Math.max(0, Math.min(100, Math.round(100 * (pc.xp - pc.xpThis) / span))) : 100; xpLabel = pc.xp + ' / ' + pc.xpNext + ' XP'; }
+    var head = '<div class="sheet-head"><div style="flex:1">'
+      + '<div class="nm">' + esc(pc.name) + '</div>'
+      + '<div class="cls">' + esc(pc.ancestry) + ' · ' + esc(pc.className) + ' · Level ' + pc.level + (pc.inspiration ? ' · ★ Inspiration' : '') + (pc.exhaustion ? ' · Exhaustion ' + pc.exhaustion : '') + '</div>'
+      + '<div class="xpbar"><i style="width:' + xpPct + '%"></i></div>'
+      + '<div class="sub" style="font-size:11px;color:#6b7080;margin-top:4px">' + xpLabel + '</div>'
+      + '</div><button class="x" id="sheet-x">✕</button></div>';
+
+    var sections = [];
+    sections.push(sec('Core',
+      st('Hit Points', pc.hp.cur + ' / ' + pc.hp.max + (pc.hp.temp ? (' (+' + pc.hp.temp + ' temp)') : ''))
+      + st('Armor Class', pc.ac) + st('Speed', pc.speed + ' ft') + st('Initiative', signed(pc.initiative)) + st('Proficiency', signed(pc.prof))
+      + (pc.hitDice ? st('Hit Dice', pc.hitDice.remaining + ' / ' + pc.hitDice.max + ' d' + pc.hitDice.size) : '')
+      + (pc.passives ? st('Passive Per / Inv / Ins', pc.passives.perception + ' / ' + pc.passives.investigation + ' / ' + pc.passives.insight) : '')
+      + (pc.conditions && pc.conditions.length ? st('Conditions', esc(pc.conditions.join(', '))) : '')
+      + (pc.concentration ? st('Concentrating on', esc(pc.concentration)) : '')));
+
+    sections.push(sec('Abilities', '<div class="abil-grid">' + pc.abilities.map(function (a) {
+      return '<div class="abil' + (a.saveProf ? ' prof' : '') + '"><div class="ab">' + esc(a.key) + '</div><div class="mod">' + signed(a.mod) + '</div><div class="sc">' + a.score + '</div><div class="sv">save ' + signed(a.save) + '</div></div>';
+    }).join('') + '</div>'));
+
+    sections.push(sec('Skills', pc.skills.map(function (s) {
+      return '<div class="skill-row' + (s.tier !== 'none' ? ' p' : '') + '"><span class="tier">' + tierMark(s.tier) + '</span><span class="sk">' + skillName(s.key) + '</span><span class="ab">' + esc(s.ability) + '</span><span class="m">' + signed(s.mod) + '</span></div>';
+    }).join('')));
+
+    if (pc.attacks && pc.attacks.length) {
+      sections.push(sec('Attacks', pc.attacks.map(function (at) { return st(esc(at.name), signed(at.attackBonus) + ' · ' + esc(at.damage) + ' ' + esc(at.damageType)); }).join('')));
+    }
+
+    if (pc.spellcasting) {
+      var sc = pc.spellcasting;
+      var chips = function (arr) { return (arr && arr.length) ? arr.map(function (x) { return '<span class="pill-sm">' + esc(x) + '</span>'; }).join('') : '<span class="sub">—</span>'; };
+      var slotHtml = pc.slots.length ? pc.slots.map(function (s) { return '<span class="pill-sm">L' + s.level + ' ' + s.cur + '/' + s.max + '</span>'; }).join('') : '<span class="sub">no slots</span>';
+      sections.push(sec('Spellcasting',
+        st('Spell Save DC', sc.saveDc) + st('Spell Attack', signed(sc.attack)) + (sc.preparedMax != null ? st('Prepared', (sc.prepared ? sc.prepared.length : 0) + ' / ' + sc.preparedMax) : '')
+        + '<div class="sub" style="margin:7px 0 3px">Slots</div>' + slotHtml
+        + '<div class="sub" style="margin:7px 0 3px">Cantrips</div>' + chips(sc.cantrips)
+        + '<div class="sub" style="margin:7px 0 3px">Prepared</div>' + chips(sc.prepared)
+        + (sc.rituals && sc.rituals.length ? '<div class="sub" style="margin:7px 0 3px">Rituals <span style="color:#6b7080">(no slot)</span></div>' + chips(sc.rituals) : '')));
+    }
+
+    if (pc.resources && pc.resources.length) {
+      sections.push(sec('Class Resources', pc.resources.map(function (r) { return st(esc(r.id) + ' <span style="color:#6b7080">(' + r.recharge + ' rest)</span>', r.current + ' / ' + r.max); }).join('')));
+    }
+
+    var coins = '<div style="margin-bottom:8px"><span class="coin"><b>' + pc.currency.gp + '</b> gp</span><span class="coin"><b>' + pc.currency.sp + '</b> sp</span><span class="coin"><b>' + pc.currency.cp + '</b> cp</span></div>';
+    var carry = '<div class="sub' + (pc.carry.over ? ' over' : '') + '" style="margin-bottom:7px">Carry ' + pc.carry.lb + ' / ' + pc.carry.cap + ' lb' + (pc.carry.over ? ' — OVERLOADED' : '') + ' · Attuned ' + pc.attunement.used + '/' + pc.attunement.max + '</div>';
+    var itemsHtml = pc.items.length ? pc.items.map(function (it) {
+      var badges = '';
+      if (it.equippedSlot) badges += '<span class="badge eq">' + esc(it.equippedSlot) + '</span>';
+      if (it.attuned) badges += '<span class="badge at">attuned</span>';
+      if (it.magic && !it.identified) badges += '<span class="badge un">unidentified</span>';
+      if (it.charges) badges += '<span class="badge">' + it.charges.remaining + '/' + it.charges.max + ' chg</span>';
+      return '<div class="item-row"><span style="flex:1">' + esc(it.name) + (it.qty > 1 ? ' ×' + it.qty : '') + badges + '</span><span class="sub">' + it.weightLb + ' lb</span></div>';
+    }).join('') : '<span class="sub">(nothing carried)</span>';
+    sections.push(sec('Inventory', coins + carry + itemsHtml, true));
+
+    var story = (pc.backstory ? '<div style="white-space:pre-wrap;color:#c7ccda;font-size:13px;line-height:1.5;margin-bottom:8px">' + esc(pc.backstory) + '</div>' : '<span class="sub">No backstory recorded.</span>')
+      + (pc.features && pc.features.length ? '<div class="sub" style="margin:8px 0 4px">Features</div>' + pc.features.map(function (f) { return '<div class="stat"><span class="k">' + esc(f.name) + '</span></div>'; }).join('') : '');
+    sections.push(sec('Story & Features', story, true));
+
+    b.innerHTML = head + '<div class="sheet-grid">' + sections.join('') + '</div>';
+    $('sheet-x').onclick = closeSheet;
+  }
+
+  (function () {
+    var m = $('sheet-modal');
+    if (m) m.addEventListener('click', function (e) { if (e.target === m) closeSheet(); });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && openSheetId) closeSheet(); });
+  })();
 
   // Arc-aware quick-starts: derive a few suggested player actions from the LIVE arc (current scene +
   // steering brief + party), prefill the input on click so the tester can tweak & send.
@@ -617,6 +788,7 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
         if (!x.ok) { addSys('(opening narration skipped: ' + (x.body.error || 'failed') + ')'); setBusy(false); $('status').textContent = 'session live — what do you do?'; return; }
         var t = x.body.turn;
         if (x.body.arc) { latestArc = x.body.arc; renderDirectorPanel(); }
+        if (x.body.characters) { latestCharacters = x.body.characters; renderCharacterSheets(); if (openSheetId) renderSheet(openSheetId); }
         addDm(t, latestArc && latestArc.brief);
         setPending(x.body.pendingRoll);
         renderSuggestions();
@@ -646,6 +818,7 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
         if (!x.ok) { addSys('error: ' + (x.body.error || 'failed')); setBusy(false); $('status').textContent = ''; return; }
         var t = x.body.turn;
         if (x.body.arc) { latestArc = x.body.arc; renderDirectorPanel(); } // Director may have re-planned this turn
+        if (x.body.characters) { latestCharacters = x.body.characters; renderCharacterSheets(); if (openSheetId) renderSheet(openSheetId); } // live sheet update
         if (t.kind !== 'message') addPlayer('roll', t.input); // show the actual declared/auto total
         addDm(t, latestArc && latestArc.brief);
         setPending(x.body.pendingRoll);

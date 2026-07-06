@@ -24,7 +24,7 @@ import { buildTracer } from './tracing.js';
 import { runTurn, type TurnInput } from './orchestrator.js';
 import { buildModernRealizer, labBuildCity, labBuildComponent, labBuildProgram, labBuildScene, labBuildSpike, labBuildStory, labComposeScene } from './scene-lab.js';
 import { saveSceneCapture } from './scene-eval/capture.js';
-import { runDmLab, createDmLabSession, dmLabSubmit, arcView, autoRollTotal, DM_LAB_TRANSCRIPTS, type LabTurn, type DmLabSession } from './dm-lab.js';
+import { runDmLab, createDmLabSession, dmLabSubmit, arcView, characterSheets, autoRollTotal, DM_LAB_TRANSCRIPTS, type LabTurn, type DmLabSession } from './dm-lab.js';
 import { renderDmLabPage } from './dm-lab-page.js';
 import { distillStyle, DISTILL_MAX_INPUT } from './distill.js';
 import { buildArcPlanner } from './arc-planner.js';
@@ -726,7 +726,7 @@ app.post('/dm/lab/session', async (req, reply) => {
   }
   const sessionId = randomUUID();
   dmLabSessions.set(sessionId, session);
-  return { sessionId, scenarioId: session.scenarioId, scene: session.scene, party: session.party, arc: arcView(session) };
+  return { sessionId, scenarioId: session.scenarioId, scene: session.scene, party: session.party, arc: arcView(session), characters: characterSheets(session) };
 });
 
 app.post('/dm/lab/session/:id/turn', async (req, reply) => {
@@ -757,12 +757,22 @@ app.post('/dm/lab/session/:id/turn', async (req, reply) => {
   }
   try {
     const turn = await dmLabSubmit(session, input);
-    return { turn, totalCostUsd: session.totalCostUsd, totalLatencyMs: session.totalLatencyMs, pendingRoll: session.pendingRoll ?? null, arc: arcView(session) };
+    return { turn, totalCostUsd: session.totalCostUsd, totalLatencyMs: session.totalLatencyMs, pendingRoll: session.pendingRoll ?? null, arc: arcView(session), characters: characterSheets(session) };
   } catch (err) {
     app.log.error(err, 'dm lab session turn failed');
     reply.code(502);
     return { error: (err as Error).message };
   }
+});
+
+// Fresh per-PC character sheets for the Run-view sheet modal (on open / manual refresh).
+app.get('/dm/lab/session/:id/characters', async (req, reply) => {
+  const session = dmLabSessions.get((req.params as { id: string }).id);
+  if (!session) {
+    reply.code(404);
+    return { error: 'session not found — start a new one' };
+  }
+  return { characters: characterSheets(session) };
 });
 
 function badRequest(reply: FastifyReply, message: string) {
