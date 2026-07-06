@@ -130,7 +130,9 @@ export async function realizeStoryScene(deps: { llm: LlmProvider; model?: string
     npcLines.length ? `Characters present (place EVERY one as a named npc): ${npcLines.join('; ')}` : '',
     fixTags.length ? `Notable objects: ${fixTags.join(', ')}` : '',
   ].filter(Boolean).join('\n');
-  const program = await new LlmSceneProgrammer(deps.llm, deps.model).compose(enriched);
+  // Pass the raw PREMISE as the mood source: the scene's time-of-day/weather follows what the PLAYER asked
+  // for, not the atmospheric flavour the DM wrote into `enriched` ("the dark maw of the mine" is flavour).
+  const program = await new LlmSceneProgrammer(deps.llm, deps.model).compose(enriched, premise);
   // TERRAIN-FIELD EMISSION: if the fiction names a coast/mountains, splice the field fill in after any
   // leading full-map base fill(s) but before the content ops (so buildings draw over it). Skip interiors.
   if (program.grammar !== 'enclosed-interior') {

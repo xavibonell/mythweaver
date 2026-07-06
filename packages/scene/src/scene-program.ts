@@ -302,7 +302,6 @@ EXAMPLE — "a flooded lake of grassy islands joined by plank bridges, a lone fi
 
 Now design the scene for the player's brief. Output ONLY the JSON.`;
 
-const LIGHTINGS = new Set<Lighting>(['day', 'dusk', 'night', 'fog']);
 const asRec = (v: unknown): Record<string, unknown> => (v && typeof v === 'object' ? (v as Record<string, unknown>) : {});
 const num = (v: unknown, d: number): number => (typeof v === 'number' && Number.isFinite(v) ? Math.round(v) : d);
 const terrainOr = (v: unknown, d: string): string => (typeof v === 'string' && isTerrain(v) ? v : d);
@@ -575,8 +574,11 @@ function progSeed(s: string): number {
   return h >>> 0;
 }
 
-/** Turn the model's (untrusted) JSON into a guaranteed-runnable SceneProgram. */
-export function normalizeProgram(raw: unknown, brief: string): SceneProgram {
+/** Turn the model's (untrusted) JSON into a guaranteed-runnable SceneProgram. `moodText` is the text the
+ *  time-of-day/weather is inferred from — the PLAYER'S premise in story mode, so the DM's atmospheric
+ *  flavour prose can't silently flip the scene to night/fog. Defaults to `brief` (the direct /program path,
+ *  where the brief IS the player's words). */
+export function normalizeProgram(raw: unknown, brief: string, moodText: string = brief): SceneProgram {
   const r = asRec(raw);
   const grammar: LayoutGrammar = (LAYOUT_GRAMMARS as readonly string[]).includes(r.grammar as string) ? (r.grammar as LayoutGrammar) : 'open-outdoor';
   const seen = new Set<string>();
@@ -655,13 +657,16 @@ export function normalizeProgram(raw: unknown, brief: string): SceneProgram {
     seed: progSeed(brief),
     base: terrainOr(r.base, 'grass'),
     biome: (BIOMES as readonly string[]).includes(r.biome as string) ? (r.biome as string) : 'forest',
-    // MOOD → time of day: a dark/foggy/horror brief drives a night/dusk TINT (the renderer already has
-    // the filter; it just needs triggering). An explicit non-day lighting from the model still wins.
-    lighting: (LIGHTINGS.has(r.lighting as Lighting) && r.lighting !== 'day') ? (r.lighting as Lighting)
-      : /\b(fog|foggy|fog-?bound|mist|misty|haze|hazy|murk|murky|pea-?soup)\b/.test(lcb) ? 'fog'
-      : /\b(night|midnight|nocturnal|moonlit|moonlight|dark(ness)?|black|horror|cursed|haunted|grim|drowned|corpse|the dead|plague|blight|dread|eerie|gloom|shadow(ed|y)?|storm)\b/.test(lcb) ? 'night'
-      : /\b(dusk|twilight|sunset|evening|gloaming|nightfall|golden hour)\b/.test(lcb) ? 'dusk'
-      : (LIGHTINGS.has(r.lighting as Lighting) ? (r.lighting as Lighting) : 'day'),
+    // MOOD → time of day. Driven ONLY by the PLAYER'S words (`moodText`: the premise in story mode), NOT
+    // the DM's atmospheric flavour prose or the model's guess — so "a frontier town" stays plain DAY and
+    // only the player writing "a fog-bound coast" / "at midnight" / "a grim, haunted village" flips it.
+    // (Coast/mountain/character detection above still reads the fuller enriched brief — only WEATHER is the
+    // player's call, because evocative prose like "the dark maw of the mine" is flavour, not a weather order.)
+    lighting: ((mt: string): Lighting =>
+        /\b(fog|foggy|fog-?bound|mist|misty|mist-?shrouded|haze|hazy|murk|murky|pea-?soup)\b/.test(mt) ? 'fog'
+      : /\b(night|midnight|nocturnal|moonlit|moonlight|dark(ness)?|horror|cursed|haunted|grim|drowned|corpse|the dead|plague|blight|dread|eerie|gloom|shadow(ed|y)?|storm)\b/.test(mt) ? 'night'
+      : /\b(dusk|twilight|sunset|evening|gloaming|nightfall|golden hour)\b/.test(mt) ? 'dusk'
+      : 'day')(moodText.toLowerCase()),
     grammar,
     theme: themeNameFor(r.theme, brief, grammar), // one palette for the whole scene
     outdoor: typeof r.outdoor === 'boolean' ? r.outdoor : grammar !== 'enclosed-interior',
@@ -673,7 +678,7 @@ export function normalizeProgram(raw: unknown, brief: string): SceneProgram {
 export class LlmSceneProgrammer {
   constructor(private readonly llm: LlmProvider, private readonly model?: string) {}
 
-  async compose(brief: string): Promise<SceneProgram> {
+  async compose(brief: string, moodText?: string): Promise<SceneProgram> {
     const res = await this.llm.complete({
       system: SCENE_PROGRAMMER_SYSTEM,
       messages: [{ role: 'user', content: brief }],
@@ -687,6 +692,8 @@ export class LlmSceneProgrammer {
     } catch {
       raw = {};
     }
-    return normalizeProgram(raw, brief);
+    // `moodText` (the player's premise) drives time-of-day, so the DM's flavour prose in the enriched brief
+    // can't silently set night/fog. Falls back to the brief for the direct /program path.
+    return normalizeProgram(raw, brief, moodText ?? brief);
   }
 }
