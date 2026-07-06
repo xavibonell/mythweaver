@@ -18,7 +18,7 @@
 import { createHash } from 'node:crypto';
 import { generateStatBlock, type MonsterSpec } from '@mythweaver/engine';
 import { estimateCostUsd, type LlmProvider } from '@mythweaver/llm';
-import type { AdventureContext, ArcGenMeta, CampaignBlueprint, CharacterSheet, EncounterDef, EntityCard, Plant, StatBlock } from '@mythweaver/shared';
+import type { AdventureContext, ArcGenMeta, CampaignBlueprint, CharacterSheet, EncounterDef, EntityCard, Plant, ScenePlan, StatBlock } from '@mythweaver/shared';
 import { buildBlueprint, extractJson, str } from './arc-planner.js';
 import { validateScenario, type Scenario } from './content.js';
 
@@ -146,13 +146,14 @@ export const DEFAULT_COMPOSER_SYSTEM = `You are the GAME DIRECTOR composing a br
 Design a coherent arc with a KNOWN ENDING: what the whole thing is about, the central problem, where the party starts, the envisioned ending you steer toward, and an ordered chain of BEATS (scenes) that route from the opening to that ending. Honor the seed's theme, tone, length, and constraints. Give players real agency — offer multiple approaches per beat, never a single gated path.
 
 Respond with ONLY a JSON object (no prose, no code fence):
-{"premise":"<what the campaign is about / its theme>","centralProblem":"<the concrete problem the party must address>","intendedEnding":"<a clear, specific resolution — how it should end if it lands>","opening":"<where/how the party starts>","beats":[{"title":"<short scene name>","summary":"<GM guidance: what's here, what's at stake, ways to engage; you MAY note suggested checks + DCs; reveal it through play>","exits":[2,3],"intent":"<what this beat accomplishes toward the ending>","monsters":[{"from":"<library id>","count":2},{"new":{"name":"<creature>","challengeRating":1,"type":"<e.g. undead>","attackName":"<e.g. Spectral Touch>","damageType":"necrotic","ranged":false},"count":1}]}],"spine":[{"milestone":"<short label>","beat":1,"intent":"<step toward the ending>"}],"cast":[{"id":"npc:<slug>","name":"<name>","atBeats":[1],"voice":{"tic":"<a distinctive speech/behaviour tic>","want":"<what they want>","fear":"<what they fear>"}}],"plants":[{"id":"plant:<slug>","what":"<a detail planted early that pays off later>"}],"pcBackstories":[{"name":"<pc name exactly as given>","backstory":"<their backstory>"}]}
+{"premise":"<what the campaign is about / its theme>","centralProblem":"<the concrete problem the party must address>","intendedEnding":"<a clear, specific resolution — how it should end if it lands>","opening":"<where/how the party starts>","beats":[{"title":"<short scene name>","summary":"<GM guidance: what's here, what's at stake, ways to engage; you MAY note suggested checks + DCs; reveal it through play>","scene":{"look":"<1-3 sentences: what the place LOOKS like top-down — terrain, structures, water/edges>","kind":"settlement|interior|wild","mood":"<lighting/weather in plain words, e.g. \\"grim predawn fog\\">","features":["<must-exist landmark>","<another>"]},"exits":[2,3],"intent":"<what this beat accomplishes toward the ending>","monsters":[{"from":"<library id>","count":2},{"new":{"name":"<creature>","challengeRating":1,"type":"<e.g. undead>","attackName":"<e.g. Spectral Touch>","damageType":"necrotic","ranged":false},"count":1}]}],"spine":[{"milestone":"<short label>","beat":1,"intent":"<step toward the ending>"}],"cast":[{"id":"npc:<slug>","name":"<name>","atBeats":[1],"voice":{"tic":"<a distinctive speech/behaviour tic>","want":"<what they want>","fear":"<what they fear>"}}],"plants":[{"id":"plant:<slug>","what":"<a detail planted early that pays off later>"}],"pcBackstories":[{"name":"<pc name exactly as given>","backstory":"<their backstory>"}]}
 
 RULES:
 - "beats" is an ORDERED array; the FIRST beat is where the party starts. Produce the requested number of beats (3-8).
 - "exits" are the 1-based indexes of the OTHER beats reachable from this beat (a short list; the finale may have none). Build a connected path from beat 1 to the finale.
 - "spine" milestones map to a beat via its 1-based "beat" index; you MAY add 1-2 final milestones with NO "beat" (pure narrative payoff after the last scene).
 - "monsters" (optional, only on beats with a fight): each entry is EITHER {"from":"<library id>","count":N} to place an existing creature, OR {"new":{...},"count":N} to commission one — pick whichever the MONSTERS line in the seed allows. For "new", give ONLY fiction: name, challengeRating (0–5), type, attackName, damageType, ranged (true/false). The ENGINE computes its HP/AC/damage — never write any number other than challengeRating and count. Scale fights to the party size; not every beat needs combat.
+- "scene" (per beat): the beat's VISUAL design, authored now while the whole premise is in front of you — the map generator renders from it. "look" = what a top-down map of the place shows (terrain, structures, water/edges — concrete nouns, not vibes). "kind" decides the layout family: "settlement" (buildings + streets), "interior" (an enclosed space: dungeon/cave/crypt/a building's inside), "wild" (open nature). "mood" = lighting/weather in plain words (it drives the scene's light). "features" = 2-5 landmark concepts that MUST exist on the map (the generator guarantees them).
 - "cast": EVERY named NPC in your beat prose MUST appear here with a memorable VOICE (a tic, a want, a fear) and "atBeats" = the 1-based beats they appear in. This is what keeps them themselves when they return.
 - "plants": 2-4 Chekhov details planted early that pay off later (a heirloom, a rumour, a scar) — the seeds of callbacks.
 - PARTY BACKSTORIES: weave the party's backstories into the arc where they naturally fit — tie an NPC to a PC's past, let a beat touch a PC's stakes, plant a detail that pays off their history (no need to hook every PC). For any PC whose backstory is "(no backstory given…)", INVENT a short one that fits the theme.
@@ -169,6 +170,17 @@ interface StampCtx {
 }
 
 const clampCount = (v: unknown): number => Math.max(1, Math.min(8, Math.round(Number(v)) || 1));
+
+/** Coerce a beat's authored scene design (Phase C). Look is required — without it there is no plan. */
+function coerceScenePlan(raw: unknown): ScenePlan | undefined {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const s = raw as Record<string, unknown>;
+  const look = str(s.look, 300);
+  if (!look) return undefined;
+  const kind: ScenePlan['kind'] = s.kind === 'settlement' || s.kind === 'interior' || s.kind === 'wild' ? s.kind : 'wild';
+  const features = (Array.isArray(s.features) ? s.features : []).map((f) => str(f, 40)).filter(Boolean).slice(0, 6);
+  return { look, kind, mood: str(s.mood, 80), ...(features.length ? { features } : {}) };
+}
 
 /** Coerce a commissioned-creature spec (fiction only; the engine computes the numbers). */
 function coerceSpec(raw: unknown): MonsterSpec | null {
@@ -242,7 +254,8 @@ export function buildGeneratedArc(raw: unknown, seed: ArcSeed, ctx: StampCtx, re
           .map((x) => ids[x - 1]!),
       ),
     ];
-    scenes[ids[i]!] = { title: str(b.title, 80) || `Beat ${i + 1}`, summary: str(b.summary, 1200), exits };
+    const scenePlan = coerceScenePlan(b.scene);
+    scenes[ids[i]!] = { title: str(b.title, 80) || `Beat ${i + 1}`, summary: str(b.summary, 1200), exits, ...(scenePlan ? { scenePlan } : {}) };
   }
 
   // Guarantee reachability from b1: any orphan gets an edge from its predecessor (which, going in

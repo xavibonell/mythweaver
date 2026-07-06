@@ -799,7 +799,7 @@ app.post('/sessions', async (req, reply) => {
   const id = randomUUID();
   const adventure = {
     pitch: bundle.scenario.pitch,
-    scenes: Object.fromEntries(bundle.scenario.scenes.map((s) => [s.id, { title: s.title, summary: s.summary, exits: s.exits }])),
+    scenes: Object.fromEntries(bundle.scenario.scenes.map((s) => [s.id, { title: s.title, summary: s.summary, exits: s.exits, ...(s.scenePlan ? { scenePlan: s.scenePlan } : {}) }])),
   };
   const state = createInitialState({
     sessionId: id,

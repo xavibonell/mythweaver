@@ -1006,7 +1006,10 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
       h += '<div class="arc-sec"><h3>Beats</h3><ul class="spine">' + ids.map(function (id) {
         var s = scenes[id];
         var ex = (s.exits && s.exits.length) ? ' <span style="color:#6b7080">→ ' + s.exits.map(esc).join(', ') + '</span>' : '';
-        return '<li><div class="ms">' + esc(s.title) + ' <span style="color:#6b7080">[' + esc(id) + ']</span>' + ex + monLine(encBySceneId[id]) + '</div><div class="mi">' + esc(s.summary || '') + '</div></li>';
+        var plan = s.scenePlan
+          ? '<div class="mi" style="color:#7fa8d0">🎨 ' + esc(s.scenePlan.look || '') + ' <span style="color:#6b7080">[' + esc(s.scenePlan.kind || '?') + (s.scenePlan.mood ? ' · ' + esc(s.scenePlan.mood) : '') + (s.scenePlan.features && s.scenePlan.features.length ? ' · ' + s.scenePlan.features.map(esc).join(', ') : '') + ']</span></div>'
+          : '<div class="mi" style="color:#6b7080">🎨 (no scene plan — the DM improvises the look)</div>';
+        return '<li><div class="ms">' + esc(s.title) + ' <span style="color:#6b7080">[' + esc(id) + ']</span>' + ex + monLine(encBySceneId[id]) + '</div><div class="mi">' + esc(s.summary || '') + '</div>' + plan + '</li>';
       }).join('') + '</ul></div>';
     }
     var commissioned = Object.keys(arc.bestiary || {}).map(function (k) { return arc.bestiary[k]; }).filter(function (b) { return b.source === 'commissioned' || b.source === 'generated'; });

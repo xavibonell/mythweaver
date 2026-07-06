@@ -77,6 +77,8 @@ VISUAL SCENE (the table sees a live top-down map — docs/SCENE-CONTRACTS.md):
     for anyone hidden/lurking (they are placed but unseen until revealed).
 - Anchors are coordinate-free: "center", "north-edge", "waterside", "near:<id>". The game owns exact
   tiles. Reuse the SAME locationId when the party returns — the place is remembered, not rebuilt.
+- When the ADVENTURE block shows a "Scene look", HONOR it: your setScene setting/kind/mood/fixtures
+  should realize that designed look (it also feeds the map generator directly — stay consistent).
 
 CANON (keep the world consistent):
 - A "CANON" block may appear in the turn context — established truth (named NPCs + their voice/status,
@@ -1155,9 +1157,14 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
     const recent = (deps.recentTranscript ?? []).filter((l) => !/^\s*roll\s*:/i.test(l)).slice(-12).join('\n');
     const adv = state.adventure;
     const scene = adv?.scenes[state.currentSceneId];
+    // The beat's authored VISUAL design (Phase C): shown to the DM so narration + setScene align with
+    // the designed look — and independently fed to the generator via ctx (belt AND suspenders).
+    const planLine = scene?.scenePlan
+      ? `Scene look (honor it in narration and in setScene): ${scene.scenePlan.look} [kind: ${scene.scenePlan.kind}; mood: ${scene.scenePlan.mood}${scene.scenePlan.features?.length ? `; features: ${scene.scenePlan.features.join(', ')}` : ''}]\n`
+      : '';
     const gmBlock = adv
       ? `=== ADVENTURE (GM guidance — run this scene; reveal it through play, don't read aloud verbatim) ===\n` +
-        `Premise: ${adv.pitch}\nCurrent scene — ${scene?.title ?? state.currentSceneId}: ${scene?.summary ?? ''}\n\n`
+        `Premise: ${adv.pitch}\nCurrent scene — ${scene?.title ?? state.currentSceneId}: ${scene?.summary ?? ''}\n${planLine}\n`
       : '';
     // Game Director (D2): re-plan the steering brief on a high-signal trigger (scene change, or a new
     // decision/NPC-standing flag, or no brief yet), then steer from it. Runs inline; planner cost joins
@@ -1333,6 +1340,7 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
               const ctx: SceneRealizeContext = {
                 ...(premise ? { premise } : {}),
                 ...(beat ? { beat: { id: beatId, title: beat.title, summary: beat.summary } } : {}),
+                ...(beat?.scenePlan ? { scenePlan: beat.scenePlan } : {}),
               };
               try {
                 const res = await deps.realizeScene(est, party, ctx);

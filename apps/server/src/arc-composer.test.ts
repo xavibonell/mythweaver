@@ -72,6 +72,41 @@ describe('arc-composer', () => {
       expect(arc.encounters).toEqual([]);
     });
 
+    it('coerces the per-beat scenePlan: caps applied, kind enum-guarded, look required (Phase C)', () => {
+      const raw = {
+        premise: 'p', centralProblem: 'c', intendedEnding: 'e', opening: 'o',
+        beats: [
+          {
+            title: 'A', summary: 's', exits: [2],
+            scene: { look: 'x'.repeat(999), kind: 'interior', mood: 'm'.repeat(200), features: ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'] },
+          },
+          { title: 'B', summary: 's', exits: [], scene: { look: 'a drowned shore', kind: 'BANANAS', mood: 'grim fog' } }, // bad kind → 'wild'
+          { title: 'C', summary: 's', exits: [], scene: { kind: 'wild', mood: 'sunny' } }, // no look → NO plan
+        ],
+      };
+      const arc = buildGeneratedArc(raw, seed, ctx0)!;
+      const p1 = arc.adventure.scenes['scene:b1']!.scenePlan!;
+      expect(p1.look.length).toBe(300); // capped
+      expect(p1.kind).toBe('interior');
+      expect(p1.mood.length).toBe(80); // capped
+      expect(p1.features).toHaveLength(6); // capped at 6
+      expect(arc.adventure.scenes['scene:b2']!.scenePlan!.kind).toBe('wild'); // enum-guarded
+      expect(arc.adventure.scenes['scene:b3']!.scenePlan).toBeUndefined(); // look is required
+    });
+
+    it('scenePlan survives the hand-edit round-trip (validateGeneratedArc does not strip it)', () => {
+      const raw = {
+        premise: 'p', centralProblem: 'c', intendedEnding: 'e', opening: 'o',
+        beats: [{ title: 'A', summary: 's', exits: [], scene: { look: 'a flooded chapel', kind: 'interior', mood: 'drowned dusk', features: ['bell', 'altar'] } }],
+      };
+      const arc = buildGeneratedArc(raw, seed, ctx0)!;
+      // The lab preview serializes the arc, the user hand-edits it, and it comes back through the validator.
+      const edited = JSON.parse(JSON.stringify(arc));
+      edited.party = [{ id: 'aldric', name: 'Aldric', maxHitPoints: 12, armorClass: 18 }]; // validator requires a party
+      const validated = validateGeneratedArc(edited);
+      expect(validated.adventure.scenes['scene:b1']!.scenePlan).toEqual({ look: 'a flooded chapel', kind: 'interior', mood: 'drowned dusk', features: ['bell', 'altar'] });
+    });
+
     it('guarantees reachability — an orphan beat gets linked from its predecessor', () => {
       const raw = { premise: 'p', intendedEnding: 'e', beats: [{ title: 'A', summary: 's', exits: [] }, { title: 'B', summary: 's', exits: [] }] };
       const arc = buildGeneratedArc(raw, seed, ctx0)!;

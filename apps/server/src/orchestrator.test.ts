@@ -228,7 +228,13 @@ describe('orchestrator turn-loop', () => {
       party: [fighter()],
       adventure: {
         pitch: 'A drowned bell tolls beneath a flooded mining town.',
-        scenes: { 'beat-1': { title: 'The Rising Bell', summary: 'The party reaches the reservoir shore where the bell rope rises.' } },
+        scenes: {
+          'beat-1': {
+            title: 'The Rising Bell',
+            summary: 'The party reaches the reservoir shore where the bell rope rises.',
+            scenePlan: { look: 'a half-drowned town on a black reservoir; a bell rope rises from the water', kind: 'settlement', mood: 'grim predawn fog', features: ['bell rope', 'drowned church'] },
+          },
+        },
       },
     });
     state.arc = {
@@ -271,6 +277,9 @@ describe('orchestrator turn-loop', () => {
     // The campaign fiction the tool call can't carry reached the realizer…
     expect(captured.ctx?.premise).toBe('a gothic three-scene horror about a debt owed to a bell-founder');
     expect(captured.ctx?.beat).toEqual({ id: 'beat-1', title: 'The Rising Bell', summary: 'The party reaches the reservoir shore where the bell rope rises.' });
+    // …including the beat's authored ScenePlan (Phase C — the designed look flows to the generator).
+    expect(captured.ctx?.scenePlan?.look).toContain('half-drowned town');
+    expect(captured.ctx?.scenePlan?.kind).toBe('settlement');
     // …and the DM's new declaration fields were parsed.
     expect(captured.est?.kind).toBe('wild');
     expect(captured.est?.brief.mood).toBe('grim predawn fog');

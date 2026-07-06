@@ -1,4 +1,4 @@
-import type { WorldState } from './world.js';
+import type { ScenePlan, WorldState } from './world.js';
 
 /**
  * MythWeaver core domain types (D&D 5e SRD).
@@ -327,8 +327,10 @@ export interface PendingTurn {
 /** Authored adventure context fed to the DM so it runs the written scenario (GM-facing, not read aloud). */
 export interface AdventureContext {
   pitch: string;
-  /** sceneId -> scene guidance + reachable next beats (exits) for soft arc steering (D1). */
-  scenes: Record<string, { title: string; summary: string; exits?: string[] }>;
+  /** sceneId -> scene guidance + reachable next beats (exits) for soft arc steering (D1).
+   *  `scenePlan` is the beat's authored VISUAL design (arc-composer, Phase C) — the Director-quality
+   *  brief the DM inherits at setScene time instead of improvising one mid-turn. */
+  scenes: Record<string, { title: string; summary: string; exits?: string[]; scenePlan?: ScenePlan }>;
 }
 
 /** An authored encounter: which monsters appear in a scene (P2 combat spawn). */

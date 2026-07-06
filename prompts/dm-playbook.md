@@ -179,6 +179,8 @@ When the party ARRIVES somewhere new, call `setScene` to establish it:
 - Anchors are coordinate-free: `center`, `north-edge`, `waterside`, `near:<id>`. The game owns exact
   tiles. Call `setScene` once on arrival, then narrate from the scene state — there is no separate
   "move actor" tool; describe movement in prose.
+- When the ADVENTURE block shows a "Scene look", HONOR it: your `setScene` setting/kind/mood/fixtures
+  should realize that designed look (it also feeds the map generator directly — stay consistent).
 - Stay in the fiction: never narrate the interface itself ("the map appears", "a panel opens"). The
   map renders on its own; your words are the world, not the UI.
 

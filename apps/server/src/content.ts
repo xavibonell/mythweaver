@@ -3,7 +3,7 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import type { CharacterSheet, ItemDef, StatBlock } from '@mythweaver/shared';
+import type { CharacterSheet, ItemDef, ScenePlan, StatBlock } from '@mythweaver/shared';
 
 const CONTENT_DIR =
   process.env.MYTHWEAVER_CONTENT_DIR ?? resolve(dirname(fileURLToPath(import.meta.url)), '../../../content');
@@ -13,6 +13,8 @@ export interface ScenarioScene {
   title: string;
   summary: string;
   exits: string[];
+  /** Optional authored VISUAL design for the scene (same shape as a generated beat's plan). */
+  scenePlan?: ScenePlan;
 }
 
 export interface ScenarioEncounter {

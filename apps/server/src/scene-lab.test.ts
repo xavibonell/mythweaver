@@ -86,6 +86,27 @@ describe('buildModernRealizer — the live DM→Director handoff', () => {
     expect(res!.sceneMap.lighting).toBe('night');
   });
 
+  it("a beat's authored ScenePlan leads the brief, routes the kind, and moods the light (Phase C)", async () => {
+    const llm = new FakeLlmProvider([fakeText(INTERIOR_PROGRAM)]);
+    const res = await buildModernRealizer({ llm })(est(), [], {
+      premise: 'a gothic horror campaign',
+      scenePlan: {
+        look: 'a drowned chapel: pews under black water, the bell rope descending through a hole in the roof',
+        kind: 'interior',
+        mood: 'drowned midnight',
+        features: ['bell rope', 'flooded pews'],
+      },
+    });
+    const sent = llm.requests[0]!.messages[0]!.content as string;
+    // The designed look LEADS the enriched brief; the must-exist features ride along for the nets.
+    expect(sent.startsWith('a drowned chapel')).toBe(true);
+    expect(sent).toContain('Must include: bell rope, flooded pews');
+    // The plan's kind routed the grammar and its mood flipped the light.
+    expect(res!.sceneMap.grammar).toBe('enclosed-interior');
+    expect(res!.sceneMap.lighting).toBe('night');
+    expect(res!.provenance.scenePlan?.kind).toBe('interior');
+  });
+
   it("the DM's declared kind forces the layout family over the LLM's grammar", async () => {
     // The LLM answers with a town grammar, but the DM declared an interior.
     const llm = new FakeLlmProvider([fakeText(JSON.stringify({
