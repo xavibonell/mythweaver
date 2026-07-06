@@ -1205,6 +1205,24 @@ function scatterMist(cv: Canvas): void {
 }
 
 
+/** Sparse WALL TORCHES on an interior — floor cells that back onto a wall get a mounted torch (as non-blocking
+ *  ambiance), spaced out, so a dark tomb/dungeon has pooled torchlight (the renderer glows a warm pool around
+ *  each light source). Without these an interior renders uniformly dark. */
+function scatterWallTorches(cv: Canvas): void {
+  const wall = (c: number, r: number): boolean => (cv.tiles[r]?.[c] ?? '').startsWith('wall');
+  const floor = (c: number, r: number): boolean => { const t = cv.tiles[r]?.[c] ?? ''; return t === 'stone' || t === 'stone_brick' || t === 'wood_floor' || t === 'flagstone' || t === 'dirt'; };
+  const placed: Array<{ c: number; r: number }> = [];
+  for (let r = 1; r < cv.rows - 1; r++)
+    for (let c = 1; c < cv.cols - 1; c++) {
+      if (!floor(c, r) || !cv.isFree(c, r)) continue;
+      if (!(wall(c, r - 1) || wall(c, r + 1) || wall(c - 1, r) || wall(c + 1, r))) continue; // must back onto a wall
+      if (placed.some((p) => Math.abs(p.c - c) + Math.abs(p.r - r) < 8)) continue; // keep torches spaced apart
+      if (cv.rng() < 0.5) continue; // sparse
+      cv.ambiance.push({ tag: 'torch_wall', col: c, row: r });
+      placed.push({ c, r });
+    }
+}
+
 export function finalize(
   cv: Canvas,
   meta: { locationId: string; biome: string; lighting: Lighting; grammar: LayoutGrammar; outdoor: boolean; skipReachability?: boolean; skipDecals?: boolean },
@@ -1219,6 +1237,8 @@ export function finalize(
     // uniform ground-decal sprinkle, which otherwise reads as procedural speckle over its composed greenery.
     if (!meta.skipDecals) scatterGroundDecals(cv.tiles, cv.walkable, cv.occ, cv.cols, cv.rows, cv.ambiance, cv.rng);
     bakeAutoTiles(cv.tiles, cv.cols, cv.rows);
+  } else if (meta.grammar === 'enclosed-interior') {
+    scatterWallTorches(cv); // a dark interior needs light SOURCES → the renderer pools warm torchlight around them
   }
   if (meta.lighting === 'fog') scatterMist(cv);
   return {

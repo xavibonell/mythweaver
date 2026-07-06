@@ -7018,6 +7018,28 @@
       },
       "license": "hand-drawn procedural pixel art in the DB16 palette (scripts/gen-boats-proc.py); owned, NOT DawnLike",
       "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "light_pool",
+      "desc": "a radial light glow (renderer helper)",
+      "biomes": [
+        "dungeon",
+        "cave"
+      ],
+      "art": "/assets/proc/props/light_pool.png",
+      "frameW": 128,
+      "frameH": 128,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-boats-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
     }
   ]
 }

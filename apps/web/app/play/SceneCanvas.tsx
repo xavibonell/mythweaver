@@ -98,16 +98,12 @@ function renderFullImpl(scene: any, data: any): void {
   // readable and light sources keep glowing. Interiors are torch-lit (warm, never the cold-blue
   // moonlight that turns a crypt's grey stone into invisible navy), and every tint is kept light
   // enough that detail survives — a dim scene must still be legible.
+  // Interiors are lit by a DARKNESS + torch-pool overlay (see the interior block below), so their objects draw
+  // at full brightness (tint = null) and the overlay does the mood. Outdoors keep the per-object dusk/night tint.
   const interior = data.grammar === 'enclosed-interior';
-  const tint =
-    data.lighting === 'night'
-      ? interior
-        ? 0xc2a886 // warm torchlight
-        : 0x7e8cc0 // cool moonlight
-      : data.lighting === 'dusk'
-        ? interior
-          ? 0xd2c0a0
-          : 0xb2b6da
+  const tint = interior ? null
+    : data.lighting === 'night' ? 0x7e8cc0
+      : data.lighting === 'dusk' ? 0xb2b6da
         : null;
 
   const { rows, cols } = data.grid;
@@ -164,6 +160,23 @@ function renderFullImpl(scene: any, data: any): void {
       const img = scene.add.image(sp.x, sp.y, `prop_${sp.tag}`).setOrigin(0.5, 0.5).setDepth(90001);
       if (tint) img.setTint(tint);
       scene.sceneObjs.push(img);
+    }
+  }
+
+  // INTERIOR LIGHTING — an enclosed scene is DARK (a multiply overlay) lit only in warm ADDITIVE pools around
+  // braziers/torches/forges: the single biggest "this is underground" cue. Mirrors the headless renderer.
+  if (interior) {
+    const W = cols * TILE, H = rows * TILE;
+    const dark = scene.add.rectangle(0, 0, W, H, 0x4a4236).setOrigin(0, 0).setDepth(95000);
+    dark.setBlendMode(scene.BLEND?.MULTIPLY ?? 2);
+    scene.sceneObjs.push(dark);
+    const LIGHT_TAGS = new Set(['forge', 'candelabra', 'candelabra_large', 'brazier', 'candle', 'torch_wall', 'campfire', 'bonfire', 'fire_pit', 'lantern']);
+    if (PROP_ART['light_pool']) for (const o of [...(data.objects ?? []), ...(data.ambiance ?? [])]) {
+      if (!LIGHT_TAGS.has(o.tag) || o.visible === false) continue;
+      const dia = o.tag === 'forge' ? 220 : 170;
+      const pool = scene.add.image((o.col + 0.5) * TILE, (o.row + 0.5) * TILE, 'prop_light_pool').setDepth(95001).setDisplaySize(dia, dia);
+      pool.setBlendMode(scene.BLEND?.ADD ?? 1);
+      scene.sceneObjs.push(pool);
     }
   }
 
@@ -258,6 +271,7 @@ export default function SceneCanvas({ data, freeCamera = false, fitNonce = 0, sh
             const scene = this;
             scene.sceneObjs = [];
             scene.actorObjs = new Map();
+            scene.BLEND = Phaser.BlendModes; // ADD/MULTIPLY for the interior torch-pool lighting
             ensureAnims(scene);
             scene.renderFull = (d: any) => renderFullImpl(scene, d);
             scene.fit = () => { if (scene.lastData) fitCamera(scene, scene.lastData); };

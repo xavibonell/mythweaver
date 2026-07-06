@@ -479,3 +479,15 @@ def cloud(lobes):
 save_one(cloud([(16, 17, 11), (27, 12, 13), (40, 16, 12), (33, 19, 10), (20, 20, 9)]), "mist_a")
 save_one(cloud([(14, 16, 10), (26, 14, 12), (37, 18, 11), (46, 16, 9)]), "mist_b")
 save_one(cloud([(18, 15, 12), (30, 18, 13), (42, 14, 10), (24, 20, 8)]), "mist_c")
+
+# ---- light_pool: a radial warm glow (RGB falls off to BLACK so it ADDs cleanly in Phaser) for torch pools ----
+LP = 128
+pool = Image.new("RGBA", (LP, LP), (0, 0, 0, 255))
+pc = (LP - 1) / 2
+for y in range(LP):
+    for x in range(LP):
+        d = ((x - pc) ** 2 + (y - pc) ** 2) ** 0.5 / (LP / 2)
+        f = max(0.0, 1.0 - d) ** 1.7
+        pool.putpixel((x, y), (int(255 * f), int(224 * f), int(168 * f), 255))
+pool.save(os.path.join(OUT, "light_pool.png"))
+print("wrote light_pool")

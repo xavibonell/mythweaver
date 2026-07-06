@@ -202,9 +202,10 @@ export function renderSceneMapToPng(scene: SceneMap, opts: { assetsRoot: string;
       const fw = asset.frameW ?? TILE, fh = asset.frameH ?? TILE;
       blit(png, Math.round((a.col + 0.5) * TILE - fw / 2), Math.round((a.row + 0.5) * TILE - fh / 2), fw, fh);
     }
+  } else if (interior) {
+    applyInteriorLighting(out, scene); // dark underground + warm torch pools + a vignette (not a flat tint)
   } else {
-    const tint = scene.lighting === 'night' ? (interior ? 0xc2a886 : 0x7e8cc0)
-      : scene.lighting === 'dusk' ? (interior ? 0xd2c0a0 : 0xb2b6da) : 0;
+    const tint = scene.lighting === 'night' ? 0x7e8cc0 : scene.lighting === 'dusk' ? 0xb2b6da : 0;
     if (tint) {
       const tr = (tint >> 16) & 0xff, tg = (tint >> 8) & 0xff, tb = tint & 0xff;
       for (let i = 0; i < out.data.length; i += 4) {
@@ -215,4 +216,29 @@ export function renderSceneMapToPng(scene: SceneMap, opts: { assetsRoot: string;
     }
   }
   return PNG.sync.write(out);
+}
+
+/** Tags that emit light (a warm pool around them) — mirrors the library `light:true` props. */
+const LIGHT_TAGS = new Set(['forge', 'candelabra', 'candelabra_large', 'brazier', 'candle', 'torch_wall', 'campfire', 'bonfire', 'fire_pit', 'lantern']);
+/** INTERIOR LIGHTING — an enclosed scene is DARK, lit only in warm pools around braziers/torches/forges, with
+ *  an edge vignette. This is the single biggest cue that says "underground", replacing the old flat beige tint. */
+function applyInteriorLighting(out: PNG, scene: SceneMap): void {
+  const W = out.width, H = out.height;
+  const lights: Array<{ x: number; y: number; r: number }> = [];
+  const push = (col: number, row: number, r: number) => lights.push({ x: (col + 0.5) * TILE, y: (row + 0.5) * TILE, r });
+  for (const o of scene.objects ?? []) if (LIGHT_TAGS.has(o.tag)) push(o.col, o.row, o.tag === 'forge' ? 108 : 84);
+  for (const a of scene.ambiance ?? []) if (LIGHT_TAGS.has(a.tag)) push(a.col, a.row, 84);
+  const AMBIENT = 0.30, GLOW = 1.0, WR = 255, WG = 216, WB = 150; // warm torch tone
+  const cx = W / 2, cy = H / 2, maxD = Math.hypot(cx, cy) || 1;
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    let L = AMBIENT;
+    for (const li of lights) { const d = Math.hypot(x - li.x, y - li.y); if (d < li.r) { const f = 1 - d / li.r; L += GLOW * f * f; } }
+    if (L > 1.25) L = 1.25;
+    L *= 1 - 0.5 * (Math.hypot(x - cx, y - cy) / maxD) ** 2; // vignette
+    const i = ((y * W) + x) << 2;
+    const warm = Math.max(0, Math.min(0.5, (L - AMBIENT) * 0.6)); // lit → warm; dark → neutral
+    out.data[i] = Math.min(255, Math.round((out.data[i]! * (1 - warm) + WR * warm) * L));
+    out.data[i + 1] = Math.min(255, Math.round((out.data[i + 1]! * (1 - warm) + WG * warm) * L));
+    out.data[i + 2] = Math.min(255, Math.round((out.data[i + 2]! * (1 - warm) + WB * warm) * L));
+  }
 }
