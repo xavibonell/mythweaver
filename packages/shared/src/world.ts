@@ -167,6 +167,15 @@ export interface SceneProvenance {
   /** The text lighting was inferred from + why the final lighting won. */
   moodText?: string;
   lightingReason?: 'declared' | 'mood' | 'default';
+  /** The composed program (structural shape only — the scene package owns the real SceneProgram type;
+   *  `notes` records what the safety nets injected/rerouted, so the lab can show every intervention). */
+  program?: { cols: number; rows: number; biome: string; lighting: string; grammar: string; theme?: string; ops: unknown[]; notes?: string[] };
+}
+
+/** What the modern realizer returns: the frozen map + the record of how it came to be. */
+export interface RealizeSceneResult {
+  sceneMap: SceneMap;
+  provenance: SceneProvenance;
 }
 
 /** The Director's input = the DM's fiction + engine-authoritative party + the deterministic seed. */

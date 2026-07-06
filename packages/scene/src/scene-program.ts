@@ -53,6 +53,9 @@ export interface SceneProgram {
    *  absent on the hand-written GOLD programs (which keep their explicit per-op tags). */
   theme?: string;
   ops: SceneOp[];
+  /** Provenance notes: every normalization intervention (kind forcing, town rerouting, completeness-net
+   *  injections) — so the lab can show exactly what the safety nets did to the LLM's program. */
+  notes?: string[];
 }
 
 const resolveRegion = (cv: Canvas, spec: RegionSpec): Rect => (spec === 'all' ? { x: 0, y: 0, w: cv.cols, h: cv.rows } : spec);
@@ -584,12 +587,14 @@ function progSeed(s: string): number {
  *  where the brief IS the player's words). */
 export function normalizeProgram(raw: unknown, brief: string, moodText: string = brief, kindHint?: SceneKindHint): SceneProgram {
   const r = asRec(raw);
+  const notes: string[] = []; // provenance: every intervention the normalizer makes
   // An explicitly DECLARED kind (the DM's setScene `kind`, or a beat's authored ScenePlan) FORCES the
   // grammar — it beats both the LLM's guess and the keyword nets below ("flooded mining town" must not
   // become an interior because the brief contains "mine").
   const KIND_GRAMMAR: Record<SceneKindHint, LayoutGrammar> = { settlement: 'town-square', interior: 'enclosed-interior', wild: 'open-outdoor' };
   const grammar: LayoutGrammar = kindHint ? KIND_GRAMMAR[kindHint]
     : (LAYOUT_GRAMMARS as readonly string[]).includes(r.grammar as string) ? (r.grammar as LayoutGrammar) : 'open-outdoor';
+  if (kindHint) notes.push(`kind-forced: declared '${kindHint}' → grammar '${grammar}'${r.grammar && r.grammar !== grammar ? ` (LLM said '${String(r.grammar)}')` : ''}`);
   const seen = new Set<string>();
   const ops = (Array.isArray(r.ops) ? r.ops : []).map((o) => normalizeOp(o, seen)).filter((o): o is SceneOp => o !== null).slice(0, 24);
   if (!ops.length) ops.push({ op: 'scatter', idBase: 'prop:rock', tags: ['bush', 'tree'], kind: 'prop', region: 'all', count: 8 });
@@ -611,6 +616,7 @@ export function normalizeProgram(raw: unknown, brief: string, moodText: string =
     const contents = harvestTownContents(ops, lcb);
     ops.length = 0;
     ops.push({ op: 'archetype', kind: 'town', contents });
+    notes.push(`routed-town: LLM geometry dropped; ${contents.buildings.length} building(s) + ${contents.npcs.length} npc(s) harvested for the town generator`);
   }
   // The completeness nets below only matter for the loose-op path; the archetype op carries its own cast.
   if (!routedTown && !hasArchetype) {
@@ -626,6 +632,7 @@ export function normalizeProgram(raw: unknown, brief: string, moodText: string =
         : { op: 'rooms', region: 'all', count: 6, wall: 'wall', floor: 'flagstone' };
       const objIdx = ops.findIndex((o) => o.op === 'place' || o.op === 'scatter' || o.op === 'vignette' || o.op === 'entrance');
       if (objIdx < 0) ops.push(inject); else ops.splice(objIdx, 0, inject);
+      notes.push(`structure-net: injected '${inject.op}' (the brief demands an interior backbone; the LLM emitted none)`);
     }
     // CREATURE NET: the LLM sometimes forgets to emit ops for creatures the brief names. Scan the brief;
     // for any creature word whose tag isn't already an actor, INJECT a scatter so the cast always appears.
@@ -639,6 +646,7 @@ export function normalizeProgram(raw: unknown, brief: string, moodText: string =
       if (re.test(lcb) && !actorTags.has(tag)) {
         ops.push({ op: 'scatter', idBase: uniqueId(`${role}:${tag}`, seen), tags: [tag], kind: 'actor', role, region: 'all', count: role === 'mob' ? 6 : 2 });
         actorTags.add(tag);
+        notes.push(`creature-net: injected '${tag}' (named in the brief, missing from the program)`);
       }
     }
     // LANDMARK NET: ensure a single notable prop the brief names (sarcophagus, altar, throne, chest…)
@@ -654,6 +662,7 @@ export function normalizeProgram(raw: unknown, brief: string, moodText: string =
       if (re.test(lcb) && !propTags.has(tag) && !(hasBuilding && (tag === 'altar' || tag === 'throne'))) {
         ops.push({ op: 'place', id: uniqueId(`prop:${tag}`, seen), tag, kind: 'prop', at: 'center' });
         propTags.add(tag);
+        notes.push(`landmark-net: injected '${tag}' (named in the brief, missing from the program)`);
       }
     }
   }
@@ -681,6 +690,7 @@ export function normalizeProgram(raw: unknown, brief: string, moodText: string =
     // A declared kind also owns indoor/outdoor — the LLM's `outdoor` can't contradict a forced interior.
     outdoor: kindHint ? kindHint !== 'interior' : typeof r.outdoor === 'boolean' ? r.outdoor : grammar !== 'enclosed-interior',
     ops,
+    ...(notes.length ? { notes } : {}),
   };
 }
 

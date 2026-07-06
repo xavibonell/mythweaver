@@ -27,54 +27,63 @@ function est(over: Partial<EstablishScene> = {}): EstablishScene {
 describe('buildModernRealizer — the live DM→Director handoff', () => {
   it('no longer declines interiors/wilds (the settlements-only gate is dead)', async () => {
     const llm = new FakeLlmProvider([fakeText(INTERIOR_PROGRAM)]);
-    const map = await buildModernRealizer({ llm })(est({ kind: 'interior' }), []);
-    expect(map).toBeTruthy();
-    expect(map!.grammar).toBe('enclosed-interior');
+    const res = await buildModernRealizer({ llm })(est({ kind: 'interior' }), []);
+    expect(res).toBeTruthy();
+    expect(res!.sceneMap.grammar).toBe('enclosed-interior');
+    expect(res!.provenance.engine).toBe('modern');
+    expect(res!.provenance.program?.notes ?? []).toContainEqual(expect.stringContaining('kind-forced'));
   });
 
   it('campaign fiction (premise + beat) leads the enriched brief AND joins the mood chain', async () => {
     const llm = new FakeLlmProvider([fakeText(INTERIOR_PROGRAM)]);
-    const map = await buildModernRealizer({ llm })(est(), [], {
+    const res = await buildModernRealizer({ llm })(est(), [], {
       premise: 'a gothic horror about a debt owed to a drowned bell-founder',
       beat: { id: 'beat-1', title: 'The Rising Bell', summary: 'the bell rises at midnight, dragging the dead up its rope' },
     });
+    const map = res!.sceneMap;
     // The programmer's brief carries the fiction the DM's tool call could not.
     const sent = llm.requests[0]!.messages[0]!.content as string;
     expect(sent).toContain('a gothic horror about a debt owed to a drowned bell-founder');
     expect(sent).toContain('the bell rises at midnight');
     // …and the fiction's mood words flipped the lighting (horror/midnight/dead → night).
-    expect(map!.lighting).toBe('night');
+    expect(map.lighting).toBe('night');
+    // The provenance records the whole chain for the lab.
+    expect(res!.provenance.enrichedBrief).toContain('drowned bell-founder');
+    expect(res!.provenance.moodText).toContain('midnight');
+    expect(res!.provenance.lightingReason).toBe('mood');
+    expect(res!.provenance.beat).toEqual({ id: 'beat-1', title: 'The Rising Bell' });
   });
 
   it("the DM's mood field drives lighting when no time was declared", async () => {
     const llm = new FakeLlmProvider([fakeText(INTERIOR_PROGRAM)]);
-    const map = await buildModernRealizer({ llm })(
+    const res = await buildModernRealizer({ llm })(
       est({ brief: { setting: 'the chapel', biome: 'cave', timeOfDay: 'day', mood: 'fog-bound and silent' } }),
       [],
     );
-    expect(map!.lighting).toBe('fog');
+    expect(res!.sceneMap.lighting).toBe('fog');
   });
 
   it('an EXPLICITLY declared time of day beats the mood chain (declared > mood > day)', async () => {
     const llm = new FakeLlmProvider([fakeText(INTERIOR_PROGRAM)]);
-    const map = await buildModernRealizer({ llm })(
+    const res = await buildModernRealizer({ llm })(
       est({
         timeOfDayExplicit: true,
         brief: { setting: 'the chapel', biome: 'cave', timeOfDay: 'dusk', mood: 'grim fog-bound midnight horror' },
       }),
       [],
     );
-    expect(map!.lighting).toBe('dusk'); // the declaration wins over every mood keyword
+    expect(res!.sceneMap.lighting).toBe('dusk'); // the declaration wins over every mood keyword
+    expect(res!.provenance.lightingReason).toBe('declared');
   });
 
   it('the coerced day default (no declaration) does NOT beat mood', async () => {
     const llm = new FakeLlmProvider([fakeText(INTERIOR_PROGRAM)]);
     // timeOfDay is 'day' from the parser default but timeOfDayExplicit is absent → mood wins.
-    const map = await buildModernRealizer({ llm })(
+    const res = await buildModernRealizer({ llm })(
       est({ brief: { setting: 'the chapel', biome: 'cave', timeOfDay: 'day', mood: 'moonlit night' } }),
       [],
     );
-    expect(map!.lighting).toBe('night');
+    expect(res!.sceneMap.lighting).toBe('night');
   });
 
   it("the DM's declared kind forces the layout family over the LLM's grammar", async () => {
@@ -83,7 +92,7 @@ describe('buildModernRealizer — the live DM→Director handoff', () => {
       cols: 40, rows: 26, biome: 'village', lighting: 'day', grammar: 'town-square', outdoor: true,
       ops: [],
     }))]);
-    const map = await buildModernRealizer({ llm })(est({ kind: 'interior' }), []);
-    expect(map!.grammar).toBe('enclosed-interior');
+    const res = await buildModernRealizer({ llm })(est({ kind: 'interior' }), []);
+    expect(res!.sceneMap.grammar).toBe('enclosed-interior');
   });
 });

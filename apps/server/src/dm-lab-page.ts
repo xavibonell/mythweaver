@@ -503,8 +503,35 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
     var narr = t.narration ? '<div class="narr">' + esc(t.narration) + '</div>' : '<div class="narr" style="color:#6b7080;font-style:italic">(no narration — awaiting your roll)</div>';
     var meta = esc(t.model || '?') + ' · ' + t.steps + ' step(s) · ' + fmtTime(t.latencyMs) + ' · ' + fmtCost(t.costUsd);
     var d = document.createElement('div'); d.className = 'bubble dm';
-    d.innerHTML = '<div class="who">Dungeon Master</div>' + narr + roll + bf + '<div class="meta">' + meta + '</div>' + details;
+    d.innerHTML = '<div class="who">Dungeon Master</div>' + narr + roll + bf + sceneProvHtml(t) + '<div class="meta">' + meta + '</div>' + details;
     convo().appendChild(d); scrollConvo();
+  }
+  // Scene provenance — the glass pipeline: exactly what the DM asked, what the generator was given,
+  // and every intervention the safety nets made. Rendered on any turn that established a scene.
+  function sceneProvHtml(t) {
+    if (!t.sceneChanged) return '';
+    var p = t.sceneProvenance;
+    var loc = p && p.locationId ? esc(p.locationId) : 'scene';
+    var line = '<div class="brief">📍 scene ' + (p && p.reused ? 'reused' : 'established') + ': ' + loc + '</div>';
+    if (!p) return line;
+    var badgeColor = { modern: '#3fa34d', classic: '#b8862d', fake: '#6b7080', frozen: '#4a7fb5' }[p.engine] || '#6b7080';
+    var h = '<div style="margin:2px 0 4px"><span style="background:' + badgeColor + ';color:#0b0c10;border-radius:3px;padding:1px 6px;font-size:11px;font-weight:600">' + esc(p.engine) + '</span>';
+    if (p.reused) h += ' <span style="color:#6b7080;font-size:11px">frozen map reused verbatim — nothing regenerated</span>';
+    h += '</div>';
+    if (p.moodText || p.lightingReason) {
+      var lit = p.program && p.program.lighting ? p.program.lighting : '';
+      h += '<div class="kv" style="font-size:12px"><b>mood → lighting:</b> ' + (p.moodText ? '“' + esc(p.moodText.slice(0, 160)) + (p.moodText.length > 160 ? '…' : '') + '”' : '—')
+        + (lit ? ' → <b>' + esc(lit) + '</b>' : '') + (p.lightingReason ? ' <span style="color:#6b7080">(' + esc(p.lightingReason) + ')</span>' : '') + '</div>';
+    }
+    if (p.beat) h += '<div class="kv" style="font-size:12px"><b>beat:</b> ' + esc(p.beat.id + (p.beat.title ? ' — ' + p.beat.title : '')) + '</div>';
+    if (p.enrichedBrief) h += '<div class="kv" style="font-size:12px"><b>brief sent to the generator:</b><pre style="white-space:pre-wrap;margin:2px 0;padding:6px;background:#0b0c10;border-radius:4px;font-size:11px;max-height:140px;overflow:auto">' + esc(p.enrichedBrief) + '</pre></div>';
+    if (p.program) {
+      var pg = p.program;
+      h += '<div class="kv" style="font-size:12px"><b>program:</b> ' + esc(pg.grammar || '?') + ' · ' + esc(String(pg.cols)) + '×' + esc(String(pg.rows)) + (pg.theme ? ' · theme ' + esc(pg.theme) : '') + ' · ' + (pg.ops ? pg.ops.length : 0) + ' op(s)</div>';
+      if (pg.notes && pg.notes.length) h += '<div class="kv" style="font-size:12px"><b>interventions:</b><ul style="margin:2px 0 2px 16px;padding:0">' + pg.notes.map(function (n) { return '<li>' + esc(n) + '</li>'; }).join('') + '</ul></div>';
+      if (pg.ops && pg.ops.length) h += '<pre style="white-space:pre-wrap;margin:2px 0;padding:6px;background:#0b0c10;border-radius:4px;font-size:10px;max-height:160px;overflow:auto">' + esc(pg.ops.map(function (o) { return JSON.stringify(o); }).join('\n')) + '</pre>';
+    }
+    return line + '<details style="margin:2px 0"><summary style="cursor:pointer;color:#c9a227;font-size:12px">scene provenance — what the Director was told</summary>' + h + '</details>';
   }
 
   // --- Arc tab (Game Director plan) ---
@@ -798,7 +825,7 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
         renderSuggestions();
         setBusy(false);
         $('status').textContent = 'the scene is set — what do you do?';
-        refreshScene();
+        if (t.sceneChanged) { refreshScene(); $('scene-panel').open = true; } // only if the opening actually set one
       })
       .catch(function (e) { addSys('(opening narration skipped: ' + (e.message || e) + ')'); setBusy(false); $('status').textContent = 'session live — what do you do?'; });
   }
@@ -828,7 +855,7 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
         setPending(x.body.pendingRoll);
         renderSuggestions(); // keep quick-starts arc-aware as the scene advances
         setBusy(false);
-        refreshScene(); // the DM may have established/changed the location this turn
+        if (t.sceneChanged) { refreshScene(); $('scene-panel').open = true; } // re-render ONLY when the scene actually changed
         $('status').textContent = 'turn ' + t.index + ' · total ' + fmtCost(x.body.totalCostUsd) + ' · ' + fmtTime(x.body.totalLatencyMs);
       }).catch(function (e) { addSys('error: ' + (e.message || e)); setBusy(false); $('status').textContent = ''; });
   }

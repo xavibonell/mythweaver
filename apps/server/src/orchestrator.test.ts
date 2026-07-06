@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { Engine, createInitialState } from '@mythweaver/engine';
 import { FakeLlmProvider, fakeText, fakeToolUse, type LlmContentBlock } from '@mythweaver/llm';
 import { InMemoryRetriever } from '@mythweaver/rag';
-import { FakeSceneComposer, type SceneComposer } from '@mythweaver/scene';
+import { FakeSceneComposer, buildSceneMap, type SceneComposer } from '@mythweaver/scene';
 import { validateSceneMap, type CharacterSheet, type EstablishScene, type SceneRealizeContext, type StatBlock } from '@mythweaver/shared';
 import { runTurn, canonBlock, parseEstablish } from './orchestrator.js';
 import { FakeArcPlanner } from './arc-planner.js';
@@ -275,9 +275,47 @@ describe('orchestrator turn-loop', () => {
     expect(captured.est?.kind).toBe('wild');
     expect(captured.est?.brief.mood).toBe('grim predawn fog');
     expect(captured.est?.timeOfDayExplicit).toBe(true);
-    // The decline fell back to the classic composer — the turn still produced a scene.
+    // The decline fell back to the classic composer — the turn still produced a scene,
+    // and the provenance says so honestly (FakeSceneComposer → engine 'fake').
     expect(result.sceneChanged).toBe(true);
     expect(result.sceneMap).toBeTruthy();
+    expect(result.sceneProvenance?.engine).toBe('fake');
+    expect(result.sceneProvenance?.reused).toBe(false);
+    expect(result.sceneProvenance?.toolInput).toMatchObject({ locationId: 'loc:drowned-shore', kind: 'wild' });
+  });
+
+  it('provenance: modern realizer result is attached; a frozen re-entry says so', async () => {
+    const engine = newEngine();
+    const composer = new FakeSceneComposer();
+    // Pre-build a real map for the fake modern realizer to return.
+    const preMap = buildSceneMap(await composer.compose({
+      establish: { locationId: 'loc:keep', brief: { setting: 'a keep', biome: 'village', timeOfDay: 'day' }, fixtures: [], npcs: [] },
+      party: [],
+      seed: 7,
+    }));
+    const realizeScene = async () => ({
+      sceneMap: preMap,
+      provenance: { locationId: 'loc:keep' as const, engine: 'modern' as const, reused: false, enrichedBrief: 'the keep brief', lightingReason: 'mood' as const },
+    });
+    const enter = { name: 'setScene', input: { locationId: 'loc:keep', setting: 'a stone keep', biome: 'village' } };
+    const llm = new FakeLlmProvider([
+      fakeToolUse([{ ...enter, id: 's1' }]),
+      fakeText('You approach the keep.'),
+      fakeToolUse([{ ...enter, id: 's2' }]),
+      fakeText('You return to the keep.'),
+    ]);
+
+    const r1 = await runTurn({ engine, llm, composer, realizeScene, now: frozenClock }, { kind: 'message', speakerId: 'Aldric', text: 'to the keep' });
+    const r2 = await runTurn({ engine, llm, composer, realizeScene, now: frozenClock }, { kind: 'message', speakerId: 'Aldric', text: 'back to the keep' });
+
+    // First visit: the modern provenance rides the turn, with the raw tool input merged in.
+    expect(r1.sceneProvenance?.engine).toBe('modern');
+    expect(r1.sceneProvenance?.enrichedBrief).toBe('the keep brief');
+    expect(r1.sceneProvenance?.toolInput).toMatchObject({ locationId: 'loc:keep' });
+    // Re-entry: nothing regenerated — the provenance is honest about the frozen reuse.
+    expect(r2.sceneProvenance?.engine).toBe('frozen');
+    expect(r2.sceneProvenance?.reused).toBe(true);
+    expect(r2.sceneMap).toBe(r1.sceneMap);
   });
 
   it('parseEstablish: the coerced day default is NOT an explicit time declaration', () => {

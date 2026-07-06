@@ -29,7 +29,7 @@ import {
   type ToolDef,
 } from '@mythweaver/llm';
 import type { Retriever } from '@mythweaver/rag';
-import { ABILITIES, SKILLS, isEntityId, type Ability, type ArcBrief, type CharacterSheet, type CharacterState, type Combatant, type DamageType, type EntityCard, type EstablishScene, type FixtureDecl, type GameState, type ItemDef, type NpcDecl, type PartyMemberRef, type PendingTurn, type Poi, type PoiKind, type SceneMap, type SceneRealizeContext, type Skill } from '@mythweaver/shared';
+import { ABILITIES, SKILLS, isEntityId, type Ability, type ArcBrief, type CharacterSheet, type CharacterState, type Combatant, type DamageType, type EntityCard, type EstablishScene, type FixtureDecl, type GameState, type ItemDef, type NpcDecl, type PartyMemberRef, type PendingTurn, type Poi, type PoiKind, type RealizeSceneResult, type SceneMap, type SceneProvenance, type SceneRealizeContext, type Skill } from '@mythweaver/shared';
 import type { ArcPlanner } from './arc-planner.js';
 import { CHARACTERS, PROMPT_PROPS, buildSceneMap, type SceneComposer } from '@mythweaver/scene';
 
@@ -170,6 +170,9 @@ export interface TurnResult {
   sceneChanged?: boolean;
   /** The (frozen) map to render this turn. Present only when sceneChanged. */
   sceneMap?: SceneMap;
+  /** How the scene came to be (engine, briefs, mood chain, program + net injections). Present only
+   *  when sceneChanged. Response-only — never persisted into the state blob. */
+  sceneProvenance?: SceneProvenance;
 }
 
 export interface OrchestratorDeps {
@@ -186,7 +189,7 @@ export interface OrchestratorDeps {
   /** LIVE-PLAY modern engine (wire-in part 3): tried FIRST when a NEW location is established. Returns
    *  null to decline → the classic Composer path runs. Any failure also falls back — scene generation
    *  can never break a turn. `ctx` carries the campaign fiction (premise/beat/plan) the tool call can't. */
-  realizeScene?: (est: EstablishScene, party: PartyMemberRef[], ctx?: SceneRealizeContext) => Promise<SceneMap | null>;
+  realizeScene?: (est: EstablishScene, party: PartyMemberRef[], ctx?: SceneRealizeContext) => Promise<RealizeSceneResult | null>;
   /** Game Director (Phase D / D2). When present, the per-turn STEERING brief is (re)planned on triggers. */
   arcPlanner?: ArcPlanner;
   /** Sampling temperature for the DM model (omit to use the provider default). Used by the DM Lab. */
@@ -1098,6 +1101,7 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
   // Visual-layer transition this turn (docs/SCENE-CONTRACTS.md).
   let sceneChanged = false; // a setScene established/entered a location
   let sceneMap: SceneMap | undefined; // the frozen map to render
+  let sceneProvenance: SceneProvenance | undefined; // how the scene came to be (response-only)
 
   const span = (deps.tracer ?? NOOP_TRACER).startTurn({
     sessionId: state.sessionId,
@@ -1309,8 +1313,12 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
           const world = (state.world ??= { currentLocationId: null, locations: {}, links: [] });
           const existed = !!world.locations[est.locationId];
           let map = world.locations[est.locationId];
+          if (existed) {
+            // Re-entry: the frozen map is reused verbatim — record that honestly.
+            sceneProvenance = { locationId: est.locationId, engine: 'frozen', reused: true, toolInput: tc.input as Record<string, unknown>, establish: est };
+          }
           if (!map) {
-            // First visit — the MODERN engine gets first refusal (settlements → the proven story path),
+            // First visit — the MODERN engine gets first refusal (all kinds via the programmer path),
             // the classic Composer + Cartographer is the decline/failure fallback — then FREEZE.
             const party = Object.values(state.combatants)
               .filter((c) => c.kind === 'pc')
@@ -1326,11 +1334,24 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
                 ...(premise ? { premise } : {}),
                 ...(beat ? { beat: { id: beatId, title: beat.title, summary: beat.summary } } : {}),
               };
-              try { map = (await deps.realizeScene(est, party, ctx)) ?? undefined; } catch { map = undefined; /* modern engine failed → classic path below */ }
+              try {
+                const res = await deps.realizeScene(est, party, ctx);
+                if (res) {
+                  map = res.sceneMap;
+                  sceneProvenance = { ...res.provenance, toolInput: tc.input as Record<string, unknown> };
+                }
+              } catch { map = undefined; /* modern engine failed → classic path below */ }
             }
             if (!map) {
               const comp = await deps.composer.compose({ establish: est, party, seed: seedFor(est.locationId) });
               map = buildSceneMap(comp);
+              sceneProvenance = {
+                locationId: est.locationId,
+                engine: deps.composer.constructor?.name === 'FakeSceneComposer' ? 'fake' : 'classic',
+                reused: false,
+                toolInput: tc.input as Record<string, unknown>,
+                establish: est,
+              };
             }
             world.locations[est.locationId] = map;
             if (world.currentLocationId && world.currentLocationId !== est.locationId) world.links.push({ from: world.currentLocationId, to: est.locationId });
@@ -1338,6 +1359,7 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
           world.currentLocationId = est.locationId;
           sceneChanged = true;
           sceneMap = map;
+          span.event('setScene', { locationId: est.locationId, engine: sceneProvenance?.engine, reused: existed, lighting: map.lighting });
           resolved.push({
             toolUseId: tc.id,
             content: `Scene ${existed ? 'reused' : 'set'}: ${map.biome} (${map.lighting}), ${map.grid.cols}x${map.grid.rows}. Present: ${map.objects.filter((o) => o.visible).map((o) => o.id).join(', ')}.`,
@@ -1681,7 +1703,7 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
   return finish({ narration: fallback, costUsd, model: lastModel, trace: makeTrace(), ...sceneDelta() });
 
   function sceneDelta(): { sceneChanged?: boolean; sceneMap?: SceneMap } {
-    return sceneChanged ? { sceneChanged: true, ...(sceneMap ? { sceneMap } : {}) } : {};
+    return sceneChanged ? { sceneChanged: true, ...(sceneMap ? { sceneMap } : {}), ...(sceneProvenance ? { sceneProvenance } : {}) } : {};
   }
 
   function makeTrace(): TurnTrace {

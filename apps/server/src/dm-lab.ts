@@ -38,7 +38,7 @@ import {
 } from '@mythweaver/llm';
 import type { Retriever } from '@mythweaver/rag';
 import { FakeSceneComposer, type SceneComposer } from '@mythweaver/scene';
-import { ABILITIES, SKILLS, type Ability, type CharacterSheet, type EntityCard, type EstablishScene, type GameState, type PartyMemberRef, type SceneMap, type SceneRealizeContext, type Skill, type StatBlock } from '@mythweaver/shared';
+import { ABILITIES, SKILLS, type Ability, type CharacterSheet, type EntityCard, type EstablishScene, type GameState, type PartyMemberRef, type RealizeSceneResult, type SceneMap, type SceneProvenance, type SceneRealizeContext, type Skill, type StatBlock } from '@mythweaver/shared';
 import { createHash } from 'node:crypto';
 import { loadItemCatalog, loadScenario, parseScenario, resolveParty } from './content.js';
 import { buildRetriever } from './corpus.js';
@@ -68,6 +68,10 @@ export interface DmLabTurn {
   tools: ToolTrace[];
   /** Human-readable authoritative-state changes this turn produced (empty if none). */
   diff: string[];
+  /** This turn established/entered a location (the Run tab re-renders the scene panel). */
+  sceneChanged?: boolean;
+  /** How the scene came to be — engine, briefs, mood chain, program + net injections. */
+  sceneProvenance?: SceneProvenance;
   model: string;
   steps: number;
   costUsd: number;
@@ -87,7 +91,7 @@ export interface DmLabDeps {
   /** Defaults to a deterministic FakeSceneComposer (no API cost). */
   composer?: SceneComposer;
   /** LIVE-PLAY modern engine (wire-in part 3) — all kinds realize via the programmer path; classic on failure. */
-  realizeScene?: (est: EstablishScene, party: PartyMemberRef[], ctx?: SceneRealizeContext) => Promise<SceneMap | null>;
+  realizeScene?: (est: EstablishScene, party: PartyMemberRef[], ctx?: SceneRealizeContext) => Promise<RealizeSceneResult | null>;
   /** Scene engine for THIS session: 'modern' (default — the real programmer path, ~$0.01-0.05 per new
    *  location) or 'fake' (the deterministic $0 composer, for cheap DM iteration). */
   sceneEngine?: 'modern' | 'fake';
@@ -265,7 +269,7 @@ export interface DmLabSession {
   engine: Engine;
   recorder: RecordingProvider;
   composer: SceneComposer;
-  realizeScene?: (est: EstablishScene, party: PartyMemberRef[], ctx?: SceneRealizeContext) => Promise<SceneMap | null>;
+  realizeScene?: (est: EstablishScene, party: PartyMemberRef[], ctx?: SceneRealizeContext) => Promise<RealizeSceneResult | null>;
   /** Which scene engine this session was created with (surfaced in the UI). */
   sceneEngine: 'modern' | 'fake';
   retriever?: Retriever;
@@ -434,6 +438,8 @@ export async function dmLabSubmit(
     ...(result.rollRequest ? { rollRequest: result.rollRequest } : {}),
     tools,
     diff: diffSnaps(before, after),
+    ...(result.sceneChanged ? { sceneChanged: true } : {}),
+    ...(result.sceneProvenance ? { sceneProvenance: result.sceneProvenance } : {}),
     model: result.model,
     steps: result.trace.steps,
     costUsd: result.costUsd,
