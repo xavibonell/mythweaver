@@ -543,7 +543,7 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
       var pg = p.program;
       h += '<div class="kv" style="font-size:12px"><b>program:</b> ' + esc(pg.grammar || '?') + ' · ' + esc(String(pg.cols)) + '×' + esc(String(pg.rows)) + (pg.theme ? ' · theme ' + esc(pg.theme) : '') + ' · ' + (pg.ops ? pg.ops.length : 0) + ' op(s)</div>';
       if (pg.notes && pg.notes.length) h += '<div class="kv" style="font-size:12px"><b>interventions:</b><ul style="margin:2px 0 2px 16px;padding:0">' + pg.notes.map(function (n) { return '<li>' + esc(n) + '</li>'; }).join('') + '</ul></div>';
-      if (pg.ops && pg.ops.length) h += '<pre style="white-space:pre-wrap;margin:2px 0;padding:6px;background:#0b0c10;border-radius:4px;font-size:10px;max-height:160px;overflow:auto">' + esc(pg.ops.map(function (o) { return JSON.stringify(o); }).join('\n')) + '</pre>';
+      if (pg.ops && pg.ops.length) h += '<pre style="white-space:pre-wrap;margin:2px 0;padding:6px;background:#0b0c10;border-radius:4px;font-size:10px;max-height:160px;overflow:auto">' + esc(pg.ops.map(function (o) { return JSON.stringify(o); }).join('\\n')) + '</pre>';
     }
     return line + '<details style="margin:2px 0"><summary style="cursor:pointer;color:#c9a227;font-size:12px">scene provenance — what the Director was told</summary>' + h + '</details>';
   }
