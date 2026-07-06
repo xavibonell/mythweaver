@@ -2242,14 +2242,15 @@
         "docks"
       ],
       "from": {
-        "pack": "DawnLike",
-        "crop": "Objects/Decor0.png",
+        "pack": "DawnLike-atlas",
+        "sheet": "raw-packs/DawnLike-atlas/Dawnlike.png",
         "rect": [
-          16,
-          336,
+          398,
+          531,
           16,
           16
-        ]
+        ],
+        "note": "was a mis-crop (a barred cage) from Decor0 \u2014 repointed to the real closed_barrel"
       },
       "fps": 0,
       "license": "CC-BY-4.0",
