@@ -33,7 +33,7 @@ export type SceneOp =
   | { op: 'building'; type: BuildingType; region: RegionSpec; door?: 'north' | 'south' | 'east' | 'west'; name?: string; id: string }
   | { op: 'vignette'; type: string; at: PtSpec; id: string }
   | { op: 'place'; id: string; tag: string; kind: 'fixture' | 'prop' | 'actor'; role?: 'pc' | 'npc' | 'mob'; at: PtSpec; name?: string; visible?: boolean }
-  | { op: 'scatter'; idBase: string; tags: string[]; kind: 'prop' | 'actor'; role?: 'pc' | 'npc' | 'mob'; region: RegionSpec; count: number }
+  | { op: 'scatter'; idBase: string; tags: string[]; kind: 'prop' | 'actor'; role?: 'pc' | 'npc' | 'mob'; region: RegionSpec; count: number; on?: 'water' }
   | { op: 'entrance'; at: PtSpec }
   /** Run a whole ARCHETYPE GENERATOR over the canvas (the LLM picks the kind + semantic Contents; the
    *  deterministic generator owns the organic layout). Replaces LLM-placed building rects for these. */
@@ -93,7 +93,7 @@ function runOp(cv: Canvas, op: SceneOp, locationId: string, theme?: Theme): void
     case 'building': building(cv, resolveRegion(cv, op.region), op.type, { ...(op.door ? { door: op.door } : {}), locationId, ...(op.name ? { name: op.name } : {}), id: op.id }); break;
     case 'vignette': vignette(cv, resolvePt(cv, op.at), op.type, op.id.includes(':') ? op.id.slice(op.id.indexOf(':') + 1) : op.id); break;
     case 'place': place(cv, { id: op.id, tag: op.tag, kind: op.kind, ...(op.role ? { role: op.role } : {}), at: resolvePt(cv, op.at), ...(op.name ? { name: op.name } : {}), ...(op.visible !== undefined ? { visible: op.visible } : {}) }); break;
-    case 'scatter': scatter(cv, { idBase: op.idBase, tags: op.tags, kind: op.kind, ...(op.role ? { role: op.role } : {}), region: resolveRegion(cv, op.region), count: op.count }); break;
+    case 'scatter': scatter(cv, { idBase: op.idBase, tags: op.tags, kind: op.kind, ...(op.role ? { role: op.role } : {}), region: resolveRegion(cv, op.region), count: op.count, ...(op.on ? { on: op.on } : {}) }); break;
     case 'entrance': entrance(cv, resolvePt(cv, op.at), locationId); break;
     case 'archetype': GENERATORS[op.kind](cv, { theme: theme ?? THEMES.village!, contents: op.contents, bounds: { x: 0, y: 0, w: cv.cols, h: cv.rows }, locationId }); break;
   }

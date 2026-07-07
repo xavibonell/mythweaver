@@ -1020,7 +1020,20 @@ export function place(cv: Canvas, o: { id: string; tag: string; kind: 'fixture' 
 /** Scatter N props/actors across free cells in a region (seed-stable). Children share `idBase`.
  *  ACTORS must appear: if the region is dry of free cells (e.g. crocodiles "in" a mostly-water lake),
  *  top up from free walkable cells ANYWHERE on the map so the creatures never silently vanish. */
-export function scatter(cv: Canvas, o: { idBase: string; tags: string[]; kind: 'prop' | 'actor'; role?: 'pc' | 'npc' | 'mob'; region: Rect; count: number }): void {
+export function scatter(cv: Canvas, o: { idBase: string; tags: string[]; kind: 'prop' | 'actor'; role?: 'pc' | 'npc' | 'mob'; region: Rect; count: number; on?: 'water' }): void {
+  // IN-WATER scatter (spec compiler: `in: water` — surfacing corpses, floating debris): place on
+  // unoccupied WATER tiles instead of walkable ground. Non-blocking (water stays unwalkable anyway).
+  if (o.on === 'water') {
+    const wet = cv.shuffle(cellsOf(clampRect(cv, o.region)).filter((p) => (cv.tiles[p.r]?.[p.c] ?? '').startsWith('water') && cv.occ[p.r]![p.c] === false));
+    const n = Math.min(o.count, wet.length);
+    for (let i = 0; i < n; i++) {
+      const cell = wet[i]!;
+      const tag = o.tags[Math.floor(cv.rng() * o.tags.length)]!;
+      cv.reserve(cell.c, cell.r);
+      cv.objects.push({ id: `${o.idBase}#${i.toString().padStart(2, '0')}`, kind: o.kind, ...(o.role ? { role: o.role } : {}), tag, col: cell.c, row: cell.r, footprint: { w: 1, h: 1 }, facing: 'down', visible: true, group: o.idBase });
+    }
+    return;
+  }
   // Props keep off claimed cells (door approaches / circulation); actors may stand anywhere walkable.
   let free = cv.shuffle(cellsOf(clampRect(cv, o.region)).filter((p) => cv.isFree(p.c, p.r) && (o.kind === 'actor' || !cv.claimed(p.c, p.r))));
   if (o.kind === 'actor' && free.length < o.count) {

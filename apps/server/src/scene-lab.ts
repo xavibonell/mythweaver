@@ -10,8 +10,8 @@
  */
 
 import type { LlmProvider } from '@mythweaver/llm';
-import { buildCityScene, buildComponentSheet, buildSceneMap, buildSpikeScene, GOLD_PROGRAMS, LlmCityPlanner, LlmSceneProgrammer, lookToSprite, runProgram, type CityDistrictSpec, type CityRequest, type SceneComposer, type SceneProgram } from '@mythweaver/scene';
-import type { EstablishScene, GameState, Lighting, PartyMemberRef, RealizeSceneResult, SceneComposition, SceneKindHint, SceneMap, ScenePlan, SceneProvenance, SceneRealizeContext } from '@mythweaver/shared';
+import { buildCityScene, buildComponentSheet, buildSceneMap, buildSpikeScene, compileSpec, GOLD_PROGRAMS, LlmCityPlanner, LlmSceneProgrammer, lookToSprite, runProgram, type CityDistrictSpec, type CityRequest, type SceneComposer, type SceneProgram } from '@mythweaver/scene';
+import type { EstablishScene, GameState, Lighting, PartyMemberRef, RealizeSceneResult, SceneComposition, SceneKindHint, SceneMap, ScenePlan, SceneProvenance, SceneRealizeContext, SceneSpec } from '@mythweaver/shared';
 import { buildToolDefs, parseEstablish, seedFor } from './orchestrator.js';
 
 const SET_SCENE_TOOL = buildToolDefs(false, true).find((t) => t.name === 'setScene')!;
@@ -133,6 +133,9 @@ export async function realizeStoryScene(
     kind?: SceneKindHint;
     /** The DM's EXPLICITLY declared time of day — beats mood-inferred lighting (declared > mood > day). */
     lightingDeclared?: Lighting;
+    /** The beat's FUNCTIONAL contract (S1) — compiled deterministically over the base topology (S2):
+     *  contents replace the prose harvest, in-water features scatter on water, entry stages the party. */
+    spec?: SceneSpec;
   } = {},
 ): Promise<{ sceneMap: SceneMap; program: SceneProgram; provenance: Pick<SceneProvenance, 'enrichedBrief' | 'moodText' | 'lightingReason' | 'program'> }> {
   const enriched = enrichedBriefFor(establish, premise);
@@ -144,6 +147,9 @@ export async function realizeStoryScene(
   // LIGHTING PRECEDENCE: an explicitly DECLARED time of day beats the mood-regex (which beats 'day').
   // The coerced parser default never reaches here — the orchestrator only sets lightingDeclared when the
   // DM actually wrote timeOfDay in the tool call.
+  // The SPEC compiles first (pure): its frontier flags own the terrain fields below — a spec'd beat
+  // never gets a phantom mountain from a stray word in the prose.
+  const comp = opts.spec ? compileSpec(opts.spec, { settlement: program.grammar === 'town-square' }) : null;
   const lightingReason: SceneProvenance['lightingReason'] = opts.lightingDeclared ? 'declared' : program.lighting !== 'day' || program.weather === 'fog' ? 'mood' : 'default';
   if (opts.lightingDeclared && program.lighting !== opts.lightingDeclared) {
     (program.notes ??= []).push(`lighting-declared: '${opts.lightingDeclared}' overrides mood-inferred '${program.lighting}'`);
@@ -154,7 +160,12 @@ export async function realizeStoryScene(
   // TERRAIN-FIELD EMISSION: if the fiction names a coast/mountains, splice the field fill in after any
   // leading full-map base fill(s) but before the content ops (so buildings draw over it). Skip interiors.
   if (program.grammar !== 'enclosed-interior') {
-    const fieldOps = edgeTerrainFieldOps(`${premise} ${establish.brief?.setting ?? ''} ${establish.brief?.biome ?? ''}`, program.cols, program.rows);
+    // Spec'd beats: the FUNCTIONAL contract decides the terrain fields (dock features → coast; mine
+    // features → mountains). Prose keyword-matching only drives spec-LESS scenes.
+    const fieldText = comp
+      ? `${comp.contents.coast ? 'coast' : ''} ${comp.contents.mountain ? 'mountains' : ''}`
+      : `${premise} ${establish.brief?.setting ?? ''} ${establish.brief?.biome ?? ''}`;
+    const fieldOps = edgeTerrainFieldOps(fieldText, program.cols, program.rows);
     if (fieldOps.length) {
       const full = (r: unknown): boolean => {
         if (r === 'all') return true;
@@ -184,9 +195,40 @@ export async function realizeStoryScene(
     castInjected++;
   });
   if (castInjected) (program.notes ??= []).push(`cast-injection: merged ${castInjected} declared character(s) the programmer dropped`);
-  // PARTY injection (live play): the PCs stand together near the heart of the scene, with their real
-  // ids so the engine/combat can address them. place() snaps to free cells and respects claims.
-  party.forEach((p) => program.ops.push({ op: 'place', id: p.id, tag: p.spriteTag ?? 'knight', kind: 'actor', role: 'pc', at: 'center', name: p.name }));
+  // SPEC COMPILER (S2): the beat's FUNCTIONAL contract overrides the prose harvest — features become
+  // contents/ops deterministically (lossless), in-water features scatter ON the water, and the party
+  // stages at the spec's entry edge. Prose keeps only the base topology + narration.
+  let entryEdge: 'north' | 'south' | 'east' | 'west' | undefined;
+  if (comp) {
+    if (arch && arch.op === 'archetype') {
+      const c = arch.contents;
+      // The spec is the truth for the NAMED cast: replace harvested guesses where the spec speaks.
+      if (comp.contents.buildings.length) c.buildings = comp.contents.buildings;
+      if (comp.contents.landmarks.length) c.landmarks = comp.contents.landmarks;
+      if (comp.contents.npcs.length) c.npcs = [...comp.contents.npcs, ...c.npcs.filter((n) => n.name)]; // keep DM-declared named cast
+      if (comp.contents.mobs.length) c.mobs = comp.contents.mobs;
+      // The spec OWNS the frontier flags outright — a prose-harvested guess ("mining town" → a phantom
+      // mountain range) must not survive next to a contract that declared no such feature.
+      for (const flag of ['coast', 'port', 'mountain', 'mine', 'canal', 'wall'] as const) {
+        if (comp.contents[flag]) c[flag] = true;
+        else if (c[flag]) { delete c[flag]; (program.notes ??= []).push(`spec: cleared harvested '${flag}' (not in the contract)`); }
+      }
+    } else {
+      // No archetype (interior/wild): buildings become loose building ops the primitives place.
+      for (const b of comp.contents.buildings.slice(0, 4)) program.ops.push({ op: 'building', region: 'all', type: b.type, ...(b.name ? { name: b.name } : {}), id: `bldg:${b.name ?? b.type}` });
+      for (const lm of comp.contents.landmarks) program.ops.push({ op: 'place', id: `prop:${lm.name ?? lm.tag}`, tag: lm.tag, kind: 'prop', at: 'center', ...(lm.name ? { name: lm.name } : {}) });
+      for (const n of comp.contents.npcs) program.ops.push({ op: 'place', id: `npc:${n.name ?? n.tag}`, tag: n.tag, kind: 'actor', role: 'npc', at: 'center', ...(n.name ? { name: n.name } : {}) });
+      for (const m of comp.contents.mobs) program.ops.push({ op: 'scatter', idBase: `mob:${m.tag}`, tags: [m.tag], kind: 'actor', role: 'mob', region: 'all', count: m.count });
+    }
+    program.ops.push(...comp.postOps);
+    entryEdge = comp.entryEdge;
+    if (entryEdge && !program.ops.some((o) => o.op === 'entrance')) program.ops.push({ op: 'entrance', at: entryEdge });
+    (program.notes ??= []).push(...comp.notes);
+    if (comp.unrepresented.length) (program.notes ??= []).push(`spec: UNREPRESENTED (narration-only): ${comp.unrepresented.join(', ')}`);
+  }
+  // PARTY injection (live play): the PCs stand together with their real ids so the engine/combat can
+  // address them — at the spec's entry edge when one exists (they ARRIVE), else near the heart.
+  party.forEach((p) => program.ops.push({ op: 'place', id: p.id, tag: p.spriteTag ?? 'knight', kind: 'actor', role: 'pc', at: entryEdge ?? 'center', name: p.name }));
   const sceneMap = runProgram(program);
   const provenance: Pick<SceneProvenance, 'enrichedBrief' | 'moodText' | 'lightingReason' | 'program'> = {
     enrichedBrief: enriched,
@@ -281,6 +323,7 @@ export function buildModernRealizer(deps: { llm: LlmProvider; model?: string }):
       moodText: inputs.moodText,
       ...(inputs.kind ? { kind: inputs.kind } : {}),
       ...(inputs.lightingDeclared ? { lightingDeclared: inputs.lightingDeclared } : {}),
+      ...(ctx?.scenePlan?.spec ? { spec: ctx.scenePlan.spec } : {}),
     });
     return {
       sceneMap,

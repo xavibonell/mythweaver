@@ -15,6 +15,7 @@ export { buildCityMesh, cityMeshBlueprint, meshBlueprint, coreWall, type CityMes
 export { buildCityBsp, cityBspBlueprint } from './citybsp.js';
 export { realizeCityMesh, realizeCityBsp, type CityContents, type RealizeCityOpts } from './city-realizer.js';
 export { checkCoherence, type CoherenceReport } from './coherence-check.js';
+export { compileSpec, type SpecCompileResult } from './spec-compile.js';
 export { CLAIM_APPROACH, CLAIM_CIRCULATION, CLAIM_STAGE, doorSideOf, type RealizedDoor } from './primitives.js';
 export * from './catalog.js';
 export { lookToSprite, sceneKindOf, type SceneKind } from './composer.js';
