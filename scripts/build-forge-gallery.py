@@ -15,8 +15,16 @@ groups = {}
 for m in manifest:
     groups.setdefault(m["category"], []).append(m)
 
-ORDER = ["campaign", "dungeon", "haunt", "nature", "beast", "boss", "gore"]
+ORDER = ["terrain2", "structure", "arctic", "desert", "swampland", "deepearth", "wilds",
+         "campaign", "dungeon", "haunt", "nature", "beast", "boss", "gore"]
 TITLES = {
+    "terrain2": "Biome foundations — ground families, wall families & floors (batch 2)",
+    "structure": "Ruins & structural — arches, fences, bridges, gates",
+    "arctic": "Arctic & tundra",
+    "desert": "Desert & badlands",
+    "swampland": "Swamp & jungle",
+    "deepearth": "Volcanic & underdark",
+    "wilds": "Forest & farmland",
     "campaign": "Campaign — the drowned bell & the waterfront",
     "dungeon": "Dungeon & crypt",
     "haunt": "The undead house (abandoned interiors)",
@@ -25,6 +33,32 @@ TITLES = {
     "boss": "Bosses & big foes",
     "gore": "Blood, webs & magic",
 }
+
+# The terrain2 category is 9-tile FAMILIES (base + 8 edges) + plain floors. Isolated edge tiles are
+# unreadable as cards — compose each family into a 3x3 knit-preview PNG and show ONE card per family.
+EDGE_SUFFIXES = ("tl", "t", "tr", "l", "r", "bl", "b", "br")
+def collapse_terrain_families(items):
+    from PIL import Image
+    prev_dir = os.path.join(ROOT, "apps/web/public/assets/proc/terrain")
+    by_tag = {m["tag"]: m for m in items}
+    fams = sorted({t[: -(len(sfx) + 1)] for t in by_tag for sfx in EDGE_SUFFIXES if t.endswith("_" + sfx) and t[: -(len(sfx) + 1)] in by_tag})
+    used, out = set(), []
+    for fam in fams:
+        block = Image.new("RGBA", (48, 48))
+        layout = [["tl", "t", "tr"], ["l", None, "r"], ["bl", "b", "br"]]
+        for r, row in enumerate(layout):
+            for c, sfx in enumerate(row):
+                tag = fam if sfx is None else f"{fam}_{sfx}"
+                block.paste(Image.open(os.path.join(prev_dir, tag + ".png")), (c * 16, r * 16))
+                used.add(tag)
+        prev = f"_family_{fam}.png"
+        block.save(os.path.join(prev_dir, prev))
+        base = by_tag[fam]
+        out.append({**base, "tag": f"{fam} (9-tile family)", "art": f"assets/proc/terrain/{prev}",
+                    "frameW": 48, "frameH": 48, "frames": 1,
+                    "desc": base["desc"] + " — base + 8 autotile edges, shown knitted"})
+    out.extend(m for m in items if m["tag"] not in used)
+    return out
 
 def card(m):
     w, h, n = m["frameW"], m["frameH"], m["frames"]
@@ -52,6 +86,9 @@ def card(m):
   <div class="desc">{m['desc']}</div>
 </div>"""
 
+if "terrain2" in groups:
+    groups["terrain2"] = collapse_terrain_families(groups["terrain2"])
+
 sections = []
 for g in ORDER:
     if g not in groups:
@@ -68,8 +105,8 @@ html = f"""<!doctype html><html><head><meta charset="utf-8"><title>MythWeaver �
   .count {{ color:#6b7080; font-size:13px; }}
   .grid {{ display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:14px; }}
   .card {{ background:#1c1a15; border:1px solid #2b2822; border-radius:8px; padding:12px; }}
-  .frames {{ display:flex; gap:14px; align-items:flex-end; justify-content:center; min-height:96px; padding:8px 0 10px; }}
-  .sp {{ image-rendering:pixelated; background-repeat:no-repeat; }}
+  .frames {{ display:flex; gap:14px; align-items:flex-end; justify-content:safe center; min-height:96px; padding:8px 0 10px; overflow-x:auto; }}
+  .sp {{ image-rendering:pixelated; background-repeat:no-repeat; flex:none; }}
   .checker {{ background-color:#26231d; box-shadow:0 0 0 1px #000 inset;
     background-blend-mode:normal; }}
   .cap {{ font-size:13px; }}

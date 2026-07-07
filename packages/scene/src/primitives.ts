@@ -17,6 +17,7 @@ import { buildRoofs } from './roofs.js';
 import { bakeAutoTiles, bakeRockMass, bakeWoodWalls, BUILDING_TEMPLATES, furnishRoom, makeRng, reachabilityCarve, ROOM_PROGRAMS, ROOM_RECIPES, ROOM_TEMPLATES, scatterGroundDecals, wallTagFor, type RoomFunction, type RoomTemplate } from './cartographer.js';
 import { isCharacter, propDef, terrainWalkable } from './catalog.js';
 import { inside, maskFor, ringCells, type ShapeKind } from './footprint.js';
+import type { WallMat } from './themes.js';
 
 export interface Pt {
   c: number;
@@ -391,7 +392,7 @@ export function clearing(cv: Canvas, region: Rect): void {
 }
 
 /** An outer wall ring with one walkable gate per side (+ an Entrance on each gate). */
-export function wallRing(cv: Canvas, mat: 'wood' | 'stone' = 'stone', gateLocId?: string): void {
+export function wallRing(cv: Canvas, mat: WallMat = 'stone', gateLocId?: string): void {
   const wt = wallTagFor;
   for (let c = 0; c < cv.cols; c++) {
     cv.set(c, 0, wt(true, false, c === 0, c === cv.cols - 1, mat), false);

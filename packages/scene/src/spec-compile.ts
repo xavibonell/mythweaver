@@ -71,10 +71,27 @@ const PROP_SYNONYMS: Record<string, string> = {
   treehouse: 'treehouse', 'tree-house': 'treehouse', scarecrow: 'scarecrow', ladder: 'rope_ladder', 'rope-ladder': 'rope_ladder',
   blood: 'blood_pool', 'blood-pool': 'blood_pool', web: 'web_floor', cobweb: 'cobweb',
   'magic-circle': 'magic_circle', 'summoning-circle': 'magic_circle', smoke: 'smoke_plume', fire: 'fire_small',
+  // ---- batch-2 biome kits (direct tag forms like 'lily-pad'→lily_pad resolve automatically) ----
+  'palm-tree': 'palm', cactus: 'cactus_saguaro', saguaro: 'cactus_saguaro', 'barrel-cactus': 'cactus_barrel',
+  dune: 'dune_crest', amphora: 'urn_clay', tumbleweed: 'tumbleweed',
+  willow: 'willow_weeping', 'weeping-willow': 'willow_weeping', 'jungle-tree': 'jungle_canopy', canopy: 'jungle_canopy', kapok: 'jungle_canopy',
+  lily: 'lily_pad', 'water-lily': 'lily_pad_flower', reed: 'reeds', rushes: 'reeds', cattail: 'cattails',
+  fern: 'fern_giant', vine: 'vine_curtain', vines: 'vine_curtain', 'hanging-vines': 'vine_curtain',
+  toadstool: 'shroom_cluster', 'giant-mushroom': 'mushroom_glowcap', glowcap: 'mushroom_glowcap',
+  idol: 'idol_moss', 'stone-idol': 'idol_moss', 'rotten-log': 'log_rotten', 'fallen-log': 'log_fallen', miasma: 'swamp_gas',
+  icicle: 'ice_spike', 'ice-shard': 'ice_spikes', iceberg: 'ice_boulder', 'whale-bones': 'whale_ribs', 'whale-skeleton': 'whale_ribs', ribcage: 'whale_ribs',
+  sled: 'sled_wood', sledge: 'sled_wood', sleigh: 'sled_wood',
+  obsidian: 'obsidian_shard', 'volcanic-glass': 'obsidian_shard', basalt: 'basalt_column', fumarole: 'vent_volcanic', vent: 'vent_volcanic', geyser: 'geyser_sulfur',
+  stalagmite: 'stalagmite_tall', geode: 'geode_open', sulfur: 'sulfur_mound', 'blue-crystal': 'crystal_blue', 'purple-crystal': 'crystal_purple',
+  oak: 'oak_ancient', 'ancient-oak': 'oak_ancient', 'great-oak': 'oak_ancient', 'dead-tree': 'tree_dead', 'bare-tree': 'tree_dead',
+  'berry-bush': 'bush_berry', haystack: 'hay_bale', wheat: 'wheat_shock', sheaf: 'wheat_shock', hive: 'beehive',
+  arch: 'arch_stone', archway: 'arch_stone', 'stone-arch': 'arch_stone', 'ruined-wall': 'wall_ruin_stub', 'broken-wall': 'wall_ruin_stub',
+  bridge: 'bridge_plank_h', 'plank-bridge': 'bridge_plank_h', footbridge: 'bridge_plank_h',
+  gate: 'gate_wood', platform: 'platform_wood', 'wooden-platform': 'platform_wood', 'weathered-statue': 'statue_weathered',
 };
 
 /** kinds whose realization is a HOSTILE actor. */
-const HOSTILE = /\b(undead|dead|zombie|ghoul|skeleton|revenant|wight|wraith|ghost|spectre|specter|bandit|wolf|goblin|orc|rat|spider|cultist)\b/;
+const HOSTILE = /\b(undead|dead|zombie|ghoul|skeleton|revenant|wight|wraith|ghost|spectre|specter|bandit|wolf|goblin|orc|rat|spider|cultist|crocodile|scorpion|salamander)\b/;
 
 const tail = (kind: string): string => kind.split('.').pop() ?? kind;
 const clean = (s: string): string => s.toLowerCase().replace(/[^a-z0-9-]+/g, '-');

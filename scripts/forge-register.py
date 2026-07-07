@@ -39,8 +39,13 @@ for m in manifest:
         entry["blocks"] = m["blocks"]
         if m.get("light"):
             entry["light"] = True
-    if m["kind"] == "terrain" and m.get("walkable") is not None:
-        entry["walkable"] = m["walkable"]
+    if m["kind"] == "terrain":
+        if m.get("walkable") is not None:
+            entry["walkable"] = m["walkable"]
+        # The renderers (manifest.ts + headless-render.ts) resolve terrain art from variants[].art —
+        # a terrain entry with only a flat `art` field is INVISIBLE (falls back to grass).
+        entry["variants"] = [{"art": m["art"]}]
+        del entry["art"]
     entry["from"] = {"pack": "proc", "gen": "scripts/gen-forge-proc.py"}
     entry["license"] = "procedural (MythWeaver)"
     entry["attribution"] = "procedural asset (MythWeaver)"

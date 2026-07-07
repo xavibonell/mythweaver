@@ -45,6 +45,23 @@ const LIGHTINGS = new Set<Lighting>(['day', 'dusk', 'night']);
 /** Map a free-text NPC/creature look to a catalog character tag. Animals + monsters + people. */
 const LOOK_SYNONYMS: [RegExp, string][] = [
   // FORGE additions — most specific first so they beat the older generic rows below.
+  // batch-2 biome beasts (before the generic deer/rabbit/frog/wolf buckets):
+  [/winter wolf|frost wolf|white wolf/, 'wolf_winter'],
+  [/snow hare|arctic hare/, 'hare_snow'],
+  [/snowy owl|\bowl\b/, 'owl_snowy'],
+  [/\bcamel\b|dromedary/, 'camel'],
+  [/\bjackal\b/, 'jackal'],
+  [/\bvulture\b|carrion bird/, 'vulture'],
+  [/scorpion/, 'scorpion_giant'],
+  [/crocodile|alligator|\bgator\b/, 'crocodile'],
+  [/giant frog|bullfrog/, 'frog_giant'],
+  [/\bheron\b|\bcrane\b|\begret\b/, 'heron'],
+  [/fire salamander|\bsalamander\b/, 'salamander_fire'],
+  [/magma crawler|lava crawler/, 'magma_crawler'],
+  [/cave beetle|giant beetle|\bbeetle\b/, 'beetle_cave'],
+  [/\bstag\b|\belk\b/, 'stag'],
+  [/\bhare\b/, 'hare'],
+  [/\bbadger\b|wolverine/, 'badger'],
   [/dracolich|bone.?dragon|skeletal dragon|undead dragon/, 'dragon_bone'],
   [/black dragon|swamp dragon|acid dragon/, 'dragon_black'],
   [/red dragon|great dragon|ancient dragon|fire dragon|wyrm|drake\b/, 'dragon_red'],

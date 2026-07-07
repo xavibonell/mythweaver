@@ -23,6 +23,7 @@ import {
   type SceneMap,
 } from '@mythweaver/shared';
 import { isCharacter, propDef, terrainWalkable } from './catalog.js';
+import { wallBaseOf, type WallMat } from './themes.js';
 
 /**
  * Per-type interior furniture + an occupant. DawnLike decor is mostly 1×1, so a "counter" is a row
@@ -191,8 +192,8 @@ interface Rect {
  *  bottom/left/right). A 1-cell wall ring has floor on both sides, so neighbour-connectivity alone
  *  can't tell interior from exterior — but the Cartographer knows the rect, so it assigns the right
  *  faced tile directly. Falls back to the plain fill 'wall' for non-border / interior-pillar cells. */
-export function wallTagFor(top: boolean, bot: boolean, left: boolean, right: boolean, mat: 'wood' | 'stone' = 'stone'): string {
-  const b = mat === 'wood' ? 'wall_wood' : 'wall';
+export function wallTagFor(top: boolean, bot: boolean, left: boolean, right: boolean, mat: WallMat = 'stone'): string {
+  const b = wallBaseOf(mat);
   if (top && left) return `${b}_tl`;
   if (top && right) return `${b}_tr`;
   if (bot && left) return `${b}_bl`;
@@ -243,8 +244,10 @@ export function makeRng(seed: number): () => number {
  *  only insofar as *_edge tags aren't EDGED — so re-baking a stitched grid needs base tags (see
  *  city.ts, which strips suffixes before calling this). */
 export function bakeAutoTiles(tiles: string[][], cols: number, rows: number): void {
-  const FAMILY: Record<string, string> = { grass: 'grass', water: 'water', water_deep: 'water', lava: 'lava', road: 'road', rock: 'rock' };
-  const EDGED = new Set(['grass', 'water', 'water_deep', 'lava', 'road', 'rock']);
+  // Forge biome families (each knits like grass/water — its own family, fringing against everything else).
+  const FORGE_FAMILIES = ['hedge', 'snow', 'ice', 'swamp', 'mud', 'ash', 'blight', 'sand', 'farmland'];
+  const FAMILY: Record<string, string> = { grass: 'grass', water: 'water', water_deep: 'water', lava: 'lava', road: 'road', rock: 'rock', ...Object.fromEntries(FORGE_FAMILIES.map((f) => [f, f])) };
+  const EDGED = new Set(['grass', 'water', 'water_deep', 'lava', 'road', 'rock', ...FORGE_FAMILIES]);
   const orig = tiles.map((row) => row.slice());
   const famOf = (t: string) => FAMILY[t] ?? t;
   const sameFam = (c: number, r: number, f: string) => c < 0 || r < 0 || c >= cols || r >= rows || famOf(orig[r]![c]!) === f;
@@ -278,7 +281,9 @@ export function bakeWoodWalls(tiles: string[][], cols: number, rows: number): vo
   // Any faced wall — wood ('wall_wood*') OR stone ('wall*'). The tile's base is kept per-cell so a stone
   // building autotiles with the stone set and a wood one with the wood set (both have all 4 corners).
   const wall = (c: number, r: number) => c >= 0 && r >= 0 && c < cols && r < rows && (orig[r]![c] ?? '').startsWith('wall');
-  const baseOf = (c: number, r: number) => ((orig[r]?.[c] ?? '').startsWith('wall_wood') ? 'wall_wood' : 'wall');
+  // Preserve the MATERIAL family (wall_wood, wall_sandstone, wall_bone, …): strip only a bake suffix,
+  // never the family name — else every forged wall material bakes down to plain stone.
+  const baseOf = (c: number, r: number) => (orig[r]?.[c] ?? 'wall').replace(/_(?:t|b|l|r|tl|tr|bl|br)$/, '');
   const f = (c: number, r: number) => { const t = orig[r]?.[c] ?? ''; return t === 'wood_floor' || t === 'stone' || t === 'flagstone' || t === 'stone_brick' || t.startsWith('carpet'); };
   // A DOORWAY is a hole in a wall LINE — a non-wall cell flanked by walls on opposite sides. For SHAPE
   // detection the line continues THROUGH it, so a door adjacent to a real corner still reads as a corner

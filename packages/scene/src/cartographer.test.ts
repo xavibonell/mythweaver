@@ -210,7 +210,8 @@ describe('buildSceneMap (Cartographer)', () => {
       blockout: { cols: 12, rows: 8, cells: [], grid: ['AAAAAAAAAAAA', 'GGGGGGGGGGGG', 'GGGGGGGGGGGG', 'GGGGGGGGGGGG', 'GGGGGGGGGGGG', 'GGGGGGGGGGGG', 'DDDDDDDDDDDD', 'DDDDDDDDDDDD'] },
     };
     const m = buildSceneMap(comp);
-    expect(m.tiles[0]!.every((t) => t === 'sand')).toBe(true);
+    // sand is an EDGED family now (batch-2 forge): the beach row autotiles where it meets grass.
+    expect(m.tiles[0]!.every((t) => t.startsWith('sand'))).toBe(true);
     expect(m.tiles[7]!.every((t) => t === 'water_deep')).toBe(true);
     expect(m.walkable[7]!.every((w) => w === false)).toBe(true); // deep water is impassable
   });

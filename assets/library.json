@@ -1222,42 +1222,26 @@
     {
       "kind": "terrain",
       "tag": "sand",
-      "desc": "sandy beach / dune ground",
-      "walkable": true,
+      "desc": "wind-rippled desert sand",
       "biomes": [
-        "coast",
-        "desert"
+        "desert",
+        "coast"
       ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": true,
       "variants": [
         {
-          "art": "/assets/dawnlike/terrain/sand.png",
-          "from": {
-            "pack": "DawnLike",
-            "crop": "Objects/Floor.png",
-            "rect": [
-              16,
-              256,
-              16,
-              16
-            ]
-          }
-        },
-        {
-          "art": "/assets/dawnlike/terrain/sand1.png",
-          "from": {
-            "pack": "DawnLike",
-            "crop": "Objects/Floor.png",
-            "rect": [
-              64,
-              256,
-              16,
-              16
-            ]
-          }
+          "art": "/assets/proc/terrain/sand.png"
         }
       ],
-      "license": "CC-BY-4.0",
-      "attribution": "DawnLike by DragonDePlatino & DawnBringer (CC-BY 4.0); keep the bundled Platino sprite"
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
     },
     {
       "kind": "terrain",
@@ -7819,11 +7803,15 @@
         "labyrinth",
         "wild"
       ],
-      "art": "/assets/proc/terrain/hedge.png",
       "frameW": 16,
       "frameH": 16,
       "frames": 1,
       "walkable": false,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/hedge.png"
+        }
+      ],
       "from": {
         "pack": "proc",
         "gen": "scripts/gen-forge-proc.py"
@@ -7840,11 +7828,15 @@
         "labyrinth",
         "wild"
       ],
-      "art": "/assets/proc/terrain/hedge_t.png",
       "frameW": 16,
       "frameH": 16,
       "frames": 1,
       "walkable": false,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/hedge_t.png"
+        }
+      ],
       "from": {
         "pack": "proc",
         "gen": "scripts/gen-forge-proc.py"
@@ -7861,11 +7853,15 @@
         "labyrinth",
         "wild"
       ],
-      "art": "/assets/proc/terrain/hedge_b.png",
       "frameW": 16,
       "frameH": 16,
       "frames": 1,
       "walkable": false,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/hedge_b.png"
+        }
+      ],
       "from": {
         "pack": "proc",
         "gen": "scripts/gen-forge-proc.py"
@@ -7882,11 +7878,15 @@
         "labyrinth",
         "wild"
       ],
-      "art": "/assets/proc/terrain/hedge_l.png",
       "frameW": 16,
       "frameH": 16,
       "frames": 1,
       "walkable": false,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/hedge_l.png"
+        }
+      ],
       "from": {
         "pack": "proc",
         "gen": "scripts/gen-forge-proc.py"
@@ -7903,11 +7903,15 @@
         "labyrinth",
         "wild"
       ],
-      "art": "/assets/proc/terrain/hedge_r.png",
       "frameW": 16,
       "frameH": 16,
       "frames": 1,
       "walkable": false,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/hedge_r.png"
+        }
+      ],
       "from": {
         "pack": "proc",
         "gen": "scripts/gen-forge-proc.py"
@@ -7924,11 +7928,15 @@
         "labyrinth",
         "wild"
       ],
-      "art": "/assets/proc/terrain/hedge_tl.png",
       "frameW": 16,
       "frameH": 16,
       "frames": 1,
       "walkable": false,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/hedge_tl.png"
+        }
+      ],
       "from": {
         "pack": "proc",
         "gen": "scripts/gen-forge-proc.py"
@@ -7945,11 +7953,15 @@
         "labyrinth",
         "wild"
       ],
-      "art": "/assets/proc/terrain/hedge_tr.png",
       "frameW": 16,
       "frameH": 16,
       "frames": 1,
       "walkable": false,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/hedge_tr.png"
+        }
+      ],
       "from": {
         "pack": "proc",
         "gen": "scripts/gen-forge-proc.py"
@@ -7966,11 +7978,15 @@
         "labyrinth",
         "wild"
       ],
-      "art": "/assets/proc/terrain/hedge_bl.png",
       "frameW": 16,
       "frameH": 16,
       "frames": 1,
       "walkable": false,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/hedge_bl.png"
+        }
+      ],
       "from": {
         "pack": "proc",
         "gen": "scripts/gen-forge-proc.py"
@@ -7987,11 +8003,15 @@
         "labyrinth",
         "wild"
       ],
-      "art": "/assets/proc/terrain/hedge_br.png",
       "frameW": 16,
       "frameH": 16,
       "frames": 1,
       "walkable": false,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/hedge_br.png"
+        }
+      ],
       "from": {
         "pack": "proc",
         "gen": "scripts/gen-forge-proc.py"
@@ -8007,11 +8027,15 @@
         "interior",
         "crypt"
       ],
-      "art": "/assets/proc/terrain/flagstone_flooded.png",
       "frameW": 16,
       "frameH": 16,
       "frames": 1,
       "walkable": true,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/flagstone_flooded.png"
+        }
+      ],
       "from": {
         "pack": "proc",
         "gen": "scripts/gen-forge-proc.py"
@@ -8027,11 +8051,15 @@
         "interior",
         "crypt"
       ],
-      "art": "/assets/proc/terrain/wood_floor_flooded.png",
       "frameW": 16,
       "frameH": 16,
       "frames": 1,
       "walkable": true,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/wood_floor_flooded.png"
+        }
+      ],
       "from": {
         "pack": "proc",
         "gen": "scripts/gen-forge-proc.py"
@@ -8751,6 +8779,5072 @@
       "footH": 1,
       "blocks": false,
       "light": true,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "snow",
+      "desc": "wind-packed snowfield",
+      "biomes": [
+        "arctic",
+        "mountain"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": true,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/snow.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "snow_t",
+      "desc": "wind-packed snowfield (t edge)",
+      "biomes": [
+        "arctic",
+        "mountain"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": true,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/snow_t.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "snow_b",
+      "desc": "wind-packed snowfield (b edge)",
+      "biomes": [
+        "arctic",
+        "mountain"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": true,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/snow_b.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "snow_l",
+      "desc": "wind-packed snowfield (l edge)",
+      "biomes": [
+        "arctic",
+        "mountain"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": true,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/snow_l.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "snow_r",
+      "desc": "wind-packed snowfield (r edge)",
+      "biomes": [
+        "arctic",
+        "mountain"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": true,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/snow_r.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "snow_tl",
+      "desc": "wind-packed snowfield (tl edge)",
+      "biomes": [
+        "arctic",
+        "mountain"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": true,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/snow_tl.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "snow_tr",
+      "desc": "wind-packed snowfield (tr edge)",
+      "biomes": [
+        "arctic",
+        "mountain"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": true,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/snow_tr.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "snow_bl",
+      "desc": "wind-packed snowfield (bl edge)",
+      "biomes": [
+        "arctic",
+        "mountain"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": true,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/snow_bl.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "snow_br",
+      "desc": "wind-packed snowfield (br edge)",
+      "biomes": [
+        "arctic",
+        "mountain"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": true,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/snow_br.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "ice",
+      "desc": "cracked lake ice",
+      "biomes": [
+        "arctic"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": true,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/ice.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "ice_t",
+      "desc": "cracked lake ice (t edge)",
+      "biomes": [
+        "arctic"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": true,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/ice_t.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "ice_b",
+      "desc": "cracked lake ice (b edge)",
+      "biomes": [
+        "arctic"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": true,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/ice_b.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "ice_l",
+      "desc": "cracked lake ice (l edge)",
+      "biomes": [
+        "arctic"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": true,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/ice_l.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "ice_r",
+      "desc": "cracked lake ice (r edge)",
+      "biomes": [
+        "arctic"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": true,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/ice_r.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "ice_tl",
+      "desc": "cracked lake ice (tl edge)",
+      "biomes": [
+        "arctic"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": true,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/ice_tl.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "ice_tr",
+      "desc": "cracked lake ice (tr edge)",
+      "biomes": [
+        "arctic"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": true,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/ice_tr.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "ice_bl",
+      "desc": "cracked lake ice (bl edge)",
+      "biomes": [
+        "arctic"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": true,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/ice_bl.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "ice_br",
+      "desc": "cracked lake ice (br edge)",
+      "biomes": [
+        "arctic"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": true,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/ice_br.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "swamp",
+      "desc": "black bog-water",
+      "biomes": [
+        "swamp",
+        "fen"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": false,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/swamp.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "swamp_t",
+      "desc": "black bog-water (t edge)",
+      "biomes": [
+        "swamp",
+        "fen"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": false,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/swamp_t.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "swamp_b",
+      "desc": "black bog-water (b edge)",
+      "biomes": [
+        "swamp",
+        "fen"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": false,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/swamp_b.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "swamp_l",
+      "desc": "black bog-water (l edge)",
+      "biomes": [
+        "swamp",
+        "fen"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": false,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/swamp_l.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "swamp_r",
+      "desc": "black bog-water (r edge)",
+      "biomes": [
+        "swamp",
+        "fen"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": false,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/swamp_r.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "swamp_tl",
+      "desc": "black bog-water (tl edge)",
+      "biomes": [
+        "swamp",
+        "fen"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": false,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/swamp_tl.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "swamp_tr",
+      "desc": "black bog-water (tr edge)",
+      "biomes": [
+        "swamp",
+        "fen"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": false,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/swamp_tr.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "swamp_bl",
+      "desc": "black bog-water (bl edge)",
+      "biomes": [
+        "swamp",
+        "fen"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": false,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/swamp_bl.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "swamp_br",
+      "desc": "black bog-water (br edge)",
+      "biomes": [
+        "swamp",
+        "fen"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": false,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/swamp_br.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "mud",
+      "desc": "sucking wet mud",
+      "biomes": [
+        "swamp",
+        "riverbank"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": true,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/mud.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "mud_t",
+      "desc": "sucking wet mud (t edge)",
+      "biomes": [
+        "swamp",
+        "riverbank"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": true,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/mud_t.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "mud_b",
+      "desc": "sucking wet mud (b edge)",
+      "biomes": [
+        "swamp",
+        "riverbank"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": true,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/mud_b.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "mud_l",
+      "desc": "sucking wet mud (l edge)",
+      "biomes": [
+        "swamp",
+        "riverbank"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": true,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/mud_l.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "mud_r",
+      "desc": "sucking wet mud (r edge)",
+      "biomes": [
+        "swamp",
+        "riverbank"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": true,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/mud_r.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "mud_tl",
+      "desc": "sucking wet mud (tl edge)",
+      "biomes": [
+        "swamp",
+        "riverbank"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": true,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/mud_tl.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "mud_tr",
+      "desc": "sucking wet mud (tr edge)",
+      "biomes": [
+        "swamp",
+        "riverbank"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": true,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/mud_tr.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "mud_bl",
+      "desc": "sucking wet mud (bl edge)",
+      "biomes": [
+        "swamp",
+        "riverbank"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": true,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/mud_bl.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "mud_br",
+      "desc": "sucking wet mud (br edge)",
+      "biomes": [
+        "swamp",
+        "riverbank"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": true,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/mud_br.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "ash",
+      "desc": "volcanic ash and cinders",
+      "biomes": [
+        "volcanic"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": true,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/ash.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "ash_t",
+      "desc": "volcanic ash and cinders (t edge)",
+      "biomes": [
+        "volcanic"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": true,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/ash_t.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "ash_b",
+      "desc": "volcanic ash and cinders (b edge)",
+      "biomes": [
+        "volcanic"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": true,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/ash_b.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "ash_l",
+      "desc": "volcanic ash and cinders (l edge)",
+      "biomes": [
+        "volcanic"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": true,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/ash_l.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "ash_r",
+      "desc": "volcanic ash and cinders (r edge)",
+      "biomes": [
+        "volcanic"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": true,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/ash_r.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "ash_tl",
+      "desc": "volcanic ash and cinders (tl edge)",
+      "biomes": [
+        "volcanic"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": true,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/ash_tl.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "ash_tr",
+      "desc": "volcanic ash and cinders (tr edge)",
+      "biomes": [
+        "volcanic"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": true,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/ash_tr.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "ash_bl",
+      "desc": "volcanic ash and cinders (bl edge)",
+      "biomes": [
+        "volcanic"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": true,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/ash_bl.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "ash_br",
+      "desc": "volcanic ash and cinders (br edge)",
+      "biomes": [
+        "volcanic"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": true,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/ash_br.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "blight",
+      "desc": "corrupted, cursed ground",
+      "biomes": [
+        "blight",
+        "cursed"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": true,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/blight.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "blight_t",
+      "desc": "corrupted, cursed ground (t edge)",
+      "biomes": [
+        "blight",
+        "cursed"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": true,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/blight_t.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "blight_b",
+      "desc": "corrupted, cursed ground (b edge)",
+      "biomes": [
+        "blight",
+        "cursed"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": true,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/blight_b.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "blight_l",
+      "desc": "corrupted, cursed ground (l edge)",
+      "biomes": [
+        "blight",
+        "cursed"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": true,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/blight_l.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "blight_r",
+      "desc": "corrupted, cursed ground (r edge)",
+      "biomes": [
+        "blight",
+        "cursed"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": true,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/blight_r.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "blight_tl",
+      "desc": "corrupted, cursed ground (tl edge)",
+      "biomes": [
+        "blight",
+        "cursed"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": true,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/blight_tl.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "blight_tr",
+      "desc": "corrupted, cursed ground (tr edge)",
+      "biomes": [
+        "blight",
+        "cursed"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": true,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/blight_tr.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "blight_bl",
+      "desc": "corrupted, cursed ground (bl edge)",
+      "biomes": [
+        "blight",
+        "cursed"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": true,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/blight_bl.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "blight_br",
+      "desc": "corrupted, cursed ground (br edge)",
+      "biomes": [
+        "blight",
+        "cursed"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": true,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/blight_br.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "sand_t",
+      "desc": "wind-rippled desert sand (t edge)",
+      "biomes": [
+        "desert",
+        "coast"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": true,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/sand_t.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "sand_b",
+      "desc": "wind-rippled desert sand (b edge)",
+      "biomes": [
+        "desert",
+        "coast"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": true,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/sand_b.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "sand_l",
+      "desc": "wind-rippled desert sand (l edge)",
+      "biomes": [
+        "desert",
+        "coast"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": true,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/sand_l.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "sand_r",
+      "desc": "wind-rippled desert sand (r edge)",
+      "biomes": [
+        "desert",
+        "coast"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": true,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/sand_r.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "sand_tl",
+      "desc": "wind-rippled desert sand (tl edge)",
+      "biomes": [
+        "desert",
+        "coast"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": true,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/sand_tl.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "sand_tr",
+      "desc": "wind-rippled desert sand (tr edge)",
+      "biomes": [
+        "desert",
+        "coast"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": true,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/sand_tr.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "sand_bl",
+      "desc": "wind-rippled desert sand (bl edge)",
+      "biomes": [
+        "desert",
+        "coast"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": true,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/sand_bl.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "sand_br",
+      "desc": "wind-rippled desert sand (br edge)",
+      "biomes": [
+        "desert",
+        "coast"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": true,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/sand_br.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "farmland",
+      "desc": "tilled furrows, seedlings showing",
+      "biomes": [
+        "farm",
+        "village"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": true,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/farmland.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "farmland_t",
+      "desc": "tilled furrows, seedlings showing (t edge)",
+      "biomes": [
+        "farm",
+        "village"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": true,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/farmland_t.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "farmland_b",
+      "desc": "tilled furrows, seedlings showing (b edge)",
+      "biomes": [
+        "farm",
+        "village"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": true,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/farmland_b.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "farmland_l",
+      "desc": "tilled furrows, seedlings showing (l edge)",
+      "biomes": [
+        "farm",
+        "village"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": true,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/farmland_l.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "farmland_r",
+      "desc": "tilled furrows, seedlings showing (r edge)",
+      "biomes": [
+        "farm",
+        "village"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": true,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/farmland_r.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "farmland_tl",
+      "desc": "tilled furrows, seedlings showing (tl edge)",
+      "biomes": [
+        "farm",
+        "village"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": true,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/farmland_tl.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "farmland_tr",
+      "desc": "tilled furrows, seedlings showing (tr edge)",
+      "biomes": [
+        "farm",
+        "village"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": true,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/farmland_tr.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "farmland_bl",
+      "desc": "tilled furrows, seedlings showing (bl edge)",
+      "biomes": [
+        "farm",
+        "village"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": true,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/farmland_bl.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "farmland_br",
+      "desc": "tilled furrows, seedlings showing (br edge)",
+      "biomes": [
+        "farm",
+        "village"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": true,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/farmland_br.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_sandstone",
+      "desc": "sun-baked sandstone blocks",
+      "biomes": [
+        "desert",
+        "ruin"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": false,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/wall_sandstone.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_sandstone_t",
+      "desc": "sun-baked sandstone blocks (t)",
+      "biomes": [
+        "desert",
+        "ruin"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": false,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/wall_sandstone_t.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_sandstone_b",
+      "desc": "sun-baked sandstone blocks (b)",
+      "biomes": [
+        "desert",
+        "ruin"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": false,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/wall_sandstone_b.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_sandstone_l",
+      "desc": "sun-baked sandstone blocks (l)",
+      "biomes": [
+        "desert",
+        "ruin"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": false,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/wall_sandstone_l.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_sandstone_r",
+      "desc": "sun-baked sandstone blocks (r)",
+      "biomes": [
+        "desert",
+        "ruin"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": false,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/wall_sandstone_r.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_sandstone_tl",
+      "desc": "sun-baked sandstone blocks (tl)",
+      "biomes": [
+        "desert",
+        "ruin"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": false,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/wall_sandstone_tl.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_sandstone_tr",
+      "desc": "sun-baked sandstone blocks (tr)",
+      "biomes": [
+        "desert",
+        "ruin"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": false,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/wall_sandstone_tr.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_sandstone_bl",
+      "desc": "sun-baked sandstone blocks (bl)",
+      "biomes": [
+        "desert",
+        "ruin"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": false,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/wall_sandstone_bl.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_sandstone_br",
+      "desc": "sun-baked sandstone blocks (br)",
+      "biomes": [
+        "desert",
+        "ruin"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": false,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/wall_sandstone_br.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_moss",
+      "desc": "old stone swallowed by moss",
+      "biomes": [
+        "ruin",
+        "forest"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": false,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/wall_moss.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_moss_t",
+      "desc": "old stone swallowed by moss (t)",
+      "biomes": [
+        "ruin",
+        "forest"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": false,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/wall_moss_t.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_moss_b",
+      "desc": "old stone swallowed by moss (b)",
+      "biomes": [
+        "ruin",
+        "forest"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": false,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/wall_moss_b.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_moss_l",
+      "desc": "old stone swallowed by moss (l)",
+      "biomes": [
+        "ruin",
+        "forest"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": false,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/wall_moss_l.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_moss_r",
+      "desc": "old stone swallowed by moss (r)",
+      "biomes": [
+        "ruin",
+        "forest"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": false,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/wall_moss_r.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_moss_tl",
+      "desc": "old stone swallowed by moss (tl)",
+      "biomes": [
+        "ruin",
+        "forest"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": false,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/wall_moss_tl.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_moss_tr",
+      "desc": "old stone swallowed by moss (tr)",
+      "biomes": [
+        "ruin",
+        "forest"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": false,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/wall_moss_tr.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_moss_bl",
+      "desc": "old stone swallowed by moss (bl)",
+      "biomes": [
+        "ruin",
+        "forest"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": false,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/wall_moss_bl.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_moss_br",
+      "desc": "old stone swallowed by moss (br)",
+      "biomes": [
+        "ruin",
+        "forest"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": false,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/wall_moss_br.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_obsidian",
+      "desc": "volcanic glass, knapped and mortared",
+      "biomes": [
+        "volcanic",
+        "dungeon"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": false,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/wall_obsidian.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_obsidian_t",
+      "desc": "volcanic glass, knapped and mortared (t)",
+      "biomes": [
+        "volcanic",
+        "dungeon"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": false,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/wall_obsidian_t.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_obsidian_b",
+      "desc": "volcanic glass, knapped and mortared (b)",
+      "biomes": [
+        "volcanic",
+        "dungeon"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": false,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/wall_obsidian_b.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_obsidian_l",
+      "desc": "volcanic glass, knapped and mortared (l)",
+      "biomes": [
+        "volcanic",
+        "dungeon"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": false,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/wall_obsidian_l.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_obsidian_r",
+      "desc": "volcanic glass, knapped and mortared (r)",
+      "biomes": [
+        "volcanic",
+        "dungeon"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": false,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/wall_obsidian_r.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_obsidian_tl",
+      "desc": "volcanic glass, knapped and mortared (tl)",
+      "biomes": [
+        "volcanic",
+        "dungeon"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": false,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/wall_obsidian_tl.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_obsidian_tr",
+      "desc": "volcanic glass, knapped and mortared (tr)",
+      "biomes": [
+        "volcanic",
+        "dungeon"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": false,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/wall_obsidian_tr.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_obsidian_bl",
+      "desc": "volcanic glass, knapped and mortared (bl)",
+      "biomes": [
+        "volcanic",
+        "dungeon"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": false,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/wall_obsidian_bl.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_obsidian_br",
+      "desc": "volcanic glass, knapped and mortared (br)",
+      "biomes": [
+        "volcanic",
+        "dungeon"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": false,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/wall_obsidian_br.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_bone",
+      "desc": "a wall mortared from stacked bones",
+      "biomes": [
+        "crypt",
+        "necropolis"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": false,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/wall_bone.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_bone_t",
+      "desc": "a wall mortared from stacked bones (t)",
+      "biomes": [
+        "crypt",
+        "necropolis"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": false,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/wall_bone_t.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_bone_b",
+      "desc": "a wall mortared from stacked bones (b)",
+      "biomes": [
+        "crypt",
+        "necropolis"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": false,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/wall_bone_b.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_bone_l",
+      "desc": "a wall mortared from stacked bones (l)",
+      "biomes": [
+        "crypt",
+        "necropolis"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": false,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/wall_bone_l.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_bone_r",
+      "desc": "a wall mortared from stacked bones (r)",
+      "biomes": [
+        "crypt",
+        "necropolis"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": false,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/wall_bone_r.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_bone_tl",
+      "desc": "a wall mortared from stacked bones (tl)",
+      "biomes": [
+        "crypt",
+        "necropolis"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": false,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/wall_bone_tl.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_bone_tr",
+      "desc": "a wall mortared from stacked bones (tr)",
+      "biomes": [
+        "crypt",
+        "necropolis"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": false,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/wall_bone_tr.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_bone_bl",
+      "desc": "a wall mortared from stacked bones (bl)",
+      "biomes": [
+        "crypt",
+        "necropolis"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": false,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/wall_bone_bl.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_bone_br",
+      "desc": "a wall mortared from stacked bones (br)",
+      "biomes": [
+        "crypt",
+        "necropolis"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": false,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/wall_bone_br.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_ice",
+      "desc": "blue glacier ice, cut in blocks",
+      "biomes": [
+        "arctic"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": false,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/wall_ice.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_ice_t",
+      "desc": "blue glacier ice, cut in blocks (t)",
+      "biomes": [
+        "arctic"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": false,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/wall_ice_t.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_ice_b",
+      "desc": "blue glacier ice, cut in blocks (b)",
+      "biomes": [
+        "arctic"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": false,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/wall_ice_b.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_ice_l",
+      "desc": "blue glacier ice, cut in blocks (l)",
+      "biomes": [
+        "arctic"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": false,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/wall_ice_l.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_ice_r",
+      "desc": "blue glacier ice, cut in blocks (r)",
+      "biomes": [
+        "arctic"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": false,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/wall_ice_r.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_ice_tl",
+      "desc": "blue glacier ice, cut in blocks (tl)",
+      "biomes": [
+        "arctic"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": false,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/wall_ice_tl.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_ice_tr",
+      "desc": "blue glacier ice, cut in blocks (tr)",
+      "biomes": [
+        "arctic"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": false,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/wall_ice_tr.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_ice_bl",
+      "desc": "blue glacier ice, cut in blocks (bl)",
+      "biomes": [
+        "arctic"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": false,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/wall_ice_bl.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_ice_br",
+      "desc": "blue glacier ice, cut in blocks (br)",
+      "biomes": [
+        "arctic"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": false,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/wall_ice_br.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "marble",
+      "desc": "veined white marble",
+      "biomes": [
+        "temple",
+        "palace"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": true,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/marble.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "marble_dark",
+      "desc": "veined black marble",
+      "biomes": [
+        "temple",
+        "crypt"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": true,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/marble_dark.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "sandstone_floor",
+      "desc": "worn sandstone paving",
+      "biomes": [
+        "desert",
+        "ruin"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": true,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/sandstone_floor.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "obsidian_floor",
+      "desc": "polished volcanic glass underfoot",
+      "biomes": [
+        "volcanic",
+        "dungeon"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": true,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/obsidian_floor.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "moss_floor",
+      "desc": "flagstones furred with moss",
+      "biomes": [
+        "ruin",
+        "forest"
+      ],
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": true,
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/moss_floor.png"
+        }
+      ],
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "willow_weeping",
+      "desc": "a weeping willow, its green curtain of fronds trailing to the water",
+      "biomes": [
+        "swamp",
+        "fen",
+        "jungle"
+      ],
+      "art": "/assets/proc/props/willow_weeping.png",
+      "frameW": 32,
+      "frameH": 32,
+      "frames": 1,
+      "footW": 2,
+      "footH": 1,
+      "blocks": true,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "mangrove",
+      "desc": "a mangrove on arched stilt roots, canopy held above the water",
+      "biomes": [
+        "swamp",
+        "fen",
+        "jungle"
+      ],
+      "art": "/assets/proc/props/mangrove.png",
+      "frameW": 16,
+      "frameH": 24,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": true,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "jungle_canopy",
+      "desc": "a broad-crowned jungle emergent, layered canopy over a buttressed trunk",
+      "biomes": [
+        "jungle",
+        "swamp"
+      ],
+      "art": "/assets/proc/props/jungle_canopy.png",
+      "frameW": 32,
+      "frameH": 32,
+      "frames": 1,
+      "footW": 2,
+      "footH": 1,
+      "blocks": true,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "lily_pad",
+      "desc": "a broad green lily pad, notched",
+      "biomes": [
+        "swamp",
+        "fen",
+        "jungle"
+      ],
+      "art": "/assets/proc/props/lily_pad.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "lily_pad_flower",
+      "desc": "a lily pad with a white water-lily bloom",
+      "biomes": [
+        "swamp",
+        "fen",
+        "jungle"
+      ],
+      "art": "/assets/proc/props/lily_pad_flower.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "reeds",
+      "desc": "marsh reeds with tan seed heads",
+      "biomes": [
+        "swamp",
+        "fen",
+        "jungle"
+      ],
+      "art": "/assets/proc/props/reeds.png",
+      "frameW": 16,
+      "frameH": 24,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "cattails",
+      "desc": "cattails, brown velvet heads on tall stalks",
+      "biomes": [
+        "swamp",
+        "fen",
+        "jungle"
+      ],
+      "art": "/assets/proc/props/cattails.png",
+      "frameW": 16,
+      "frameH": 24,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "fern_giant",
+      "desc": "a giant fern, fronds arcing from a central crown",
+      "biomes": [
+        "jungle",
+        "swamp",
+        "fen"
+      ],
+      "art": "/assets/proc/props/fern_giant.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "vine_curtain",
+      "desc": "a curtain of hanging jungle vines, green at the tips",
+      "biomes": [
+        "jungle",
+        "swamp"
+      ],
+      "art": "/assets/proc/props/vine_curtain.png",
+      "frameW": 16,
+      "frameH": 24,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "shroom_cluster",
+      "desc": "a cluster of purple toadstools, white-flecked",
+      "biomes": [
+        "swamp",
+        "jungle",
+        "fen"
+      ],
+      "art": "/assets/proc/props/shroom_cluster.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "log_rotten",
+      "desc": "a rotten fallen log, moss-eaten and hollow at one end",
+      "biomes": [
+        "swamp",
+        "jungle",
+        "fen"
+      ],
+      "art": "/assets/proc/props/log_rotten.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": true,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "idol_moss",
+      "desc": "a stone idol face half-swallowed by moss \u2014 a jungle-temple sentinel",
+      "biomes": [
+        "jungle",
+        "swamp"
+      ],
+      "art": "/assets/proc/props/idol_moss.png",
+      "frameW": 16,
+      "frameH": 24,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": true,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "swamp_gas",
+      "desc": "curls of marsh gas seeping from the mire",
+      "biomes": [
+        "swamp",
+        "fen",
+        "jungle"
+      ],
+      "art": "/assets/proc/props/swamp_gas.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 2,
+      "fps": 2,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "character",
+      "tag": "crocodile",
+      "desc": "a crocodile \u2014 low, long-jawed, ridge-backed",
+      "biomes": [
+        "swamp",
+        "jungle",
+        "fen"
+      ],
+      "art": "/assets/proc/char/crocodile.png",
+      "frameW": 16,
+      "frameH": 16,
+      "idleFrames": 2,
+      "fps": 3,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "character",
+      "tag": "frog_giant",
+      "desc": "a giant frog, yellow-throated and squat",
+      "biomes": [
+        "swamp",
+        "jungle",
+        "fen"
+      ],
+      "art": "/assets/proc/char/frog_giant.png",
+      "frameW": 16,
+      "frameH": 16,
+      "idleFrames": 2,
+      "fps": 3,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "character",
+      "tag": "heron",
+      "desc": "a grey heron poised on one leg, spear-beaked",
+      "biomes": [
+        "swamp",
+        "fen",
+        "jungle"
+      ],
+      "art": "/assets/proc/char/heron.png",
+      "frameW": 16,
+      "frameH": 16,
+      "idleFrames": 2,
+      "fps": 3,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "obsidian_shard",
+      "desc": "a knapped shard of volcanic glass, edges still razor",
+      "biomes": [
+        "volcanic",
+        "cavern",
+        "underdark"
+      ],
+      "art": "/assets/proc/props/obsidian_shard.png",
+      "frameW": 16,
+      "frameH": 24,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": true,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "obsidian_spire",
+      "desc": "a twin-fanged spire of black volcanic glass",
+      "biomes": [
+        "volcanic",
+        "cavern"
+      ],
+      "art": "/assets/proc/props/obsidian_spire.png",
+      "frameW": 16,
+      "frameH": 32,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": true,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "basalt_column",
+      "desc": "stepped hexagonal basalt columns",
+      "biomes": [
+        "volcanic",
+        "cavern",
+        "underdark"
+      ],
+      "art": "/assets/proc/props/basalt_column.png",
+      "frameW": 16,
+      "frameH": 24,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": true,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "vent_volcanic",
+      "desc": "a cracked fumarole cone, magma pulsing in the fissure",
+      "biomes": [
+        "volcanic",
+        "cavern"
+      ],
+      "art": "/assets/proc/props/vent_volcanic.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 2,
+      "fps": 3,
+      "footW": 1,
+      "footH": 1,
+      "blocks": true,
+      "light": true,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "geyser_sulfur",
+      "desc": "a sulfur geyser venting a scalding plume",
+      "biomes": [
+        "volcanic",
+        "cavern"
+      ],
+      "art": "/assets/proc/props/geyser_sulfur.png",
+      "frameW": 16,
+      "frameH": 24,
+      "frames": 2,
+      "fps": 2,
+      "footW": 1,
+      "footH": 1,
+      "blocks": true,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "crystal_blue",
+      "desc": "a faceted blue crystal outcrop, softly luminous",
+      "biomes": [
+        "underdark",
+        "cavern"
+      ],
+      "art": "/assets/proc/props/crystal_blue.png",
+      "frameW": 16,
+      "frameH": 24,
+      "frames": 2,
+      "fps": 3,
+      "footW": 1,
+      "footH": 1,
+      "blocks": true,
+      "light": true,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "crystal_purple",
+      "desc": "a violet crystal outcrop, softly luminous",
+      "biomes": [
+        "underdark",
+        "cavern"
+      ],
+      "art": "/assets/proc/props/crystal_purple.png",
+      "frameW": 16,
+      "frameH": 24,
+      "frames": 2,
+      "fps": 3,
+      "footW": 1,
+      "footH": 1,
+      "blocks": true,
+      "light": true,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "crystal_cluster",
+      "desc": "a low bed of mixed blue and violet crystals",
+      "biomes": [
+        "underdark",
+        "cavern"
+      ],
+      "art": "/assets/proc/props/crystal_cluster.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 2,
+      "fps": 3,
+      "footW": 1,
+      "footH": 1,
+      "blocks": true,
+      "light": true,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "mushroom_glowcap",
+      "desc": "a giant glowcap mushroom, gills pulsing pale light",
+      "biomes": [
+        "underdark",
+        "cavern"
+      ],
+      "art": "/assets/proc/props/mushroom_glowcap.png",
+      "frameW": 24,
+      "frameH": 32,
+      "frames": 2,
+      "fps": 2,
+      "footW": 2,
+      "footH": 1,
+      "blocks": true,
+      "light": true,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "mushroom_shelf",
+      "desc": "bracket fungi shelving off a damp boulder",
+      "biomes": [
+        "underdark",
+        "cavern"
+      ],
+      "art": "/assets/proc/props/mushroom_shelf.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": true,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "stalagmite_tall",
+      "desc": "a tall drip-banded stalagmite, tip still wet",
+      "biomes": [
+        "underdark",
+        "cavern"
+      ],
+      "art": "/assets/proc/props/stalagmite_tall.png",
+      "frameW": 16,
+      "frameH": 24,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": true,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "geode_open",
+      "desc": "a split geode, amethyst teeth glinting inside",
+      "biomes": [
+        "underdark",
+        "cavern"
+      ],
+      "art": "/assets/proc/props/geode_open.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": true,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "sulfur_mound",
+      "desc": "a crusted yellow sulfur mound with a fumarole hole",
+      "biomes": [
+        "volcanic",
+        "cavern"
+      ],
+      "art": "/assets/proc/props/sulfur_mound.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": true,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "character",
+      "tag": "magma_crawler",
+      "desc": "a magma crawler \u2014 cracked basalt shell over a molten core",
+      "biomes": [
+        "volcanic",
+        "cavern"
+      ],
+      "art": "/assets/proc/char/magma_crawler.png",
+      "frameW": 16,
+      "frameH": 16,
+      "idleFrames": 2,
+      "fps": 3,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "character",
+      "tag": "beetle_cave",
+      "desc": "a cave beetle with a slate carapace and cyan eyes",
+      "biomes": [
+        "underdark",
+        "cavern"
+      ],
+      "art": "/assets/proc/char/beetle_cave.png",
+      "frameW": 16,
+      "frameH": 16,
+      "idleFrames": 2,
+      "fps": 3,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "character",
+      "tag": "salamander_fire",
+      "desc": "a fire salamander, ember-red with a yellow belly",
+      "biomes": [
+        "volcanic",
+        "cavern"
+      ],
+      "art": "/assets/proc/char/salamander_fire.png",
+      "frameW": 16,
+      "frameH": 16,
+      "idleFrames": 2,
+      "fps": 3,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "birch",
+      "desc": "a slender birch \u2014 white ticked trunk, light green crown",
+      "biomes": [
+        "forest",
+        "village",
+        "farm"
+      ],
+      "art": "/assets/proc/props/birch.png",
+      "frameW": 16,
+      "frameH": 24,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": true,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "birch_tall",
+      "desc": "a tall birch, golden-flecked crown high on a white trunk",
+      "biomes": [
+        "forest",
+        "village"
+      ],
+      "art": "/assets/proc/props/birch_tall.png",
+      "frameW": 16,
+      "frameH": 32,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": true,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "oak_ancient",
+      "desc": "an ancient oak \u2014 gnarled flaring trunk under a vast dark crown",
+      "biomes": [
+        "forest",
+        "village"
+      ],
+      "art": "/assets/proc/props/oak_ancient.png",
+      "frameW": 32,
+      "frameH": 32,
+      "frames": 1,
+      "footW": 2,
+      "footH": 1,
+      "blocks": true,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "tree_dead",
+      "desc": "a dead tree, bare clawed branches raking the sky",
+      "biomes": [
+        "forest",
+        "swamp",
+        "crypt"
+      ],
+      "art": "/assets/proc/props/tree_dead.png",
+      "frameW": 16,
+      "frameH": 24,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": true,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "stump",
+      "desc": "a cut stump, growth rings on the sawn face",
+      "biomes": [
+        "forest",
+        "village",
+        "farm"
+      ],
+      "art": "/assets/proc/props/stump.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": true,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "log_fallen",
+      "desc": "a fallen log, moss draped over the bark",
+      "biomes": [
+        "forest",
+        "swamp"
+      ],
+      "art": "/assets/proc/props/log_fallen.png",
+      "frameW": 32,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 2,
+      "footH": 1,
+      "blocks": true,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "log_pile",
+      "desc": "stacked cut logs, pale ring faces out",
+      "biomes": [
+        "village",
+        "farm",
+        "forest"
+      ],
+      "art": "/assets/proc/props/log_pile.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": true,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "bush_berry",
+      "desc": "a berry bush, red fruit in dark leaves",
+      "biomes": [
+        "forest",
+        "farm",
+        "village"
+      ],
+      "art": "/assets/proc/props/bush_berry.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": true,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "wildflowers",
+      "desc": "scattered wildflowers \u2014 yellow, red and white heads",
+      "biomes": [
+        "forest",
+        "farm",
+        "village"
+      ],
+      "art": "/assets/proc/props/wildflowers.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "apple_tree",
+      "desc": "an apple tree, red fruit dotting the round crown",
+      "biomes": [
+        "farm",
+        "village",
+        "forest"
+      ],
+      "art": "/assets/proc/props/apple_tree.png",
+      "frameW": 16,
+      "frameH": 24,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": true,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "scarecrow_field",
+      "desc": "a scarecrow on a cross-pole \u2014 sack head, patched coat, straw fringe",
+      "biomes": [
+        "farm"
+      ],
+      "art": "/assets/proc/props/scarecrow_field.png",
+      "frameW": 16,
+      "frameH": 24,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": true,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "hay_bale",
+      "desc": "a rolled hay bale, spiral showing on the cut face",
+      "biomes": [
+        "farm",
+        "village"
+      ],
+      "art": "/assets/proc/props/hay_bale.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": true,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "wheat_shock",
+      "desc": "a tied standing sheaf of wheat",
+      "biomes": [
+        "farm",
+        "village"
+      ],
+      "art": "/assets/proc/props/wheat_shock.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": true,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "beehive",
+      "desc": "a straw skep beehive, one bee circling",
+      "biomes": [
+        "farm",
+        "village",
+        "forest"
+      ],
+      "art": "/assets/proc/props/beehive.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 2,
+      "fps": 2,
+      "footW": 1,
+      "footH": 1,
+      "blocks": true,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "character",
+      "tag": "stag",
+      "desc": "a wary stag, bone antlers raised",
+      "biomes": [
+        "forest"
+      ],
+      "art": "/assets/proc/char/stag.png",
+      "frameW": 16,
+      "frameH": 16,
+      "idleFrames": 2,
+      "fps": 3,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "character",
+      "tag": "hare",
+      "desc": "a brown hare sitting up, ears pricked",
+      "biomes": [
+        "forest",
+        "farm",
+        "village"
+      ],
+      "art": "/assets/proc/char/hare.png",
+      "frameW": 16,
+      "frameH": 16,
+      "idleFrames": 2,
+      "fps": 3,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "character",
+      "tag": "badger",
+      "desc": "a badger, white face stripe over a slate body",
+      "biomes": [
+        "forest",
+        "farm"
+      ],
+      "art": "/assets/proc/char/badger.png",
+      "frameW": 16,
+      "frameH": 16,
+      "idleFrames": 2,
+      "fps": 3,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "arch_stone",
+      "desc": "a freestanding grey stone archway with a keystone \u2014 tokens pass beneath",
+      "biomes": [
+        "ruin",
+        "dungeon",
+        "town",
+        "village"
+      ],
+      "art": "/assets/proc/props/arch_stone.png",
+      "frameW": 32,
+      "frameH": 24,
+      "frames": 1,
+      "footW": 2,
+      "footH": 1,
+      "blocks": false,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "wall_ruin_stub",
+      "desc": "a broken wall stump with a jagged top and mossy masonry",
+      "biomes": [
+        "ruin",
+        "dungeon",
+        "town",
+        "village"
+      ],
+      "art": "/assets/proc/props/wall_ruin_stub.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": true,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "wall_ruin_corner",
+      "desc": "an L-corner wall stub, one arm snapped off jagged",
+      "biomes": [
+        "ruin",
+        "dungeon",
+        "town",
+        "village"
+      ],
+      "art": "/assets/proc/props/wall_ruin_corner.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": true,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "column_intact",
+      "desc": "an intact fluted stone column with capital and stepped base",
+      "biomes": [
+        "ruin",
+        "dungeon",
+        "town",
+        "village"
+      ],
+      "art": "/assets/proc/props/column_intact.png",
+      "frameW": 16,
+      "frameH": 24,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": true,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "column_broken",
+      "desc": "a snapped column shaft with a fallen drum fragment",
+      "biomes": [
+        "ruin",
+        "dungeon",
+        "town",
+        "village"
+      ],
+      "art": "/assets/proc/props/column_broken.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": true,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "bridge_plank_h",
+      "desc": "a plank footbridge spanning left-right with sagging rope rails",
+      "biomes": [
+        "ruin",
+        "dungeon",
+        "town",
+        "village"
+      ],
+      "art": "/assets/proc/props/bridge_plank_h.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "bridge_plank_v",
+      "desc": "a plank footbridge spanning top-bottom with rope rails",
+      "biomes": [
+        "ruin",
+        "dungeon",
+        "town",
+        "village"
+      ],
+      "art": "/assets/proc/props/bridge_plank_v.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "stepping_stones",
+      "desc": "three flat stepping stones staggered across the tile",
+      "biomes": [
+        "ruin",
+        "dungeon",
+        "town",
+        "village"
+      ],
+      "art": "/assets/proc/props/stepping_stones.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "fence_wood_h",
+      "desc": "a split-rail wooden fence running left-right",
+      "biomes": [
+        "ruin",
+        "dungeon",
+        "town",
+        "village"
+      ],
+      "art": "/assets/proc/props/fence_wood_h.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": true,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "fence_wood_v",
+      "desc": "a split-rail wooden fence running top-bottom",
+      "biomes": [
+        "ruin",
+        "dungeon",
+        "town",
+        "village"
+      ],
+      "art": "/assets/proc/props/fence_wood_v.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": true,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "fence_post",
+      "desc": "a single weathered fence post with knots",
+      "biomes": [
+        "ruin",
+        "dungeon",
+        "town",
+        "village"
+      ],
+      "art": "/assets/proc/props/fence_post.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": true,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "gate_wood",
+      "desc": "a hinged double wooden gate set in a post-and-lintel frame",
+      "biomes": [
+        "ruin",
+        "dungeon",
+        "town",
+        "village"
+      ],
+      "art": "/assets/proc/props/gate_wood.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": true,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "stairs_stone",
+      "desc": "stone steps descending into shadow, lit nosings",
+      "biomes": [
+        "ruin",
+        "dungeon",
+        "town",
+        "village"
+      ],
+      "art": "/assets/proc/props/stairs_stone.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "ladder_wood",
+      "desc": "a wooden ladder with five rungs",
+      "biomes": [
+        "ruin",
+        "dungeon",
+        "town",
+        "village"
+      ],
+      "art": "/assets/proc/props/ladder_wood.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "platform_wood",
+      "desc": "raised wooden decking with staggered plank joints and nail heads",
+      "biomes": [
+        "ruin",
+        "dungeon",
+        "town",
+        "village"
+      ],
+      "art": "/assets/proc/props/platform_wood.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "rubble_pile",
+      "desc": "a heap of grey and slate masonry chunks with a snapped beam",
+      "biomes": [
+        "ruin",
+        "dungeon",
+        "town",
+        "village"
+      ],
+      "art": "/assets/proc/props/rubble_pile.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": true,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "statue_weathered",
+      "desc": "a weathered hooded stone figure on a plinth, moss-flecked",
+      "biomes": [
+        "ruin",
+        "dungeon",
+        "town",
+        "village"
+      ],
+      "art": "/assets/proc/props/statue_weathered.png",
+      "frameW": 16,
+      "frameH": 24,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": true,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "ice_spike",
+      "desc": "a jagged translucent ice spike, man-high",
+      "biomes": [
+        "arctic",
+        "mountain"
+      ],
+      "art": "/assets/proc/props/ice_spike.png",
+      "frameW": 16,
+      "frameH": 24,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": true,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "ice_spikes",
+      "desc": "a cluster of three jagged ice shards",
+      "biomes": [
+        "arctic",
+        "mountain"
+      ],
+      "art": "/assets/proc/props/ice_spikes.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": true,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "ice_boulder",
+      "desc": "a rounded boulder of cracked glacier ice",
+      "biomes": [
+        "arctic",
+        "mountain"
+      ],
+      "art": "/assets/proc/props/ice_boulder.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": true,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "snow_drift",
+      "desc": "a low wind-piled snow drift",
+      "biomes": [
+        "arctic",
+        "mountain"
+      ],
+      "art": "/assets/proc/props/snow_drift.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "tree_frozen",
+      "desc": "a dead tree, every bare limb lined with snow",
+      "biomes": [
+        "arctic",
+        "mountain"
+      ],
+      "art": "/assets/proc/props/tree_frozen.png",
+      "frameW": 16,
+      "frameH": 24,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": true,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "pine_snowy",
+      "desc": "a snow-capped conifer",
+      "biomes": [
+        "arctic",
+        "mountain",
+        "forest"
+      ],
+      "art": "/assets/proc/props/pine_snowy.png",
+      "frameW": 16,
+      "frameH": 24,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": true,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "pine_snowy_tall",
+      "desc": "a tall three-tiered snowy pine",
+      "biomes": [
+        "arctic",
+        "mountain",
+        "forest"
+      ],
+      "art": "/assets/proc/props/pine_snowy_tall.png",
+      "frameW": 16,
+      "frameH": 32,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": true,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "igloo",
+      "desc": "a snow-block igloo with a dark entrance arch",
+      "biomes": [
+        "arctic"
+      ],
+      "art": "/assets/proc/props/igloo.png",
+      "frameW": 32,
+      "frameH": 24,
+      "frames": 1,
+      "footW": 2,
+      "footH": 1,
+      "blocks": true,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "whale_ribs",
+      "desc": "a whale ribcage arching out of the snow",
+      "biomes": [
+        "arctic"
+      ],
+      "art": "/assets/proc/props/whale_ribs.png",
+      "frameW": 32,
+      "frameH": 24,
+      "frames": 1,
+      "footW": 2,
+      "footH": 1,
+      "blocks": false,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "sled_wood",
+      "desc": "a wooden sledge on iron-shod runners",
+      "biomes": [
+        "arctic",
+        "mountain"
+      ],
+      "art": "/assets/proc/props/sled_wood.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": true,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "ice_crystal",
+      "desc": "a glowing ice crystal rooted in a snow mound",
+      "biomes": [
+        "arctic",
+        "mountain"
+      ],
+      "art": "/assets/proc/props/ice_crystal.png",
+      "frameW": 16,
+      "frameH": 24,
+      "frames": 2,
+      "fps": 2,
+      "footW": 1,
+      "footH": 1,
+      "blocks": true,
+      "light": true,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "snowman",
+      "desc": "a three-ball snowman with coal eyes and stick arms",
+      "biomes": [
+        "arctic",
+        "village"
+      ],
+      "art": "/assets/proc/props/snowman.png",
+      "frameW": 16,
+      "frameH": 24,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": true,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "cairn_stone",
+      "desc": "a stacked-stone trail cairn dusted with snow",
+      "biomes": [
+        "arctic",
+        "mountain"
+      ],
+      "art": "/assets/proc/props/cairn_stone.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": true,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "character",
+      "tag": "hare_snow",
+      "desc": "a snow hare, ears up, mid-crouch",
+      "biomes": [
+        "arctic",
+        "mountain"
+      ],
+      "art": "/assets/proc/char/hare_snow.png",
+      "frameW": 16,
+      "frameH": 16,
+      "idleFrames": 2,
+      "fps": 3,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "character",
+      "tag": "owl_snowy",
+      "desc": "a snowy owl, yellow-eyed, perched",
+      "biomes": [
+        "arctic",
+        "mountain"
+      ],
+      "art": "/assets/proc/char/owl_snowy.png",
+      "frameW": 16,
+      "frameH": 16,
+      "idleFrames": 2,
+      "fps": 3,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "character",
+      "tag": "wolf_winter",
+      "desc": "a winter wolf, white-ruffed, yellow-eyed",
+      "biomes": [
+        "arctic",
+        "mountain"
+      ],
+      "art": "/assets/proc/char/wolf_winter.png",
+      "frameW": 16,
+      "frameH": 16,
+      "idleFrames": 2,
+      "fps": 3,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "palm",
+      "desc": "a desert palm \u2014 curved ringed trunk, frond starburst, two coconuts",
+      "biomes": [
+        "desert"
+      ],
+      "art": "/assets/proc/props/palm.png",
+      "frameW": 16,
+      "frameH": 32,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": true,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "palm_bent",
+      "desc": "a wind-bent palm leaning hard over, fronds streaming downwind",
+      "biomes": [
+        "desert"
+      ],
+      "art": "/assets/proc/props/palm_bent.png",
+      "frameW": 16,
+      "frameH": 32,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": true,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "cactus_saguaro",
+      "desc": "a two-armed saguaro cactus \u2014 ribbed, spined, blooming at the crown",
+      "biomes": [
+        "desert"
+      ],
+      "art": "/assets/proc/props/cactus_saguaro.png",
+      "frameW": 16,
+      "frameH": 24,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": true,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "cactus_barrel",
+      "desc": "a squat ribbed barrel cactus with a yellow bloom",
+      "biomes": [
+        "desert"
+      ],
+      "art": "/assets/proc/props/cactus_barrel.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": true,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "agave",
+      "desc": "a spiked agave rosette, pale thorn tips on every leaf",
+      "biomes": [
+        "desert"
+      ],
+      "art": "/assets/proc/props/agave.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": true,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "tumbleweed",
+      "desc": "a dry tumbleweed, tangle turning as it rolls",
+      "biomes": [
+        "desert",
+        "ruin"
+      ],
+      "art": "/assets/proc/props/tumbleweed.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 2,
+      "fps": 3,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "ox_skull",
+      "desc": "a longhorn ox skull, jaw lost in the drifted sand",
+      "biomes": [
+        "desert",
+        "ruin"
+      ],
+      "art": "/assets/proc/props/ox_skull.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "obelisk",
+      "desc": "a sandstone obelisk, glyph column carved down its face",
+      "biomes": [
+        "desert",
+        "ruin"
+      ],
+      "art": "/assets/proc/props/obelisk.png",
+      "frameW": 16,
+      "frameH": 32,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": true,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "ruin_sandstone",
+      "desc": "collapsed sandstone blocks, a broken carving in the rubble",
+      "biomes": [
+        "desert",
+        "ruin"
+      ],
+      "art": "/assets/proc/props/ruin_sandstone.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": true,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "dune_crest",
+      "desc": "a low dune crest, sun-bright lip and shadowed lee",
+      "biomes": [
+        "desert"
+      ],
+      "art": "/assets/proc/props/dune_crest.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "urn_clay",
+      "desc": "a clay amphora on a foot ring, plum-painted band",
+      "biomes": [
+        "desert",
+        "ruin"
+      ],
+      "art": "/assets/proc/props/urn_clay.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": true,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "bones_halfburied",
+      "desc": "a ribcage arcing out of the sand, vertebrae poking through",
+      "biomes": [
+        "desert",
+        "ruin"
+      ],
+      "art": "/assets/proc/props/bones_halfburied.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "character",
+      "tag": "camel",
+      "desc": "a dromedary camel, hump high over a lean tan frame",
+      "biomes": [
+        "desert"
+      ],
+      "art": "/assets/proc/char/camel.png",
+      "frameW": 16,
+      "frameH": 16,
+      "idleFrames": 2,
+      "fps": 3,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "character",
+      "tag": "scorpion_giant",
+      "desc": "a giant scorpion, pincers spread and plum stinger raised",
+      "biomes": [
+        "desert",
+        "ruin"
+      ],
+      "art": "/assets/proc/char/scorpion_giant.png",
+      "frameW": 16,
+      "frameH": 16,
+      "idleFrames": 2,
+      "fps": 3,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "character",
+      "tag": "vulture",
+      "desc": "a hunched vulture, bald bone-pale head on slate wings",
+      "biomes": [
+        "desert",
+        "ruin"
+      ],
+      "art": "/assets/proc/char/vulture.png",
+      "frameW": 16,
+      "frameH": 16,
+      "idleFrames": 2,
+      "fps": 3,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "character",
+      "tag": "jackal",
+      "desc": "a lean tan jackal, tall ears and a dark saddle",
+      "biomes": [
+        "desert",
+        "ruin"
+      ],
+      "art": "/assets/proc/char/jackal.png",
+      "frameW": 16,
+      "frameH": 16,
+      "idleFrames": 2,
+      "fps": 3,
       "from": {
         "pack": "proc",
         "gen": "scripts/gen-forge-proc.py"

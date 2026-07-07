@@ -14,7 +14,7 @@ import { BIOMES, BUILDING_TYPES, LAYOUT_GRAMMARS, type BuildingType, type Layout
 import { ARCHETYPE_KINDS, GENERATORS, type ArchetypeKind, type Contents } from './archetypes.js';
 import { isCharacter, isProp, isTerrain } from './catalog.js';
 import { bridge, building, Canvas, bspRooms, cave, clearing, entrance, fill, finalize, island, maze, path, place, plaza, scatter, vignette, VIGNETTE_NAMES, wallRing, type Pt, type Rect } from './primitives.js';
-import { THEMES, themeNameFor, type Theme } from './themes.js';
+import { THEMES, themeNameFor, wallBaseOf, type Theme } from './themes.js';
 
 type RegionSpec = 'all' | Rect;
 type PtSpec = Pt | 'center' | 'north' | 'south' | 'east' | 'west';
@@ -77,8 +77,11 @@ const resolvePt = (cv: Canvas, spec: PtSpec): Pt => {
 /** Run one op against the canvas. When `theme` is set, OPEN-GROUND ops draw their material from it
  *  (hazards water/lava/sand keep their own tag) — the per-scene material-consistency guarantee. */
 function runOp(cv: Canvas, op: SceneOp, locationId: string, theme?: Theme): void {
-  const haz = (t: string) => t === 'water' || t === 'water_deep' || t === 'lava' || t === 'sand' || t === 'rock';
-  const wmat = (): 'wall' | 'wall_wood' => (theme && theme.wallMat === 'wood' ? 'wall_wood' : 'wall');
+  // Tags a themed scene KEEPS verbatim: hazards + explicit biome features (a bog pool, an ice pond,
+  // a farm field, a corruption patch) — everything else draws from the theme palette.
+  const KEEP_TAGS = new Set(['water', 'water_deep', 'lava', 'sand', 'rock', 'swamp', 'ice', 'mud', 'snow', 'blight', 'farmland']);
+  const haz = (t: string) => KEEP_TAGS.has(t);
+  const wmat = (): string => (theme ? wallBaseOf(theme.wallMat) : 'wall');
   switch (op.op) {
     case 'fill': fill(cv, resolveRegion(cv, op.region), theme && !haz(op.tag) ? theme.ground : op.tag, op.walkable); break;
     case 'island': island(cv, resolveRegion(cv, op.region), theme ? theme.ground : op.tag); break;
@@ -234,7 +237,7 @@ export const SCENE_PROGRAMMER_SYSTEM = `You design a TOP-DOWN tactical RPG scene
 {"cols":40,"rows":26,"theme":"village","biome":"forest","lighting":"night","grammar":"open-outdoor","outdoor":true,"ops":[ ... ]}
 
 GRID: cols 28-60, rows 18-40. outdoor=true for nature/settlements (blends grass/water edges); false for indoor dungeons/crypts.
-THEME (REQUIRED): pick ONE that fits the mood — village | forest | swamp | dungeon | crypt | cave | desert | lava. It sets ONE coherent floor/wall palette for the WHOLE scene, so you do NOT pick ground/floor tags per op (the engine fills ground/path/plaza/room-floors from the theme). Only specify a tag for a HAZARD region (water / water_deep / lava) — everything else is themed automatically.
+THEME (REQUIRED): pick ONE that fits the mood — village | forest | swamp | jungle | dungeon | crypt | necropolis | temple | cave | desert | lava | arctic | blight. It sets ONE coherent floor/wall palette for the WHOLE scene (arctic = snowfield + ice walls, lava = ash + obsidian, necropolis = dark marble + bone walls, blight = cursed ground…), so you do NOT pick ground/floor tags per op (the engine fills ground/path/plaza/room-floors from the theme). Only specify a tag for a HAZARD region (water / water_deep / lava / swamp) or an explicit biome FEATURE patch (ice / mud / snow / farmland / blight) — everything else is themed automatically.
 
 OPS (compose 4-12; later ops draw OVER earlier ones):
 - {"op":"fill","region":R,"tag":TERRAIN} — flood a region with terrain (use tag "water" for a lake/moat).
@@ -254,7 +257,7 @@ OPS (compose 4-12; later ops draw OVER earlier ones):
 - {"op":"entrance","at":P} — a walkable entrance/exit at the brief's stated edge.
 
 REGION R = "all" OR {"x":,"y":,"w":,"h":} in tiles. POINT P = {"c":,"r":} OR "center"/"north"/"south"/"east"/"west".
-TERRAIN tags: grass, dirt, stone, cobblestone, flagstone, stone_brick, sand, water, water_deep, lava, wall, wall_wood, wood_floor.
+TERRAIN tags: grass, dirt, stone, cobblestone, flagstone, stone_brick, sand, water, water_deep, lava, wall, wall_wood, wood_floor; biome fields: snow, ice, swamp (bog water — impassable), mud, ash, blight, farmland; floors: marble, marble_dark, sandstone_floor, obsidian_floor, moss_floor.
 PROP tags (kind prop) — pick the ones that FIT the scene's theme:
   furniture: table, table_round, chair, stone_bench, desk, throne, bed, bed_blue, shelf, shelf_wares, shelf_food, bookshelf, bookshelf_full, books, rug, rug_ornate
   containers/clutter: chest, barrel, crate, pot, jar, urn, sack, woodpile
@@ -268,7 +271,7 @@ RULES:
 - HONOR THE BRIEF literally: pick ONE dominant topology op for the GROUND (maze for labyrinths; fill water + island + bridge for lakes/coasts; grass/dirt + streets for towns; one big rooms op for a sprawling many-cell dungeon), THEN place FURNISHED structures with "building" ops, layer landmarks via place, creatures via scatter, paths, and the entrance where stated.
 - BUILDINGS/CHAMBERS — THIS IS HOW YOU GET FURNISHED INTERIORS: every named building, home, shop, temple, forge, hut, OR distinct furnished room/chamber MUST be a "building" op with a rect region (it comes furnished + a keeper). A settlement = 3-8 "building" ops spread on a grass field with dirt streets between them, optionally a wallRing — NOT bare rooms/fills (those are empty boxes). Every establishment the brief NAMES gets its own building op with its EXACT type (a library brief → type "library", a courthouse → "courthouse", a keep → "keep"); fill remaining slots with house/shop/tavern flavour. A multi-chamber temple/crypt = several "building" ops (e.g. type temple/house as the chambers) connected by paths. Reserve the bare "rooms" op for a LARGE sprawling dungeon backbone only.
 - INCLUDE EVERY creature and landmark the brief names — never drop them. Each creature is an op with a "mob:"/"npc:" id (hostiles = mob:, friendlies = npc:); each landmark a "place" with a "prop:" id. If the brief says "crocodiles and a cultist", you MUST emit a scatter "mob:crocodile" AND a place "npc:cultist".
-- HAZARD terrain (water, lava) is IMPASSABLE. Keep the MAJORITY of the map WALKABLE — hazard should cover at most ~40% of the grid. For a "flooded"/"lake"/"swamp" scene, make the islands LARGE and MANY (land covers most of the map), with water only in the channels between them, and bridges across. Never strand the entrance, a landmark, or the creatures on hazard — they need walkable ground.
+- HAZARD terrain (water, lava, swamp bog) is IMPASSABLE. Keep the MAJORITY of the map WALKABLE — hazard should cover at most ~40% of the grid. For a "flooded"/"lake"/"swamp" scene, make the islands LARGE and MANY (land covers most of the map), with water only in the channels between them, and bridges across. Never strand the entrance, a landmark, or the creatures on hazard — they need walkable ground.
 - For an INTERIOR (crypt/dungeon/temple/cave/vault) set "outdoor":false and grammar "enclosed-interior". For "interconnected rooms/chambers" prefer SEVERAL "building" ops (furnished chambers, type temple/house/shop) connected by "path" ops — that gives furnished rooms with keepers. Only for a HUGE sprawling maze-dungeon use one big "rooms" op as the backbone. Do NOT fill big "plaza"/open areas over your rooms (that erases them into an empty hall).
 - ids: prop:xxx for objects, npc:xxx for friendly creatures, mob:xxx for hostile ones (the engine repairs prefixes if you slip).
 - Choose evocative cols/rows + biome + lighting that match the mood.

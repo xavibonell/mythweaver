@@ -24,7 +24,7 @@ import {
 } from './primitives.js';
 import { SHAPE_MIN, type ShapeKind } from './footprint.js';
 import { carveCanal, routeSeam, type MaterialProfile } from './networks.js';
-import type { Theme } from './themes.js';
+import { wallBaseOf, type Theme } from './themes.js';
 
 /** The semantic cast the LLM (or a completeness net) supplies — names + which things exist, NO geometry. */
 export interface Contents {
@@ -58,7 +58,7 @@ export type ArchetypeGenerator = (cv: Canvas, ctx: GenContext) => void;
 export type ArchetypeKind = 'town' | 'dungeon' | 'cave' | 'wilderness' | 'coast';
 
 const slug = (s: string, i: number) => (s || 'x').replace(/[^a-z0-9]+/gi, '-').toLowerCase().replace(/^-+|-+$/g, '') + (i ? `-${i}` : '');
-const wmatOf = (t: Theme): 'wall' | 'wall_wood' => (t.wallMat === 'wood' ? 'wall_wood' : 'wall');
+const wmatOf = (t: Theme): string => wallBaseOf(t.wallMat);
 const edgePt = (B: Rect, side: 'north' | 'south' | 'east' | 'west'): Pt => {
   const mc = B.x + Math.floor(B.w / 2), mr = B.y + Math.floor(B.h / 2);
   return side === 'north' ? { c: mc, r: B.y } : side === 'south' ? { c: mc, r: B.y + B.h - 1 } : side === 'west' ? { c: B.x, r: mr } : { c: B.x + B.w - 1, r: mr };
