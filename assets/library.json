@@ -7062,6 +7062,1701 @@
       },
       "license": "procedural (MythWeaver)",
       "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "bell_great",
+      "desc": "the great bronze bell \u2014 corroded, banded, big enough to seal a man inside",
+      "biomes": [
+        "crypt",
+        "dungeon",
+        "village"
+      ],
+      "art": "/assets/proc/props/bell_great.png",
+      "frameW": 32,
+      "frameH": 32,
+      "frames": 1,
+      "footW": 2,
+      "footH": 1,
+      "blocks": true,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "lamp_post",
+      "desc": "a standing iron lamp post, lit",
+      "biomes": [
+        "town",
+        "village",
+        "port"
+      ],
+      "art": "/assets/proc/props/lamp_post.png",
+      "frameW": 16,
+      "frameH": 28,
+      "frames": 2,
+      "fps": 3,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false,
+      "light": true,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "weir",
+      "desc": "a low stone weir combing the river into a white sill of foam",
+      "biomes": [
+        "river",
+        "reservoir",
+        "fen"
+      ],
+      "art": "/assets/proc/props/weir.png",
+      "frameW": 48,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 3,
+      "footH": 1,
+      "blocks": true,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "iron_ring",
+      "desc": "a heavy iron mooring ring bolted through a worn stone block",
+      "biomes": [
+        "port",
+        "dock"
+      ],
+      "art": "/assets/proc/props/iron_ring.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "bell_clapper",
+      "desc": "the great bell's iron clapper, torn loose and left to rust",
+      "biomes": [
+        "crypt",
+        "village"
+      ],
+      "art": "/assets/proc/props/bell_clapper.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "tomb_door",
+      "desc": "a sealed tomb slab, iron-banded, its wax seal unbroken",
+      "biomes": [
+        "crypt",
+        "dungeon"
+      ],
+      "art": "/assets/proc/props/tomb_door.png",
+      "frameW": 16,
+      "frameH": 24,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": true,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "net_drying",
+      "desc": "a fishing net strung between posts to dry, weed still caught in it",
+      "biomes": [
+        "port",
+        "village"
+      ],
+      "art": "/assets/proc/props/net_drying.png",
+      "frameW": 32,
+      "frameH": 24,
+      "frames": 1,
+      "footW": 2,
+      "footH": 1,
+      "blocks": true,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "anchor",
+      "desc": "a ship's anchor stood on its flukes, rope still bent to the ring",
+      "biomes": [
+        "port",
+        "dock"
+      ],
+      "art": "/assets/proc/props/anchor.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "buoy",
+      "desc": "a weathered channel buoy riding low at the waterline",
+      "biomes": [
+        "reservoir",
+        "port"
+      ],
+      "art": "/assets/proc/props/buoy.png",
+      "frameW": 16,
+      "frameH": 18,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "well",
+      "desc": "a village well \u2014 stone ring, crossbeam, and a waiting bucket",
+      "biomes": [
+        "village",
+        "town"
+      ],
+      "art": "/assets/proc/props/well.png",
+      "frameW": 16,
+      "frameH": 20,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": true,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "rope_ladder",
+      "desc": "a rope ladder swaying against the trunk, rungs worn smooth",
+      "biomes": [
+        "wild",
+        "treehouse"
+      ],
+      "art": "/assets/proc/props/rope_ladder.png",
+      "frameW": 16,
+      "frameH": 32,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "pillar",
+      "desc": "a fluted stone column holding up the dark",
+      "biomes": [
+        "dungeon",
+        "crypt",
+        "temple"
+      ],
+      "art": "/assets/proc/props/pillar.png",
+      "frameW": 16,
+      "frameH": 28,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": true,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "pillar_broken",
+      "desc": "the column snapped at a man's height \u2014 rubble where the rest fell",
+      "biomes": [
+        "dungeon",
+        "crypt"
+      ],
+      "art": "/assets/proc/props/pillar_broken.png",
+      "frameW": 16,
+      "frameH": 18,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": true,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "lever",
+      "desc": "a floor lever nobody remembers the purpose of",
+      "biomes": [
+        "dungeon",
+        "crypt"
+      ],
+      "art": "/assets/proc/props/lever.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "portcullis",
+      "desc": "an iron grid gate, points hungry for the floor",
+      "biomes": [
+        "dungeon",
+        "crypt"
+      ],
+      "art": "/assets/proc/props/portcullis.png",
+      "frameW": 16,
+      "frameH": 24,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": true,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "chains_wall",
+      "desc": "hanging chains \u2014 one shackle empty, one broken",
+      "biomes": [
+        "dungeon",
+        "crypt"
+      ],
+      "art": "/assets/proc/props/chains_wall.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "shackles",
+      "desc": "a pair of shackles, opened or slipped",
+      "biomes": [
+        "dungeon",
+        "crypt"
+      ],
+      "art": "/assets/proc/props/shackles.png",
+      "frameW": 16,
+      "frameH": 12,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "spike_trap",
+      "desc": "a floor plate of spikes \u2014 two are already stained",
+      "biomes": [
+        "dungeon",
+        "crypt"
+      ],
+      "art": "/assets/proc/props/spike_trap.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "coffin_wood",
+      "desc": "a hexagonal pine coffin, nailed shut",
+      "biomes": [
+        "dungeon",
+        "crypt"
+      ],
+      "art": "/assets/proc/props/coffin_wood.png",
+      "frameW": 16,
+      "frameH": 24,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": true,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "coffin_open",
+      "desc": "the same coffin, lid ajar \u2014 someone is still home",
+      "biomes": [
+        "dungeon",
+        "crypt"
+      ],
+      "art": "/assets/proc/props/coffin_open.png",
+      "frameW": 16,
+      "frameH": 24,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": true,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "ritual_circle",
+      "desc": "a chalk-and-blood summoning circle, candles still warm",
+      "biomes": [
+        "dungeon",
+        "crypt"
+      ],
+      "art": "/assets/proc/props/ritual_circle.png",
+      "frameW": 32,
+      "frameH": 32,
+      "frames": 1,
+      "footW": 2,
+      "footH": 2,
+      "blocks": false,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "crystal_glow",
+      "desc": "a cluster of cave crystals, lit from inside",
+      "biomes": [
+        "dungeon",
+        "crypt"
+      ],
+      "art": "/assets/proc/props/crystal_glow.png",
+      "frameW": 16,
+      "frameH": 18,
+      "frames": 2,
+      "fps": 3,
+      "footW": 1,
+      "footH": 1,
+      "blocks": true,
+      "light": true,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "rune_stone",
+      "desc": "a rough monolith whose rune pulses cold light",
+      "biomes": [
+        "dungeon",
+        "crypt"
+      ],
+      "art": "/assets/proc/props/rune_stone.png",
+      "frameW": 16,
+      "frameH": 18,
+      "frames": 2,
+      "fps": 3,
+      "footW": 1,
+      "footH": 1,
+      "blocks": true,
+      "light": true,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "iron_maiden",
+      "desc": "an upright iron case shaped like a person \u2014 it drips",
+      "biomes": [
+        "dungeon",
+        "crypt"
+      ],
+      "art": "/assets/proc/props/iron_maiden.png",
+      "frameW": 16,
+      "frameH": 24,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": true,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "cauldron",
+      "desc": "a witch's cauldron at a slow green boil",
+      "biomes": [
+        "dungeon",
+        "crypt"
+      ],
+      "art": "/assets/proc/props/cauldron.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 2,
+      "fps": 3,
+      "footW": 1,
+      "footH": 1,
+      "blocks": true,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "table_broken",
+      "desc": "a wooden table collapsed at one end, leg snapped to splinters",
+      "biomes": [
+        "interior",
+        "crypt",
+        "manor"
+      ],
+      "art": "/assets/proc/props/table_broken.png",
+      "frameW": 16,
+      "frameH": 14,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": true,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "chair_broken",
+      "desc": "a chair tipped on its side, one leg gone",
+      "biomes": [
+        "interior",
+        "crypt",
+        "manor"
+      ],
+      "art": "/assets/proc/props/chair_broken.png",
+      "frameW": 16,
+      "frameH": 14,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "furniture_shrouded",
+      "desc": "furniture under a dust sheet, waiting like a ghost",
+      "biomes": [
+        "interior",
+        "crypt",
+        "manor"
+      ],
+      "art": "/assets/proc/props/furniture_shrouded.png",
+      "frameW": 16,
+      "frameH": 18,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": true,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "mirror_standing",
+      "desc": "an oval standing mirror, cracked corner to corner",
+      "biomes": [
+        "interior",
+        "crypt",
+        "manor"
+      ],
+      "art": "/assets/proc/props/mirror_standing.png",
+      "frameW": 16,
+      "frameH": 24,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": true,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "clock_grandfather",
+      "desc": "a grandfather clock stopped dead at midnight",
+      "biomes": [
+        "interior",
+        "crypt",
+        "manor"
+      ],
+      "art": "/assets/proc/props/clock_grandfather.png",
+      "frameW": 16,
+      "frameH": 28,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": true,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "fireplace",
+      "desc": "a stone hearth, logs still burning for no one",
+      "biomes": [
+        "interior",
+        "crypt",
+        "manor"
+      ],
+      "art": "/assets/proc/props/fireplace.png",
+      "frameW": 16,
+      "frameH": 20,
+      "frames": 2,
+      "fps": 3,
+      "footW": 1,
+      "footH": 1,
+      "blocks": true,
+      "light": true,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "portrait_cracked",
+      "desc": "a torn portrait hanging crooked; the sitter still watches",
+      "biomes": [
+        "interior",
+        "crypt",
+        "manor"
+      ],
+      "art": "/assets/proc/props/portrait_cracked.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "wine_rack",
+      "desc": "a dusty wine rack, two bottles unaccounted for",
+      "biomes": [
+        "interior",
+        "crypt",
+        "manor"
+      ],
+      "art": "/assets/proc/props/wine_rack.png",
+      "frameW": 16,
+      "frameH": 20,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": true,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "hedge",
+      "desc": "a wall of clipped labyrinth hedge, dense enough to lose a war in",
+      "biomes": [
+        "garden",
+        "labyrinth",
+        "wild"
+      ],
+      "art": "/assets/proc/terrain/hedge.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": false,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "hedge_t",
+      "desc": "a wall of clipped labyrinth hedge, dense enough to lose a war in (t edge)",
+      "biomes": [
+        "garden",
+        "labyrinth",
+        "wild"
+      ],
+      "art": "/assets/proc/terrain/hedge_t.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": false,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "hedge_b",
+      "desc": "a wall of clipped labyrinth hedge, dense enough to lose a war in (b edge)",
+      "biomes": [
+        "garden",
+        "labyrinth",
+        "wild"
+      ],
+      "art": "/assets/proc/terrain/hedge_b.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": false,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "hedge_l",
+      "desc": "a wall of clipped labyrinth hedge, dense enough to lose a war in (l edge)",
+      "biomes": [
+        "garden",
+        "labyrinth",
+        "wild"
+      ],
+      "art": "/assets/proc/terrain/hedge_l.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": false,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "hedge_r",
+      "desc": "a wall of clipped labyrinth hedge, dense enough to lose a war in (r edge)",
+      "biomes": [
+        "garden",
+        "labyrinth",
+        "wild"
+      ],
+      "art": "/assets/proc/terrain/hedge_r.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": false,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "hedge_tl",
+      "desc": "a wall of clipped labyrinth hedge, dense enough to lose a war in (tl edge)",
+      "biomes": [
+        "garden",
+        "labyrinth",
+        "wild"
+      ],
+      "art": "/assets/proc/terrain/hedge_tl.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": false,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "hedge_tr",
+      "desc": "a wall of clipped labyrinth hedge, dense enough to lose a war in (tr edge)",
+      "biomes": [
+        "garden",
+        "labyrinth",
+        "wild"
+      ],
+      "art": "/assets/proc/terrain/hedge_tr.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": false,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "hedge_bl",
+      "desc": "a wall of clipped labyrinth hedge, dense enough to lose a war in (bl edge)",
+      "biomes": [
+        "garden",
+        "labyrinth",
+        "wild"
+      ],
+      "art": "/assets/proc/terrain/hedge_bl.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": false,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "hedge_br",
+      "desc": "a wall of clipped labyrinth hedge, dense enough to lose a war in (br edge)",
+      "biomes": [
+        "garden",
+        "labyrinth",
+        "wild"
+      ],
+      "art": "/assets/proc/terrain/hedge_br.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": false,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "flagstone_flooded",
+      "desc": "dark flagstones under a hand-span of black-teal floodwater",
+      "biomes": [
+        "interior",
+        "crypt"
+      ],
+      "art": "/assets/proc/terrain/flagstone_flooded.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": true,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wood_floor_flooded",
+      "desc": "warped floor planks drowned in shallow water, ripples catching the light",
+      "biomes": [
+        "interior",
+        "crypt"
+      ],
+      "art": "/assets/proc/terrain/wood_floor_flooded.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "walkable": true,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "treehouse",
+      "desc": "a great oak carrying a plank hut in its arms, rope ladder swaying to the ground",
+      "biomes": [
+        "forest",
+        "wild"
+      ],
+      "art": "/assets/proc/props/treehouse.png",
+      "frameW": 48,
+      "frameH": 64,
+      "frames": 1,
+      "footW": 3,
+      "footH": 2,
+      "blocks": true,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "standing_stone",
+      "desc": "a weathered menhir older than the road, moss creeping up its feet",
+      "biomes": [
+        "wild",
+        "moor"
+      ],
+      "art": "/assets/proc/props/standing_stone.png",
+      "frameW": 16,
+      "frameH": 24,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": true,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "tent",
+      "desc": "an A-frame canvas tent, flap open onto the dark inside",
+      "biomes": [
+        "camp",
+        "wild"
+      ],
+      "art": "/assets/proc/props/tent.png",
+      "frameW": 32,
+      "frameH": 24,
+      "frames": 1,
+      "footW": 2,
+      "footH": 1,
+      "blocks": true,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "scarecrow",
+      "desc": "a cross-framed scarecrow in a ragged red coat, straw bleeding from its wrists",
+      "biomes": [
+        "farm",
+        "field"
+      ],
+      "art": "/assets/proc/props/scarecrow.png",
+      "frameW": 16,
+      "frameH": 26,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "character",
+      "tag": "bear",
+      "desc": "a heavy brown bear, shoulders humped like a hill",
+      "biomes": [
+        "forest",
+        "wild"
+      ],
+      "art": "/assets/proc/char/bear.png",
+      "frameW": 16,
+      "frameH": 16,
+      "idleFrames": 2,
+      "fps": 3,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "character",
+      "tag": "boar",
+      "desc": "a bristle-backed wild boar, tusks worn white",
+      "biomes": [
+        "forest",
+        "wild"
+      ],
+      "art": "/assets/proc/char/boar.png",
+      "frameW": 16,
+      "frameH": 16,
+      "idleFrames": 2,
+      "fps": 3,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "character",
+      "tag": "snake",
+      "desc": "a coiled green snake, head raised to strike",
+      "biomes": [
+        "swamp",
+        "wild"
+      ],
+      "art": "/assets/proc/char/snake.png",
+      "frameW": 16,
+      "frameH": 16,
+      "idleFrames": 2,
+      "fps": 3,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "character",
+      "tag": "raven",
+      "desc": "a black raven, watching with one pale eye",
+      "biomes": [
+        "moor",
+        "crypt",
+        "wild"
+      ],
+      "art": "/assets/proc/char/raven.png",
+      "frameW": 16,
+      "frameH": 16,
+      "idleFrames": 2,
+      "fps": 3,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "character",
+      "tag": "bat",
+      "desc": "a cave bat mid-flight, wings spread wide",
+      "biomes": [
+        "cave",
+        "crypt"
+      ],
+      "art": "/assets/proc/char/bat.png",
+      "frameW": 16,
+      "frameH": 16,
+      "idleFrames": 2,
+      "fps": 3,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "character",
+      "tag": "fox",
+      "desc": "a red fox, ears pricked, tail tipped white",
+      "biomes": [
+        "forest"
+      ],
+      "art": "/assets/proc/char/fox.png",
+      "frameW": 16,
+      "frameH": 16,
+      "idleFrames": 2,
+      "fps": 3,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "character",
+      "tag": "drowned_dead",
+      "desc": "a waterlogged walker trailing kelp, still dripping",
+      "biomes": [
+        "reservoir",
+        "fen",
+        "crypt"
+      ],
+      "art": "/assets/proc/char/drowned_dead.png",
+      "frameW": 16,
+      "frameH": 16,
+      "idleFrames": 2,
+      "fps": 3,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "character",
+      "tag": "cultist",
+      "desc": "a blood-robed cultist, dagger clasped, face in shadow",
+      "biomes": [
+        "dungeon",
+        "crypt"
+      ],
+      "art": "/assets/proc/char/cultist.png",
+      "frameW": 16,
+      "frameH": 16,
+      "idleFrames": 2,
+      "fps": 3,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "character",
+      "tag": "witch",
+      "desc": "a swamp witch with broom and belt-hung potion",
+      "biomes": [
+        "swamp",
+        "forest"
+      ],
+      "art": "/assets/proc/char/witch.png",
+      "frameW": 16,
+      "frameH": 16,
+      "idleFrames": 2,
+      "fps": 3,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "character",
+      "tag": "dragon_red",
+      "desc": "the red wyrm, wings raised \u2014 furnace breath and hoarded wrath",
+      "biomes": [
+        "mountain",
+        "lair"
+      ],
+      "art": "/assets/proc/char/dragon_red.png",
+      "frameW": 48,
+      "frameH": 48,
+      "idleFrames": 2,
+      "fps": 3,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "character",
+      "tag": "dragon_black",
+      "desc": "the black dragon in a low predatory crouch, acid at the jaw",
+      "biomes": [
+        "swamp",
+        "lair"
+      ],
+      "art": "/assets/proc/char/dragon_black.png",
+      "frameW": 48,
+      "frameH": 48,
+      "idleFrames": 2,
+      "fps": 3,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "character",
+      "tag": "dragon_bone",
+      "desc": "a dracolich \u2014 bare spars, tattered wings, cold pinprick eyes",
+      "biomes": [
+        "crypt",
+        "lair"
+      ],
+      "art": "/assets/proc/char/dragon_bone.png",
+      "frameW": 48,
+      "frameH": 48,
+      "idleFrames": 2,
+      "fps": 3,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "character",
+      "tag": "demon",
+      "desc": "a horned demon, embers cracking through its hide",
+      "biomes": [
+        "abyss",
+        "dungeon"
+      ],
+      "art": "/assets/proc/char/demon.png",
+      "frameW": 32,
+      "frameH": 32,
+      "idleFrames": 2,
+      "fps": 3,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "character",
+      "tag": "treant",
+      "desc": "a walking tree with a club arm and hollow eyes",
+      "biomes": [
+        "forest"
+      ],
+      "art": "/assets/proc/char/treant.png",
+      "frameW": 32,
+      "frameH": 32,
+      "idleFrames": 2,
+      "fps": 3,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "character",
+      "tag": "serpent_giant",
+      "desc": "a giant serpent rearing from its coils, fangs bared",
+      "biomes": [
+        "swamp",
+        "jungle"
+      ],
+      "art": "/assets/proc/char/serpent_giant.png",
+      "frameW": 32,
+      "frameH": 24,
+      "idleFrames": 2,
+      "fps": 3,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "character",
+      "tag": "banshee",
+      "desc": "a wailing spectre trailing into mist",
+      "biomes": [
+        "moor",
+        "crypt"
+      ],
+      "art": "/assets/proc/char/banshee.png",
+      "frameW": 16,
+      "frameH": 24,
+      "idleFrames": 2,
+      "fps": 3,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "character",
+      "tag": "vampire",
+      "desc": "a pale lord in a high-collared cloak, red silk beneath",
+      "biomes": [
+        "crypt",
+        "manor"
+      ],
+      "art": "/assets/proc/char/vampire.png",
+      "frameW": 16,
+      "frameH": 16,
+      "idleFrames": 2,
+      "fps": 3,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "character",
+      "tag": "werewolf",
+      "desc": "a hunched wolf-man, claws out, one red eye",
+      "biomes": [
+        "forest",
+        "moor"
+      ],
+      "art": "/assets/proc/char/werewolf.png",
+      "frameW": 16,
+      "frameH": 16,
+      "idleFrames": 2,
+      "fps": 3,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "character",
+      "tag": "skeleton_king",
+      "desc": "a crowned skeleton with a raised black sword",
+      "biomes": [
+        "crypt",
+        "dungeon"
+      ],
+      "art": "/assets/proc/char/skeleton_king.png",
+      "frameW": 16,
+      "frameH": 16,
+      "idleFrames": 2,
+      "fps": 3,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "character",
+      "tag": "necromancer",
+      "desc": "a purple-robed necromancer, orb-tipped bone staff",
+      "biomes": [
+        "crypt",
+        "dungeon"
+      ],
+      "art": "/assets/proc/char/necromancer.png",
+      "frameW": 16,
+      "frameH": 16,
+      "idleFrames": 2,
+      "fps": 3,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "character",
+      "tag": "mimic",
+      "desc": "just a wooden chest \u2014 until it is not",
+      "biomes": [
+        "dungeon"
+      ],
+      "art": "/assets/proc/char/mimic.png",
+      "frameW": 16,
+      "frameH": 16,
+      "idleFrames": 2,
+      "fps": 3,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "blood_pool",
+      "desc": "a dark pool of blood, still wet at the edge",
+      "biomes": [
+        "dungeon",
+        "battle",
+        "any"
+      ],
+      "art": "/assets/proc/props/blood_pool.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "blood_splatter",
+      "desc": "a violent spray of blood fanning across the stones",
+      "biomes": [
+        "dungeon",
+        "battle",
+        "any"
+      ],
+      "art": "/assets/proc/props/blood_splatter.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "blood_trail",
+      "desc": "smeared drag-marks \u2014 something was hauled away, bleeding",
+      "biomes": [
+        "dungeon",
+        "battle",
+        "any"
+      ],
+      "art": "/assets/proc/props/blood_trail.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "web_floor",
+      "desc": "a dusty floor cobweb strung between two corners, one fly past caring",
+      "biomes": [
+        "dungeon",
+        "battle",
+        "any"
+      ],
+      "art": "/assets/proc/props/web_floor.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "scorch_mark",
+      "desc": "a blast-burn seared into the floor, ash fanning outward",
+      "biomes": [
+        "dungeon",
+        "battle",
+        "any"
+      ],
+      "art": "/assets/proc/props/scorch_mark.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "slime_puddle",
+      "desc": "a glistening smear of green ooze, one blob crawling off on its own",
+      "biomes": [
+        "dungeon",
+        "battle",
+        "any"
+      ],
+      "art": "/assets/proc/props/slime_puddle.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "magic_circle",
+      "desc": "an arcane summoning circle, runes crawling along the band",
+      "biomes": [
+        "dungeon",
+        "battle",
+        "any"
+      ],
+      "art": "/assets/proc/props/magic_circle.png",
+      "frameW": 32,
+      "frameH": 32,
+      "frames": 2,
+      "fps": 3,
+      "footW": 2,
+      "footH": 2,
+      "blocks": false,
+      "light": true,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "smoke_plume",
+      "desc": "a column of smoke rolling up from something still burning",
+      "biomes": [
+        "dungeon",
+        "battle",
+        "any"
+      ],
+      "art": "/assets/proc/props/smoke_plume.png",
+      "frameW": 16,
+      "frameH": 28,
+      "frames": 2,
+      "fps": 3,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
+    },
+    {
+      "kind": "prop",
+      "tag": "fire_small",
+      "desc": "a small crackling ground fire on blackened logs",
+      "biomes": [
+        "dungeon",
+        "battle",
+        "any"
+      ],
+      "art": "/assets/proc/props/fire_small.png",
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 2,
+      "fps": 3,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false,
+      "light": true,
+      "from": {
+        "pack": "proc",
+        "gen": "scripts/gen-forge-proc.py"
+      },
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
     }
   ]
 }

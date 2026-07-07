@@ -44,6 +44,28 @@ const LIGHTINGS = new Set<Lighting>(['day', 'dusk', 'night']);
 
 /** Map a free-text NPC/creature look to a catalog character tag. Animals + monsters + people. */
 const LOOK_SYNONYMS: [RegExp, string][] = [
+  // FORGE additions — most specific first so they beat the older generic rows below.
+  [/dracolich|bone.?dragon|skeletal dragon|undead dragon/, 'dragon_bone'],
+  [/black dragon|swamp dragon|acid dragon/, 'dragon_black'],
+  [/red dragon|great dragon|ancient dragon|fire dragon|wyrm|drake\b/, 'dragon_red'],
+  [/drowned|waterlogged|risen from the (water|lake|reservoir)/, 'drowned_dead'],
+  [/banshee|wailing (spirit|woman)/, 'banshee'],
+  [/vampire|nosferatu/, 'vampire'],
+  [/werewolf|wolf.?man|lycan/, 'werewolf'],
+  [/skeleton king|skeletal (king|lord)|crowned skeleton/, 'skeleton_king'],
+  [/necromancer/, 'necromancer'],
+  [/mimic/, 'mimic'],
+  [/\bdemon\b|\bfiend\b/, 'demon'],
+  [/treant|tree.?man|walking tree|ent\b/, 'treant'],
+  [/giant (snake|serpent)|serpent/, 'serpent_giant'],
+  [/cultist|hooded (figure|acolyte)/, 'cultist'],
+  [/witch|hag\b/, 'witch'],
+  [/\bbear\b|grizzly/, 'bear'],
+  [/\bboar\b|wild pig/, 'boar'],
+  [/\bsnake\b|adder|viper/, 'snake'],
+  [/raven|crow\b|blackbird/, 'raven'],
+  [/\bbat\b/, 'bat'],
+  [/\bfox\b|vixen/, 'fox'],
   // animals
   [/chicken|hen|rooster|fowl|poultry/, 'chicken'],
   [/duck|goose|geese|gull|waterfowl/, 'duck'],

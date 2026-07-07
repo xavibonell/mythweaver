@@ -37,12 +37,13 @@ describe('compileSpec — the deterministic spec→ops consumer (S2 v1)', () => 
     // The drowned dead scatter IN the water as hostiles.
     const wet = r.postOps.find((o) => o.op === 'scatter' && o.on === 'water');
     expect(wet).toMatchObject({ kind: 'actor', role: 'mob', count: 4 });
-    // The lamp resolved to a real catalog tag (light source) as an addressable op (S4).
-    expect(r.postOps.some((o) => o.op === 'place' && o.tag === 'torch_wall' && o.id === 'prop:lamp')).toBe(true);
+    // The lamp resolved to the FORGED lamp post as an addressable op (S4 + the asset forge).
+    expect(r.postOps.some((o) => o.op === 'place' && o.tag === 'lamp_post' && o.id === 'prop:lamp')).toBe(true);
     // The party arrives at the east edge.
     expect(r.entryEdge).toBe('east');
-    // The weir has no representation — REPORTED, not silently dropped.
-    expect(r.unrepresented.join(',')).toContain('weir');
+    // The weir — once the ART WALL poster child — now places as its forged sprite.
+    expect(r.postOps.some((o) => o.op === 'place' && o.tag === 'weir')).toBe(true);
+    expect(r.unrepresented).toHaveLength(0);
     // Remaining relations are queued for the placement pass (S4), visibly.
     expect(r.notes.join(' ')).toContain('queued for the placement pass');
   });
@@ -60,12 +61,13 @@ describe('compileSpec — the deterministic spec→ops consumer (S2 v1)', () => 
       constraints: [{ c: 'in', a: 'coffins', region: 'water', w: 'hard' }],
     };
     const r = compileSpec(spec, { settlement: false });
-    // No bell art exists → honestly unrepresented (the ART WALL, not a silent drop).
-    expect(r.unrepresented.join(',')).toContain('bell');
-    // The revenant scatters as a hostile; the coffins float as sarcophagi in the water.
+    // The great bell WAS the art wall — the forge felled it; it now places as bell_great.
+    expect(r.postOps.some((o) => o.op === 'place' && o.tag === 'bell_great')).toBe(true);
+    expect(r.unrepresented.join(',')).not.toContain('bell');
+    // The revenant scatters as a hostile; the coffins float as FORGED wooden coffins in the water.
     expect(r.postOps.some((o) => o.op === 'scatter' && o.kind === 'actor' && o.role === 'mob')).toBe(true);
     const floats = r.postOps.find((o) => o.op === 'scatter' && o.on === 'water');
-    expect(floats).toMatchObject({ kind: 'prop', count: 4, tags: ['sarcophagus'] });
+    expect(floats).toMatchObject({ kind: 'prop', count: 4, tags: ['coffin_wood'] });
   });
 
   it('end-to-end: a spec-compiled water scatter puts actors ON water tiles', () => {

@@ -47,17 +47,30 @@ const BUILDING_SYNONYMS: Record<string, BuildingType> = {
 };
 
 /** prop/decor tails → catalog tags. Every value is re-verified with isProp at resolve time, so a
- *  concept with no real art falls through to UNREPRESENTED (honest) instead of a broken tag. */
+ *  concept with no real art falls through to UNREPRESENTED (honest) instead of a broken tag.
+ *  (Most values below landed with the ASSET FORGE — the ART WALL list turned into sprites.) */
 const PROP_SYNONYMS: Record<string, string> = {
   rowboat: 'boat', boat: 'boat', skiff: 'boat', dinghy: 'boat', 'boat-overturned': 'boat', 'overturned-boat': 'boat',
-  'lamp-post': 'torch_wall', lamppost: 'torch_wall', 'lantern-post': 'torch_wall', streetlamp: 'torch_wall', lantern: 'torch_wall', torch: 'torch_wall',
+  'lamp-post': 'lamp_post', lamppost: 'lamp_post', 'lantern-post': 'lamp_post', streetlamp: 'lamp_post', lantern: 'lamp_post', torch: 'torch_wall',
   barrel: 'barrel', crate: 'crate', chest: 'chest', strongbox: 'chest',
   rope: 'rope_coil', 'tarred-rope': 'rope_coil', 'bell-rope': 'rope_coil', chain: 'rope_coil',
-  coffin: 'sarcophagus', sarcophagus: 'sarcophagus', grave: 'gravestone', gravestone: 'gravestone', tombstone: 'tombstone',
+  bell: 'bell_great', 'great-bell': 'bell_great', clapper: 'bell_clapper', 'bell-clapper': 'bell_clapper',
+  weir: 'weir', 'iron-ring': 'iron_ring', ring: 'iron_ring', anchor: 'anchor', buoy: 'buoy',
+  net: 'net_drying', 'fishing-net': 'net_drying', 'drying-rack': 'net_drying',
+  tomb: 'tomb_door', 'sealed-tomb': 'tomb_door', 'tomb-door': 'tomb_door',
+  well: 'well', pillar: 'pillar', column: 'pillar', 'broken-pillar': 'pillar_broken',
+  lever: 'lever', portcullis: 'portcullis', 'spike-trap': 'spike_trap', shackles: 'shackles',
+  coffin: 'coffin_wood', sarcophagus: 'sarcophagus', grave: 'gravestone', gravestone: 'gravestone', tombstone: 'tombstone',
+  'ritual-circle': 'ritual_circle', pentagram: 'ritual_circle', crystal: 'crystal_glow', rune: 'rune_stone', 'rune-stone': 'rune_stone',
   altar: 'altar', throne: 'throne', fountain: 'fountain', statue: 'statue',
+  mirror: 'mirror_standing', clock: 'clock_grandfather', fireplace: 'fireplace', hearth: 'fireplace',
   campfire: 'campfire', bonfire: 'bonfire', brazier: 'brazier', candle: 'candle',
   cart: 'minecart', 'ore-cart': 'minecart', minecart: 'minecart', sign: 'signpost', signpost: 'signpost',
-  pot: 'pot', cauldron: 'pot', corpse: 'bones', body: 'bones', bones: 'bones', skull: 'skull',
+  pot: 'pot', cauldron: 'cauldron', corpse: 'bones', body: 'bones', bones: 'bones', skull: 'skull',
+  tent: 'tent', bedroll: 'tent', 'standing-stone': 'standing_stone', menhir: 'standing_stone', cairn: 'cairn',
+  treehouse: 'treehouse', 'tree-house': 'treehouse', scarecrow: 'scarecrow', ladder: 'rope_ladder', 'rope-ladder': 'rope_ladder',
+  blood: 'blood_pool', 'blood-pool': 'blood_pool', web: 'web_floor', cobweb: 'cobweb',
+  'magic-circle': 'magic_circle', 'summoning-circle': 'magic_circle', smoke: 'smoke_plume', fire: 'fire_small',
 };
 
 /** kinds whose realization is a HOSTILE actor. */
