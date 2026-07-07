@@ -20,6 +20,7 @@ import {
   saveDirectorComposer,
 } from './prompts.js';
 import { buildRetriever } from './corpus.js';
+import { buildExemplarRetriever } from './exemplar-corpus.js';
 import { buildTracer } from './tracing.js';
 import { runTurn, type TurnInput } from './orchestrator.js';
 import { buildModernRealizer, establishFromBeat, labBuildCity, labBuildComponent, labBuildProgram, labBuildScene, labBuildSpike, labBuildStory, labComposeScene, modernRealizeInputs } from './scene-lab.js';
@@ -52,6 +53,9 @@ app.log.info(`DM provider: ${dmProvider}${dmModel ? ` (${dmModel})` : ''}`);
 
 const { retriever, description: ragMode } = buildRetriever(db);
 app.log.info(`RAG retrieval: ${ragMode}`);
+// Style exemplars (Technique B) — a SEPARATE voice namespace, never visible to lookupRule.
+const { exemplars, description: exemplarMode } = buildExemplarRetriever();
+app.log.info(`Style exemplars: ${exemplarMode}`);
 const { tracer, description: traceMode } = await buildTracer();
 app.log.info(`Tracing: ${traceMode}`);
 
@@ -771,6 +775,8 @@ app.post('/dm/lab/session', async (req, reply) => {
         ...(startSceneId ? { startSceneId } : {}),
         ...(generatedArc ? { generatedArc } : {}),
         ...(party ? { party } : {}),
+        ...(exemplars ? { exemplars } : {}),
+        ...((req.body as Record<string, unknown>)?.exemplars === false ? { useExemplars: false } : {}),
       },
       scenario,
     );
@@ -980,7 +986,7 @@ app.post('/sessions/:id/turn', async (req, reply) => {
   const recent = await db.recentMessages(id, 12);
 
   try {
-    const result = await runTurn({ engine, llm, recentTranscript: recent, playbook: loadPlaybook(), retriever, tracer, composer, ...(realizeScene ? { realizeScene } : {}), ...(arcPlanner ? { arcPlanner } : {}) }, parsed);
+    const result = await runTurn({ engine, llm, recentTranscript: recent, playbook: loadPlaybook(), retriever, tracer, composer, ...(realizeScene ? { realizeScene } : {}), ...(arcPlanner ? { arcPlanner } : {}), ...(exemplars ? { exemplars } : {}) }, parsed);
 
     const state = engine.getState();
     const newSpent = spent + result.costUsd;

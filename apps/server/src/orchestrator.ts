@@ -39,6 +39,8 @@ import { CHARACTERS, PROMPT_PROPS, buildSceneMap, lookToSprite, type SceneCompos
 const FIXTURE_TAG_HINT = PROMPT_PROPS.map((p) => p.tag).join(', ');
 const ACTOR_LOOK_HINT = CHARACTERS.map((c) => c.tag).join(', ');
 import { NoopTracer, type Tracer } from './tracing.js';
+import type { ExemplarRetriever } from './exemplar-corpus.js';
+import type { ExemplarMoveType } from './exemplar-ingest.js';
 
 export const DEFAULT_DM_PLAYBOOK = `You are MythWeaver, the Dungeon Master for a Dungeons & Dragons 5e session.
 
@@ -46,6 +48,9 @@ STYLE (a configurable preset):
 - Set scenes with vivid, economical sensory detail; give NPCs distinct voices.
 - Keep momentum: don't ramble. Most turns end by asking the players what they do.
 - Be fair but firm. Rulings are final in the moment.
+- A "STYLE EXEMPLARS" block may appear in the turn context: real-DM beats for THIS kind of moment.
+  Match their cadence, rhythm, and length — a terse answer stays terse, an arrival earns its length.
+  NEVER reuse their names, places, or plot; they are voice, not content, and never rules.
 
 ABSOLUTE RULES (non-negotiable):
 - You are the NARRATOR. You NEVER decide a number or a mechanical outcome yourself.
@@ -188,6 +193,8 @@ export interface TurnResult {
   deltas?: SceneDelta[];
   /** An arc beat transition landed this turn (advanceScene) — the client shows a title card. */
   beat?: { from: string; to: string; title?: string; outcome?: 'resolved' | 'fled' | 'done' };
+  /** Style exemplars injected this turn (Technique B) — for the lab trace + session de-dup. */
+  exemplars?: { id: string; moveType: string; source: string }[];
 }
 
 export interface OrchestratorDeps {
@@ -207,6 +214,11 @@ export interface OrchestratorDeps {
   realizeScene?: (est: EstablishScene, party: PartyMemberRef[], ctx?: SceneRealizeContext) => Promise<RealizeSceneResult | null>;
   /** Game Director (Phase D / D2). When present, the per-turn STEERING brief is (re)planned on triggers. */
   arcPlanner?: ArcPlanner;
+  /** Style-exemplar retriever (Technique B): real-DM beats injected per turn so the narration keeps a
+   *  human table rhythm. VOICE only — never rules; failure to retrieve never breaks a turn. */
+  exemplars?: ExemplarRetriever;
+  /** Exemplar ids used in recent turns (the session tracks them) — suppressed to avoid repetition. */
+  excludeExemplarIds?: string[];
   /** Sampling temperature for the DM model (omit to use the provider default). Used by the DM Lab. */
   temperature?: number;
   /** Sampling temperature for the Game Director's own calls (architect/plan). Falls back to `temperature`. */
@@ -1141,6 +1153,21 @@ export function parseEstablish(input: Record<string, unknown>, state: GameState)
   };
 }
 
+/**
+ * Predict which register of style exemplar THIS turn needs (deterministic, $0). The filter is the
+ * verbosity control: long arrival-style exemplars only fire on scene-setting turns, so the DM doesn't
+ * learn to ramble on an ordinary beat. Undefined → unfiltered semantic retrieval.
+ */
+export function predictMoveType(input: TurnInput, state: GameState): ExemplarMoveType | undefined {
+  if (input.kind === 'opening') return 'scene-set';
+  if (state.combat.active) return 'combat-beat';
+  if (input.kind === 'message') {
+    const t = input.text.trim();
+    if (t.endsWith('?') && t.length < 160) return 'short-answer';
+  }
+  return undefined;
+}
+
 export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise<TurnResult> {
   const { engine, llm } = deps;
   const now = deps.now ?? Date.now;
@@ -1162,6 +1189,7 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
   let sceneProvenance: SceneProvenance | undefined; // how the scene came to be (response-only)
   const sceneDeltas: SceneDelta[] = []; // APPLIED updateScene/combat-sync ops this turn (normalized tiles)
   let beatTransition: TurnResult['beat']; // an advanceScene landed this turn (title card client-side)
+  let firedExemplars: TurnResult['exemplars']; // style exemplars injected this turn (Technique B)
 
   const span = (deps.tracer ?? NOOP_TRACER).startTurn({
     sessionId: state.sessionId,
@@ -1169,6 +1197,7 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
     input: input.kind === 'message' ? input.text : input.kind === 'roll' ? `declared roll ${input.total}` : 'session start',
   });
   const finish = (result: TurnResult): TurnResult => {
+    if (firedExemplars && !result.exemplars) result.exemplars = firedExemplars;
     span.end({
       narration: result.narration,
       costUsd: result.costUsd,
@@ -1287,6 +1316,26 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
     // CANON: the ledger slice relevant to what's being discussed this turn (established truth to honor).
     const playerLine = input.kind === 'message' ? input.text : '';
     const canon = canonBlock(state, [scene?.summary ?? '', recent, playerLine].join(' '));
+    // STYLE EXEMPLARS (Technique B): retrieve 2 real-DM beats matched to THIS moment's register and
+    // inject them into the volatile per-turn block (system prompt stays cache-eligible). Voice only —
+    // guarded against content copying; retrieval failure never breaks a turn.
+    let exemplarBlock = '';
+    if (deps.exemplars) {
+      try {
+        const mt = predictMoveType(input, state);
+        const exclude = new Set(deps.excludeExemplarIds ?? []);
+        const hits = await deps.exemplars.retrieve([scene?.summary?.slice(0, 300) ?? '', playerLine || 'the session opens; establish the scene'].join('\n'), 2, mt, exclude);
+        if (hits.length) {
+          exemplarBlock =
+            `=== STYLE EXEMPLARS (how a real DM plays this kind of beat — match the cadence, rhythm, and length; NEVER copy their names, places, or plot) ===\n` +
+            hits.map((h, i) => `${i + 1}. ${h.cue ? `[${h.cue.slice(0, 140)}]\n   ` : ''}DM: ${h.text.slice(0, 600)}`).join('\n') +
+            '\n\n';
+          firedExemplars = hits.map((h) => ({ id: h.id, moveType: h.moveType, source: h.source }));
+        }
+      } catch {
+        /* style retrieval must never break a turn */
+      }
+    }
     messages = [
       {
         role: 'user',
@@ -1294,6 +1343,7 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
           gmBlock +
           canon +
           steering +
+          exemplarBlock +
           `=== CURRENT STATE (authoritative; from the engine) ===\n${summarizeState(state)}\n\n` +
           (recent ? `=== RECENT ===\n${recent}\n\n` : '') +
           (input.kind === 'opening'

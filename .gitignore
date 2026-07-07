@@ -16,6 +16,7 @@ traces*.jsonl
 raw-data/
 raw-data*.zip
 content/corpus/
+content/exemplars/
 *.zip
 
 # Visual-judge render captures (derived PNGs + score reports) — dev artifacts, never ship.

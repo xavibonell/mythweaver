@@ -41,6 +41,7 @@ import { FakeSceneComposer, type SceneComposer } from '@mythweaver/scene';
 import { ABILITIES, SKILLS, type Ability, type CharacterSheet, type EntityCard, type EstablishScene, type GameState, type PartyMemberRef, type RealizeSceneResult, type SceneDelta, type SceneMap, type SceneProvenance, type SceneRealizeContext, type Skill, type StatBlock } from '@mythweaver/shared';
 import { createHash } from 'node:crypto';
 import { loadItemCatalog, loadScenario, parseScenario, resolveParty } from './content.js';
+import { buildExemplarRetriever, type ExemplarRetriever } from './exemplar-corpus.js';
 import { buildRetriever } from './corpus.js';
 import { loadDirectorArchitect, loadDirectorComposer, loadDirectorPlanner, loadPlaybook } from './prompts.js';
 import { buildArcPlanner, type ArcPlanner } from './arc-planner.js';
@@ -76,6 +77,8 @@ export interface DmLabTurn {
   deltas?: SceneDelta[];
   /** An arc beat transition landed this turn (advanceScene) — the client shows a title card. */
   beat?: TurnResult['beat'];
+  /** Style exemplars injected this turn (Technique B) — which real-DM beats shaped the register. */
+  exemplars?: TurnResult['exemplars'];
   model: string;
   steps: number;
   costUsd: number;
@@ -119,6 +122,10 @@ export interface DmLabDeps {
   /** The hand-built party (resolved character sheets). Required for generated sessions; authored
    *  sessions fall back to the scenario's pregens. */
   party?: CharacterSheet[];
+  /** Style-exemplar retriever (Technique B) — real-DM beats injected per turn. */
+  exemplars?: ExemplarRetriever;
+  /** Session A/B knob: false = suppress exemplar injection even when a retriever is wired. */
+  useExemplars?: boolean;
 }
 
 /**
@@ -133,12 +140,14 @@ export function buildDmLabDeps(): DmLabDeps & { ragMode: string } {
   const { retriever, description: ragMode } = buildRetriever(null); // no DB needed for in-memory retrieval
   const arcPlanner = buildArcPlanner(llm, { architectSystem: loadDirectorArchitect, plannerSystem: loadDirectorPlanner });
   const arcComposer = buildArcComposer(llm, { composerSystem: loadDirectorComposer });
+  const { exemplars } = buildExemplarRetriever();
   return {
     llm,
     ...(retriever ? { retriever } : {}),
     composer: new FakeSceneComposer(),
     ...(arcPlanner ? { arcPlanner } : {}),
     ...(arcComposer ? { arcComposer } : {}),
+    ...(exemplars ? { exemplars } : {}),
     ragMode,
   };
 }
@@ -293,6 +302,10 @@ export interface DmLabSession {
   /** Scene the party started in + the party roster (for the UI header). */
   scene: string;
   party: { id: string; name: string }[];
+  /** Style exemplars (Technique B): the retriever + the session A/B knob + recently-fired ids (de-dup). */
+  exemplars?: ExemplarRetriever;
+  exemplarsOn: boolean;
+  recentExemplarIds: string[];
 }
 
 /** Build a fresh interactive session (engine state, recorder, captured persona/scenario/temp). */
@@ -379,6 +392,9 @@ export function createDmLabSession(deps: DmLabDeps, scenarioId: string): DmLabSe
     party: Object.values(state.combatants)
       .filter((c) => c.kind === 'pc')
       .map((c) => ({ id: c.id, name: c.name })),
+    ...(deps.exemplars ? { exemplars: deps.exemplars } : {}),
+    exemplarsOn: !!deps.exemplars && deps.useExemplars !== false,
+    recentExemplarIds: [],
   };
 }
 
@@ -417,9 +433,14 @@ export async function dmLabSubmit(
       recentTranscript: session.recent,
       ...(session.temperature !== undefined ? { temperature: session.temperature } : {}),
       ...(session.arcTemperature !== undefined ? { arcTemperature: session.arcTemperature } : {}),
+      ...(session.exemplars && session.exemplarsOn ? { exemplars: session.exemplars, excludeExemplarIds: session.recentExemplarIds } : {}),
     },
     turnInput,
   );
+  // Track which style exemplars fired so the next turns don't repeat them (rolling window of 8).
+  if (result.exemplars?.length) {
+    session.recentExemplarIds = [...session.recentExemplarIds, ...result.exemplars.map((e) => e.id)].slice(-8);
+  }
   const latencyMs = Date.now() - startedAt;
   const after = snapshot(engine.getState());
 
@@ -451,6 +472,7 @@ export async function dmLabSubmit(
     ...(result.sceneProvenance ? { sceneProvenance: result.sceneProvenance } : {}),
     ...(result.deltas?.length ? { deltas: result.deltas } : {}),
     ...(result.beat ? { beat: result.beat } : {}),
+    ...(result.exemplars?.length ? { exemplars: result.exemplars } : {}),
     model: result.model,
     steps: result.trace.steps,
     costUsd: result.costUsd,

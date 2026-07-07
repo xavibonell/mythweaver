@@ -10,6 +10,7 @@ import { AnthropicProvider, type LlmProvider } from '@mythweaver/llm';
 import { FakeSceneComposer } from '@mythweaver/scene';
 import { loadScenario } from '../content.js';
 import { buildRetriever } from '../corpus.js';
+import { buildExemplarRetriever } from '../exemplar-corpus.js';
 import { autoRollTotal } from '../dm-lab.js';
 import { loadPlaybook } from '../prompts.js';
 import { runTurn, type TurnResult } from '../orchestrator.js';
@@ -52,6 +53,7 @@ async function runCase(
   c: EvalCase,
   llm: LlmProvider,
   retriever: ReturnType<typeof buildRetriever>['retriever'],
+  exemplars?: ReturnType<typeof buildExemplarRetriever>['exemplars'],
 ): Promise<CaseResult> {
   const bundle = loadScenario(c.scenario);
   const adventure = {
@@ -86,7 +88,7 @@ async function runCase(
     lastMessageText = entry.text;
     // eslint-disable-next-line no-await-in-loop
     last = await runTurn(
-      { engine, llm, retriever, composer, playbook, recentTranscript: recent },
+      { engine, llm, retriever, composer, playbook, recentTranscript: recent, ...(exemplars ? { exemplars } : {}) },
       { kind: 'message', speakerId: entry.speakerId, text: entry.text },
     );
     allToolCalls.push(...last.trace.toolCalls);
@@ -105,7 +107,7 @@ async function runCase(
       }
       const reqId = last.rollRequest.id;
       // eslint-disable-next-line no-await-in-loop
-      last = await runTurn({ engine, llm, retriever, composer, playbook, recentTranscript: recent }, { kind: 'roll', requestId: reqId, total });
+      last = await runTurn({ engine, llm, retriever, composer, playbook, recentTranscript: recent, ...(exemplars ? { exemplars } : {}) }, { kind: 'roll', requestId: reqId, total });
       allToolCalls.push(...last.trace.toolCalls);
       recent.push(`roll: 🎲 ${total}`, `Dungeon Master: ${last.narration}`);
     }
@@ -125,12 +127,14 @@ export async function runEvals(opts: { runs?: number } = {}): Promise<EvalReport
   const runs = Math.max(1, opts.runs ?? 1);
   const llm = new AnthropicProvider();
   const { retriever } = buildRetriever(null); // vector/keyword retrieval needs no DB
+  const { exemplars, description: exemplarMode } = buildExemplarRetriever(); // A/B via MYTHWEAVER_EXEMPLARS=off
+  console.log(`style exemplars: ${exemplarMode}`);
 
   const perCase: CaseResult[] = [];
   for (let r = 0; r < runs; r++) {
     for (const c of EVAL_CASES) {
       // eslint-disable-next-line no-await-in-loop
-      perCase.push(await runCase(c, llm, retriever));
+      perCase.push(await runCase(c, llm, retriever, exemplars));
     }
   }
 

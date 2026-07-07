@@ -269,6 +269,10 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
         <input id="sceneEngine" type="checkbox" checked />
         <span>Real scene engine <span style="color:#6b7080">— programmer-generated maps (~$0.01-0.05/place; off = $0 deterministic)</span></span>
       </label>
+      <label style="display:flex;align-items:center;gap:6px;margin-bottom:4px;cursor:pointer">
+        <input id="exemplars" type="checkbox" checked />
+        <span>Style exemplars <span style="color:#6b7080">— real-DM voice beats injected per turn (off = A/B baseline)</span></span>
+      </label>
       <div class="hint" style="margin-bottom:10px">Captured when you start a session from the Generate tab.</div>
       <label>Suggested actions <span style="color:#6b7080">— arc-aware; click to prefill, then tweak &amp; send</span></label>
       <div class="row" id="presets"><span class="hint">start a campaign to see suggestions</span></div>
@@ -503,7 +507,10 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
       return '<div class="tool"><span class="name">' + esc(c.name) + '</span><span class="inp">(' + esc(JSON.stringify(c.input)) + ')</span>' + res + '</div>';
     }).join('');
     var diff = (t.diff && t.diff.length) ? '<div class="diff"><b>state Δ</b> ' + t.diff.map(esc).join('  |  ') + '</div>' : '';
-    var details = (tools || diff) ? ('<details><summary>tools + state Δ</summary>' + tools + diff + '</details>') : '';
+    var exs = (t.exemplars && t.exemplars.length)
+      ? '<div class="diff"><b>🎭 style exemplars</b> ' + t.exemplars.map(function (e) { return esc(e.moveType) + ' (' + esc(e.source) + ')'; }).join('  |  ') + '</div>'
+      : '';
+    var details = (tools || diff || exs) ? ('<details><summary>tools + state Δ</summary>' + tools + diff + exs + '</details>') : '';
     var roll = t.rollRequest ? '<div class="roll-pending">⏸ needs a roll: ' + esc(t.rollRequest.expr) + ' — ' + esc(t.rollRequest.reason) + '</div>' : '';
     var bf = (brief && brief.activeBeatIntent) ? '<div class="brief">🎬 steering: ' + esc(brief.activeBeatIntent) + (brief.reachable && brief.reachable.length ? '  ·  → ' + brief.reachable.map(function (r) { return esc(r.sceneId); }).join(', ') : '') + '</div>' : '';
     var narr = t.narration ? '<div class="narr">' + esc(t.narration) + '</div>' : '<div class="narr" style="color:#6b7080;font-style:italic">(no narration — awaiting your roll)</div>';
@@ -1181,6 +1188,7 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
         arcTemperature: Number($('gen-temp').value), // Director temp (Generate tab)
         playbook: $('ed-playbook').value,
         sceneEngine: $('sceneEngine').checked ? 'modern' : 'fake', // real programmer scenes vs $0 fake
+        exemplars: $('exemplars') ? $('exemplars').checked : true, // Technique B A/B knob (captured at start)
       }),
     }).then(function (r) { return r.json().then(function (b) { return { ok: r.ok, body: b }; }); }).then(function (x) {
       $('gen-start').disabled = false; $('gen-run').disabled = false; $('arc-start').disabled = false;

@@ -204,11 +204,24 @@ namespace is **never** merged with the quotable rules corpus and is **never** re
 - **Leakage check:** assert retrieved-exemplar proper nouns don't appear in the narration.
 
 ### Tickets (checklist for when we pick this up)
-- [ ] **B1** — `scripts/ingest-exemplars.mjs`: parse → filter → tag → anonymize → chunk → embed → write `content/exemplars/*.{jsonl,vectors.jsonl}`.
-- [ ] **B2** — `exemplar-corpus.ts` loader + retriever; `MYTHWEAVER_EXEMPLARS` env + dir.
-- [ ] **B3** — orchestrator injection (`OrchestratorDeps.exemplarRetriever`; retrieve from `sceneSummary+playerInput`; inject under the guarded header). Wire in `index.ts`, `dm-lab.ts`, `eval/runner.ts`.
-- [ ] **B4** — playbook directive + DM Lab trace shows retrieved exemplars + on/off toggle.
-- [ ] **B5** — eval A/B (exemplars on/off) + leakage check; re-pin baseline.
+- [x] **B1** (2026-07-07) — `scripts/ingest-exemplars.mjs`: parse → exchange windows (player `cue` + DM
+      beat — the rhythm is half the lesson) → heuristic tag → deterministic sample → LLM curation
+      (keep/drop + anonymize-BY-REWRITE, never placeholders + strip verdicts) → embed. Testable core in
+      `apps/server/src/exemplar-ingest.ts`; `--dry-run` = $0. First run: 18 CR3 episodes → 7,493 clean
+      beats → 1,914 candidates → **1,087 curated exemplars** (~$3.65), 0 proper-noun leaks spot-checked.
+      Corpus gitignored (`content/exemplars/`).
+- [x] **B2** — `exemplar-corpus.ts`: `ExemplarRetriever.retrieve(query, k, moveType?, exclude?)` —
+      semantic cosine with BM25 fallback; separate namespace (never lookupRule); `MYTHWEAVER_EXEMPLARS(=off)` + `_DIR`.
+- [x] **B3** — orchestrator injection: `deps.exemplars` + deterministic `predictMoveType` (opening→scene-set,
+      combat→combat-beat, short "?"→short-answer), k=2 in the per-turn block under the guarded header;
+      session de-dup via `excludeExemplarIds`; `TurnResult.exemplars`. Wired in `index.ts` (lab + play
+      API), `dm-lab.ts`, `eval/runner.ts`. NOTE: message/opening branch only — roll-RESUME turns replay
+      opaque history; injecting there is a deferred refinement.
+- [x] **B4** — playbook directive (+ a Technique-A distilled `## VOICE` refresh from E1–E2) + lab
+      per-turn 🎭 trace + session on/off toggle. Live A/B verified: same question — OFF = 4-paragraph
+      LLM shape; ON (2× short-answer exemplars fired) = "Thin at this hour." — the human register.
+- [ ] **B5** — PAID eval A/B (`MYTHWEAVER_EXEMPLARS=off` vs on through `npm run eval` — machinery wired,
+      run pending $ sign-off) + a deterministic leakage assertion in the runner; re-pin baseline after.
 
 ### Dependencies / notes
 Needs an embeddings key (OpenAI/Voyage — already configured for the rules RAG). Reuses the
