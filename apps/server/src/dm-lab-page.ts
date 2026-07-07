@@ -1059,11 +1059,18 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
         var plan = s.scenePlan
           ? '<div class="mi" style="color:#7fa8d0">🎨 ' + esc(s.scenePlan.look || '') + ' <span style="color:#6b7080">[' + esc(s.scenePlan.kind || '?') + (s.scenePlan.mood ? ' · ' + esc(s.scenePlan.mood) : '') + (s.scenePlan.features && s.scenePlan.features.length ? ' · ' + s.scenePlan.features.map(esc).join(', ') : '') + ']</span></div>'
           : '<div class="mi" style="color:#6b7080">🎨 (no scene plan — the DM improvises the look)</div>';
+        // The FUNCTIONAL contract (S1): features + relations, compact. This is what the compiler consumes.
+        var spec = s.scenePlan && s.scenePlan.spec;
+        var specLine = spec
+          ? '<div class="mi" style="color:#a0c8a0">&#128208; ' + (spec.features || []).map(function (f) { return esc(f.kind) + (f.count ? '&times;' + f.count : ''); }).join(', ')
+            + (spec.constraints && spec.constraints.length ? ' <span style="color:#6b7080">| ' + spec.constraints.map(function (c) { return esc(c.c + '(' + [c.f, c.a, c.b, c.region, c.via].filter(Boolean).join(',') + ')' + (c.w === 'hard' ? '!' : c.w === 'story' ? '~' : '')); }).join(' &middot; ') + '</span>' : '')
+            + (spec.frame && spec.frame.entry ? ' <span style="color:#6b7080">| entry: ' + esc(spec.frame.entry.edge || '?') + '</span>' : '') + '</div>'
+          : '<div class="mi" style="color:#6b7080">&#128208; (no spec &mdash; prose-only handoff)</div>';
         var pv = '<div class="mi" style="margin-top:3px">'
           + '<button class="ghost bp-btn" data-scene="' + esc(id) + '" data-mode="brief" style="font-size:11px;padding:1px 8px">brief → generator · $0</button> '
           + '<button class="ghost bp-btn" data-scene="' + esc(id) + '" data-mode="scene" style="font-size:11px;padding:1px 8px">render scene · ~2¢</button>'
           + '</div><div class="mi" id="bp-' + esc(id) + '"></div>';
-        return '<li><div class="ms">' + esc(s.title) + ' <span style="color:#6b7080">[' + esc(id) + ']</span>' + ex + monLine(encBySceneId[id]) + '</div><div class="mi">' + esc(s.summary || '') + '</div>' + plan + pv + '</li>';
+        return '<li><div class="ms">' + esc(s.title) + ' <span style="color:#6b7080">[' + esc(id) + ']</span>' + ex + monLine(encBySceneId[id]) + '</div><div class="mi">' + esc(s.summary || '') + '</div>' + plan + specLine + pv + '</li>';
       }).join('') + '</ul></div>';
     }
     var commissioned = Object.keys(arc.bestiary || {}).map(function (k) { return arc.bestiary[k]; }).filter(function (b) { return b.source === 'commissioned' || b.source === 'generated'; });

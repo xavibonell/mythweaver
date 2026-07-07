@@ -16,6 +16,7 @@
  */
 
 import type { Facing, Lighting } from './scene.js';
+import type { SceneSpec } from './scene-spec.js';
 
 // ---------------------------------------------------------------------------
 // Identity
@@ -137,6 +138,10 @@ export interface ScenePlan {
   mood: string;
   /** Must-exist landmark concepts (the generator's completeness nets pick them up). */
   features?: string[];
+  /** The FUNCTIONAL contract (Weave L0): features + relations + entry staging, emitted by the scene
+   *  architect at arc time and consumed deterministically by the spec compiler — positions come from
+   *  here, never from prose. Validated by validateSceneSpec before it is stored. */
+  spec?: SceneSpec;
 }
 
 /** Campaign fiction the live orchestrator hands the modern realizer alongside the DM's declaration —

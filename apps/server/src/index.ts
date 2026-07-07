@@ -18,6 +18,7 @@ import {
   saveDirectorArchitect,
   saveDirectorPlanner,
   saveDirectorComposer,
+  loadSceneArchitect,
 } from './prompts.js';
 import { buildRetriever } from './corpus.js';
 import { buildExemplarRetriever } from './exemplar-corpus.js';
@@ -30,6 +31,7 @@ import { renderDmLabPage } from './dm-lab-page.js';
 import { distillStyle, DISTILL_MAX_INPUT } from './distill.js';
 import { buildArcPlanner } from './arc-planner.js';
 import { buildArcComposer, inventBackstories, validateGeneratedArc, type ArcSeed, type GeneratedArc } from './arc-composer.js';
+import { architectSpecs } from './scene-architect.js';
 
 const PORT = Number(process.env.PORT ?? 8080);
 // Bind to localhost by default; containers set HOST=0.0.0.0 (and should set a token).
@@ -552,7 +554,34 @@ app.post('/dm/lab/generate-arc', async (req, reply) => {
       extraCost = fillCost;
       fill(backstories);
     }
-    return { arc, costUsd: costUsd + extraCost, markdown: arcMarkdown(arc) };
+    // SCENE ARCHITECT (S1 — Weave L0): one batched call turns every beat's fiction into a validated
+    // SceneSpec — the FUNCTIONAL contract (features + relations + entry staging) the compiler consumes.
+    // Invalid specs are dropped with a warning; the beat still plays on its prose plan.
+    const specWarnings: string[] = [];
+    try {
+      const beats = Object.entries(arc.adventure.scenes).map(([id, s]) => ({ id, title: s.title, summary: s.summary, ...(s.scenePlan ? { plan: s.scenePlan } : {}) }));
+      const { specs, warnings, costUsd: specCost } = await architectSpecs(llm, {
+        premise: arc.blueprint.premise || seed.theme || '',
+        beats,
+        system: loadSceneArchitect(),
+        ...(dmModel ? { model: dmModel } : {}),
+        ...(temperature !== undefined ? { temperature } : {}),
+      });
+      extraCost += specCost;
+      specWarnings.push(...warnings);
+      for (const [id, spec] of Object.entries(specs)) {
+        const scene = arc.adventure.scenes[id];
+        if (!scene) continue;
+        // A beat without a prose plan still gets its spec — synthesize the plan wrapper from the spec.
+        scene.scenePlan = scene.scenePlan
+          ? { ...scene.scenePlan, spec }
+          : { look: spec.brief.slice(0, 300), kind: spec.frame.grammar === 'interior' ? 'interior' : spec.frame.grammar === 'wild' ? 'wild' : 'settlement', mood: '', spec };
+      }
+    } catch (err) {
+      app.log.error(err, 'scene architect failed (arc still usable without specs)');
+      specWarnings.push(`scene architect failed: ${(err as Error).message}`);
+    }
+    return { arc, costUsd: costUsd + extraCost, markdown: arcMarkdown(arc), ...(specWarnings.length ? { specWarnings } : {}) };
   } catch (err) {
     app.log.error(err, 'arc generation failed');
     reply.code(502);
@@ -614,7 +643,13 @@ function resolvePreviewBeat(raw: unknown): { arc: GeneratedArc; sceneId: string;
 app.post('/dm/lab/brief-preview', async (req, reply) => {
   const r = resolvePreviewBeat(req.body);
   if ('error' in r) return badRequest(reply, r.error);
-  return { sceneId: r.sceneId, establish: r.establish, inputs: modernRealizeInputs(r.establish, r.ctx) };
+  return {
+    sceneId: r.sceneId,
+    establish: r.establish,
+    inputs: modernRealizeInputs(r.establish, r.ctx),
+    // The FUNCTIONAL contract (S1) rides beside the prose inputs so both halves of the handoff are inspectable.
+    ...(r.ctx.scenePlan?.spec ? { spec: r.ctx.scenePlan.spec } : {}),
+  };
 });
 
 // ~one programmer call (~$0.02, no DM turn) — realize the beat's scene through the EXACT live path

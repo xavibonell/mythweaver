@@ -1,58 +1,705 @@
 {
   "adventure": {
-    "pitch": "A gothic three-act reckoning with a debt the living never meant to inherit. Fifty years ago the valley of Marrowfen was flooded to make a reservoir, and the bell-founder Corvin Vaile was sealed alive inside his half-finished church when the waters rose. His masterpiece bell went down with him. Now, each night, that drowned bell tolls and climbs its own rope, and with every toll it hauls another co",
+    "pitch": "A gothic tale of drowned debt: the mining town of Hollowmere was flooded to make a reservoir, sealing bell-founder Corvin Bell inside his own half-finished church. His masterwork bronze bell went down with him. Now, every night the bell tolls beneath the water and rises a little higher on its rope, and with each toll the drowned dead climb the rope toward the living. The debt owed him must be paid",
     "scenes": {
       "scene:b1": {
-        "title": "The Boathouse at Sillow",
-        "summary": "The party arrives as the nightly toll begins and drowned corpses surface, some clawing up onto the docks. Terrified villagers led by ferrywoman Mother Sedge beg for help; old lamplighter Gaunt Weem knows the true history but speaks in riddles and rope-knots. Ways in: calm/interrogate the crowd (Persuasion DC 12), read the church records Weem hoards (Investigation DC 13), or fight off the first risen dead crawling ashore. Establish the rising bell and the location of the sunken church.",
+        "title": "The Rope on the Shore",
+        "summary": "The party arrives at a shore hamlet of stilted shacks as the bell's first muffled toll shudders through the water. Fisherfolk cower behind barred doors; the boatwright Mother Sedge knows the old story. A slick bell-rope rises from the deep and is anchored to a stone weir. Investigate the rope (Perception DC 12 finds fresh drowned handprints climbing it), calm or bargain with Sedge (Persuasion DC 13 gets a boat and the drowned town's map), or hold the shore when the night's first climbers crest the water. Waterlogged dead haul themselves ashore at the toll.",
         "exits": [
           "scene:b2"
         ],
         "scenePlan": {
-          "look": "A ramshackle timber shanty-town on stilts along a black reservoir's edge, sagging boardwalks and a leaning boathouse, rowboats tethered to a long dock, dark water studded with pale surfacing bodies.",
+          "look": "A pebbled crescent shore under a stone weir; stilted shacks lean over black water, jetties jut into the reservoir, and a thick tarred rope climbs from the deep to an iron ring on the weir.",
           "kind": "settlement",
-          "mood": "lantern-lit dusk, cold mist rising off the water",
+          "mood": "grim indigo dusk, cold mist off the water",
           "features": [
-            "the leaning boathouse",
-            "the long dock with tethered rowboats",
-            "the black waterline where corpses surfac",
-            "Weem's lamp-hung watch-post"
-          ]
+            "the tarred bell-rope rising from the wat",
+            "stone weir with iron anchor-ring",
+            "stilted fisher shacks",
+            "Mother Sedge's boathouse"
+          ],
+          "spec": {
+            "specVersion": 1,
+            "brief": "a pebbled crescent shore under a stone weir; stilted shacks lean over black water, jetties jut into the reservoir, and a thick tarred rope climbs from the deep to an iron ring on the weir",
+            "frame": {
+              "grammar": "settlement",
+              "entry": {
+                "edge": "east",
+                "pose": "arriving"
+              }
+            },
+            "conditions": [
+              {
+                "profile": "dusk",
+                "value": 0.85
+              },
+              {
+                "profile": "fog",
+                "value": 0.6
+              },
+              {
+                "profile": "abandonment",
+                "value": 0.7
+              }
+            ],
+            "features": [
+              {
+                "id": "weir1",
+                "kind": "structure.weir",
+                "geom": "edge-profile",
+                "states": {
+                  "material": "stone",
+                  "condition": "mossy"
+                }
+              },
+              {
+                "id": "anchor_ring",
+                "kind": "prop.iron-ring",
+                "geom": "point",
+                "states": {
+                  "fastened": "true"
+                }
+              },
+              {
+                "id": "bell_rope",
+                "kind": "prop.tarred-rope",
+                "geom": "network",
+                "states": {
+                  "tension": "taut",
+                  "origin": "submerged"
+                }
+              },
+              {
+                "id": "shacks",
+                "kind": "building.stilted-shack",
+                "geom": "region",
+                "count": 7,
+                "states": {
+                  "doors": "barred",
+                  "lights": "shuttered"
+                }
+              },
+              {
+                "id": "jetties",
+                "kind": "dock.jetty",
+                "geom": "network",
+                "count": 3,
+                "states": {
+                  "condition": "weathered"
+                }
+              },
+              {
+                "id": "sedge_boathouse",
+                "kind": "building.boathouse",
+                "geom": "region",
+                "states": {
+                  "occupant": "Mother Sedge",
+                  "door": "ajar"
+                }
+              },
+              {
+                "id": "shore_pebbles",
+                "kind": "terrain.pebbled-shore",
+                "geom": "region"
+              },
+              {
+                "id": "climbers",
+                "kind": "actor.drowned-dead",
+                "geom": "point",
+                "count": 4,
+                "states": {
+                  "state": "surfacing",
+                  "pose": "hauling"
+                }
+              }
+            ],
+            "constraints": [
+              {
+                "c": "at-edge-of",
+                "a": "weir1",
+                "region": "water",
+                "w": "hard"
+              },
+              {
+                "c": "at-edge-of",
+                "a": "anchor_ring",
+                "region": "weir1",
+                "w": "hard"
+              },
+              {
+                "c": "through-fabric",
+                "f": "bell_rope",
+                "w": "hard"
+              },
+              {
+                "c": "crossable",
+                "f": "bell_rope",
+                "at": "circulation",
+                "w": "hard"
+              },
+              {
+                "c": "near",
+                "a": "bell_rope",
+                "b": "anchor_ring",
+                "band": [
+                  0,
+                  2
+                ],
+                "w": "hard"
+              },
+              {
+                "c": "at-edge-of",
+                "a": "shacks",
+                "region": "water",
+                "w": "hard"
+              },
+              {
+                "c": "along",
+                "a": "jetties",
+                "b": "shore_pebbles",
+                "w": "hard"
+              },
+              {
+                "c": "near",
+                "a": "sedge_boathouse",
+                "b": "jetties",
+                "w": "story"
+              },
+              {
+                "c": "in",
+                "a": "climbers",
+                "region": "water",
+                "w": "story"
+              },
+              {
+                "c": "near",
+                "a": "climbers",
+                "b": "bell_rope",
+                "band": [
+                  0,
+                  4
+                ],
+                "w": "story"
+              },
+              {
+                "c": "visible-from",
+                "a": "bell_rope",
+                "b": "PARTY",
+                "w": "hard"
+              },
+              {
+                "c": "near",
+                "a": "PARTY",
+                "b": "shore_pebbles",
+                "band": [
+                  0,
+                  6
+                ],
+                "w": "story"
+              },
+              {
+                "c": "facing",
+                "a": "PARTY",
+                "b": "weir1",
+                "w": "soft"
+              }
+            ],
+            "narrationOnly": [
+              "the first muffled toll shuddering up through the water and into boots and bones",
+              "the smell of cold mildew and black silt rising off the reservoir",
+              "fresh drowned handprints on the tarred rope \u2014 visible only on close inspection (Perception DC 12)",
+              "fisherfolk voices hushed behind barred shutters",
+              "Mother Sedge's willingness to bargain: Persuasion DC 13 yields a diving-bell and the drowned town's map",
+              "the periodic rhythm of the bell's toll felt as pressure in the chest, not heard as sound above water"
+            ]
+          }
         }
       },
       "scene:b2": {
-        "title": "The Drowned Bell-Road",
-        "summary": "By boat and breath the party descends the old sunken lane toward the church \u2014 a submerged street of roofs, a graveyard whose stones have shifted, and the taut bell-rope rising from the depths, hung with drifting dead being hauled upward. Beats: navigate the flooded ruins (Athletics/Survival DC 13), decipher Vaile's foundry-marks to learn the debt (Arcana or History DC 14 \u2014 Elara), or slip past the guardian dead (Stealth DC 13 \u2014 Pip). Ghoulish drowned things nest in the flooded belfry-yard.",
+        "title": "The Drowned Descent",
+        "summary": "Following the rope down (or by Sedge's diving-bell), the party enters the flooded upper streets of Hollowmere \u2014 a canted, silt-choked ruin threaded with air-pockets in overturned houses. Navigate the maze of streets and trapped air (Survival/Investigation DC 13 to find breathable pockets and the church's bell-arch), avoid the drowned that drift like weeds, or lure them off with light and noise. Pip may recognize a smuggler's cache here \u2014 his family fled Hollowmere before the flood, leaving debts of their own. The clapper of the great bell was stolen and hidden in a submerged countinghouse.",
         "exits": [
-          "scene:b1",
           "scene:b3"
         ],
         "scenePlan": {
-          "look": "An underwater street of drowned rooftops and a sunken graveyard, silt-choked lanes between broken walls, a thick barnacled rope stretching up out of frame with corpses snagged along its length.",
-          "kind": "wild",
-          "mood": "green-black gloom pierced by shafts of moonlight through the water",
+          "look": "A submerged grid of collapsed stone streets under black water, roofs broken open, a leaning countinghouse and the arched belfry-mouth of a half-sunk church at the far end.",
+          "kind": "interior",
+          "mood": "lightless green-black underwater gloom, drifting silt",
           "features": [
-            "the taut ascending bell-rope",
-            "the shifted sunken graveyard",
-            "drowned rooftops forming a lane",
-            "Vaile's foundry-mark carved on a lintel"
-          ]
+            "flooded street grid",
+            "overturned houses with air-pockets",
+            "the submerged countinghouse holding the ",
+            "the church's drowned bell-arch"
+          ],
+          "spec": {
+            "specVersion": 1,
+            "brief": "a submerged grid of collapsed stone streets under black water, roofs broken open, a leaning countinghouse and the arched belfry-mouth of a half-sunk church at the far end",
+            "frame": {
+              "grammar": "interior",
+              "entry": {
+                "edge": "north",
+                "pose": "arriving"
+              }
+            },
+            "conditions": [
+              {
+                "profile": "abandonment",
+                "value": 1
+              },
+              {
+                "profile": "flooded",
+                "value": 1
+              },
+              {
+                "profile": "fog",
+                "value": 0.5
+              }
+            ],
+            "features": [
+              {
+                "id": "street_grid",
+                "kind": "terrain.flooded-street",
+                "geom": "network",
+                "states": {
+                  "visibility": "murky",
+                  "silt": "heavy"
+                }
+              },
+              {
+                "id": "collapsed_houses",
+                "kind": "building.overturned-house",
+                "geom": "region",
+                "count": 6,
+                "states": {
+                  "condition": "collapsed",
+                  "air_pocket": "present"
+                }
+              },
+              {
+                "id": "countinghouse",
+                "kind": "building.countinghouse",
+                "geom": "region",
+                "states": {
+                  "lean": "sagging",
+                  "contents": "smuggler-cache"
+                }
+              },
+              {
+                "id": "clapper_cache",
+                "kind": "prop.bell-clapper",
+                "geom": "point",
+                "states": {
+                  "hidden": "true",
+                  "condition": "corroded"
+                }
+              },
+              {
+                "id": "bell_arch",
+                "kind": "structure.belfry-arch",
+                "geom": "edge-profile",
+                "states": {
+                  "submersion": "partial",
+                  "condition": "cracked"
+                }
+              },
+              {
+                "id": "drowned_drifters",
+                "kind": "actor.drowned-dead",
+                "geom": "point",
+                "count": 5,
+                "states": {
+                  "pose": "drifting",
+                  "alertness": "passive"
+                }
+              },
+              {
+                "id": "silt_plumes",
+                "kind": "decor.silt-cloud",
+                "geom": "region",
+                "count": 3
+              },
+              {
+                "id": "rope_descent",
+                "kind": "prop.tarred-rope",
+                "geom": "network",
+                "states": {
+                  "origin": "surface",
+                  "terminus": "bell-arch"
+                }
+              }
+            ],
+            "constraints": [
+              {
+                "c": "through-fabric",
+                "f": "street_grid",
+                "w": "hard"
+              },
+              {
+                "c": "crossable",
+                "f": "street_grid",
+                "at": "circulation",
+                "w": "hard"
+              },
+              {
+                "c": "in",
+                "a": "collapsed_houses",
+                "region": "water",
+                "w": "hard"
+              },
+              {
+                "c": "along",
+                "a": "collapsed_houses",
+                "b": "street_grid",
+                "w": "hard"
+              },
+              {
+                "c": "near",
+                "a": "countinghouse",
+                "b": "street_grid",
+                "band": [
+                  0,
+                  5
+                ],
+                "w": "hard"
+              },
+              {
+                "c": "in",
+                "a": "clapper_cache",
+                "region": "countinghouse",
+                "w": "hard"
+              },
+              {
+                "c": "at-edge-of",
+                "a": "bell_arch",
+                "region": "countinghouse",
+                "w": "soft"
+              },
+              {
+                "c": "across",
+                "a": "PARTY",
+                "b": "bell_arch",
+                "via": "street_grid",
+                "w": "story"
+              },
+              {
+                "c": "visible-from",
+                "a": "bell_arch",
+                "b": "PARTY",
+                "w": "story"
+              },
+              {
+                "c": "in",
+                "a": "drowned_drifters",
+                "region": "water",
+                "w": "hard"
+              },
+              {
+                "c": "along",
+                "a": "drowned_drifters",
+                "b": "street_grid",
+                "w": "soft"
+              },
+              {
+                "c": "in",
+                "a": "silt_plumes",
+                "region": "water",
+                "w": "soft"
+              },
+              {
+                "c": "through-fabric",
+                "f": "rope_descent",
+                "w": "hard"
+              },
+              {
+                "c": "near",
+                "a": "rope_descent",
+                "b": "bell_arch",
+                "band": [
+                  0,
+                  3
+                ],
+                "w": "hard"
+              },
+              {
+                "c": "near",
+                "a": "PARTY",
+                "b": "rope_descent",
+                "band": [
+                  0,
+                  4
+                ],
+                "w": "story"
+              },
+              {
+                "c": "unreachable-from",
+                "a": "bell_arch",
+                "b": "PARTY",
+                "w": "soft"
+              }
+            ],
+            "narrationOnly": [
+              "the lightless green-black underwater gloom pressing on eyes and lungs",
+              "the Navigation/Investigation challenge to locate breathable air pockets in overturned houses (Survival DC 13)",
+              "Pip's moment of recognition: his family's name scratched into a beam of the countinghouse, debts unpaid before the flood",
+              "the tolling felt as deep bone-vibration through the water rather than heard as sound",
+              "the drowned drifters' passive drift becoming agitated when the party carries a light source \u2014 luring mechanic",
+              "the smell of silt and rot trapped in air pockets",
+              "the Survival/Investigation DC 13 required to navigate from the entry rope to the bell-arch without being lost in silt-out"
+            ]
+          }
         }
       },
       "scene:b3": {
-        "title": "Vaile's Bell-Chamber",
-        "summary": "The half-finished stone church, its air-pocketed nave holding a single trembling breath, the great bell swinging on its rising rope with Vaile's shackled skeleton fused to the clapper. His shade demands the debt paid. Resolutions: give last rites and speak his name aloud into the bell (Religion DC 14), break/recast the bell in the cold foundry-hearth (Arcana or Smith's tools DC 15 \u2014 Aldric), or bind him with his own foundry-marks (Arcana DC 15). Fighting the shade alone won't stop the toll \u2014 the debt must be acknowledged. Success sinks the dead and stills the water.",
+        "title": "The Founder in His Bell",
+        "summary": "Inside the drowned church, the great bronze bell hangs mouth-down over the founder's sealed tomb; within it, wound in the rope, is Corvin Bell \u2014 a bloated, ringing revenant who tolls the dead upward with his own bones. Confront him. He can be laid to rest by returning the clapper and tolling the bell once in true mourning (Religion/Persuasion DC 15 acknowledges his debt), or destroyed outright (harder fight, curse lingers). Elara may read the founder's inscription (Arcana DC 14) revealing the toll is a debt-count, not malice. Aldric can brace the swinging bell against him. End it as the bell rings clean and the water stills.",
         "exits": [],
         "scenePlan": {
-          "look": "A flooded stone church with a domed air-pocket nave, a massive dark bell hanging over a cracked altar, a cold foundry-hearth against one wall, chains and a shackled skeleton fused to the bell's clapper.",
+          "look": "A flooded stone church interior, roof half-gone to the surface light above; a colossal bronze bell hangs over a cracked founder's tomb, chains and a frayed rope coiling into its dark mouth.",
           "kind": "interior",
-          "mood": "drowned candle-glow in a trembling air pocket, echoing drips",
+          "mood": "cathedral gloom lit by a single shaft of surface moonlight through broken roof",
           "features": [
-            "the great swinging bell on its rope",
-            "the cold foundry-hearth",
-            "the cracked altar",
-            "Vaile's shackled skeleton"
-          ]
+            "the great bronze bell over the tomb",
+            "Corvin Bell's cracked sealed tomb",
+            "the founder's inscription on the bell-li",
+            "coiled rope and chains"
+          ],
+          "spec": {
+            "specVersion": 1,
+            "brief": "a flooded stone church interior, roof half-gone to the surface light above; a colossal bronze bell hangs over a cracked founder's tomb, chains and a frayed rope coiling into its dark mouth",
+            "frame": {
+              "grammar": "interior",
+              "entry": {
+                "edge": "south",
+                "pose": "arriving"
+              }
+            },
+            "conditions": [
+              {
+                "profile": "abandonment",
+                "value": 0.9
+              },
+              {
+                "profile": "flooded",
+                "value": 0.8
+              },
+              {
+                "profile": "predawn",
+                "value": 0.4
+              }
+            ],
+            "features": [
+              {
+                "id": "bronze_bell",
+                "kind": "prop.great-bell",
+                "geom": "point",
+                "states": {
+                  "material": "bronze",
+                  "orientation": "mouth-down",
+                  "size": "colossal",
+                  "clapper": "missing"
+                }
+              },
+              {
+                "id": "founders_tomb",
+                "kind": "structure.sealed-tomb",
+                "geom": "region",
+                "states": {
+                  "condition": "cracked",
+                  "occupant": "Corvin Bell"
+                }
+              },
+              {
+                "id": "bell_chains",
+                "kind": "prop.chain",
+                "geom": "network",
+                "states": {
+                  "condition": "corroded",
+                  "tension": "taut"
+                }
+              },
+              {
+                "id": "frayed_rope",
+                "kind": "prop.tarred-rope",
+                "geom": "network",
+                "states": {
+                  "condition": "frayed",
+                  "coiled": "true"
+                }
+              },
+              {
+                "id": "founders_inscription",
+                "kind": "decor.carved-inscription",
+                "geom": "point",
+                "states": {
+                  "language": "archaic",
+                  "subject": "debt-count"
+                }
+              },
+              {
+                "id": "corvin_bell",
+                "kind": "actor.revenant",
+                "geom": "point",
+                "states": {
+                  "form": "bloated",
+                  "wound-in": "rope",
+                  "activity": "tolling"
+                }
+              },
+              {
+                "id": "broken_roof",
+                "kind": "structure.collapsed-roof",
+                "geom": "region",
+                "states": {
+                  "opening": "true",
+                  "light_shaft": "moonlight"
+                }
+              },
+              {
+                "id": "church_nave",
+                "kind": "terrain.flooded-nave",
+                "geom": "region",
+                "states": {
+                  "water_depth": "partial"
+                }
+              },
+              {
+                "id": "aldric_brace_point",
+                "kind": "prop.bell-bracket",
+                "geom": "point",
+                "states": {
+                  "structural": "true"
+                }
+              }
+            ],
+            "constraints": [
+              {
+                "c": "in",
+                "a": "bronze_bell",
+                "region": "church_nave",
+                "w": "hard"
+              },
+              {
+                "c": "facing",
+                "a": "bronze_bell",
+                "b": "founders_tomb",
+                "w": "hard"
+              },
+              {
+                "c": "near",
+                "a": "bronze_bell",
+                "b": "founders_tomb",
+                "band": [
+                  0,
+                  4
+                ],
+                "w": "hard"
+              },
+              {
+                "c": "through-fabric",
+                "f": "bell_chains",
+                "w": "hard"
+              },
+              {
+                "c": "near",
+                "a": "bell_chains",
+                "b": "bronze_bell",
+                "band": [
+                  0,
+                  3
+                ],
+                "w": "hard"
+              },
+              {
+                "c": "through-fabric",
+                "f": "frayed_rope",
+                "w": "hard"
+              },
+              {
+                "c": "in",
+                "a": "frayed_rope",
+                "region": "bronze_bell",
+                "w": "story"
+              },
+              {
+                "c": "near",
+                "a": "founders_inscription",
+                "b": "bronze_bell",
+                "band": [
+                  0,
+                  3
+                ],
+                "w": "story"
+              },
+              {
+                "c": "in",
+                "a": "corvin_bell",
+                "region": "bronze_bell",
+                "w": "hard"
+              },
+              {
+                "c": "visible-from",
+                "a": "corvin_bell",
+                "b": "PARTY",
+                "w": "story"
+              },
+              {
+                "c": "at-edge-of",
+                "a": "broken_roof",
+                "region": "church_nave",
+                "w": "hard"
+              },
+              {
+                "c": "visible-from",
+                "a": "broken_roof",
+                "b": "PARTY",
+                "w": "soft"
+              },
+              {
+                "c": "near",
+                "a": "aldric_brace_point",
+                "b": "bronze_bell",
+                "band": [
+                  1,
+                  4
+                ],
+                "w": "soft"
+              },
+              {
+                "c": "in",
+                "a": "PARTY",
+                "region": "church_nave",
+                "w": "hard"
+              },
+              {
+                "c": "near",
+                "a": "PARTY",
+                "b": "founders_tomb",
+                "band": [
+                  2,
+                  8
+                ],
+                "w": "story"
+              },
+              {
+                "c": "side",
+                "a": "founders_inscription",
+                "of": "bronze_bell",
+                "dir": "south",
+                "paces": 2,
+                "w": "soft"
+              }
+            ],
+            "narrationOnly": [
+              "the single shaft of surface moonlight falling through the broken roof onto the bronze bell \u2014 the only illumination",
+              "the tolling sound Corvin Bell produces by striking the bell-lip with his own radius bone \u2014 felt before heard",
+              "the ritual resolution: returning the clapper and striking one true toll requires Religion/Persuasion DC 15 to acknowledge the debt aloud",
+              "Elara's Arcana DC 14 reading of the inscription revealing the toll is a debt-count, not malice \u2014 each ring is an unpaid coin",
+              "the water stilling and clarifying when the bell rings clean \u2014 a sensory beat the engine cannot render",
+              "the drowned dead on the rope outside going slack and sinking as Corvin is laid to rest",
+              "the cursed aftermath if Corvin is destroyed outright: the bell continues tolling on a diminishing but persistent cycle",
+              "Aldric's option to physically brace the swinging bell during combat using the bracket, reducing its sweep arc"
+            ]
+          }
         }
       }
     }
@@ -66,6 +713,10 @@
         {
           "statBlockId": "zombie",
           "count": 3
+        },
+        {
+          "statBlockId": "skeleton",
+          "count": 2
         }
       ]
     },
@@ -88,7 +739,7 @@
       "sceneId": "scene:b3",
       "monsters": [
         {
-          "statBlockId": "corvin-vaile-the-sealed-founder",
+          "statBlockId": "corvin-bell-the-drowned-founder",
           "count": 1
         }
       ]
@@ -143,53 +794,6 @@
       ],
       "source": "SRD 5.1"
     },
-    "ghoul": {
-      "id": "ghoul",
-      "name": "Ghoul",
-      "size": "medium",
-      "type": "undead",
-      "armorClass": 12,
-      "hitPoints": {
-        "average": 22,
-        "formula": "5d8"
-      },
-      "speedFt": 30,
-      "abilities": {
-        "str": 13,
-        "dex": 15,
-        "con": 10,
-        "int": 7,
-        "wis": 10,
-        "cha": 6
-      },
-      "challengeRating": 1,
-      "proficiencyBonus": 2,
-      "damageImmunities": [
-        "poison"
-      ],
-      "conditionImmunities": [
-        "poisoned"
-      ],
-      "senses": "darkvision 60 ft., passive Perception 10",
-      "attacks": [
-        {
-          "name": "Claws",
-          "attackBonus": 4,
-          "damage": "2d4+2",
-          "damageType": "slashing",
-          "reachOrRangeFt": 5,
-          "notes": "A non-elf target must make a DC 10 CON save or be paralyzed for 1 minute."
-        },
-        {
-          "name": "Bite",
-          "attackBonus": 2,
-          "damage": "2d6+2",
-          "damageType": "piercing",
-          "reachOrRangeFt": 5
-        }
-      ],
-      "source": "SRD 5.1"
-    },
     "skeleton": {
       "id": "skeleton",
       "name": "Skeleton",
@@ -240,9 +844,56 @@
       ],
       "source": "SRD 5.1"
     },
-    "corvin-vaile-the-sealed-founder": {
-      "id": "corvin-vaile-the-sealed-founder",
-      "name": "Corvin Vaile, the Sealed Founder",
+    "ghoul": {
+      "id": "ghoul",
+      "name": "Ghoul",
+      "size": "medium",
+      "type": "undead",
+      "armorClass": 12,
+      "hitPoints": {
+        "average": 22,
+        "formula": "5d8"
+      },
+      "speedFt": 30,
+      "abilities": {
+        "str": 13,
+        "dex": 15,
+        "con": 10,
+        "int": 7,
+        "wis": 10,
+        "cha": 6
+      },
+      "challengeRating": 1,
+      "proficiencyBonus": 2,
+      "damageImmunities": [
+        "poison"
+      ],
+      "conditionImmunities": [
+        "poisoned"
+      ],
+      "senses": "darkvision 60 ft., passive Perception 10",
+      "attacks": [
+        {
+          "name": "Claws",
+          "attackBonus": 4,
+          "damage": "2d4+2",
+          "damageType": "slashing",
+          "reachOrRangeFt": 5,
+          "notes": "A non-elf target must make a DC 10 CON save or be paralyzed for 1 minute."
+        },
+        {
+          "name": "Bite",
+          "attackBonus": 2,
+          "damage": "2d6+2",
+          "damageType": "piercing",
+          "reachOrRangeFt": 5
+        }
+      ],
+      "source": "SRD 5.1"
+    },
+    "corvin-bell-the-drowned-founder": {
+      "id": "corvin-bell-the-drowned-founder",
+      "name": "Corvin Bell, the Drowned Founder",
       "size": "medium",
       "type": "undead",
       "armorClass": 15,
@@ -263,7 +914,7 @@
       "proficiencyBonus": 3,
       "attacks": [
         {
-          "name": "Tolling Wail",
+          "name": "Tolling Clangor",
           "attackBonus": 6,
           "damage": "5d6+5",
           "damageType": "thunder",
@@ -280,9 +931,9 @@
         "kind": "npc",
         "name": "Mother Sedge",
         "voice": {
-          "tic": "counts the drowned on her knuckles as she speaks",
-          "want": "to keep her ferry-folk alive one more night",
-          "fear": "that her own drowned husband is on the rope"
+          "tic": "speaks in tide-timed pauses, counting under her breath",
+          "want": "to keep her surviving neighbours alive one more night",
+          "fear": "that the toll is counting down to her own name"
         },
         "scenes": [
           "scene:b1"
@@ -290,27 +941,13 @@
         "status": "active"
       },
       {
-        "id": "npc:gaunt-weem",
+        "id": "npc:corvin-bell",
         "kind": "npc",
-        "name": "Gaunt Weem",
+        "name": "Corvin Bell",
         "voice": {
-          "tic": "ties and unties a knot of rope while talking, never finishing it",
-          "want": "to unburden the secret he helped bury",
-          "fear": "being named among those who sealed the church"
-        },
-        "scenes": [
-          "scene:b1"
-        ],
-        "status": "active"
-      },
-      {
-        "id": "npc:corvin-vaile",
-        "kind": "npc",
-        "name": "Corvin Vaile",
-        "voice": {
-          "tic": "speaks in the reverberating cadence of a struck bell, each word ringing twice",
-          "want": "his name spoken and his last rites given",
-          "fear": "being forgotten again beneath the water"
+          "tic": "every word rings with a hollow bronze echo",
+          "want": "his debt acknowledged and his bones given rest",
+          "fear": "being melted down and forgotten, unrung"
         },
         "scenes": [
           "scene:b3"
@@ -320,23 +957,18 @@
     ],
     "plants": [
       {
-        "id": "plant:unfinished-knot",
-        "what": "Weem's forever-unfinished rope knot mirrors the unfinished bell-rope and the unfinished burial \u2014 completing a rite is what settles the debt.",
+        "id": "plant:handprints",
+        "what": "Fresh wet handprints climbing the shore-rope in beat 1 foreshadow that the dead ascend it nightly.",
         "status": "planted"
       },
       {
-        "id": "plant:foundry-mark",
-        "what": "Vaile's foundry-mark, first seen on a Sillow lintel, recurs on the sunken church and can be used to bind or break the bell.",
+        "id": "plant:stolen-clapper",
+        "what": "Mother Sedge mentions the great bell was hung silent because its clapper was stolen the night of the flood \u2014 recovered in beat 2, used in beat 3.",
         "status": "planted"
       },
       {
-        "id": "plant:sedge-husband",
-        "what": "Mother Sedge's drowned husband on the rope \u2014 a personal face on the horror that raises the stakes of stopping the toll.",
-        "status": "planted"
-      },
-      {
-        "id": "plant:aldrics-hammer",
-        "what": "Aldric's grandfather's smith-hammer, family-forged in this very valley, is the tool that can recast the bell in the cold hearth.",
+        "id": "plant:pip-family-debt",
+        "what": "Pip's smuggler family fled Hollowmere owing the founder money; the countinghouse ledger names them.",
         "status": "planted"
       }
     ]
@@ -344,50 +976,50 @@
   "pcBackstories": [
     {
       "name": "Aldric the Fighter",
-      "backstory": "Grandson of a valley smith who was pressed into service casting the reservoir's floodgate chains, Aldric carries the family hammer forged in Marrowfen before the drowning. His grandfather never spoke of what was sealed away \u2014 Aldric returns to a valley that swallowed his blood's craft, hammer in hand."
+      "backstory": "A former dam-guard conscript who stood watch the night Hollowmere was flooded and heard the founder screaming from the church; he has come back to still that memory."
     },
     {
       "name": "Elara the Wizard",
-      "backstory": "A scholar of drowned languages and sympathetic resonance, Elara came to Marrowfen chasing a rumor of a bell that rings underwater. Her mentor once studied Vaile's foundry-marks and vanished; she suspects the answer waits in the black church, and dreads finding her mentor's name among the debts."
+      "backstory": "A scholar of resonance and dead languages who studies how sound binds spirits; she suspects Corvin Bell forged more than bronze into his masterwork."
     },
     {
       "name": "Pip the Rogue",
-      "backstory": "Born in Sillow's shanties after the flood, Pip grew up hearing the muffled toll and looting rooftops the water spared. The dead rising is personal \u2014 some of them are neighbors, some kin \u2014 and Pip alone knows the shifting lanes of the sunken street by feel."
+      "backstory": "Last of a smuggler clan that fled Hollowmere the night of the flood, leaving debts to the bell-founder unpaid; he returns half to loot the drowned town, half to lay old ghosts."
     }
   ],
   "blueprint": {
-    "premise": "A gothic three-act reckoning with a debt the living never meant to inherit. Fifty years ago the valley of Marrowfen was flooded to make a reservoir, and the bell-founder Corvin Vaile was sealed alive inside his half-finished church when the waters rose. His masterpiece bell went down with him. Now, each night, that drowned bell tolls and climbs its own rope, and with every toll it hauls another co",
-    "centralProblem": "The tolling bell is rising night by night; when it breaches the surface the whole reservoir's dead will walk, and the town that authorized the flooding will drown in its own ancestors. The party must descend to the sunken church and settle Vaile's debt \u2014 silence the bell \u2014 before it crests.",
-    "intendedEnding": "The party reaches Vaile's flooded bell-chamber, learns the debt is a name unspoken and a burial unfinished, and either recasts/breaks the bell, gives Vaile the last rites and the recognition he was denied, or binds him anew. The tolling stops, the risen dead sink back, and the reservoir goes still \u2014 the valley's guilt finally acknowledged rather than merely drowned.",
-    "opening": "Dusk on the shore of Marrowfen Reservoir, in the shanty-town of Sillow that clings to the new waterline. Villagers cluster in a lantern-lit boathouse as the first muffled toll rolls up through the black water and the bodies begin to bob.",
+    "premise": "A gothic tale of drowned debt: the mining town of Hollowmere was flooded to make a reservoir, sealing bell-founder Corvin Bell inside his own half-finished church. His masterwork bronze bell went down with him. Now, every night the bell tolls beneath the water and rises a little higher on its rope, and with each toll the drowned dead climb the rope toward the living. The debt owed him must be paid",
+    "centralProblem": "The bell rises nightly, dragging the reservoir's dead upward; unless the party descends to the drowned church and settles the founder's debt (his body given rest, his bell's tongue silenced or restored), the flood-dead will overrun the shore hamlet.",
+    "intendedEnding": "The party reaches the sunken church, confronts the animate remains of Corvin Bell, and pays his debt \u2014 burying his bones, returning the stolen bell-clapper to hang the bell true, and tolling it once in honest mourning. The bell falls silent, the risen dead sink back, and the reservoir stills. If they merely destroy him, the tolling stops but the valley remains cursed water.",
+    "opening": "Dusk on the shingle shore of Weirwater Reservoir, at the drowned hamlet of Hollowmere, where a rotted bell-rope trails up out of the black water onto the beach \u2014 and something has been climbing it.",
     "spine": [
       {
         "milestone": "The Toll Begins",
-        "intent": "Party witnesses the rising bell and the risen dead; accepts the descent.",
+        "intent": "Party learns the bell rises and the dead climb its rope.",
         "sceneId": "scene:b1"
       },
       {
-        "milestone": "The Debt Named",
-        "intent": "Party learns Vaile was buried alive and denied his name and rites.",
+        "milestone": "The Stolen Clapper",
+        "intent": "Party recovers the tool needed to pay the debt.",
         "sceneId": "scene:b2"
       },
       {
-        "milestone": "The Reckoning",
-        "intent": "Party pays the debt at the bell-chamber.",
+        "milestone": "The Debt Settled",
+        "intent": "Founder laid to rest, bell rung true.",
         "sceneId": "scene:b3"
       },
       {
         "milestone": "The Still Water",
-        "intent": "The bell falls silent, the dead sink, the valley's guilt is finally acknowledged."
+        "intent": "The reservoir falls silent; the drowned sink home and the valley is finally at peace."
       }
     ]
   },
   "genMeta": {
     "seedHash": "ba78de43fe51",
     "model": "claude-opus-4-8",
-    "timestampMs": 1783401059750,
+    "timestampMs": 1783422541153,
     "inputTokens": 492,
-    "outputTokens": 3075,
+    "outputTokens": 2768,
     "composerPromptHash": "1bb88ff62a59",
     "fallback": false
   },
@@ -456,7 +1088,7 @@
       "startingCurrency": {
         "gp": 15
       },
-      "backstory": "Grandson of a valley smith who was pressed into service casting the reservoir's floodgate chains, Aldric carries the family hammer forged in Marrowfen before the drowning. His grandfather never spoke of what was sealed away \u2014 Aldric returns to a valley that swallowed his blood's craft, hammer in hand."
+      "backstory": "A former dam-guard conscript who stood watch the night Hollowmere was flooded and heard the founder screaming from the church; he has come back to still that memory."
     },
     {
       "id": "pc-2-wizard",
@@ -544,7 +1176,7 @@
       "startingCurrency": {
         "gp": 10
       },
-      "backstory": "A scholar of drowned languages and sympathetic resonance, Elara came to Marrowfen chasing a rumor of a bell that rings underwater. Her mentor once studied Vaile's foundry-marks and vanished; she suspects the answer waits in the black church, and dreads finding her mentor's name among the debts."
+      "backstory": "A scholar of resonance and dead languages who studies how sound binds spirits; she suspects Corvin Bell forged more than bronze into his masterwork."
     },
     {
       "id": "pc-3-rogue",
@@ -612,7 +1244,7 @@
       "startingCurrency": {
         "gp": 12
       },
-      "backstory": "Born in Sillow's shanties after the flood, Pip grew up hearing the muffled toll and looting rooftops the water spared. The dead rising is personal \u2014 some of them are neighbors, some kin \u2014 and Pip alone knows the shifting lanes of the sunken street by feel."
+      "backstory": "Last of a smuggler clan that fled Hollowmere the night of the flood, leaving debts to the bell-founder unpaid; he returns half to loot the drowned town, half to lay old ghosts."
     }
   ]
 }

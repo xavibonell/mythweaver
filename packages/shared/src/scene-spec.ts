@@ -28,6 +28,11 @@ export type SceneRelation = (typeof SCENE_RELATIONS)[number];
 export const SCENE_GEOMS = ['network', 'region', 'point', 'edge-profile'] as const;
 export type SceneGeom = (typeof SCENE_GEOMS)[number];
 
+/** Region LITERALS a ref may name without declaring a feature — fabric regions every scene owns.
+ *  'water' = the scene's water body ("in: water" puts the drowned dead IN the reservoir). Grows only
+ *  by kernel RFC, like the relation set. */
+export const SCENE_REGION_LITERALS = ['water'] as const;
+
 export const SCENE_GRAMMARS = ['settlement', 'interior', 'wild'] as const;
 export type SceneGrammar = (typeof SCENE_GRAMMARS)[number];
 
@@ -116,7 +121,7 @@ export function validateSceneSpec(spec: unknown): SceneSpecReport {
     if (typeof f.kind !== 'string' || !f.kind) bad('bad-kind', `feature "${f.id}" needs a kind`, p);
     if (!(SCENE_GEOMS as readonly string[]).includes(f.geom)) bad('bad-geom', `feature "${f.id}" geom must be one of ${SCENE_GEOMS.join('|')}`, p);
   });
-  const ref = (x: string | undefined) => x === undefined || x === 'PARTY' || ids.has(x);
+  const ref = (x: string | undefined) => x === undefined || x === 'PARTY' || (SCENE_REGION_LITERALS as readonly string[]).includes(x) || ids.has(x);
 
   const seenPair = new Map<string, Set<string>>(); // (a,b) → set of hard relations, for unsat detection
   (Array.isArray(s.constraints) ? s.constraints : []).forEach((cn, i) => {
