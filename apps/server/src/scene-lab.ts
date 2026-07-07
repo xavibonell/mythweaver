@@ -216,8 +216,12 @@ export async function realizeStoryScene(
         else if (c[flag]) { delete c[flag]; (program.notes ??= []).push(`spec: cleared harvested '${flag}' (not in the contract)`); }
       }
     } else {
-      // No archetype (interior/wild): buildings become loose building ops the primitives place.
-      for (const b of comp.contents.buildings.slice(0, 4)) program.ops.push({ op: 'building', region: 'all', type: b.type, ...(b.name ? { name: b.name } : {}), id: `bldg:${b.name ?? b.type}` });
+      // No archetype (interior/wild): cast and props become loose ops. BUILDING features have no
+      // realization outside a settlement (an interior IS the inside; building() with a huge region
+      // once swallowed the whole map) — narration-only, reported honestly.
+      if (comp.contents.buildings.length) {
+        (program.notes ??= []).push(`spec: ${comp.contents.buildings.length} building feature(s) are narration-only in a ${program.grammar} scene (buildings realize in settlements)`);
+      }
       for (const lm of comp.contents.landmarks) program.ops.push({ op: 'place', id: `prop:${lm.name ?? lm.tag}`, tag: lm.tag, kind: 'prop', at: 'center', ...(lm.name ? { name: lm.name } : {}) });
       for (const n of comp.contents.npcs) program.ops.push({ op: 'place', id: `npc:${n.name ?? n.tag}`, tag: n.tag, kind: 'actor', role: 'npc', at: 'center', ...(n.name ? { name: n.name } : {}) });
       for (const m of comp.contents.mobs) program.ops.push({ op: 'scatter', idBase: `mob:${m.tag}`, tags: [m.tag], kind: 'actor', role: 'mob', region: 'all', count: m.count });

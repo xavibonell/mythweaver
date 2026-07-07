@@ -243,8 +243,19 @@ export function applySpecPlacement(map: SceneMap, spec: SceneSpec): string[] {
   const notes: string[] = [];
   const cons = spec.constraints ?? [];
   for (const c of cons) {
-    // in:water was compiled pre-map (scatter on:'water'); report the rest of `in` as deferred below.
-    if (c.c === 'in' && c.region === 'water') continue;
+    // in:water was compiled pre-map (scatter on:'water') — VERIFY it landed: a waterless scene
+    // silently drops the scatter, and the DM must re-narrate that.
+    if (c.c === 'in' && c.region === 'water') {
+      const fid = c.a ?? c.f;
+      if (fid) {
+        const got = movableObjects(map, fid).length;
+        const want = (spec.features ?? []).find((f) => f.id === fid)?.count ?? 1;
+        notes.push(got === 0
+          ? `placement: in(${fid},water) → 0/${want} realized — the scene has no water; re-narrate`
+          : `placement: in(${fid},water) → ${got}/${want} in the water`);
+      }
+      continue;
+    }
 
     if (c.c === 'near' || c.c === 'along' || c.c === 'at-edge-of') {
       const subj = c.a ?? c.f;
