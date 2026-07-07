@@ -180,7 +180,23 @@ export function renderSceneMapToPng(scene: SceneMap, opts: { assetsRoot: string;
   // proof renders carry the same dusk/night mood. (The Phaser nicety of exempting light sources so they
   // glow is skipped here — this is a proof render, not the live game.)
   const interior = scene.grammar === 'enclosed-interior';
-  if (scene.lighting === 'fog') {
+  // WEATHER composes with time (S3): "dusk + fog" = the dusk tint THEN the haze wash + mist on top.
+  // The legacy lighting value 'fog' still means "day + fog".
+  const foggy = !interior && (scene.weather === 'fog' || scene.lighting === 'fog');
+  if (interior) {
+    applyInteriorLighting(out, scene); // dark underground + warm torch pools + a vignette (not a flat tint)
+  } else {
+    const tint = scene.lighting === 'night' ? 0x7e8cc0 : scene.lighting === 'dusk' ? 0xb2b6da : 0;
+    if (tint) {
+      const tr = (tint >> 16) & 0xff, tg = (tint >> 8) & 0xff, tb = tint & 0xff;
+      for (let i = 0; i < out.data.length; i += 4) {
+        out.data[i] = Math.round(out.data[i]! * tr / 255);
+        out.data[i + 1] = Math.round(out.data[i + 1]! * tg / 255);
+        out.data[i + 2] = Math.round(out.data[i + 2]! * tb / 255);
+      }
+    }
+  }
+  if (foggy) {
     // FOG = desaturate toward luminance + blend toward a pale cool grey (a washed-out, low-contrast HAZE,
     // the opposite of a darkening multiply). Reads as a cold sea-fog. Kept LIGHT — the scene must stay
     // legible; the sense of "fog" comes mostly from the scattered mist wisps (a prop), not this wash.
@@ -201,18 +217,6 @@ export function renderSceneMapToPng(scene: SceneMap, opts: { assetsRoot: string;
       const png = loadPng(assetsRoot, asset.art); if (!png) continue;
       const fw = asset.frameW ?? TILE, fh = asset.frameH ?? TILE;
       blit(png, Math.round((a.col + 0.5) * TILE - fw / 2), Math.round((a.row + 0.5) * TILE - fh / 2), fw, fh);
-    }
-  } else if (interior) {
-    applyInteriorLighting(out, scene); // dark underground + warm torch pools + a vignette (not a flat tint)
-  } else {
-    const tint = scene.lighting === 'night' ? 0x7e8cc0 : scene.lighting === 'dusk' ? 0xb2b6da : 0;
-    if (tint) {
-      const tr = (tint >> 16) & 0xff, tg = (tint >> 8) & 0xff, tb = tint & 0xff;
-      for (let i = 0; i < out.data.length; i += 4) {
-        out.data[i] = Math.round(out.data[i]! * tr / 255);
-        out.data[i + 1] = Math.round(out.data[i + 1]! * tg / 255);
-        out.data[i + 2] = Math.round(out.data[i + 2]! * tb / 255);
-      }
     }
   }
   return PNG.sync.write(out);

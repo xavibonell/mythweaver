@@ -169,7 +169,7 @@ export interface SceneProvenance {
   lightingReason?: 'declared' | 'mood' | 'default';
   /** The composed program (structural shape only — the scene package owns the real SceneProgram type;
    *  `notes` records what the safety nets injected/rerouted, so the lab can show every intervention). */
-  program?: { cols: number; rows: number; biome: string; lighting: string; grammar: string; theme?: string; ops: unknown[]; notes?: string[] };
+  program?: { cols: number; rows: number; biome: string; lighting: string; weather?: string; grammar: string; theme?: string; ops: unknown[]; notes?: string[] };
 }
 
 /** What the modern realizer returns: the frozen map + the record of how it came to be. */
@@ -389,6 +389,9 @@ export interface SceneMap {
   seed: number;
   biome: string;
   lighting: Lighting;
+  /** WEATHER, composable with time-of-day (dusk + fog is a real sky). Absent = clear. The legacy
+   *  lighting value 'fog' is still honored by renderers, but new scenes emit time + weather. */
+  weather?: 'fog' | 'clear';
   grammar: LayoutGrammar;
   grid: { cols: number; rows: number; feetPerTile: number };
   tiles: string[][]; // terrain tag per cell; tiles[row][col]

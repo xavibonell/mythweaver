@@ -144,7 +144,7 @@ export async function realizeStoryScene(
   // LIGHTING PRECEDENCE: an explicitly DECLARED time of day beats the mood-regex (which beats 'day').
   // The coerced parser default never reaches here — the orchestrator only sets lightingDeclared when the
   // DM actually wrote timeOfDay in the tool call.
-  const lightingReason: SceneProvenance['lightingReason'] = opts.lightingDeclared ? 'declared' : program.lighting !== 'day' ? 'mood' : 'default';
+  const lightingReason: SceneProvenance['lightingReason'] = opts.lightingDeclared ? 'declared' : program.lighting !== 'day' || program.weather === 'fog' ? 'mood' : 'default';
   if (opts.lightingDeclared && program.lighting !== opts.lightingDeclared) {
     (program.notes ??= []).push(`lighting-declared: '${opts.lightingDeclared}' overrides mood-inferred '${program.lighting}'`);
     program.lighting = opts.lightingDeclared;
@@ -192,7 +192,7 @@ export async function realizeStoryScene(
     enrichedBrief: enriched,
     moodText,
     lightingReason,
-    program: { cols: program.cols, rows: program.rows, biome: program.biome, lighting: program.lighting, grammar: program.grammar, ...(program.theme ? { theme: program.theme } : {}), ops: program.ops, ...(program.notes ? { notes: program.notes } : {}) },
+    program: { cols: program.cols, rows: program.rows, biome: program.biome, lighting: program.lighting, ...(program.weather ? { weather: program.weather } : {}), grammar: program.grammar, ...(program.theme ? { theme: program.theme } : {}), ops: program.ops, ...(program.notes ? { notes: program.notes } : {}) },
   };
   return { sceneMap, program, provenance };
 }

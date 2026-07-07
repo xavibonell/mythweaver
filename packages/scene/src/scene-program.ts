@@ -47,6 +47,8 @@ export interface SceneProgram {
   base?: string;
   biome: string;
   lighting: Lighting;
+  /** Weather, composable with time-of-day (dusk + fog coexist — S3). Absent = clear. */
+  weather?: 'fog';
   grammar: LayoutGrammar; // cosmetic for the SceneMap (digest); geometry comes from the ops, not this
   outdoor: boolean; // gates the terrain auto-tile bake + decal scatter
   /** Theme key (one material palette for the whole scene). Set by normalizeProgram on the LLM path;
@@ -102,7 +104,7 @@ export function runProgram(prog: SceneProgram): SceneMap {
   const theme = prog.theme ? THEMES[prog.theme] : undefined;
   const cv = new Canvas(Math.max(1, prog.cols), Math.max(1, prog.rows), prog.seed, theme ? theme.ground : prog.base ?? 'grass');
   for (const op of prog.ops) runOp(cv, op, prog.locationId, theme);
-  return finalize(cv, { locationId: prog.locationId, biome: prog.biome, lighting: prog.lighting, grammar: prog.grammar, outdoor: prog.outdoor });
+  return finalize(cv, { locationId: prog.locationId, biome: prog.biome, lighting: prog.lighting, ...(prog.weather ? { weather: prog.weather } : {}), grammar: prog.grammar, outdoor: prog.outdoor });
 }
 
 // ---------------------------------------------------------------------------
@@ -675,16 +677,15 @@ export function normalizeProgram(raw: unknown, brief: string, moodText: string =
     seed: progSeed(brief),
     base: terrainOr(r.base, 'grass'),
     biome: (BIOMES as readonly string[]).includes(r.biome as string) ? (r.biome as string) : 'forest',
-    // MOOD → time of day. Driven ONLY by the PLAYER'S words (`moodText`: the premise in story mode), NOT
-    // the DM's atmospheric flavour prose or the model's guess — so "a frontier town" stays plain DAY and
-    // only the player writing "a fog-bound coast" / "at midnight" / "a grim, haunted village" flips it.
-    // (Coast/mountain/character detection above still reads the fuller enriched brief — only WEATHER is the
-    // player's call, because evocative prose like "the dark maw of the mine" is flavour, not a weather order.)
+    // MOOD → time of day + WEATHER, as SEPARATE axes (S3): "fog-bound midnight" is night AND fog, and a
+    // DM-declared timeOfDay later replaces only the TIME — the mist survives. Driven ONLY by the mood
+    // text (the player's premise / the DM's mood field), NOT the model's guess — so "a frontier town"
+    // stays plain DAY and only real mood words flip it.
     lighting: ((mt: string): Lighting =>
-        /\b(fog|foggy|fog-?bound|mist|misty|mist-?shrouded|haze|hazy|murk|murky|pea-?soup)\b/.test(mt) ? 'fog'
-      : /\b(night|midnight|nocturnal|moonlit|moonlight|dark(ness)?|horror|cursed|haunted|grim|drowned|corpse|the dead|plague|blight|dread|eerie|gloom|shadow(ed|y)?|storm)\b/.test(mt) ? 'night'
-      : /\b(dusk|twilight|sunset|evening|gloaming|nightfall|golden hour)\b/.test(mt) ? 'dusk'
+        /\b(night|midnight|nocturnal|moonlit|moonlight|dark(ness)?|horror|cursed|haunted|grim|drowned|corpse|the dead|plague|blight|dread|eerie|gloom|shadow(ed|y)?|storm)\b/.test(mt) ? 'night'
+      : /\b(dusk|twilight|sunset|evening|gloaming|nightfall|golden hour|predawn|pre-dawn)\b/.test(mt) ? 'dusk'
       : 'day')(moodText.toLowerCase()),
+    ...(/\b(fog|foggy|fog-?bound|mist|misty|mist-?shrouded|haze|hazy|murk|murky|pea-?soup)\b/.test(moodText.toLowerCase()) ? { weather: 'fog' as const } : {}),
     grammar,
     theme: themeNameFor(r.theme, brief, grammar), // one palette for the whole scene
     // A declared kind also owns indoor/outdoor — the LLM's `outdoor` can't contradict a forced interior.

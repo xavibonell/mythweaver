@@ -1248,7 +1248,7 @@ function scatterWallTorches(cv: Canvas): void {
 
 export function finalize(
   cv: Canvas,
-  meta: { locationId: string; biome: string; lighting: Lighting; grammar: LayoutGrammar; outdoor: boolean; skipReachability?: boolean; skipDecals?: boolean },
+  meta: { locationId: string; biome: string; lighting: Lighting; weather?: 'fog' | 'clear'; grammar: LayoutGrammar; outdoor: boolean; skipReachability?: boolean; skipDecals?: boolean },
 ): SceneMap {
   // skipReachability: the component contact-sheet packs intentionally DISCONNECTED cells — carving
   // corridors between them would mangle the gallery. Real scenes leave it on (the rare safety net).
@@ -1263,12 +1263,13 @@ export function finalize(
   } else if (meta.grammar === 'enclosed-interior') {
     scatterWallTorches(cv); // a dark interior needs light SOURCES → the renderer pools warm torchlight around them
   }
-  if (meta.lighting === 'fog') scatterMist(cv);
+  if (meta.lighting === 'fog' || meta.weather === 'fog') scatterMist(cv); // weather composes with time (S3)
   return {
     locationId: meta.locationId,
     seed: cv.seed,
     biome: meta.biome,
     lighting: meta.lighting,
+    ...(meta.weather ? { weather: meta.weather } : {}),
     grammar: meta.grammar,
     grid: { cols: cv.cols, rows: cv.rows, feetPerTile: FEET_PER_TILE },
     tiles: cv.tiles,

@@ -54,16 +54,18 @@ describe('buildModernRealizer — the live DM→Director handoff', () => {
     expect(res!.provenance.beat).toEqual({ id: 'beat-1', title: 'The Rising Bell' });
   });
 
-  it("the DM's mood field drives lighting when no time was declared", async () => {
+  it("the DM's mood field drives lighting when no time was declared (fog is WEATHER, day stays)", async () => {
     const llm = new FakeLlmProvider([fakeText(INTERIOR_PROGRAM)]);
     const res = await buildModernRealizer({ llm })(
       est({ brief: { setting: 'the chapel', biome: 'cave', timeOfDay: 'day', mood: 'fog-bound and silent' } }),
       [],
     );
-    expect(res!.sceneMap.lighting).toBe('fog');
+    expect(res!.sceneMap.weather).toBe('fog'); // S3: fog is a weather axis, not a time of day
+    expect(res!.sceneMap.lighting).toBe('day');
+    expect(res!.provenance.lightingReason).toBe('mood');
   });
 
-  it('an EXPLICITLY declared time of day beats the mood chain (declared > mood > day)', async () => {
+  it('a declared time replaces only the TIME — the mist survives (dusk + fog coexist, S3)', async () => {
     const llm = new FakeLlmProvider([fakeText(INTERIOR_PROGRAM)]);
     const res = await buildModernRealizer({ llm })(
       est({
@@ -72,7 +74,8 @@ describe('buildModernRealizer — the live DM→Director handoff', () => {
       }),
       [],
     );
-    expect(res!.sceneMap.lighting).toBe('dusk'); // the declaration wins over every mood keyword
+    expect(res!.sceneMap.lighting).toBe('dusk'); // the declaration wins the TIME axis…
+    expect(res!.sceneMap.weather).toBe('fog'); // …but no longer kills the WEATHER (the beat-1 bug)
     expect(res!.provenance.lightingReason).toBe('declared');
   });
 

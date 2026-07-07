@@ -268,9 +268,11 @@ function renderFullImpl(scene: any, data: any): void {
   // FOG = a LIGHT pale haze laid over the WHOLE scene (a soft overlay, NOT a darkening multiply tint) —
   // reads as a cold sea-fog. Kept light so the scene stays legible; the real sense of fog comes from the
   // scattered mist CLOUDS (`mist_*`) drifting above the scene — drawn on TOP of the thin wash so they read
-  // as visible, translucent drifting cloud.
-  if (data.lighting === 'fog') {
-    scene.add.rectangle(0, 0, cols * TILE, rows * TILE, 0xb2bcc6, 0.24).setOrigin(0, 0).setDepth(100000);
+  // as visible, translucent drifting cloud. WEATHER composes with time (S3): dusk tint + fog wash coexist;
+  // the legacy lighting value 'fog' still means "day + fog".
+  if (!interior && (data.weather === 'fog' || data.lighting === 'fog')) {
+    const wash = scene.add.rectangle(0, 0, cols * TILE, rows * TILE, 0xb2bcc6, 0.24).setOrigin(0, 0).setDepth(100000);
+    scene.sceneObjs.push(wash);
     for (const a of data.ambiance ?? []) if (a.tag.startsWith('mist')) drawProp(scene, a.tag, a.col, a.row, 1, 1, 100001 + a.row * 0.001, null);
   }
 
