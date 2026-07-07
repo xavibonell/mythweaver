@@ -28,7 +28,7 @@ import type { Theme } from './themes.js';
 
 /** The semantic cast the LLM (or a completeness net) supplies — names + which things exist, NO geometry. */
 export interface Contents {
-  buildings: { type: BuildingType; name?: string }[];
+  buildings: { type: BuildingType; name?: string; waterfront?: boolean }[];
   landmarks: { tag: string; name?: string }[];
   npcs: { tag: string; name?: string }[];
   mobs: { tag: string; count: number }[];
@@ -238,7 +238,10 @@ function townGen(cv: Canvas, ctx: GenContext): void {
   // water/rock field and shrinks the interior off it, so the town sits on land and the field forms a
   // coherent frontier at bake. Applied before streets/parcels so buildings never land in the sea/cliffs.
   if (contents.mountain) { const f = reserveEdgeField(cv, B, interior, 'mountain', contents.entranceSide); if (f && contents.mine) placeFrontierFeature(cv, f.band, f.edge, 'mine', locationId); }
-  if (contents.coast) { const f = reserveEdgeField(cv, B, interior, 'coast', contents.entranceSide); if (f && contents.port) placeFrontierFeature(cv, f.band, f.edge, 'port', locationId); }
+  // The coast field is remembered — STAGE 4 gives waterfront-flagged buildings the lots nearest it
+  // (the spec relation near(building, dock/water) compiled into geometry).
+  let coastField: { edge: FieldSide; band: Rect } | null = null;
+  if (contents.coast) { coastField = reserveEdgeField(cv, B, interior, 'coast', contents.entranceSide); if (coastField && contents.port) placeFrontierFeature(cv, coastField.band, coastField.edge, 'port', locationId); }
 
   // STAGE 1 — ORGANIC STREET NETWORK via the LOOM (routeSeam, Weave L1). Recursive bisection carves a
   // material-typed seam at each cut (2-wide cobble arteries near the top, 1-wide dirt alleys deeper), and
@@ -336,6 +339,22 @@ function townGen(cv: Canvas, ctx: GenContext): void {
   const named = [...contents.buildings];
   const lotD = (l: Rect) => Math.hypot(rectCenter(l).c - plazaCtr.c, rectCenter(l).r - plazaCtr.r);
   lots.sort((a, b) => lotD(a) - lotD(b));
+  // WATERFRONT bias (S4 — spec relation near(building, dock/water) as GEOMETRY): flagged buildings
+  // pre-claim the lots nearest the coast band, so "the boathouse beside the dock" is placement, not luck.
+  const lotAssign = new Map<Rect, { type: BuildingType; name?: string }>();
+  if (coastField) {
+    const bandCtr = rectCenter(coastField.band);
+    const coastD = (l: Rect) => {
+      const c = rectCenter(l);
+      return coastField!.edge === 'east' || coastField!.edge === 'west' ? Math.abs(c.c - bandCtr.c) : Math.abs(c.r - bandCtr.r);
+    };
+    const byCoast = [...lots].sort((a, b) => coastD(a) - coastD(b));
+    for (const b of named.filter((x) => x.waterfront)) {
+      const lot = byCoast.find((l) => !lotAssign.has(l) && (l.w - 2 >= 4 && l.h - 2 >= 4));
+      if (lot) lotAssign.set(lot, b);
+    }
+  }
+  const namedQueue = named.filter((b) => !b.waterfront || ![...lotAssign.values()].includes(b));
   let bi = 0, ni = 0;
   // Footprint variety: when a lot is big enough for a silhouette, ~40% of the time give it a clean L/T/U/
   // cross (derived as a watertight ring — never a carved-out notch). Always falls back to rect.
@@ -349,7 +368,9 @@ function townGen(cv: Canvas, ctx: GenContext): void {
     const fp: Rect = { x: lot.x + ox, y: lot.y + oy, w: lot.w - ox - sb(lot.w), h: lot.h - oy - sb(lot.h) };
     if (fp.w < 4 || fp.h < 4) continue;
     let type: BuildingType, name: string | undefined;
-    if (ni < named.length) { type = named[ni]!.type; name = named[ni]!.name; ni++; }
+    const assigned = lotAssign.get(lot);
+    if (assigned) { type = assigned.type; name = assigned.name; } // a waterfront claim — this lot is spoken for
+    else if (ni < namedQueue.length) { type = namedQueue[ni]!.type; name = namedQueue[ni]!.name; ni++; }
     else { const big = fp.w * fp.h >= 72; type = big ? (cv.rng() < 0.3 ? 'shop' : 'house') : 'house'; } // procedural fill = mostly homes (big lots → manors/shops)
     const dside = doorToward(fp);
     compound(cv, fp, type, { door: dside, shape: chooseShape(fp.w, fp.h), locationId, ...(name ? { name } : {}), id: `bldg:${slug(locationId, 0)}-b${bi++}` });

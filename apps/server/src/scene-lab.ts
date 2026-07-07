@@ -10,7 +10,7 @@
  */
 
 import type { LlmProvider } from '@mythweaver/llm';
-import { buildCityScene, buildComponentSheet, buildSceneMap, buildSpikeScene, compileSpec, GOLD_PROGRAMS, LlmCityPlanner, LlmSceneProgrammer, lookToSprite, runProgram, type CityDistrictSpec, type CityRequest, type SceneComposer, type SceneProgram } from '@mythweaver/scene';
+import { applySpecPlacement, buildCityScene, buildComponentSheet, buildSceneMap, buildSpikeScene, compileSpec, GOLD_PROGRAMS, LlmCityPlanner, LlmSceneProgrammer, lookToSprite, runProgram, type CityDistrictSpec, type CityRequest, type SceneComposer, type SceneProgram } from '@mythweaver/scene';
 import type { EstablishScene, GameState, Lighting, PartyMemberRef, RealizeSceneResult, SceneComposition, SceneKindHint, SceneMap, ScenePlan, SceneProvenance, SceneRealizeContext, SceneSpec } from '@mythweaver/shared';
 import { buildToolDefs, parseEstablish, seedFor } from './orchestrator.js';
 
@@ -202,11 +202,13 @@ export async function realizeStoryScene(
   if (comp) {
     if (arch && arch.op === 'archetype') {
       const c = arch.contents;
-      // The spec is the truth for the NAMED cast: replace harvested guesses where the spec speaks.
-      if (comp.contents.buildings.length) c.buildings = comp.contents.buildings;
-      if (comp.contents.landmarks.length) c.landmarks = comp.contents.landmarks;
-      if (comp.contents.npcs.length) c.npcs = [...comp.contents.npcs, ...c.npcs.filter((n) => n.name)]; // keep DM-declared named cast
-      if (comp.contents.mobs.length) c.mobs = comp.contents.mobs;
+      // The spec is AUTHORITATIVE for the cast — even an empty list. (The prose harvest once leaked 6
+      // land zombies next to the spec's 4 in-water ones: double realization.) The DM's runtime setScene
+      // npcs stay — they are session truth the arc-time spec can't know.
+      c.buildings = comp.contents.buildings;
+      c.landmarks = comp.contents.landmarks;
+      c.npcs = [...comp.contents.npcs, ...c.npcs.filter((n) => n.name)];
+      c.mobs = comp.contents.mobs;
       // The spec OWNS the frontier flags outright — a prose-harvested guess ("mining town" → a phantom
       // mountain range) must not survive next to a contract that declared no such feature.
       for (const flag of ['coast', 'port', 'mountain', 'mine', 'canal', 'wall'] as const) {
@@ -230,6 +232,10 @@ export async function realizeStoryScene(
   // address them — at the spec's entry edge when one exists (they ARRIVE), else near the heart.
   party.forEach((p) => program.ops.push({ op: 'place', id: p.id, tag: p.spriteTag ?? 'knight', kind: 'actor', role: 'pc', at: entryEdge ?? 'center', name: p.name }));
   const sceneMap = runProgram(program);
+  // S4 — RELATION PLACEMENT: with the map built, move the spec's point realizations to satisfy
+  // near/along/at-edge-of (corpses stay in water; the party stages by ITS relations too). Honest
+  // notes for every relation — moved, unrealized, or deferred.
+  if (opts.spec) (program.notes ??= []).push(...applySpecPlacement(sceneMap, opts.spec));
   const provenance: Pick<SceneProvenance, 'enrichedBrief' | 'moodText' | 'lightingReason' | 'program'> = {
     enrichedBrief: enriched,
     moodText,

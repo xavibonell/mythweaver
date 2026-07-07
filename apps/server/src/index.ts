@@ -661,7 +661,9 @@ app.post('/dm/lab/scene-preview', async (req, reply) => {
     const res = await buildModernRealizer({ llm, ...(dmModel ? { model: dmModel } : {}) })(r.establish, [], r.ctx);
     if (!res) return badRequest(reply, 'the realizer declined');
     const png = renderSceneMapToPng(res.sceneMap, { assetsRoot: new URL('../../web/public', import.meta.url).pathname });
-    return { sceneId: r.sceneId, provenance: res.provenance, png: `data:image/png;base64,${png.toString('base64')}` };
+    // The addressable objects, so relation satisfaction is CHECKABLE from the preview (not just eyeballed).
+    const objects = res.sceneMap.objects.map((o) => ({ id: o.id, ...(o.name ? { name: o.name } : {}), tag: o.tag, col: o.col, row: o.row, ...(o.group ? { group: o.group } : {}) }));
+    return { sceneId: r.sceneId, provenance: res.provenance, objects, png: `data:image/png;base64,${png.toString('base64')}` };
   } catch (err) {
     app.log.error(err, 'scene preview failed');
     reply.code(502);

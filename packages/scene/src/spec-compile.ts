@@ -12,7 +12,7 @@
  * notes so the provenance panel shows exactly what was honored vs deferred.
  */
 
-import { BUILDING_TYPES, type BuildingType, type SceneSpec } from '@mythweaver/shared';
+import { BUILDING_TYPES, type BuildingType, type MapObject, type SceneMap, type SceneSpec } from '@mythweaver/shared';
 import type { Contents } from './archetypes.js';
 import { isProp } from './catalog.js';
 import { lookToSprite } from './composer.js';
@@ -85,6 +85,9 @@ export function compileSpec(spec: SceneSpec, opts: { settlement: boolean }): Spe
   const inWater = new Set(
     (spec.constraints ?? []).filter((c) => c.c === 'in' && c.region === 'water' && (c.a || c.f)).map((c) => (c.a ?? c.f)!),
   );
+  // Feature-id bookkeeping for relation compilation: which ids became buildings / frontiers.
+  const buildingOf = new Map<string, { type: BuildingType; name?: string; waterfront?: boolean }[]>();
+  const frontierIds = new Set<string>();
 
   for (const f of spec.features ?? []) {
     const t = tail(f.kind);
@@ -94,23 +97,21 @@ export function compileSpec(spec: SceneSpec, opts: { settlement: boolean }): Spe
     if (/^(dock|pier|jetty|wharf|quay|harbou?r)/.test(t) || f.kind.startsWith('dock.')) {
       contents.coast = true;
       contents.port = true;
+      frontierIds.add(f.id);
       notes.push(`spec: ${f.id} (${f.kind}) → coast+port frontier`);
       continue;
     }
-    if (/^(mine|adit|shaft)/.test(t)) { contents.mountain = true; contents.mine = true; notes.push(`spec: ${f.id} → mountain+mine frontier`); continue; }
+    if (/^(mine|adit|shaft)/.test(t)) { contents.mountain = true; contents.mine = true; frontierIds.add(f.id); notes.push(`spec: ${f.id} → mountain+mine frontier`); continue; }
     if (/canal/.test(t)) { contents.canal = true; notes.push(`spec: ${f.id} → canal`); continue; }
     if (/^(wall|palisade|rampart)$/.test(t)) { contents.wall = true; notes.push(`spec: ${f.id} → town wall`); continue; }
 
     // BUILDINGS — the fixed type vocabulary, count-expanded. Nothing named is dropped.
     if (f.kind.startsWith('building.') || (BUILDING_SYNONYMS[clean(t)] && !f.kind.startsWith('prop.'))) {
-      const type = BUILDING_SYNONYMS[clean(t)];
-      if (type) {
-        for (let i = 0; i < Math.min(count, 8); i++) contents.buildings.push({ type, ...(count === 1 ? { name: f.id } : {}) });
-        notes.push(`spec: ${f.id} → ${Math.min(count, 8)}× ${type}`);
-      } else {
-        for (let i = 0; i < Math.min(count, 8); i++) contents.buildings.push({ type: 'house' });
-        notes.push(`spec: ${f.id} (${f.kind}) → house (no closer building type)`);
-      }
+      const type = BUILDING_SYNONYMS[clean(t)] ?? 'house';
+      const mine: { type: BuildingType; name?: string; waterfront?: boolean }[] = [];
+      for (let i = 0; i < Math.min(count, 8); i++) { const e = { type, ...(count === 1 ? { name: f.id } : {}) }; contents.buildings.push(e); mine.push(e); }
+      buildingOf.set(f.id, mine);
+      notes.push(`spec: ${f.id} → ${Math.min(count, 8)}× ${type}${BUILDING_SYNONYMS[clean(t)] ? '' : ' (no closer building type)'}`);
       continue;
     }
 
@@ -141,11 +142,10 @@ export function compileSpec(spec: SceneSpec, opts: { settlement: boolean }): Spe
       } else if (count > 1) {
         postOps.push({ op: 'scatter', idBase: `prop:${f.id}`, tags: [tag], kind: 'prop', region: 'all', count });
         notes.push(`spec: ${f.id} → ${count}× ${tag}`);
-      } else if (opts.settlement) {
-        contents.landmarks.push({ tag, name: f.id });
-        notes.push(`spec: ${f.id} → landmark ${tag}`);
       } else {
-        postOps.push({ op: 'place', id: `prop:${f.id}`, tag, kind: 'prop', at: 'center' });
+        // Always a concrete op with a deterministic id — towns DROP non-vignette landmark contents,
+        // and the placement pass (S4) needs `prop:<fid>` addressable.
+        postOps.push({ op: 'place', id: `prop:${f.id}`, tag, kind: 'prop', at: 'center', name: f.id });
         notes.push(`spec: ${f.id} → ${tag}`);
       }
       continue;
@@ -156,9 +156,20 @@ export function compileSpec(spec: SceneSpec, opts: { settlement: boolean }): Spe
     else unrepresented.push(`${f.id} (${f.kind})`);
   }
 
+  // WATERFRONT flags (S4): near/along/at-edge-of linking a BUILDING feature to a dock/water frontier
+  // become lot bias in the town generator — the boathouse claims the shore lot.
+  for (const c of spec.constraints ?? []) {
+    if (!(c.c === 'near' || c.c === 'along' || c.c === 'at-edge-of')) continue;
+    const subj = c.a ?? c.f;
+    const obj = c.b ?? c.region ?? c.of;
+    if (subj && buildingOf.has(subj) && (obj === 'water' || (obj && frontierIds.has(obj)))) {
+      for (const e of buildingOf.get(subj)!) e.waterfront = true;
+      notes.push(`spec: ${subj} → waterfront lot (near ${obj})`);
+    }
+  }
   // Relations beyond in:water are recorded for the provenance panel — L1+ territory, not silently eaten.
   const deferred = (spec.constraints ?? []).filter((c) => !(c.c === 'in' && c.region === 'water')).map((c) => c.c);
-  if (deferred.length) notes.push(`spec: ${deferred.length} relation(s) recorded, not yet compiled (${[...new Set(deferred)].join(', ')})`);
+  if (deferred.length) notes.push(`spec: ${deferred.length} relation(s) queued for the placement pass (${[...new Set(deferred)].join(', ')})`);
 
   const edge = spec.frame?.entry?.edge;
   return {
@@ -168,4 +179,102 @@ export function compileSpec(spec: SceneSpec, opts: { settlement: boolean }): Spe
     notes,
     unrepresented,
   };
+}
+
+// ---------------------------------------------------------------------------
+// S4 — RELATION PLACEMENT (the first geometry rung): after the map is built, move the spec's point
+// realizations to SATISFY near / along / at-edge-of, and stage the party by its relations. Buildings
+// can't move post-hoc (walls are baked) — they were biased at lot time (waterfront). Everything this
+// pass can't resolve is returned as an honest note, never silently skipped.
+// ---------------------------------------------------------------------------
+
+type Cell = { c: number; r: number };
+
+/** All cells realizing a feature id on the finished map: our emitted objects (`prop:<fid>` /
+ *  `mob:<fid>` / `npc:<fid>` ids or groups, or name === fid), dock ambiance for frontier docks,
+ *  PARTY = the pcs, 'water' = every water tile. */
+function realizationCells(map: SceneMap, spec: SceneSpec, fid: string): Cell[] {
+  if (fid === 'PARTY') return map.objects.filter((o) => o.role === 'pc').map((o) => ({ c: o.col, r: o.row }));
+  if (fid === 'water') {
+    const out: Cell[] = [];
+    for (let r = 0; r < map.grid.rows; r++) for (let c = 0; c < map.grid.cols; c++) if (map.tiles[r]![c]!.startsWith('water')) out.push({ c, r });
+    return out;
+  }
+  const ids = [`prop:${fid}`, `mob:${fid}`, `npc:${fid}`];
+  const objs = map.objects.filter((o) => ids.includes(o.id) || (o.group && ids.includes(o.group)) || o.name === fid);
+  if (objs.length) return objs.map((o) => ({ c: o.col, r: o.row }));
+  // Frontier docks realize as ambiance planks — anchor on them when the feature is dock-ish.
+  const feature = (spec.features ?? []).find((f) => f.id === fid);
+  if (feature && (/^(dock|pier|jetty|wharf|quay)/.test(tail(feature.kind)) || feature.kind.startsWith('dock.'))) {
+    return map.ambiance.filter((a) => a.tag.startsWith('dock')).map((a) => ({ c: a.col, r: a.row }));
+  }
+  return [];
+}
+
+/** The subject's movable OBJECTS (never buildings/terrain — those were placed structurally). */
+function movableObjects(map: SceneMap, fid: string): MapObject[] {
+  if (fid === 'PARTY') return map.objects.filter((o) => o.role === 'pc');
+  const ids = [`prop:${fid}`, `mob:${fid}`, `npc:${fid}`];
+  return map.objects.filter((o) => ids.includes(o.id) || (o.group && ids.includes(o.group)) || o.name === fid);
+}
+
+function occupied(map: SceneMap, c: number, r: number): boolean {
+  return map.objects.some((o) => o.visible && o.col === c && o.row === r);
+}
+
+/** Nearest usable cell to (c,r): walkable land (or water when the mover lives in water), unoccupied. */
+function nearestFree(map: SceneMap, c: number, r: number, radius: number, wantWater: boolean): Cell | null {
+  for (let d = 0; d <= radius; d++)
+    for (let dr = -d; dr <= d; dr++)
+      for (let dc = -d; dc <= d; dc++) {
+        if (Math.max(Math.abs(dc), Math.abs(dr)) !== d) continue;
+        const cc = c + dc, rr = r + dr;
+        if (cc < 0 || rr < 0 || cc >= map.grid.cols || rr >= map.grid.rows) continue;
+        const isWater = map.tiles[rr]![cc]!.startsWith('water');
+        if (wantWater ? !isWater : !map.walkable[rr]![cc]) continue;
+        if (occupied(map, cc, rr)) continue;
+        return { c: cc, r: rr };
+      }
+  return null;
+}
+
+/** Apply the spec's placement relations to the finished map (in place). Returns provenance notes. */
+export function applySpecPlacement(map: SceneMap, spec: SceneSpec): string[] {
+  const notes: string[] = [];
+  const cons = spec.constraints ?? [];
+  for (const c of cons) {
+    // in:water was compiled pre-map (scatter on:'water'); report the rest of `in` as deferred below.
+    if (c.c === 'in' && c.region === 'water') continue;
+
+    if (c.c === 'near' || c.c === 'along' || c.c === 'at-edge-of') {
+      const subj = c.a ?? c.f;
+      const refId = c.b ?? c.region ?? c.of ?? 'PARTY';
+      if (!subj) continue;
+      const movers = movableObjects(map, subj);
+      if (!movers.length) { notes.push(`placement: ${c.c}(${subj},${refId}) — subject not movable (structural or unrealized)`); continue; }
+      const anchors = realizationCells(map, spec, refId);
+      if (!anchors.length) { notes.push(`placement: ${c.c}(${subj},${refId}) — referent has no realization`); continue; }
+      // `at-edge-of water` wants the LAND cell touching water; near/along want the referent itself.
+      const wantsWaterEdge = c.c === 'at-edge-of' && refId === 'water';
+      let moved = 0;
+      movers.forEach((o, i) => {
+        // ALONG spreads the movers across the referent's extent; NEAR clusters them on its centroid side.
+        const target = c.c === 'along' ? anchors[Math.floor((i + 0.5) * (anchors.length / movers.length))] ?? anchors[i % anchors.length]! : anchors[Math.floor(anchors.length / 2)]!;
+        const inWaterMover = map.tiles[o.row]![o.col]!.startsWith('water');
+        const cell = wantsWaterEdge
+          ? nearestFree(map, target.c, target.r, 6, false)
+          : nearestFree(map, target.c, target.r, 5, inWaterMover);
+        if (cell) { o.col = cell.c; o.row = cell.r; moved++; }
+      });
+      notes.push(`placement: ${c.c}(${subj},${refId}) → moved ${moved}/${movers.length}`);
+      continue;
+    }
+
+    // Everything else stays honest: recorded, visibly deferred.
+    if (c.c !== 'through-fabric' && c.c !== 'crossable') {
+      const subj = c.a ?? c.f ?? '?';
+      notes.push(`placement: ${c.c}(${subj}${c.b ? `,${c.b}` : ''}) deferred (not yet compiled)`);
+    }
+  }
+  return notes;
 }
