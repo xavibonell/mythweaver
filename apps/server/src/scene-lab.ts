@@ -11,7 +11,7 @@
 
 import type { LlmProvider } from '@mythweaver/llm';
 import { buildCityScene, buildComponentSheet, buildSceneMap, buildSpikeScene, GOLD_PROGRAMS, LlmCityPlanner, LlmSceneProgrammer, lookToSprite, runProgram, type CityDistrictSpec, type CityRequest, type SceneComposer, type SceneProgram } from '@mythweaver/scene';
-import type { EstablishScene, GameState, Lighting, PartyMemberRef, RealizeSceneResult, SceneComposition, SceneKindHint, SceneMap, SceneProvenance, SceneRealizeContext } from '@mythweaver/shared';
+import type { EstablishScene, GameState, Lighting, PartyMemberRef, RealizeSceneResult, SceneComposition, SceneKindHint, SceneMap, ScenePlan, SceneProvenance, SceneRealizeContext } from '@mythweaver/shared';
 import { buildToolDefs, parseEstablish, seedFor } from './orchestrator.js';
 
 const SET_SCENE_TOOL = buildToolDefs(false, true).find((t) => t.name === 'setScene')!;
@@ -135,14 +135,7 @@ export async function realizeStoryScene(
     lightingDeclared?: Lighting;
   } = {},
 ): Promise<{ sceneMap: SceneMap; program: SceneProgram; provenance: Pick<SceneProvenance, 'enrichedBrief' | 'moodText' | 'lightingReason' | 'program'> }> {
-  const npcLines = establish.npcs.filter((n) => n.visible !== false).map((n) => `${n.name}${n.look ? ` (${n.look})` : ''}`);
-  const fixTags = [...new Set(establish.fixtures.map((f) => f.tag))];
-  const enriched = [
-    premise,
-    establish.brief?.setting ? `Setting: ${establish.brief.setting}` : '',
-    npcLines.length ? `Characters present (place EVERY one as a named npc): ${npcLines.join('; ')}` : '',
-    fixTags.length ? `Notable objects: ${fixTags.join(', ')}` : '',
-  ].filter(Boolean).join('\n');
+  const enriched = enrichedBriefFor(establish, premise);
   // Pass the raw PREMISE as the mood source: the scene's time-of-day/weather follows what the PLAYER asked
   // for, not the atmospheric flavour the DM wrote into `enriched` ("the dark maw of the mine" is flavour).
   const moodText = opts.moodText ?? premise;
@@ -214,20 +207,80 @@ export async function realizeStoryScene(
  * later, its authored ScenePlan). It leads the enriched brief and joins the mood chain, so "gothic
  * horror" reaches the map even when the DM's own setting string is short.
  */
+/** The declaration+fiction → generator-inputs assembly, PURE and previewable ($0, no model call).
+ *  This is the single place the "brief sent to the generator" is composed — iterate it here. */
+export function modernRealizeInputs(est: EstablishScene, ctx?: SceneRealizeContext): {
+  premise: string;
+  moodText: string;
+  kind?: SceneKindHint;
+  lightingDeclared?: Lighting;
+  /** The EXACT enriched brief the programmer receives (premise + Setting + cast + fixtures). */
+  enrichedBrief: string;
+} {
+  const plan = ctx?.scenePlan;
+  // The enriched brief LEADS with the designed look (else the campaign fiction), then the DM's declaration.
+  const core = [plan?.look, ctx?.premise, ctx?.beat?.summary].filter(Boolean).join('\n') || (est.brief?.setting ?? '');
+  const features = plan?.features?.length ? `Must include: ${plan.features.join(', ')}` : '';
+  const premise = features ? `${core}\n${features}` : core;
+  // Mood chain: the DM's declared mood > the beat's designed mood > the campaign fiction. The DM's
+  // explicitly declared timeOfDay still beats all of it (applied post-compose in realizeStoryScene).
+  // Deduped — the preview path derives the declaration FROM the plan, which would double every entry.
+  const moodText = [...new Set([est.brief?.mood, plan?.mood, ctx?.premise, ctx?.beat?.summary].filter(Boolean))].join('. ') || (est.brief?.setting ?? '');
+  const kind = est.kind ?? plan?.kind; // absent → the programmer judges from the full brief
+  return {
+    premise,
+    moodText,
+    ...(kind ? { kind } : {}),
+    ...(est.timeOfDayExplicit ? { lightingDeclared: est.brief.timeOfDay } : {}),
+    enrichedBrief: enrichedBriefFor(est, premise),
+  };
+}
+
+/** The exact enriched-brief text the programmer receives — shared by the live path and the $0 preview. */
+export function enrichedBriefFor(establish: EstablishScene, premise: string): string {
+  const npcLines = establish.npcs.filter((n) => n.visible !== false).map((n) => `${n.name}${n.look ? ` (${n.look})` : ''}`);
+  const fixTags = [...new Set(establish.fixtures.map((f) => f.tag))];
+  return [
+    premise,
+    establish.brief?.setting ? `Setting: ${establish.brief.setting}` : '',
+    npcLines.length ? `Characters present (place EVERY one as a named npc): ${npcLines.join('; ')}` : '',
+    fixTags.length ? `Notable objects: ${fixTags.join(', ')}` : '',
+  ].filter(Boolean).join('\n');
+}
+
+/** A deterministic stand-in for the DM's setScene declaration, derived from a beat's authored plan —
+ *  the $0/cheap preview path (iterate briefs + scenes per beat without a DM turn). Overrides let you
+ *  hand-tweak the declaration exactly as the DM might phrase it. */
+export function establishFromBeat(
+  sceneId: string,
+  beat: { title?: string; summary?: string; scenePlan?: ScenePlan },
+  overrides: { setting?: string; kind?: SceneKindHint; mood?: string; timeOfDay?: 'day' | 'dusk' | 'night'; biome?: string } = {},
+): EstablishScene {
+  const plan = beat.scenePlan;
+  const kind = overrides.kind ?? plan?.kind;
+  const mood = overrides.mood ?? plan?.mood;
+  return {
+    locationId: `loc:preview-${sceneId.replace(/[^a-z0-9-]+/gi, '-').toLowerCase()}`,
+    brief: {
+      setting: overrides.setting ?? plan?.look ?? beat.summary ?? beat.title ?? 'a quiet, dim place',
+      biome: overrides.biome ?? (kind === 'interior' ? 'dungeon' : kind === 'wild' ? 'forest' : 'village'),
+      timeOfDay: overrides.timeOfDay ?? 'day',
+      ...(mood ? { mood } : {}),
+    },
+    ...(kind ? { kind } : {}),
+    ...(overrides.timeOfDay ? { timeOfDayExplicit: true } : {}),
+    fixtures: [],
+    npcs: [],
+  };
+}
+
 export function buildModernRealizer(deps: { llm: LlmProvider; model?: string }): (est: EstablishScene, party: PartyMemberRef[], ctx?: SceneRealizeContext) => Promise<RealizeSceneResult | null> {
   return async (est, party, ctx) => {
-    const plan = ctx?.scenePlan;
-    // The enriched brief LEADS with the designed look (else the campaign fiction), then the DM's declaration.
-    const premise = [plan?.look, ctx?.premise, ctx?.beat?.summary].filter(Boolean).join('\n') || (est.brief?.setting ?? '');
-    // Mood chain: the DM's declared mood > the beat's designed mood > the campaign fiction. The DM's
-    // explicitly declared timeOfDay still beats all of it (applied post-compose in realizeStoryScene).
-    const moodText = [est.brief?.mood, plan?.mood, ctx?.premise, ctx?.beat?.summary].filter(Boolean).join('. ') || (est.brief?.setting ?? '');
-    const kind = est.kind ?? plan?.kind; // absent → the programmer judges from the full brief
-    const features = plan?.features?.length ? `Must include: ${plan.features.join(', ')}` : '';
-    const { sceneMap, provenance } = await realizeStoryScene(deps, est, features ? `${premise}\n${features}` : premise, party, {
-      moodText,
-      ...(kind ? { kind } : {}),
-      ...(est.timeOfDayExplicit ? { lightingDeclared: est.brief.timeOfDay } : {}),
+    const inputs = modernRealizeInputs(est, ctx);
+    const { sceneMap, provenance } = await realizeStoryScene(deps, est, inputs.premise, party, {
+      moodText: inputs.moodText,
+      ...(inputs.kind ? { kind: inputs.kind } : {}),
+      ...(inputs.lightingDeclared ? { lightingDeclared: inputs.lightingDeclared } : {}),
     });
     return {
       sceneMap,
@@ -238,7 +291,7 @@ export function buildModernRealizer(deps: { llm: LlmProvider; model?: string }):
         reused: false,
         establish: est,
         ...(ctx?.beat ? { beat: { id: ctx.beat.id, ...(ctx.beat.title ? { title: ctx.beat.title } : {}) } } : {}),
-        ...(plan ? { scenePlan: plan } : {}),
+        ...(ctx?.scenePlan ? { scenePlan: ctx.scenePlan } : {}),
       },
     };
   };

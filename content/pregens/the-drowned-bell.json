@@ -1,0 +1,618 @@
+{
+  "adventure": {
+    "pitch": "A gothic three-act reckoning with a debt the living never meant to inherit. Fifty years ago the valley of Marrowfen was flooded to make a reservoir, and the bell-founder Corvin Vaile was sealed alive inside his half-finished church when the waters rose. His masterpiece bell went down with him. Now, each night, that drowned bell tolls and climbs its own rope, and with every toll it hauls another co",
+    "scenes": {
+      "scene:b1": {
+        "title": "The Boathouse at Sillow",
+        "summary": "The party arrives as the nightly toll begins and drowned corpses surface, some clawing up onto the docks. Terrified villagers led by ferrywoman Mother Sedge beg for help; old lamplighter Gaunt Weem knows the true history but speaks in riddles and rope-knots. Ways in: calm/interrogate the crowd (Persuasion DC 12), read the church records Weem hoards (Investigation DC 13), or fight off the first risen dead crawling ashore. Establish the rising bell and the location of the sunken church.",
+        "exits": [
+          "scene:b2"
+        ],
+        "scenePlan": {
+          "look": "A ramshackle timber shanty-town on stilts along a black reservoir's edge, sagging boardwalks and a leaning boathouse, rowboats tethered to a long dock, dark water studded with pale surfacing bodies.",
+          "kind": "settlement",
+          "mood": "lantern-lit dusk, cold mist rising off the water",
+          "features": [
+            "the leaning boathouse",
+            "the long dock with tethered rowboats",
+            "the black waterline where corpses surfac",
+            "Weem's lamp-hung watch-post"
+          ]
+        }
+      },
+      "scene:b2": {
+        "title": "The Drowned Bell-Road",
+        "summary": "By boat and breath the party descends the old sunken lane toward the church \u2014 a submerged street of roofs, a graveyard whose stones have shifted, and the taut bell-rope rising from the depths, hung with drifting dead being hauled upward. Beats: navigate the flooded ruins (Athletics/Survival DC 13), decipher Vaile's foundry-marks to learn the debt (Arcana or History DC 14 \u2014 Elara), or slip past the guardian dead (Stealth DC 13 \u2014 Pip). Ghoulish drowned things nest in the flooded belfry-yard.",
+        "exits": [
+          "scene:b1",
+          "scene:b3"
+        ],
+        "scenePlan": {
+          "look": "An underwater street of drowned rooftops and a sunken graveyard, silt-choked lanes between broken walls, a thick barnacled rope stretching up out of frame with corpses snagged along its length.",
+          "kind": "wild",
+          "mood": "green-black gloom pierced by shafts of moonlight through the water",
+          "features": [
+            "the taut ascending bell-rope",
+            "the shifted sunken graveyard",
+            "drowned rooftops forming a lane",
+            "Vaile's foundry-mark carved on a lintel"
+          ]
+        }
+      },
+      "scene:b3": {
+        "title": "Vaile's Bell-Chamber",
+        "summary": "The half-finished stone church, its air-pocketed nave holding a single trembling breath, the great bell swinging on its rising rope with Vaile's shackled skeleton fused to the clapper. His shade demands the debt paid. Resolutions: give last rites and speak his name aloud into the bell (Religion DC 14), break/recast the bell in the cold foundry-hearth (Arcana or Smith's tools DC 15 \u2014 Aldric), or bind him with his own foundry-marks (Arcana DC 15). Fighting the shade alone won't stop the toll \u2014 the debt must be acknowledged. Success sinks the dead and stills the water.",
+        "exits": [],
+        "scenePlan": {
+          "look": "A flooded stone church with a domed air-pocket nave, a massive dark bell hanging over a cracked altar, a cold foundry-hearth against one wall, chains and a shackled skeleton fused to the bell's clapper.",
+          "kind": "interior",
+          "mood": "drowned candle-glow in a trembling air pocket, echoing drips",
+          "features": [
+            "the great swinging bell on its rope",
+            "the cold foundry-hearth",
+            "the cracked altar",
+            "Vaile's shackled skeleton"
+          ]
+        }
+      }
+    }
+  },
+  "startSceneId": "scene:b1",
+  "encounters": [
+    {
+      "id": "enc-b1",
+      "sceneId": "scene:b1",
+      "monsters": [
+        {
+          "statBlockId": "zombie",
+          "count": 3
+        }
+      ]
+    },
+    {
+      "id": "enc-b2",
+      "sceneId": "scene:b2",
+      "monsters": [
+        {
+          "statBlockId": "ghoul",
+          "count": 2
+        },
+        {
+          "statBlockId": "skeleton",
+          "count": 3
+        }
+      ]
+    },
+    {
+      "id": "enc-b3",
+      "sceneId": "scene:b3",
+      "monsters": [
+        {
+          "statBlockId": "corvin-vaile-the-sealed-founder",
+          "count": 1
+        }
+      ]
+    }
+  ],
+  "bestiary": {
+    "zombie": {
+      "id": "zombie",
+      "name": "Zombie",
+      "size": "medium",
+      "type": "undead",
+      "armorClass": 8,
+      "hitPoints": {
+        "average": 22,
+        "formula": "3d8+9"
+      },
+      "speedFt": 20,
+      "abilities": {
+        "str": 13,
+        "dex": 6,
+        "con": 16,
+        "int": 3,
+        "wis": 6,
+        "cha": 5
+      },
+      "challengeRating": 0.25,
+      "proficiencyBonus": 2,
+      "savingThrowProficiencies": [
+        "wis"
+      ],
+      "damageImmunities": [
+        "poison"
+      ],
+      "conditionImmunities": [
+        "poisoned"
+      ],
+      "senses": "darkvision 60 ft., passive Perception 8",
+      "attacks": [
+        {
+          "name": "Slam",
+          "attackBonus": 3,
+          "damage": "1d6+1",
+          "damageType": "bludgeoning",
+          "reachOrRangeFt": 5
+        }
+      ],
+      "traits": [
+        {
+          "name": "Undead Fortitude",
+          "text": "If reduced to 0 HP by non-radiant, non-critical damage, make a CON save (DC 5 + damage) to drop to 1 HP instead."
+        }
+      ],
+      "source": "SRD 5.1"
+    },
+    "ghoul": {
+      "id": "ghoul",
+      "name": "Ghoul",
+      "size": "medium",
+      "type": "undead",
+      "armorClass": 12,
+      "hitPoints": {
+        "average": 22,
+        "formula": "5d8"
+      },
+      "speedFt": 30,
+      "abilities": {
+        "str": 13,
+        "dex": 15,
+        "con": 10,
+        "int": 7,
+        "wis": 10,
+        "cha": 6
+      },
+      "challengeRating": 1,
+      "proficiencyBonus": 2,
+      "damageImmunities": [
+        "poison"
+      ],
+      "conditionImmunities": [
+        "poisoned"
+      ],
+      "senses": "darkvision 60 ft., passive Perception 10",
+      "attacks": [
+        {
+          "name": "Claws",
+          "attackBonus": 4,
+          "damage": "2d4+2",
+          "damageType": "slashing",
+          "reachOrRangeFt": 5,
+          "notes": "A non-elf target must make a DC 10 CON save or be paralyzed for 1 minute."
+        },
+        {
+          "name": "Bite",
+          "attackBonus": 2,
+          "damage": "2d6+2",
+          "damageType": "piercing",
+          "reachOrRangeFt": 5
+        }
+      ],
+      "source": "SRD 5.1"
+    },
+    "skeleton": {
+      "id": "skeleton",
+      "name": "Skeleton",
+      "size": "medium",
+      "type": "undead",
+      "armorClass": 13,
+      "hitPoints": {
+        "average": 13,
+        "formula": "2d8+4"
+      },
+      "speedFt": 30,
+      "abilities": {
+        "str": 10,
+        "dex": 14,
+        "con": 15,
+        "int": 6,
+        "wis": 8,
+        "cha": 5
+      },
+      "challengeRating": 0.25,
+      "proficiencyBonus": 2,
+      "damageVulnerabilities": [
+        "bludgeoning"
+      ],
+      "damageImmunities": [
+        "poison"
+      ],
+      "conditionImmunities": [
+        "poisoned",
+        "exhaustion"
+      ],
+      "senses": "darkvision 60 ft., passive Perception 9",
+      "attacks": [
+        {
+          "name": "Shortsword",
+          "attackBonus": 4,
+          "damage": "1d6+2",
+          "damageType": "piercing",
+          "reachOrRangeFt": 5
+        },
+        {
+          "name": "Shortbow",
+          "attackBonus": 4,
+          "damage": "1d6+2",
+          "damageType": "piercing",
+          "reachOrRangeFt": 80
+        }
+      ],
+      "source": "SRD 5.1"
+    },
+    "corvin-vaile-the-sealed-founder": {
+      "id": "corvin-vaile-the-sealed-founder",
+      "name": "Corvin Vaile, the Sealed Founder",
+      "size": "medium",
+      "type": "undead",
+      "armorClass": 15,
+      "hitPoints": {
+        "average": 86,
+        "formula": "15d8+18"
+      },
+      "speedFt": 30,
+      "abilities": {
+        "str": 17,
+        "dex": 12,
+        "con": 16,
+        "int": 6,
+        "wis": 10,
+        "cha": 8
+      },
+      "challengeRating": 4,
+      "proficiencyBonus": 3,
+      "attacks": [
+        {
+          "name": "Tolling Wail",
+          "attackBonus": 6,
+          "damage": "5d6+5",
+          "damageType": "thunder",
+          "reachOrRangeFt": 60
+        }
+      ],
+      "source": "commissioned"
+    }
+  },
+  "ledger": {
+    "entities": [
+      {
+        "id": "npc:mother-sedge",
+        "kind": "npc",
+        "name": "Mother Sedge",
+        "voice": {
+          "tic": "counts the drowned on her knuckles as she speaks",
+          "want": "to keep her ferry-folk alive one more night",
+          "fear": "that her own drowned husband is on the rope"
+        },
+        "scenes": [
+          "scene:b1"
+        ],
+        "status": "active"
+      },
+      {
+        "id": "npc:gaunt-weem",
+        "kind": "npc",
+        "name": "Gaunt Weem",
+        "voice": {
+          "tic": "ties and unties a knot of rope while talking, never finishing it",
+          "want": "to unburden the secret he helped bury",
+          "fear": "being named among those who sealed the church"
+        },
+        "scenes": [
+          "scene:b1"
+        ],
+        "status": "active"
+      },
+      {
+        "id": "npc:corvin-vaile",
+        "kind": "npc",
+        "name": "Corvin Vaile",
+        "voice": {
+          "tic": "speaks in the reverberating cadence of a struck bell, each word ringing twice",
+          "want": "his name spoken and his last rites given",
+          "fear": "being forgotten again beneath the water"
+        },
+        "scenes": [
+          "scene:b3"
+        ],
+        "status": "active"
+      }
+    ],
+    "plants": [
+      {
+        "id": "plant:unfinished-knot",
+        "what": "Weem's forever-unfinished rope knot mirrors the unfinished bell-rope and the unfinished burial \u2014 completing a rite is what settles the debt.",
+        "status": "planted"
+      },
+      {
+        "id": "plant:foundry-mark",
+        "what": "Vaile's foundry-mark, first seen on a Sillow lintel, recurs on the sunken church and can be used to bind or break the bell.",
+        "status": "planted"
+      },
+      {
+        "id": "plant:sedge-husband",
+        "what": "Mother Sedge's drowned husband on the rope \u2014 a personal face on the horror that raises the stakes of stopping the toll.",
+        "status": "planted"
+      },
+      {
+        "id": "plant:aldrics-hammer",
+        "what": "Aldric's grandfather's smith-hammer, family-forged in this very valley, is the tool that can recast the bell in the cold hearth.",
+        "status": "planted"
+      }
+    ]
+  },
+  "pcBackstories": [
+    {
+      "name": "Aldric the Fighter",
+      "backstory": "Grandson of a valley smith who was pressed into service casting the reservoir's floodgate chains, Aldric carries the family hammer forged in Marrowfen before the drowning. His grandfather never spoke of what was sealed away \u2014 Aldric returns to a valley that swallowed his blood's craft, hammer in hand."
+    },
+    {
+      "name": "Elara the Wizard",
+      "backstory": "A scholar of drowned languages and sympathetic resonance, Elara came to Marrowfen chasing a rumor of a bell that rings underwater. Her mentor once studied Vaile's foundry-marks and vanished; she suspects the answer waits in the black church, and dreads finding her mentor's name among the debts."
+    },
+    {
+      "name": "Pip the Rogue",
+      "backstory": "Born in Sillow's shanties after the flood, Pip grew up hearing the muffled toll and looting rooftops the water spared. The dead rising is personal \u2014 some of them are neighbors, some kin \u2014 and Pip alone knows the shifting lanes of the sunken street by feel."
+    }
+  ],
+  "blueprint": {
+    "premise": "A gothic three-act reckoning with a debt the living never meant to inherit. Fifty years ago the valley of Marrowfen was flooded to make a reservoir, and the bell-founder Corvin Vaile was sealed alive inside his half-finished church when the waters rose. His masterpiece bell went down with him. Now, each night, that drowned bell tolls and climbs its own rope, and with every toll it hauls another co",
+    "centralProblem": "The tolling bell is rising night by night; when it breaches the surface the whole reservoir's dead will walk, and the town that authorized the flooding will drown in its own ancestors. The party must descend to the sunken church and settle Vaile's debt \u2014 silence the bell \u2014 before it crests.",
+    "intendedEnding": "The party reaches Vaile's flooded bell-chamber, learns the debt is a name unspoken and a burial unfinished, and either recasts/breaks the bell, gives Vaile the last rites and the recognition he was denied, or binds him anew. The tolling stops, the risen dead sink back, and the reservoir goes still \u2014 the valley's guilt finally acknowledged rather than merely drowned.",
+    "opening": "Dusk on the shore of Marrowfen Reservoir, in the shanty-town of Sillow that clings to the new waterline. Villagers cluster in a lantern-lit boathouse as the first muffled toll rolls up through the black water and the bodies begin to bob.",
+    "spine": [
+      {
+        "milestone": "The Toll Begins",
+        "intent": "Party witnesses the rising bell and the risen dead; accepts the descent.",
+        "sceneId": "scene:b1"
+      },
+      {
+        "milestone": "The Debt Named",
+        "intent": "Party learns Vaile was buried alive and denied his name and rites.",
+        "sceneId": "scene:b2"
+      },
+      {
+        "milestone": "The Reckoning",
+        "intent": "Party pays the debt at the bell-chamber.",
+        "sceneId": "scene:b3"
+      },
+      {
+        "milestone": "The Still Water",
+        "intent": "The bell falls silent, the dead sink, the valley's guilt is finally acknowledged."
+      }
+    ]
+  },
+  "genMeta": {
+    "seedHash": "ba78de43fe51",
+    "model": "claude-opus-4-8",
+    "timestampMs": 1783401059750,
+    "inputTokens": 492,
+    "outputTokens": 3075,
+    "composerPromptHash": "1bb88ff62a59",
+    "fallback": false
+  },
+  "party": [
+    {
+      "id": "pc-1-fighter",
+      "name": "Aldric",
+      "ancestry": "Human",
+      "className": "Fighter",
+      "level": 1,
+      "abilities": {
+        "str": 16,
+        "dex": 14,
+        "con": 15,
+        "int": 11,
+        "wis": 13,
+        "cha": 9
+      },
+      "proficiencyBonus": 2,
+      "armorClass": 19,
+      "maxHitPoints": 12,
+      "speedFt": 30,
+      "skillProficiencies": [
+        "athletics",
+        "perception",
+        "intimidation"
+      ],
+      "savingThrowProficiencies": [
+        "str",
+        "con"
+      ],
+      "attacks": [
+        {
+          "name": "Longsword",
+          "attackBonus": 5,
+          "damage": "1d8+3",
+          "damageType": "slashing",
+          "reachOrRangeFt": 5,
+          "notes": "Versatile (1d10) two-handed \u2014 forgoing the shield drops AC to 17."
+        },
+        {
+          "name": "Javelin",
+          "attackBonus": 5,
+          "damage": "1d6+3",
+          "damageType": "piercing",
+          "reachOrRangeFt": 30
+        }
+      ],
+      "features": [
+        {
+          "name": "Fighting Style: Defense",
+          "text": "+1 AC while wearing armor (already in AC 19)."
+        },
+        {
+          "name": "Second Wind",
+          "text": "Bonus action, 1/short rest: regain 1d10+1 hit points."
+        }
+      ],
+      "inventory": [
+        "Chain mail",
+        "Shield",
+        "Longsword",
+        "4 javelins",
+        "Explorer's pack"
+      ],
+      "startingCurrency": {
+        "gp": 15
+      },
+      "backstory": "Grandson of a valley smith who was pressed into service casting the reservoir's floodgate chains, Aldric carries the family hammer forged in Marrowfen before the drowning. His grandfather never spoke of what was sealed away \u2014 Aldric returns to a valley that swallowed his blood's craft, hammer in hand."
+    },
+    {
+      "id": "pc-2-wizard",
+      "name": "Elara",
+      "ancestry": "High Elf",
+      "className": "Wizard",
+      "level": 1,
+      "abilities": {
+        "str": 8,
+        "dex": 14,
+        "con": 13,
+        "int": 16,
+        "wis": 11,
+        "cha": 10
+      },
+      "proficiencyBonus": 2,
+      "armorClass": 12,
+      "maxHitPoints": 8,
+      "speedFt": 30,
+      "skillProficiencies": [
+        "arcana",
+        "history",
+        "investigation"
+      ],
+      "savingThrowProficiencies": [
+        "int",
+        "wis"
+      ],
+      "attacks": [
+        {
+          "name": "Fire Bolt",
+          "attackBonus": 5,
+          "damage": "1d10",
+          "damageType": "fire",
+          "reachOrRangeFt": 120,
+          "notes": "Cantrip."
+        },
+        {
+          "name": "Dagger",
+          "attackBonus": 4,
+          "damage": "1d4+2",
+          "damageType": "piercing",
+          "reachOrRangeFt": 20,
+          "notes": "Finesse, thrown."
+        }
+      ],
+      "spellcasting": {
+        "ability": "int",
+        "spellSaveDc": 13,
+        "spellAttackBonus": 5,
+        "slots": [
+          0,
+          2
+        ],
+        "cantrips": [
+          "Fire Bolt",
+          "Mage Hand",
+          "Light"
+        ],
+        "prepared": [
+          "Magic Missile",
+          "Shield",
+          "Sleep",
+          "Burning Hands"
+        ],
+        "rituals": [
+          "Detect Magic",
+          "Identify",
+          "Comprehend Languages"
+        ]
+      },
+      "features": [
+        {
+          "name": "Arcane Recovery",
+          "text": "Once/day on a short rest, recover spell slots totaling up to half your wizard level (rounded up)."
+        }
+      ],
+      "inventory": [
+        "Spellbook",
+        "Quarterstaff",
+        "Two daggers",
+        "Component pouch",
+        "Scholar's pack"
+      ],
+      "startingCurrency": {
+        "gp": 10
+      },
+      "backstory": "A scholar of drowned languages and sympathetic resonance, Elara came to Marrowfen chasing a rumor of a bell that rings underwater. Her mentor once studied Vaile's foundry-marks and vanished; she suspects the answer waits in the black church, and dreads finding her mentor's name among the debts."
+    },
+    {
+      "id": "pc-3-rogue",
+      "name": "Pip",
+      "ancestry": "Lightfoot Halfling",
+      "className": "Rogue",
+      "level": 1,
+      "abilities": {
+        "str": 8,
+        "dex": 17,
+        "con": 13,
+        "int": 12,
+        "wis": 10,
+        "cha": 15
+      },
+      "proficiencyBonus": 2,
+      "armorClass": 14,
+      "maxHitPoints": 9,
+      "speedFt": 25,
+      "skillProficiencies": [
+        "stealth",
+        "perception",
+        "investigation",
+        "acrobatics",
+        "deception"
+      ],
+      "savingThrowProficiencies": [
+        "dex",
+        "int"
+      ],
+      "attacks": [
+        {
+          "name": "Shortbow",
+          "attackBonus": 5,
+          "damage": "1d6+3",
+          "damageType": "piercing",
+          "reachOrRangeFt": 80
+        },
+        {
+          "name": "Shortsword",
+          "attackBonus": 5,
+          "damage": "1d6+3",
+          "damageType": "piercing",
+          "reachOrRangeFt": 5,
+          "notes": "Finesse."
+        }
+      ],
+      "features": [
+        {
+          "name": "Sneak Attack (1d6)",
+          "text": "Once per turn, +1d6 damage on a hit with advantage, or when an ally is adjacent to the target."
+        },
+        {
+          "name": "Expertise",
+          "text": "Double proficiency on Stealth and Investigation."
+        }
+      ],
+      "inventory": [
+        "Leather armor",
+        "Shortbow + 20 arrows",
+        "Two shortswords",
+        "Thieves' tools",
+        "Burglar's pack"
+      ],
+      "startingCurrency": {
+        "gp": 12
+      },
+      "backstory": "Born in Sillow's shanties after the flood, Pip grew up hearing the muffled toll and looting rooftops the water spared. The dead rising is personal \u2014 some of them are neighbors, some kin \u2014 and Pip alone knows the shifting lanes of the sunken street by feel."
+    }
+  ]
+}

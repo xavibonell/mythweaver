@@ -354,6 +354,11 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
 
   <section class="view generate active" id="view-generate">
     <div class="panel left gen-form">
+      <div id="pregen-box" style="display:none;border:1px solid #2a6b40;background:#0f1f15;border-radius:8px;padding:8px 10px;margin-bottom:14px">
+        <div style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#8fd6a2;font-weight:700;margin-bottom:6px">⚡ Pregenerated campaigns — load frozen, $0</div>
+        <div id="pregen-list" style="display:flex;flex-direction:column;gap:4px"></div>
+        <div class="hint" style="margin-top:4px">Skips arc generation AND the architect. Loads into the preview + Arc tab (hand-editable) — Start session as usual, then iterate briefs/scenes per beat below.</div>
+      </div>
       <label>1 · Your party <span style="color:#6b7080">— add players, pick a role</span></label>
       <div id="party-list"></div>
       <button class="ghost" id="party-add" style="margin-top:6px">+ Add player</button>
@@ -1047,7 +1052,11 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
         var plan = s.scenePlan
           ? '<div class="mi" style="color:#7fa8d0">🎨 ' + esc(s.scenePlan.look || '') + ' <span style="color:#6b7080">[' + esc(s.scenePlan.kind || '?') + (s.scenePlan.mood ? ' · ' + esc(s.scenePlan.mood) : '') + (s.scenePlan.features && s.scenePlan.features.length ? ' · ' + s.scenePlan.features.map(esc).join(', ') : '') + ']</span></div>'
           : '<div class="mi" style="color:#6b7080">🎨 (no scene plan — the DM improvises the look)</div>';
-        return '<li><div class="ms">' + esc(s.title) + ' <span style="color:#6b7080">[' + esc(id) + ']</span>' + ex + monLine(encBySceneId[id]) + '</div><div class="mi">' + esc(s.summary || '') + '</div>' + plan + '</li>';
+        var pv = '<div class="mi" style="margin-top:3px">'
+          + '<button class="ghost bp-btn" data-scene="' + esc(id) + '" data-mode="brief" style="font-size:11px;padding:1px 8px">brief → generator · $0</button> '
+          + '<button class="ghost bp-btn" data-scene="' + esc(id) + '" data-mode="scene" style="font-size:11px;padding:1px 8px">render scene · ~2¢</button>'
+          + '</div><div class="mi" id="bp-' + esc(id) + '"></div>';
+        return '<li><div class="ms">' + esc(s.title) + ' <span style="color:#6b7080">[' + esc(id) + ']</span>' + ex + monLine(encBySceneId[id]) + '</div><div class="mi">' + esc(s.summary || '') + '</div>' + plan + pv + '</li>';
       }).join('') + '</ul></div>';
     }
     var commissioned = Object.keys(arc.bestiary || {}).map(function (k) { return arc.bestiary[k]; }).filter(function (b) { return b.source === 'commissioned' || b.source === 'generated'; });
@@ -1057,7 +1066,79 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
       }).join('') + '</ul></div>';
     }
     $('gen-preview').innerHTML = h;
+    // Per-beat cheap-iteration buttons: $0 brief preview / programmer-only scene render.
+    document.querySelectorAll('#gen-preview .bp-btn').forEach(function (b) {
+      b.onclick = function () { beatPreview(b.getAttribute('data-scene'), b.getAttribute('data-mode')); };
+    });
   }
+
+  // --- The cheap iteration loop: pregen campaigns + per-beat previews ---
+  function loadPregenList() {
+    fetch('/dm/lab/pregens').then(function (r) { return r.json(); }).then(function (b) {
+      var list = (b && b.pregens) || [];
+      if (!list.length) return;
+      $('pregen-box').style.display = '';
+      $('pregen-list').innerHTML = '';
+      list.forEach(function (p) {
+        var btn = document.createElement('button');
+        btn.className = 'ghost';
+        btn.style.cssText = 'text-align:left;font-size:12px';
+        btn.textContent = p.slug + ' — ' + p.beats + ' beats · ' + (p.party || []).join(', ');
+        btn.title = p.title;
+        btn.onclick = function () { loadPregen(p.slug); };
+        $('pregen-list').appendChild(btn);
+      });
+    }).catch(function () { /* pregens are optional */ });
+  }
+  function loadPregen(slug) {
+    $('gen-status').innerHTML = '<span class="spin"></span>loading pregenerated campaign…';
+    fetch('/dm/lab/pregen/' + encodeURIComponent(slug)).then(function (r) { return r.json().then(function (b) { return { ok: r.ok, body: b }; }); }).then(function (x) {
+      if (!x.ok) { $('gen-status').textContent = 'error: ' + (x.body.error || 'failed'); return; }
+      // Exactly the post-generate flow: preview + editable Arc-tab JSON + Start enabled. $0.
+      lastGeneratedArc = x.body.arc;
+      $('ed-arc').value = JSON.stringify(x.body.arc, null, 2);
+      $('gen-badge').style.display = 'flex';
+      $('gen-badge').innerHTML = '<span class="pill fresh">pregenerated — frozen, $0</span><span class="det">' + esc(slug) + '</span>';
+      renderGenPreview(x.body.arc);
+      $('gen-start').disabled = false;
+      $('gen-status').textContent = 'pregen "' + slug + '" loaded — iterate briefs/scenes per beat below, or Start session';
+    }).catch(function (e) { $('gen-status').textContent = 'error: ' + (e.message || e); });
+  }
+  // $0 brief preview / ~2¢ scene render for ONE beat — no DM turn, no session. Uses the (possibly
+  // hand-edited) arc from the Arc tab, so editing a scenePlan and re-clicking iterates instantly.
+  function beatPreview(sceneId, mode) {
+    var arc = currentArc();
+    if (!arc || arc.__parseError) { $('gen-status').textContent = 'no valid arc loaded'; return; }
+    var box = document.getElementById('bp-' + sceneId);
+    box.innerHTML = '<span class="spin"></span>' + (mode === 'scene' ? 'composing scene (one programmer call)…' : 'assembling brief…');
+    fetch(mode === 'scene' ? '/dm/lab/scene-preview' : '/dm/lab/brief-preview', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ generatedArc: arc, sceneId: sceneId }),
+    }).then(function (r) { return r.json().then(function (b) { return { ok: r.ok, body: b }; }); }).then(function (x) {
+      box.innerHTML = '';
+      if (!x.ok) { box.textContent = 'error: ' + (x.body.error || 'failed'); return; }
+      var d = x.body;
+      if (mode === 'brief') {
+        var head = document.createElement('div');
+        head.style.cssText = 'font-size:11px;color:#8fb8e0;margin-top:2px';
+        head.textContent = 'kind: ' + (d.inputs.kind || '(programmer decides)') + ' · declared light: ' + (d.inputs.lightingDeclared || '(none — mood decides)');
+        var pre = document.createElement('pre');
+        pre.style.cssText = 'white-space:pre-wrap;margin:2px 0;padding:6px;background:#0b0c10;border-radius:4px;font-size:11px;max-height:180px;overflow:auto';
+        pre.textContent = 'BRIEF → generator:' + String.fromCharCode(10) + d.inputs.enrichedBrief + String.fromCharCode(10, 10) + 'MOOD text: ' + d.inputs.moodText;
+        box.appendChild(head); box.appendChild(pre);
+      } else {
+        var p = d.provenance || {};
+        var meta = document.createElement('div');
+        meta.style.cssText = 'font-size:11px;color:#8fb8e0;margin-top:2px';
+        meta.textContent = (p.program ? p.program.grammar + ' · ' + p.program.cols + 'x' + p.program.rows + ' · ' + p.program.lighting + ' (' + (p.lightingReason || '?') + ')' : '') + ((p.program && p.program.notes) ? ' · ' + p.program.notes.join(' · ') : '');
+        var img = document.createElement('img');
+        img.src = d.png;
+        img.style.cssText = 'width:100%;image-rendering:pixelated;border-radius:4px;margin-top:3px';
+        box.appendChild(meta); box.appendChild(img);
+      }
+    }).catch(function (e) { box.textContent = 'error: ' + (e.message || e); });
+  }
+
   function generateArc() {
     if (!composerOn) { $('gen-status').textContent = 'arc generation is OFF — set MYTHWEAVER_ARC_COMPOSER=llm and restart'; return; }
     var seed = collectSeed();
@@ -1247,6 +1328,7 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
   $('view-block').onclick = function () { setDiffView(false); };
   $('view-diff').onclick = function () { setDiffView(true); };
   loadFiles();
+  loadPregenList(); // frozen $0 campaigns for cheap iteration
   setBusy(false); // gates the Run input off until a session is started from Generate
 </script>
 </body>

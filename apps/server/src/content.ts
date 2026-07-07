@@ -1,6 +1,6 @@
 /** Loads SRD-safe scenario seed data and validates it against the domain types. */
 
-import { readFileSync, writeFileSync } from 'node:fs';
+import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { CharacterSheet, ItemDef, ScenePlan, StatBlock } from '@mythweaver/shared';
@@ -50,6 +50,44 @@ export function scenarioJsonPath(slug: string): string {
 /** Raw scenario.json text, for editing in the DM Lab. */
 export function readScenarioRaw(slug: string): string {
   return readFileSync(scenarioJsonPath(slug), 'utf8');
+}
+
+// --- Pregenerated campaigns (content/pregens/*.json) --------------------------------------------
+// Frozen GeneratedArc bundles (arc + scenePlans + party + encounters + bestiary + ledger), so the lab
+// can start a full campaign session with ZERO model calls — the cheap iteration path for everything
+// downstream of arc generation (briefs, scenes, play).
+
+const PREGENS_DIR = resolve(CONTENT_DIR, 'pregens');
+
+/** List available pregenerated campaigns (slug + a display summary). */
+export function listPregens(): { slug: string; title: string; beats: number; party: string[] }[] {
+  let files: string[];
+  try {
+    files = readdirSync(PREGENS_DIR).filter((f) => f.endsWith('.json'));
+  } catch {
+    return []; // no pregens dir — fine
+  }
+  const out: { slug: string; title: string; beats: number; party: string[] }[] = [];
+  for (const f of files) {
+    try {
+      const arc = readJson<{ blueprint?: { premise?: string }; adventure?: { pitch?: string; scenes?: Record<string, unknown> }; party?: { name: string }[] }>(resolve(PREGENS_DIR, f));
+      out.push({
+        slug: f.replace(/\.json$/, ''),
+        title: (arc.blueprint?.premise ?? arc.adventure?.pitch ?? f).slice(0, 120),
+        beats: Object.keys(arc.adventure?.scenes ?? {}).length,
+        party: (arc.party ?? []).map((p) => p.name),
+      });
+    } catch {
+      /* skip an unreadable file */
+    }
+  }
+  return out;
+}
+
+/** Raw pregen arc JSON by slug (the caller validates it with validateGeneratedArc). */
+export function readPregen(slug: string): unknown {
+  if (!/^[a-z0-9-]+$/.test(slug)) throw new Error(`invalid pregen slug "${slug}"`);
+  return readJson<unknown>(resolve(PREGENS_DIR, `${slug}.json`));
 }
 
 /** Validate the structural invariants of a scenario object (shared by load + override + save). */

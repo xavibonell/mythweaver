@@ -6,9 +6,9 @@ import Fastify, { type FastifyReply } from 'fastify';
 import { Engine, createInitialState } from '@mythweaver/engine';
 import { createProvider } from '@mythweaver/llm';
 import { CHARACTERS, FakeSceneComposer, LlmSceneComposer, PROPS, TERRAINS, buildSceneMap, cityBspBlueprint, cityMeshBlueprint, loadAssetLibrary, realizeCityBsp, realizeCityMesh, renderSceneMapToPng } from '@mythweaver/scene';
-import { BIOMES, BUILDING_TYPES, classToSpriteTag, validateEstablishScene, type EstablishScene } from '@mythweaver/shared';
+import { BIOMES, BUILDING_TYPES, classToSpriteTag, validateEstablishScene, type EstablishScene, type SceneRealizeContext } from '@mythweaver/shared';
 import { Db } from './db.js';
-import { loadScenario, readScenarioRaw, writeScenarioRaw, parseScenario, loadSharedParty, loadSharedBestiary, loadItemCatalog, resolveParty } from './content.js';
+import { loadScenario, readScenarioRaw, writeScenarioRaw, parseScenario, loadSharedParty, loadSharedBestiary, loadItemCatalog, listPregens, readPregen, resolveParty } from './content.js';
 import {
   loadPlaybook,
   savePlaybook,
@@ -22,7 +22,7 @@ import {
 import { buildRetriever } from './corpus.js';
 import { buildTracer } from './tracing.js';
 import { runTurn, type TurnInput } from './orchestrator.js';
-import { buildModernRealizer, labBuildCity, labBuildComponent, labBuildProgram, labBuildScene, labBuildSpike, labBuildStory, labComposeScene } from './scene-lab.js';
+import { buildModernRealizer, establishFromBeat, labBuildCity, labBuildComponent, labBuildProgram, labBuildScene, labBuildSpike, labBuildStory, labComposeScene, modernRealizeInputs } from './scene-lab.js';
 import { saveSceneCapture } from './scene-eval/capture.js';
 import { runDmLab, createDmLabSession, dmLabSubmit, arcView, characterSheets, autoRollTotal, DM_LAB_TRANSCRIPTS, type LabTurn, type DmLabSession } from './dm-lab.js';
 import { renderDmLabPage } from './dm-lab-page.js';
@@ -551,6 +551,80 @@ app.post('/dm/lab/generate-arc', async (req, reply) => {
     return { arc, costUsd: costUsd + extraCost, markdown: arcMarkdown(arc) };
   } catch (err) {
     app.log.error(err, 'arc generation failed');
+    reply.code(502);
+    return { error: (err as Error).message };
+  }
+});
+
+// --- Pregenerated campaigns + per-beat previews: the CHEAP iteration loop -----------------------
+// A frozen arc skips arc generation AND the architect ($0 to session start); the previews skip the
+// DM turn entirely — brief-preview is $0 (pure assembly), scene-preview is one programmer call.
+
+app.get('/dm/lab/pregens', async () => ({ pregens: listPregens() }));
+
+app.get('/dm/lab/pregen/:slug', async (req, reply) => {
+  try {
+    const arc = validateGeneratedArc(readPregen((req.params as { slug: string }).slug));
+    return { arc };
+  } catch (err) {
+    reply.code(404);
+    return { error: (err as Error).message };
+  }
+});
+
+/** Resolve the {arc, beat, ctx, establish} a preview works on, from a pregen slug OR an inline arc. */
+function resolvePreviewBeat(raw: unknown): { arc: GeneratedArc; sceneId: string; establish: EstablishScene; ctx: SceneRealizeContext } | { error: string } {
+  const body = (raw ?? {}) as { pregen?: unknown; generatedArc?: unknown; sceneId?: unknown; overrides?: unknown };
+  let arc: GeneratedArc;
+  try {
+    if (typeof body.pregen === 'string' && body.pregen) arc = validateGeneratedArc(readPregen(body.pregen));
+    else if (body.generatedArc && typeof body.generatedArc === 'object') arc = validateGeneratedArc(body.generatedArc);
+    else return { error: 'pass a "pregen" slug or an inline "generatedArc"' };
+  } catch (err) {
+    return { error: `arc is invalid: ${(err as Error).message}` };
+  }
+  const sceneId = typeof body.sceneId === 'string' ? body.sceneId : '';
+  const beat = arc.adventure.scenes[sceneId];
+  if (!beat) return { error: `unknown sceneId "${sceneId}" (have: ${Object.keys(arc.adventure.scenes).join(', ')})` };
+  const o = (body.overrides ?? {}) as Record<string, unknown>;
+  const overrides: Parameters<typeof establishFromBeat>[2] = {
+    ...(typeof o.setting === 'string' && o.setting.trim() ? { setting: o.setting.trim().slice(0, 600) } : {}),
+    ...(o.kind === 'settlement' || o.kind === 'interior' || o.kind === 'wild' ? { kind: o.kind } : {}),
+    ...(typeof o.mood === 'string' && o.mood.trim() ? { mood: o.mood.trim().slice(0, 120) } : {}),
+    ...(o.timeOfDay === 'day' || o.timeOfDay === 'dusk' || o.timeOfDay === 'night' ? { timeOfDay: o.timeOfDay } : {}),
+    ...(typeof o.biome === 'string' && o.biome.trim() ? { biome: o.biome.trim().slice(0, 40) } : {}),
+  };
+  const establish = establishFromBeat(sceneId, beat, overrides);
+  const premise = arc.blueprint?.premise ?? arc.adventure.pitch;
+  const ctx: SceneRealizeContext = {
+    ...(premise ? { premise } : {}),
+    beat: { id: sceneId, title: beat.title, summary: beat.summary },
+    ...(beat.scenePlan ? { scenePlan: beat.scenePlan } : {}),
+  };
+  return { arc, sceneId, establish, ctx };
+}
+
+// $0 — the EXACT generator inputs for a beat (enriched brief, mood chain, kind, declared lighting),
+// composed from the beat's authored plan + the campaign fiction + optional hand-tweaked declaration.
+// No model call: iterate the brief template/plan wording instantly.
+app.post('/dm/lab/brief-preview', async (req, reply) => {
+  const r = resolvePreviewBeat(req.body);
+  if ('error' in r) return badRequest(reply, r.error);
+  return { sceneId: r.sceneId, establish: r.establish, inputs: modernRealizeInputs(r.establish, r.ctx) };
+});
+
+// ~one programmer call (~$0.02, no DM turn) — realize the beat's scene through the EXACT live path
+// (buildModernRealizer) and return the rendered PNG + full provenance.
+app.post('/dm/lab/scene-preview', async (req, reply) => {
+  const r = resolvePreviewBeat(req.body);
+  if ('error' in r) return badRequest(reply, r.error);
+  try {
+    const res = await buildModernRealizer({ llm, ...(dmModel ? { model: dmModel } : {}) })(r.establish, [], r.ctx);
+    if (!res) return badRequest(reply, 'the realizer declined');
+    const png = renderSceneMapToPng(res.sceneMap, { assetsRoot: new URL('../../web/public', import.meta.url).pathname });
+    return { sceneId: r.sceneId, provenance: res.provenance, png: `data:image/png;base64,${png.toString('base64')}` };
+  } catch (err) {
+    app.log.error(err, 'scene preview failed');
     reply.code(502);
     return { error: (err as Error).message };
   }

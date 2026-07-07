@@ -6,7 +6,7 @@
 import { describe, expect, it } from 'vitest';
 import { FakeLlmProvider, fakeText } from '@mythweaver/llm';
 import type { EstablishScene } from '@mythweaver/shared';
-import { buildModernRealizer } from './scene-lab.js';
+import { buildModernRealizer, establishFromBeat, modernRealizeInputs } from './scene-lab.js';
 
 /** A minimal valid programmer response — an enclosed interior of rooms. */
 const INTERIOR_PROGRAM = JSON.stringify({
@@ -115,5 +115,44 @@ describe('buildModernRealizer — the live DM→Director handoff', () => {
     }))]);
     const res = await buildModernRealizer({ llm })(est({ kind: 'interior' }), []);
     expect(res!.sceneMap.grammar).toBe('enclosed-interior');
+  });
+});
+
+describe('the $0 preview path — pure brief assembly + canned establish', () => {
+  const beat = {
+    title: 'The Drowned Bell-Road',
+    summary: 'The party walks the flooded street toward the tower.',
+    scenePlan: { look: 'a flooded causeway between sunken rooftops', kind: 'wild' as const, mood: 'drowned midnight', features: ['bell rope', 'sunken rooftops'] },
+  };
+
+  it('establishFromBeat derives the declaration from the plan (overrides win)', () => {
+    const est = establishFromBeat('scene:b2', beat);
+    expect(est.locationId).toBe('loc:preview-scene-b2');
+    expect(est.brief.setting).toBe('a flooded causeway between sunken rooftops');
+    expect(est.kind).toBe('wild');
+    expect(est.brief.mood).toBe('drowned midnight');
+    expect(est.brief.biome).toBe('forest'); // wild → forest default
+    expect(est.timeOfDayExplicit).toBeUndefined(); // no explicit time unless overridden
+
+    const o = establishFromBeat('scene:b2', beat, { kind: 'interior', mood: 'candle-lit hush', timeOfDay: 'dusk' });
+    expect(o.kind).toBe('interior');
+    expect(o.brief.mood).toBe('candle-lit hush');
+    expect(o.brief.timeOfDay).toBe('dusk');
+    expect(o.timeOfDayExplicit).toBe(true);
+  });
+
+  it('modernRealizeInputs composes the EXACT generator inputs, $0 — plan leads, features ride, mood chains', () => {
+    const est = establishFromBeat('scene:b2', beat);
+    const inputs = modernRealizeInputs(est, {
+      premise: 'a gothic horror about a drowned bell-founder',
+      beat: { id: 'scene:b2', title: beat.title, summary: beat.summary },
+      scenePlan: beat.scenePlan,
+    });
+    expect(inputs.enrichedBrief.startsWith('a flooded causeway between sunken rooftops')).toBe(true); // plan.look LEADS
+    expect(inputs.enrichedBrief).toContain('a gothic horror about a drowned bell-founder');
+    expect(inputs.enrichedBrief).toContain('Must include: bell rope, sunken rooftops');
+    expect(inputs.moodText).toContain('drowned midnight');
+    expect(inputs.kind).toBe('wild');
+    expect(inputs.lightingDeclared).toBeUndefined();
   });
 });
