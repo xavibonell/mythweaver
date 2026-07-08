@@ -8,8 +8,18 @@ import type { LlmProvider } from '@mythweaver/llm';
 export const RUBRIC_DIMENSIONS = [
   { key: 'rulesFidelity', label: 'Rules fidelity', desc: 'Never contradicts the engine result or invents a mechanic; asks for rolls instead of deciding outcomes.' },
   { key: 'sourceFaithfulness', label: 'Faithfulness to source', desc: 'No fabricated rules; says "not in the rules" when apt; grounds rules it looked up.' },
-  { key: 'style', label: 'Style adherence', desc: 'Vivid, economical scene-setting; distinct NPC voices; fair-but-firm DM voice.' },
-  { key: 'pacing', label: 'Pacing & momentum', desc: 'Keeps the scene moving; no rambling; usually ends by asking what the players do.' },
+  {
+    key: 'style',
+    label: 'Style adherence',
+    // The target register is a HUMAN table DM (distilled from real sessions), not polished prose:
+    // economy over lushness, length earned by the beat. Re-pinned 2026-07-07 with the exemplar RAG.
+    desc: 'A human table-DM register: concrete, economical sensory strokes; LENGTH MATCHED TO THE BEAT — a simple question earns a terse in-fiction answer, only arrivals/set-pieces earn long narration; NPC dialogue clipped and distinct; dry warmth. Lush paragraphs where a short beat was called for are a FAULT, not a virtue.',
+  },
+  {
+    key: 'pacing',
+    label: 'Pacing & momentum',
+    desc: 'Moves at table speed: answer first, then at most a couple of strokes; no recaps, no narrating past the natural stopping point; hands control back (usually "What do you do?"). Terse IS good pacing when the moment is small.',
+  },
   { key: 'coherence', label: 'Coherence & continuity', desc: 'Consistent with the authored adventure and prior turns.' },
   { key: 'agency', label: 'Player agency & fairness', desc: 'Honors declared player intent; does not railroad or override choices.' },
 ] as const;

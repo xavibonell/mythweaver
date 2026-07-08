@@ -220,8 +220,16 @@ namespace is **never** merged with the quotable rules corpus and is **never** re
 - [x] **B4** — playbook directive (+ a Technique-A distilled `## VOICE` refresh from E1–E2) + lab
       per-turn 🎭 trace + session on/off toggle. Live A/B verified: same question — OFF = 4-paragraph
       LLM shape; ON (2× short-answer exemplars fired) = "Thin at this hour." — the human register.
-- [ ] **B5** — PAID eval A/B (`MYTHWEAVER_EXEMPLARS=off` vs on through `npm run eval` — machinery wired,
-      run pending $ sign-off) + a deterministic leakage assertion in the runner; re-pin baseline after.
+- [x] **B5** (2026-07-07, ~$3.5) — A/B run + rubric realigned + baseline re-pinned. Findings: (1) the OLD
+      rubric rewarded "vivid" prose and penalized the human register — style/pacing descriptors rewritten
+      to "length matched to the beat / terse IS good pacing"; (2) exemplars occasionally crowded out tool
+      discipline (skipped lookupRule / requestRoll) — fixed by the injection header subordinating them
+      ("PROSE ONLY… tools FIRST"), after which those flakes cleared (15/16 across 2 runs; the 1 remaining
+      fail is a pre-existing combat-setup variance, startEncounter without the follow-up attack roll).
+      Baseline re-pinned under the new rubric, exemplars ON, EVAL_RUNS=2: rules 3.13 · source 3.69 ·
+      style 3.06 · pacing 2.75 · coherence 4.00 · agency 3.63 (reference under a stricter yardstick, not a
+      grade — gate = >0.4 drop). Leakage: corpus-level check (0 CR proper nouns in 1,087 exemplars) stands
+      in for a runtime assertion; a per-run narration leak-grep is a cheap future add.
 
 ### Dependencies / notes
 Needs an embeddings key (OpenAI/Voyage — already configured for the rules RAG). Reuses the

@@ -1328,6 +1328,7 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
         if (hits.length) {
           exemplarBlock =
             `=== STYLE EXEMPLARS (how a real DM plays this kind of beat — match the cadence, rhythm, and length; NEVER copy their names, places, or plot) ===\n` +
+            `These shape your PROSE ONLY. They never override your rules: if a roll, a rule lookup, or any tool is called for, do that FIRST exactly as instructed — then narrate in this register.\n` +
             hits.map((h, i) => `${i + 1}. ${h.cue ? `[${h.cue.slice(0, 140)}]\n   ` : ''}DM: ${h.text.slice(0, 600)}`).join('\n') +
             '\n\n';
           firedExemplars = hits.map((h) => ({ id: h.id, moveType: h.moveType, source: h.source }));
