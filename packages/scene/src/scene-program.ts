@@ -703,10 +703,13 @@ export function normalizeProgram(raw: unknown, brief: string, moodText: string =
 export class LlmSceneProgrammer {
   constructor(private readonly llm: LlmProvider, private readonly model?: string) {}
 
-  async compose(brief: string, moodText?: string, kindHint?: SceneKindHint): Promise<SceneProgram> {
+  /** `promptExtra` (e.g. the retrieved asset palette) is shown to the MODEL only — it must never
+   *  join `brief`, because normalizeProgram regex-harvests the brief as FICTION (completeness nets,
+   *  frontier flags, routing, theme): menu text in the brief injects phantom mobs/walls/seas. */
+  async compose(brief: string, moodText?: string, kindHint?: SceneKindHint, promptExtra?: string): Promise<SceneProgram> {
     const res = await this.llm.complete({
       system: SCENE_PROGRAMMER_SYSTEM,
-      messages: [{ role: 'user', content: brief }],
+      messages: [{ role: 'user', content: promptExtra ? `${brief}\n\n${promptExtra}` : brief }],
       maxTokens: 1600,
       ...(this.model ? { model: this.model } : {}),
     });

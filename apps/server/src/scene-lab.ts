@@ -10,7 +10,7 @@
  */
 
 import type { LlmProvider } from '@mythweaver/llm';
-import { applySpecPlacement, buildCityScene, buildComponentSheet, buildSceneMap, buildSpikeScene, compileSpec, GOLD_PROGRAMS, LlmCityPlanner, LlmSceneProgrammer, lookToSprite, runProgram, type CityDistrictSpec, type CityRequest, type SceneComposer, type SceneProgram } from '@mythweaver/scene';
+import { applySpecPlacement, buildCityScene, buildComponentSheet, buildSceneMap, buildSpikeScene, compileSpec, GOLD_PROGRAMS, LlmCityPlanner, LlmSceneProgrammer, lookToSprite, paletteBlock, runProgram, unresolvedSpecConcepts, type AssetRetriever, type CityDistrictSpec, type CityRequest, type SceneComposer, type SceneProgram, type SpecBindings } from '@mythweaver/scene';
 import type { EstablishScene, GameState, Lighting, PartyMemberRef, RealizeSceneResult, SceneComposition, SceneKindHint, SceneMap, ScenePlan, SceneProvenance, SceneRealizeContext, SceneSpec } from '@mythweaver/shared';
 import { buildToolDefs, parseEstablish, seedFor } from './orchestrator.js';
 
@@ -122,7 +122,7 @@ function edgeTerrainFieldOps(text: string, cols: number, rows: number): ScenePro
 }
 
 export async function realizeStoryScene(
-  deps: { llm: LlmProvider; model?: string },
+  deps: { llm: LlmProvider; model?: string; assetRetriever?: AssetRetriever },
   establish: EstablishScene,
   premise: string,
   party: PartyMemberRef[] = [],
@@ -142,14 +142,49 @@ export async function realizeStoryScene(
   // Pass the raw PREMISE as the mood source: the scene's time-of-day/weather follows what the PLAYER asked
   // for, not the atmospheric flavour the DM wrote into `enriched` ("the dark maw of the mine" is flavour).
   const moodText = opts.moodText ?? premise;
-  const program = await new LlmSceneProgrammer(deps.llm, deps.model).compose(enriched, moodText, opts.kind);
+  // ASSET RETRIEVAL (menu): the per-scene palette rides a MODEL-ONLY prompt channel — never the
+  // brief, which normalizeProgram regex-harvests as fiction (a palette line offering 'wolf_winter'
+  // must not conjure a wolf pack). Failure degrades silently; provenance records the exact menu.
+  let paletteExtra: string | undefined;
+  let paletteNote: string | null = null;
+  if (deps.assetRetriever) {
+    try {
+      const pal = await deps.assetRetriever.palette(`${premise}. ${moodText}`);
+      const block = paletteBlock(pal);
+      if (block) {
+        paletteExtra = block;
+        const tags = (xs: { tag: string }[]) => xs.map((x) => x.tag).join(', ');
+        paletteNote = `asset-retrieval: palette offered to the model — props: ${tags(pal.props)}; creatures: ${tags(pal.chars)}; terrain: ${tags(pal.terrain)}`;
+      }
+    } catch (err) {
+      paletteNote = `asset-retrieval: palette FAILED (${err instanceof Error ? err.message : String(err)}) — proceeding without`;
+    }
+  }
+  const program = await new LlmSceneProgrammer(deps.llm, deps.model).compose(enriched, moodText, opts.kind, paletteExtra);
+  if (paletteNote) (program.notes ??= []).push(paletteNote);
   program.locationId = establish.locationId; // stamp the DM's id — the frozen map must know its own name
   // LIGHTING PRECEDENCE: an explicitly DECLARED time of day beats the mood-regex (which beats 'day').
   // The coerced parser default never reaches here — the orchestrator only sets lightingDeclared when the
   // DM actually wrote timeOfDay in the tool call.
   // The SPEC compiles first (pure): its frontier flags own the terrain fields below — a spec'd beat
   // never gets a phantom mountain from a stray word in the prose.
-  const comp = opts.spec ? compileSpec(opts.spec, { settlement: program.grammar === 'town-square' }) : null;
+  // ASSET RETRIEVAL (binding): batch-embed exactly the spec concepts the synonym fast path would
+  // miss, so the compiler can bind the long tail (one embed call; sub-threshold = honest miss).
+  let bindings: SpecBindings | undefined;
+  if (opts.spec && deps.assetRetriever) {
+    try {
+      const un = unresolvedSpecConcepts(opts.spec);
+      if (un.props.length || un.actors.length) {
+        bindings = {
+          props: await deps.assetRetriever.bind(un.props, 'prop'),
+          actors: await deps.assetRetriever.bind(un.actors, 'character'),
+        };
+      }
+    } catch {
+      bindings = undefined; // degrade: compileSpec reports unrepresented as before
+    }
+  }
+  const comp = opts.spec ? compileSpec(opts.spec, { settlement: program.grammar === 'town-square', ...(bindings ? { bindings } : {}) }) : null;
   const lightingReason: SceneProvenance['lightingReason'] = opts.lightingDeclared ? 'declared' : program.lighting !== 'day' || program.weather === 'fog' ? 'mood' : 'default';
   if (opts.lightingDeclared && program.lighting !== opts.lightingDeclared) {
     (program.notes ??= []).push(`lighting-declared: '${opts.lightingDeclared}' overrides mood-inferred '${program.lighting}'`);
@@ -326,7 +361,7 @@ export function establishFromBeat(
   };
 }
 
-export function buildModernRealizer(deps: { llm: LlmProvider; model?: string }): (est: EstablishScene, party: PartyMemberRef[], ctx?: SceneRealizeContext) => Promise<RealizeSceneResult | null> {
+export function buildModernRealizer(deps: { llm: LlmProvider; model?: string; assetRetriever?: AssetRetriever }): (est: EstablishScene, party: PartyMemberRef[], ctx?: SceneRealizeContext) => Promise<RealizeSceneResult | null> {
   return async (est, party, ctx) => {
     const inputs = modernRealizeInputs(est, ctx);
     const { sceneMap, provenance } = await realizeStoryScene(deps, est, inputs.premise, party, {

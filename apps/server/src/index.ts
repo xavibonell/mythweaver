@@ -5,7 +5,8 @@ import { randomUUID } from 'node:crypto';
 import Fastify, { type FastifyReply } from 'fastify';
 import { Engine, createInitialState } from '@mythweaver/engine';
 import { createProvider } from '@mythweaver/llm';
-import { CHARACTERS, FakeSceneComposer, LlmSceneComposer, PROPS, TERRAINS, buildSceneMap, cityBspBlueprint, cityMeshBlueprint, loadAssetLibrary, realizeCityBsp, realizeCityMesh, renderSceneMapToPng } from '@mythweaver/scene';
+import { AssetRetriever, CHARACTERS, FakeSceneComposer, LlmSceneComposer, PROPS, TERRAINS, buildSceneMap, cityBspBlueprint, cityMeshBlueprint, loadAssetLibrary, loadAssetVectors, paletteBlock, realizeCityBsp, realizeCityMesh, renderSceneMapToPng } from '@mythweaver/scene';
+import { OpenAIEmbeddingProvider, VoyageEmbeddingProvider } from '@mythweaver/rag';
 import { BIOMES, BUILDING_TYPES, classToSpriteTag, validateEstablishScene, type EstablishScene, type SceneRealizeContext } from '@mythweaver/shared';
 import { Db } from './db.js';
 import { loadScenario, readScenarioRaw, writeScenarioRaw, parseScenario, loadSharedParty, loadSharedBestiary, loadItemCatalog, listPregens, readPregen, resolveParty } from './content.js';
@@ -74,7 +75,18 @@ app.log.info(`Scene Composer: ${dirName}${dirModel ? ` (${dirModel})` : ''}`);
 // -> archetypes, the audited extraction pipeline) with the classic Composer as decline/failure fallback.
 // Kill-switch: MYTHWEAVER_SCENE_ENGINE=classic.
 const sceneEngineMode = (process.env.MYTHWEAVER_SCENE_ENGINE || 'modern').toLowerCase();
-const realizeScene = sceneEngineMode === 'classic' ? undefined : buildModernRealizer({ llm, ...(dmModel ? { model: dmModel } : {}) });
+// ASSET RETRIEVAL (semantic menu + binding over the library) — vectors from `npm run assets:embed`.
+// Absent vectors / key / model mismatch => retrieval OFF and every consumer behaves exactly as before.
+const assetVectors = loadAssetVectors();
+const assetEmbedder = process.env.OPENAI_API_KEY ? new OpenAIEmbeddingProvider() : process.env.VOYAGE_API_KEY ? new VoyageEmbeddingProvider() : undefined;
+const assetRetriever =
+  assetVectors && assetEmbedder && assetVectors.model === assetEmbedder.model
+    ? new AssetRetriever(assetVectors.rows, assetEmbedder)
+    : undefined;
+app.log.info(
+  `Asset retrieval: ${assetRetriever ? `on (${assetVectors!.rows.length} vectors, ${assetVectors!.model})` : `off (${!assetVectors ? 'no vectors — run npm run assets:embed' : !assetEmbedder ? 'no embedding key' : `model mismatch: vectors=${assetVectors.model} embedder=${assetEmbedder.model} — re-run npm run assets:embed`})`}`,
+);
+const realizeScene = sceneEngineMode === 'classic' ? undefined : buildModernRealizer({ llm, ...(dmModel ? { model: dmModel } : {}), ...(assetRetriever ? { assetRetriever } : {}) });
 app.log.info(`Scene engine: ${realizeScene ? 'modern (all kinds: settlement/interior/wild) + classic fallback' : 'classic'}`);
 
 // Game Director / arc planner (Phase D / D2) — MYTHWEAVER_ARC_PLANNER = llm (default) | fake | off.
@@ -560,7 +572,24 @@ app.post('/dm/lab/generate-arc', async (req, reply) => {
     const specWarnings: string[] = [];
     try {
       const beats = Object.entries(arc.adventure.scenes).map(([id, s]) => ({ id, title: s.title, summary: s.summary, ...(s.scenePlan ? { plan: s.scenePlan } : {}) }));
+      // Per-beat retrieved palettes: the architect names concepts the renderer HAS art for — this is
+      // what makes 500 (later 4,500) assets reachable without a 100K-token tag dump. Optional.
+      let palettes: Record<string, string> | undefined;
+      if (assetRetriever) {
+        try {
+          palettes = {};
+          for (const b of beats) {
+            const pal = await assetRetriever.palette(`${b.title}. ${b.summary}. ${b.plan?.look ?? ''}`, { props: 12, chars: 6, terrain: 0 });
+            const block = paletteBlock(pal, '  ASSETS (retrieved for this beat — renderable concepts; use as dotted feature kinds, e.g. prop.bell_great / actor.wolf_winter, when they fit the fiction)');
+            if (block) palettes[b.id] = block;
+          }
+        } catch (err) {
+          app.log.warn(err, 'asset palette retrieval failed (architect proceeds without)');
+          palettes = undefined;
+        }
+      }
       const { specs, warnings, costUsd: specCost } = await architectSpecs(llm, {
+        ...(palettes && Object.keys(palettes).length ? { palettes } : {}),
         premise: arc.blueprint.premise || seed.theme || '',
         beats,
         system: loadSceneArchitect(),
@@ -658,7 +687,7 @@ app.post('/dm/lab/scene-preview', async (req, reply) => {
   const r = resolvePreviewBeat(req.body);
   if ('error' in r) return badRequest(reply, r.error);
   try {
-    const res = await buildModernRealizer({ llm, ...(dmModel ? { model: dmModel } : {}) })(r.establish, [], r.ctx);
+    const res = await buildModernRealizer({ llm, ...(dmModel ? { model: dmModel } : {}), ...(assetRetriever ? { assetRetriever } : {}) })(r.establish, [], r.ctx);
     if (!res) return badRequest(reply, 'the realizer declined');
     const png = renderSceneMapToPng(res.sceneMap, { assetsRoot: new URL('../../web/public', import.meta.url).pathname });
     // The addressable objects, so relation satisfaction is CHECKABLE from the preview (not just eyeballed).

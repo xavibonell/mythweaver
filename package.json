@@ -29,7 +29,8 @@
     "scene:sweep": "node scripts/structure-sweep.mjs",
     "scene:sweep:semantics": "node scripts/semantic-sweep.mjs",
     "assets:extract": "python3 scripts/extract-assets.py",
-    "up": "docker compose up --build"
+    "up": "docker compose up --build",
+    "assets:embed": "node scripts/embed-asset-library.mjs"
   },
   "engines": {
     "node": ">=20"

@@ -16,6 +16,9 @@ traces*.jsonl
 raw-data/
 raw-data*.zip
 content/corpus/
+
+# Embedded asset vectors — rebuilt locally via `npm run assets:embed` (needs an embedding key).
+assets/library.vectors.jsonl
 content/exemplars/
 *.zip
 

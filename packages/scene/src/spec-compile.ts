@@ -14,7 +14,7 @@
 
 import { BUILDING_TYPES, type BuildingType, type MapObject, type SceneMap, type SceneSpec } from '@mythweaver/shared';
 import type { Contents } from './archetypes.js';
-import { isProp } from './catalog.js';
+import { isCharacter, isProp } from './catalog.js';
 import { lookToSprite } from './composer.js';
 import type { SceneOp } from './scene-program.js';
 
@@ -105,7 +105,36 @@ function resolvePropTag(concept: string): string | null {
   return null;
 }
 
-export function compileSpec(spec: SceneSpec, opts: { settlement: boolean }): SpecCompileResult {
+/** The concepts in a spec that the FAST PATH (synonym tables + direct forms) cannot resolve —
+ *  the server pre-binds exactly these via retrieval (one batched embed call), then hands the
+ *  result to compileSpec as opts.bindings. Mirrors compileSpec's branch order. */
+export function unresolvedSpecConcepts(spec: SceneSpec): { props: string[]; actors: string[] } {
+  const props = new Set<string>();
+  const actors = new Set<string>();
+  for (const f of spec.features ?? []) {
+    const t = tail(f.kind);
+    if (/^(dock|pier|jetty|wharf|quay|harbou?r)/.test(t) || f.kind.startsWith('dock.')) continue;
+    if (/^(mine|adit|shaft)/.test(t) || /canal/.test(t) || /^(wall|palisade|rampart)$/.test(t)) continue;
+    if (f.kind.startsWith('building.') || (BUILDING_SYNONYMS[clean(t)] && !f.kind.startsWith('prop.'))) continue;
+    if (f.kind.startsWith('terrain.')) continue; // base topology — honest note, NEVER a prop binding
+    if (f.kind.startsWith('actor.') || HOSTILE.test(t)) {
+      const direct = clean(t).replace(/-/g, '_'); // mirror compileSpec's direct tag-form hit
+      if (!isCharacter(direct) && lookToSprite(t.replace(/-/g, ' ')) === 'villager' && !/villager|peasant|towns/.test(t)) actors.add(clean(t));
+      continue;
+    }
+    if (!resolvePropTag(t)) props.add(clean(t));
+  }
+  return { props: [...props], actors: [...actors] };
+}
+
+/** Semantic bindings (concept → verified tag) from the retrieval layer — the LONG-TAIL FALLBACK
+ *  consulted only AFTER the exact/synonym fast path misses. Keys are clean() concepts. */
+export interface SpecBindings {
+  props?: Record<string, string>;
+  actors?: Record<string, string>;
+}
+
+export function compileSpec(spec: SceneSpec, opts: { settlement: boolean; bindings?: SpecBindings }): SpecCompileResult {
   const contents: SpecCompileResult['contents'] = { buildings: [], landmarks: [], npcs: [], mobs: [] };
   const postOps: SceneOp[] = [];
   const notes: string[] = [];
@@ -147,7 +176,15 @@ export function compileSpec(spec: SceneSpec, opts: { settlement: boolean }): Spe
 
     // ACTORS — sprite from the concept; hostile tails are mobs; in-water actors scatter ON the water.
     if (f.kind.startsWith('actor.') || HOSTILE.test(t)) {
-      const sprite = lookToSprite(t.replace(/-/g, ' '));
+      const direct = t.replace(/-/g, '_');
+      let sprite = isCharacter(direct) ? direct : lookToSprite(t.replace(/-/g, ' '));
+      // The synonym table's miss value is the generic 'villager' — only THEN may a semantic
+      // binding (retrieval) speak; a specific table hit is never overridden.
+      const bound = opts.bindings?.actors?.[clean(t)];
+      if (sprite === 'villager' && !/villager|peasant|towns/.test(t) && bound && isCharacter(bound)) {
+        sprite = bound;
+        notes.push(`spec: ${f.id} — '${t}' bound semantically → ${bound}`);
+      }
       const hostile = HOSTILE.test(t);
       if (inWater.has(f.id)) {
         postOps.push({ op: 'scatter', idBase: `mob:${f.id}`, tags: [sprite], kind: 'actor', role: hostile ? 'mob' : 'npc', region: 'all', count, on: 'water' });
@@ -163,8 +200,16 @@ export function compileSpec(spec: SceneSpec, opts: { settlement: boolean }): Spe
       continue;
     }
 
-    // PROPS / DECOR / LANDMARKS — catalog tag via synonyms; in-water props float; unresolvable is REPORTED.
-    const tag = resolvePropTag(t);
+    // PROPS / DECOR / LANDMARKS — catalog tag via synonyms, then the SEMANTIC BINDING fallback
+    // (retrieval); in-water props float; still-unresolvable is REPORTED.
+    let tag = resolvePropTag(t);
+    if (!tag && !f.kind.startsWith('terrain.')) {
+      const bound = opts.bindings?.props?.[clean(t)];
+      if (bound && isProp(bound)) {
+        tag = bound;
+        notes.push(`spec: ${f.id} — '${t}' bound semantically → ${bound}`);
+      }
+    }
     if (tag) {
       if (inWater.has(f.id)) {
         postOps.push({ op: 'scatter', idBase: `prop:${f.id}`, tags: [tag], kind: 'prop', region: 'all', count, on: 'water' });

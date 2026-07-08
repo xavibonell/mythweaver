@@ -28,7 +28,7 @@ RELATIONS (use ONLY these; nothing else): ${SCENE_RELATIONS.join(', ')}.
   Refs (f/a/b/of/region/via) are feature ids OR the literal "PARTY" (the party's entry position). "water" is a legal region for in/at-edge-of (the scene's water body).
 WEIGHTS: hard = must hold (geometry) · story = the story depends on it; may degrade but the DM will be told to re-narrate · soft = nice-to-have.
 
-RULES: every ref must resolve to a declared feature id, PARTY, or the region "water" (no dangling refs). You MAY omit the object of near/facing/visible-from/in/at-edge-of — it defaults to the PARTY (or the whole scene). Never put "across" AND "near" both hard on the same pair. Sprite tags and coordinates are FORBIDDEN — only concepts + relations. Unrenderables (sounds, smells, a bell that does NOT ring) go in narrationOnly. Feature kinds are dotted concepts (building.boathouse, dock.long, prop.rowboat, decor.corpse, actor.villager) — name what a top-down map would SHOW. Always give frame.entry (where the party comes in) and position PARTY relative to the anchor feature with a near/at-edge-of constraint.
+RULES: every ref must resolve to a declared feature id, PARTY, or the region "water" (no dangling refs). You MAY omit the object of near/facing/visible-from/in/at-edge-of — it defaults to the PARTY (or the whole scene). Never put "across" AND "near" both hard on the same pair. Sprite tags and coordinates are FORBIDDEN — only concepts + relations. EXCEPTION: a beat's ASSETS line lists RENDERABLE concept names the art pipeline already knows — you may use those names verbatim inside a dotted kind (prop.bell_great, actor.wolf_winter) when they fit the fiction. Unrenderables (sounds, smells, a bell that does NOT ring) go in narrationOnly. Feature kinds are dotted concepts (building.boathouse, dock.long, prop.rowboat, decor.corpse, actor.villager) — name what a top-down map would SHOW. Always give frame.entry (where the party comes in) and position PARTY relative to the anchor feature with a near/at-edge-of constraint.
 
 EXAMPLE (one beat, id "scene:b1"):
 Beat scene:b1 — "The party arrives at a fishing village as drowned corpses surface; rowboats at a long dock, a leaning boathouse."
@@ -77,13 +77,14 @@ export function mechanicalRepairs(spec: SceneSpec): string[] {
 /** One batched emission for a whole campaign (+ ONE batched repair round for the invalid subset). */
 export async function architectSpecs(
   llm: LlmProvider,
-  input: { premise: string; beats: ArchitectBeat[]; system?: string; model?: string; temperature?: number },
+  input: { premise: string; beats: ArchitectBeat[]; system?: string; model?: string; temperature?: number; palettes?: Record<string, string> },
 ): Promise<ArchitectSpecsResult> {
   const system = input.system ?? DEFAULT_SCENE_ARCHITECT_SYSTEM;
   const beatLines = input.beats.map((b) => {
     const p = b.plan;
     const planLine = p ? ` | look: ${p.look} | kind: ${p.kind} | mood: ${p.mood}${p.features?.length ? ` | features: ${p.features.join(', ')}` : ''}` : '';
-    return `Beat ${b.id} — "${b.title}": ${b.summary}${planLine}`;
+    const pal = input.palettes?.[b.id];
+    return `Beat ${b.id} — "${b.title}": ${b.summary}${planLine}${pal ? `\n${pal}` : ''}`;
   });
   const user = `CAMPAIGN PREMISE: ${input.premise}\n\nBEATS:\n${beatLines.join('\n\n')}`;
   const warnings: string[] = [];
