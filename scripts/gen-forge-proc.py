@@ -105,9 +105,10 @@ def bob(frame, dy=1):
 
 ASSETS = []  # dicts: {tag, kind, frames:[Image], footW, footH, blocks, light, walkable, desc, biomes, category}
 
-def register(tag, kind, frames, desc, biomes, category, footW=1, footH=1, blocks=True, light=False, walkable=None, fps=3):
+def register(tag, kind, frames, desc, biomes, category, footW=1, footH=1, blocks=True, light=False, walkable=None, fps=3, platform=False):
     ASSETS.append(dict(tag=tag, kind=kind, frames=frames, footW=footW, footH=footH, blocks=blocks,
-                       light=light, walkable=walkable, desc=desc, biomes=biomes, category=category, fps=fps))
+                       light=light, walkable=walkable, desc=desc, biomes=biomes, category=category, fps=fps,
+                       platform=platform))
 
 # =================================================================================================
 # EXEMPLAR 1 (quality bar, prop): the GREAT BRONZE BELL — 32x32, the drowned-bell campaign's finale.
@@ -2876,13 +2877,13 @@ register("column_broken", "prop", [_str_draw_column_broken()],
          _str_B, "structure", blocks=True)
 register("bridge_plank_h", "prop", [_str_draw_bridge_plank_h()],
          "a plank footbridge spanning left-right with sagging rope rails",
-         _str_B, "structure", blocks=False)
+         _str_B, "structure", blocks=False, platform=True)
 register("bridge_plank_v", "prop", [_str_draw_bridge_plank_v()],
          "a plank footbridge spanning top-bottom with rope rails",
-         _str_B, "structure", blocks=False)
+         _str_B, "structure", blocks=False, platform=True)
 register("stepping_stones", "prop", [_str_draw_stepping_stones()],
          "three flat stepping stones staggered across the tile",
-         _str_B, "structure", blocks=False)
+         _str_B, "structure", blocks=False, platform=True)
 register("fence_wood_h", "prop", [_str_draw_fence_wood_h()],
          "a split-rail wooden fence running left-right",
          _str_B, "structure", blocks=True)
@@ -2903,7 +2904,7 @@ register("ladder_wood", "prop", [_str_draw_ladder_wood()],
          _str_B, "structure", blocks=False)
 register("platform_wood", "prop", [_str_draw_platform_wood()],
          "raised wooden decking with staggered plank joints and nail heads",
-         _str_B, "structure", blocks=False)
+         _str_B, "structure", blocks=False, platform=True)
 register("rubble_pile", "prop", [_str_draw_rubble_pile()],
          "a heap of grey and slate masonry chunks with a snapped beam",
          _str_B, "structure", blocks=True)
@@ -5663,7 +5664,7 @@ def main():
         manifest.append(dict(tag=a["tag"], kind=a["kind"], art=rel, frameW=frames[0].width, frameH=frames[0].height,
                              frames=len(frames), footW=a["footW"], footH=a["footH"], blocks=a["blocks"],
                              light=a["light"], walkable=a["walkable"], desc=a["desc"], biomes=a["biomes"],
-                             category=a["category"], fps=a["fps"]))
+                             category=a["category"], fps=a["fps"], platform=a.get("platform", False)))
         print(f"  {a['tag']:24s} {frames[0].width}x{frames[0].height} x{len(frames)} [{a['kind']}] {a['category']}")
     with open("/tmp/forge-manifest.json", "w") as f:
         json.dump(manifest, f, indent=1)

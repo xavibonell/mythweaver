@@ -12895,6 +12895,7 @@
       "footW": 1,
       "footH": 1,
       "blocks": false,
+      "platform": true,
       "from": {
         "pack": "proc",
         "gen": "scripts/gen-forge-proc.py"
@@ -12919,6 +12920,7 @@
       "footW": 1,
       "footH": 1,
       "blocks": false,
+      "platform": true,
       "from": {
         "pack": "proc",
         "gen": "scripts/gen-forge-proc.py"
@@ -12943,6 +12945,7 @@
       "footW": 1,
       "footH": 1,
       "blocks": false,
+      "platform": true,
       "from": {
         "pack": "proc",
         "gen": "scripts/gen-forge-proc.py"
@@ -13111,6 +13114,7 @@
       "footW": 1,
       "footH": 1,
       "blocks": false,
+      "platform": true,
       "from": {
         "pack": "proc",
         "gen": "scripts/gen-forge-proc.py"

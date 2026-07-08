@@ -39,6 +39,8 @@ for m in manifest:
         entry["blocks"] = m["blocks"]
         if m.get("light"):
             entry["light"] = True
+        if m.get("platform"):
+            entry["platform"] = True  # footprint becomes WALKABLE over water (bridges/decking/stepping stones)
     if m["kind"] == "terrain":
         if m.get("walkable") is not None:
             entry["walkable"] = m["walkable"]

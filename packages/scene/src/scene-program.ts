@@ -507,7 +507,8 @@ const BRIEF_CREATURES: [RegExp, string, 'mob' | 'npc'][] = [
   [/wolf|wolves|warg|jackal/, 'wolf', 'mob'],
   [/slime|ooze|jelly|blob/, 'slime', 'mob'],
   [/dragon|wyrm|drake|wyvern/, 'dragon', 'mob'],
-  [/crocodile|lizard|gator|reptile/, 'frog', 'mob'],
+  [/crocodile|alligator|gator/, 'crocodile', 'mob'], // the forge shipped a real crocodile (was downgraded to 'frog')
+  [/lizard|reptile|basilisk/, 'frog', 'mob'], // no dedicated sprite yet → frog stands in
   [/bandit|rogue|thief|assassin|brigand/, 'rogue', 'mob'],
   [/cultist|priest|mage|wizard|sorcer|necromancer|witch|warlock/, 'wizard', 'npc'],
   [/guard|soldier|knight|warrior|sentry|sentinel/, 'knight', 'npc'],
