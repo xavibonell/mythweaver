@@ -14,23 +14,29 @@ for a in nu:
     # recover the source category from the atlas index for grouping
     groups[a["kind"]].append(a)
 
+def art_of(a):
+    return a.get("art") or (a.get("variants", [{}])[0].get("art") if a.get("variants") else "")
+
 def card(a):
     fr = a.get("frames") or a.get("idleFrames") or 1
     w = h = 16
     anim = ""
     kf = ""
+    art = art_of(a)
     if fr > 1:
         dur = fr / max(1, a.get("fps", 3))
         anim = f"animation: fr-{a['tag']} {dur:.2f}s steps({fr}) infinite;"
         kf = (f"@keyframes f4-{a['tag']}{{to{{background-position:-{w*fr*4}px 0}}}}"
               f"@keyframes f8-{a['tag']}{{to{{background-position:-{w*fr*8}px 0}}}}")
-    s4 = f"width:{w*4}px;height:{h*4}px;background-image:url('{a['art']}');background-size:{w*fr*4}px {h*4}px;{anim.replace('fr-','f4-') if anim else ''}"
-    s8 = f"width:{w*8}px;height:{h*8}px;background-image:url('{a['art']}');background-size:{w*fr*8}px {h*8}px;{anim.replace('fr-','f8-') if anim else ''}"
+    s4 = f"width:{w*4}px;height:{h*4}px;background-image:url('{art}');background-size:{w*fr*4}px {h*4}px;{anim.replace('fr-','f4-') if anim else ''}"
+    s8 = f"width:{w*8}px;height:{h*8}px;background-image:url('{art}');background-size:{w*fr*8}px {h*8}px;{anim.replace('fr-','f8-') if anim else ''}"
     flags = [a["kind"]]
     if fr > 1: flags.append(f"{fr}f")
     if a["kind"] == "prop":
         flags.append("solid" if a.get("blocks", True) else "walk-over")
         if a.get("light"): flags.append("light")
+    if a["kind"] == "terrain":
+        flags.append("walkable" if a.get("walkable", True) else "impassable")
     if a.get("biomes"): flags.append("·".join(a["biomes"]))
     return f"""<style>{kf}</style><div class="card">
 <div class="fr"><div class="sp" style="{s4}"></div><div class="sp" style="{s8}"></div></div>

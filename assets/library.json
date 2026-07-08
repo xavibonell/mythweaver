@@ -47509,6 +47509,5191 @@
       "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
       "idleFrames": 2,
       "fps": 3
+    },
+    {
+      "kind": "prop",
+      "tag": "ladder_down",
+      "desc": "a wooden ladder descending into a lower level",
+      "biomes": [
+        "dungeon",
+        "cave"
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/terrain/large_ladder_down.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            1406,
+            387
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "terrain",
+      "tag": "plowed_field",
+      "desc": "tilled brown soil furrowed into planting rows",
+      "biomes": [
+        "farmland",
+        "grassland"
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "walkable": true,
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/plowed_field.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "frames": [
+              [
+                164,
+                779
+              ]
+            ],
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "kind": "terrain",
+      "tag": "brick_floor",
+      "desc": "a floor of laid orange clay bricks",
+      "biomes": [
+        "town",
+        "dungeon"
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "walkable": true,
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/brick_floor.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "frames": [
+              [
+                1208,
+                45
+              ]
+            ],
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "kind": "terrain",
+      "tag": "dirt_floor",
+      "desc": "a bare packed dirt floor",
+      "biomes": [
+        "cave",
+        "dungeon",
+        "wilderness"
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "walkable": true,
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/dirt_floor.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "frames": [
+              [
+                1124,
+                963
+              ]
+            ],
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "kind": "terrain",
+      "tag": "grass_floor",
+      "desc": "a patch of green grassy ground",
+      "biomes": [
+        "grassland",
+        "forest",
+        "town"
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "walkable": true,
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/grass_floor.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "frames": [
+              [
+                524,
+                45
+              ]
+            ],
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "kind": "terrain",
+      "tag": "stone_floor",
+      "desc": "a floor of fitted grey stone blocks",
+      "biomes": [
+        "dungeon",
+        "town",
+        "castle"
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "walkable": true,
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/stone_floor.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "frames": [
+              [
+                596,
+                711
+              ]
+            ],
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "kind": "terrain",
+      "tag": "tile_floor",
+      "desc": "a floor of neat grey masonry tiles",
+      "biomes": [
+        "dungeon",
+        "castle",
+        "temple"
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "walkable": true,
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/tile_floor.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "frames": [
+              [
+                1694,
+                477
+              ]
+            ],
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "kind": "terrain",
+      "tag": "staircase_down",
+      "desc": "a diagonal staircase descending to a lower area",
+      "biomes": [
+        "dungeon",
+        "castle"
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "walkable": true,
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/staircase_down_left.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "frames": [
+              [
+                1334,
+                873
+              ]
+            ],
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "kind": "terrain",
+      "tag": "acid_pool",
+      "desc": "a bubbling pool of caustic green acid",
+      "biomes": [
+        "dungeon",
+        "cave",
+        "swamp"
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "walkable": false,
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/acid_tile.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "frames": [
+              [
+                1010,
+                117
+              ]
+            ],
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "kind": "terrain",
+      "tag": "dark_tile",
+      "desc": "a shadowed dark floor tile",
+      "biomes": [
+        "dungeon",
+        "cave"
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "walkable": true,
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/dark_tile.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "frames": [
+              [
+                596,
+                531
+              ]
+            ],
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "kind": "terrain",
+      "tag": "lava_crack_tile",
+      "desc": "cracked volcanic stone glowing with molten seams",
+      "biomes": [
+        "volcano",
+        "cave",
+        "dungeon"
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "walkable": false,
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/hazard_tile.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "frames": [
+              [
+                218,
+                131
+              ]
+            ],
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "kind": "terrain",
+      "tag": "ice_tile",
+      "desc": "a slick sheet of pale blue ice",
+      "biomes": [
+        "tundra",
+        "cave",
+        "dungeon"
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "walkable": true,
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/ice_tile.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "frames": [
+              [
+                416,
+                513
+              ]
+            ],
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "kind": "terrain",
+      "tag": "lava_tile",
+      "desc": "a molten pool of glowing red lava",
+      "biomes": [
+        "volcano",
+        "cave"
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "walkable": false,
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/lava_tile.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "frames": [
+              [
+                1478,
+                495
+              ]
+            ],
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "kind": "terrain",
+      "tag": "lit_tile",
+      "desc": "a brightly lit floor tile",
+      "biomes": [
+        "dungeon",
+        "castle"
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "walkable": true,
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/lit_tile.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "frames": [
+              [
+                902,
+                9
+              ]
+            ],
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "kind": "terrain",
+      "tag": "sky_tile",
+      "desc": "an open expanse of pale blue sky or void",
+      "biomes": [
+        "sky",
+        "void"
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "walkable": false,
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/sky_tile.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "frames": [
+              [
+                1388,
+                315
+              ]
+            ],
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "kind": "terrain",
+      "tag": "deep_water",
+      "desc": "a deep body of dark blue water",
+      "biomes": [
+        "ocean",
+        "lake",
+        "river"
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "walkable": false,
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/deep_water_tile.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "frames": [
+              [
+                56,
+                293
+              ]
+            ],
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "kind": "terrain",
+      "tag": "shallow_water",
+      "desc": "a shallow stretch of light blue water",
+      "biomes": [
+        "river",
+        "shore",
+        "swamp"
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "walkable": true,
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/shallow_water_tile.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "frames": [
+              [
+                1208,
+                603
+              ]
+            ],
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "kind": "prop",
+      "tag": "grassy_mound",
+      "desc": "a low rounded grassy mound of earth",
+      "biomes": [
+        "grassland",
+        "wilderness"
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/mound.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            92,
+            599
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "mountain_peak",
+      "desc": "a jagged rocky mountain peak",
+      "biomes": [
+        "mountain",
+        "highland"
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/peak.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            1352,
+            405
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": true
+    },
+    {
+      "kind": "prop",
+      "tag": "snowcapped_peak",
+      "desc": "a snow-capped rocky mountain peak",
+      "biomes": [
+        "mountain",
+        "tundra"
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/snowcap.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            560,
+            459
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": true
+    },
+    {
+      "kind": "terrain",
+      "tag": "pit",
+      "desc": "a dark bottomless pit in the floor",
+      "biomes": [
+        "dungeon",
+        "cave"
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "walkable": false,
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/brick_pit.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "frames": [
+              [
+                2,
+                599
+              ]
+            ],
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "kind": "terrain",
+      "tag": "clear_pool",
+      "desc": "a pool of clear blue water",
+      "biomes": [
+        "dungeon",
+        "cave",
+        "swamp"
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "walkable": false,
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/brick_clear_pool.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "frames": [
+              [
+                254,
+                221
+              ]
+            ],
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "kind": "terrain",
+      "tag": "murky_pool",
+      "desc": "a pool of murky brown water",
+      "biomes": [
+        "swamp",
+        "cave",
+        "dungeon"
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "walkable": false,
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/brick_murky_pool.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "frames": [
+              [
+                38,
+                59
+              ]
+            ],
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "kind": "terrain",
+      "tag": "toxic_pool",
+      "desc": "a pool of glowing toxic green sludge",
+      "biomes": [
+        "dungeon",
+        "cave",
+        "swamp"
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "walkable": false,
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/brick_toxic_pool.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "frames": [
+              [
+                506,
+                117
+              ]
+            ],
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "kind": "prop",
+      "tag": "cactus",
+      "desc": "a spiny green desert cactus",
+      "biomes": [
+        "desert"
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/cactus.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            650,
+            297
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": true
+    },
+    {
+      "kind": "prop",
+      "tag": "fungus",
+      "desc": "a cluster of large cave fungi",
+      "biomes": [
+        "cave",
+        "dungeon",
+        "swamp"
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/brown_fungus.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            1712,
+            801
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": true
+    },
+    {
+      "kind": "prop",
+      "tag": "bare_oak",
+      "desc": "a leafless bare oak tree",
+      "biomes": [
+        "forest",
+        "plains"
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/bare_oak.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            794,
+            459
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": true
+    },
+    {
+      "kind": "prop",
+      "tag": "snowy_bare_oak",
+      "desc": "a leafless oak tree dusted with snow",
+      "biomes": [
+        "tundra",
+        "forest"
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/dark_snowy_bare_oak.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            1052,
+            909
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": true
+    },
+    {
+      "kind": "prop",
+      "tag": "oak",
+      "desc": "a leafy green oak tree",
+      "biomes": [
+        "forest",
+        "plains"
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/dark_oak.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            1298,
+            747
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": true
+    },
+    {
+      "kind": "prop",
+      "tag": "snowy_oak",
+      "desc": "a leafy oak tree laden with snow",
+      "biomes": [
+        "tundra",
+        "forest"
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/dark_snowy_oak.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            1622,
+            873
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": true
+    },
+    {
+      "kind": "prop",
+      "tag": "bare_pine",
+      "desc": "a leafless bare pine tree",
+      "biomes": [
+        "forest",
+        "mountain"
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/bare_pine.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            722,
+            297
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": true
+    },
+    {
+      "kind": "prop",
+      "tag": "snowy_bare_pine",
+      "desc": "a leafless pine tree dusted with snow",
+      "biomes": [
+        "tundra",
+        "mountain"
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/dark_snowy_bare_pine.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            308,
+            855
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": true
+    },
+    {
+      "kind": "prop",
+      "tag": "pine",
+      "desc": "a tall green pine tree",
+      "biomes": [
+        "forest",
+        "mountain"
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/dark_pine.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            884,
+            711
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": true
+    },
+    {
+      "kind": "prop",
+      "tag": "snowy_pine",
+      "desc": "a pine tree laden with snow",
+      "biomes": [
+        "tundra",
+        "mountain"
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/dark_snowy_pine.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            1226,
+            549
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": true
+    },
+    {
+      "kind": "prop",
+      "tag": "ring",
+      "desc": "a golden magic ring",
+      "biomes": [
+        "dungeon",
+        "town"
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/unique_ring_a.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            20,
+            563
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "club",
+      "desc": "a wooden club weapon",
+      "biomes": [
+        "dungeon",
+        "town"
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/aklys.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            902,
+            639
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "amulet",
+      "desc": "a golden amulet on a chain",
+      "biomes": [
+        "dungeon",
+        "town"
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/fuzzy_amulet.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            272,
+            441
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "apple",
+      "desc": "a ripe red apple",
+      "biomes": [
+        "town",
+        "forest"
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/apple.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            200,
+            509
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "armor",
+      "desc": "a suit of body armor",
+      "biomes": [
+        "dungeon",
+        "town"
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/bogwyrm_armor.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            776,
+            189
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "arrow",
+      "desc": "a single feathered arrow",
+      "biomes": [
+        "dungeon",
+        "forest",
+        "ruins",
+        "town"
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/arrow.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            830,
+            315
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "dagger",
+      "desc": "a slender ritual dagger",
+      "biomes": [
+        "dungeon",
+        "ruins",
+        "town"
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/athame.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            1082,
+            153
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "book",
+      "desc": "a bound leather book",
+      "biomes": [
+        "dungeon",
+        "town",
+        "ruins"
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/atlas.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            1208,
+            261
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "axe",
+      "desc": "a woodcutting axe with a wooden haft",
+      "biomes": [
+        "forest",
+        "town",
+        "dungeon"
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/axe.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            1226,
+            297
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "pick_axe",
+      "desc": "a miner's pickaxe",
+      "biomes": [
+        "dungeon",
+        "cave",
+        "town"
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/pick_axe.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            848,
+            801
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "backpack",
+      "desc": "a leather traveler's backpack",
+      "biomes": [
+        "dungeon",
+        "town",
+        "forest"
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/backpack.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            1820,
+            873
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "banana",
+      "desc": "a ripe yellow banana",
+      "biomes": [
+        "town",
+        "forest"
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/banana.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            362,
+            135
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "food_bar",
+      "desc": "a wrapped bar of food",
+      "biomes": [
+        "town"
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/candy_bar.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            1334,
+            441
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "banknote",
+      "desc": "a paper banknote",
+      "biomes": [
+        "town"
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/green_bill.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            992,
+            801
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "crossbow_bolt",
+      "desc": "a short crossbow bolt",
+      "biomes": [
+        "dungeon",
+        "town",
+        "ruins"
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/crossbow_bolt.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            650,
+            171
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "bomb",
+      "desc": "a lit throwing bomb with a fuse",
+      "biomes": [
+        "dungeon",
+        "town"
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/fire_bomb.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            1214,
+            945
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "boomerang",
+      "desc": "a curved wooden throwing boomerang",
+      "biomes": [],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/boomerang.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            1658,
+            711
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "boots",
+      "desc": "a pair of leather traveling boots",
+      "biomes": [],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/elven_boots.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            290,
+            135
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "bow",
+      "desc": "a wooden hunting bow",
+      "biomes": [],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/composite_bow.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            386,
+            945
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "loaf_of_bread",
+      "desc": "a golden loaf of bread",
+      "biomes": [],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/loaf_of_bread.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            308,
+            261
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "breastplate",
+      "desc": "a steel breastplate armor",
+      "biomes": [],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/breastplate.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            1622,
+            711
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "broadsword",
+      "desc": "a steel broadsword",
+      "biomes": [],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/broadsword.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            1532,
+            747
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "bullets",
+      "desc": "a scatter of metal bullets",
+      "biomes": [],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/large_bullets.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            956,
+            153
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "bullwhip",
+      "desc": "a coiled leather bullwhip",
+      "biomes": [],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/bullwhip.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            1046,
+            99
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "cabbage",
+      "desc": "a round green cabbage",
+      "biomes": [],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/cabbage.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            1010,
+            765
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "wall_calendar",
+      "desc": "a hanging wall calendar",
+      "biomes": [],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/wall_calendar.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            1088,
+            927
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "dunce_cap",
+      "desc": "a pointed white dunce cap",
+      "biomes": [],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/dunce_cap.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            452,
+            531
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "cape",
+      "desc": "a woven cloth cape",
+      "biomes": [],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/spidersilk_cape.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            1460,
+            603
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "carrot",
+      "desc": "an orange carrot",
+      "biomes": [],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/carrot.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            1244,
+            405
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "cherries",
+      "desc": "a small cluster of ripe red cherries",
+      "biomes": [
+        "forest",
+        "town",
+        "dungeon"
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/cherries.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            1334,
+            819
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "polearm",
+      "desc": "a long-hafted bladed polearm",
+      "biomes": [
+        "dungeon",
+        "town",
+        "battlefield"
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/pole_cleaver.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            434,
+            279
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "cloak",
+      "desc": "a folded traveler's cloak",
+      "biomes": [
+        "town",
+        "dungeon",
+        "forest"
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/desert_cloak.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            20,
+            869
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "coin",
+      "desc": "a single gold coin",
+      "biomes": [
+        "dungeon",
+        "town",
+        "vault"
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/gold_coin.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            1748,
+            873
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "handful_of_coins",
+      "desc": "a small scattered handful of coins",
+      "biomes": [
+        "dungeon",
+        "town",
+        "vault"
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/handful_of_copper_coins.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            686,
+            675
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "pile_of_coins",
+      "desc": "a heaped pile of coins",
+      "biomes": [
+        "dungeon",
+        "vault",
+        "town"
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/pile_of_copper_coins.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            692,
+            927
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "fortune_cookie",
+      "desc": "a folded fortune cookie",
+      "biomes": [
+        "town",
+        "dungeon"
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/fortune_cookie.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            1046,
+            351
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "corn",
+      "desc": "an ear of yellow corn",
+      "biomes": [
+        "farm",
+        "town",
+        "forest"
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/corn.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            1298,
+            81
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "crossbow",
+      "desc": "a loaded wooden crossbow",
+      "biomes": [
+        "dungeon",
+        "town",
+        "battlefield"
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/crossbow.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            1694,
+            621
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "crown",
+      "desc": "a jeweled golden crown",
+      "biomes": [
+        "vault",
+        "throne",
+        "dungeon"
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/kingly_crown.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            1082,
+            765
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "tin_cup",
+      "desc": "a dented tin cup of coffee",
+      "biomes": [
+        "town",
+        "camp",
+        "dungeon"
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/tin_coffee_cup.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            1064,
+            63
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "dart",
+      "desc": "a small throwing dart",
+      "biomes": [
+        "dungeon",
+        "town",
+        "battlefield"
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/dart.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            704,
+            477
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "dress",
+      "desc": "a flowing red dress",
+      "biomes": [
+        "town",
+        "vault",
+        "dungeon"
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/red_dress.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            422,
+            981
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "hat",
+      "desc": "a brimmed felt fedora hat",
+      "biomes": [
+        "town",
+        "dungeon"
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/fedora.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            1226,
+            405
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "flail",
+      "desc": "a spiked iron ball flail",
+      "biomes": [
+        "dungeon",
+        "town",
+        "battlefield"
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/flail.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            938,
+            765
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "gold_coins",
+      "desc": "a small heap of gleaming gold coins",
+      "biomes": [],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/gold_foil.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            362,
+            657
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "kelp_frond",
+      "desc": "a leafy green kelp frond",
+      "biomes": [],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/kelp_frond.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            1550,
+            333
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "robe",
+      "desc": "a flowing enchanted robe",
+      "biomes": [],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/flame_garb.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            1154,
+            567
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "gauntlet",
+      "desc": "a heavy iron gauntlet",
+      "biomes": [],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/iron_gauntlet.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            2,
+            77
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "gem",
+      "desc": "a cut precious gemstone",
+      "biomes": [],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/dull_black_gem.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            146,
+            581
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "flask",
+      "desc": "a throwable clay flask",
+      "biomes": [],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/frag_grenade.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            704,
+            639
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "hammer",
+      "desc": "A one-handed iron mallet.",
+      "biomes": [],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/hammer.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            470,
+            225
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "war_hammer",
+      "desc": "A heavy two-handed war hammer.",
+      "biomes": [],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/war_hammer.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            20,
+            365
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "tinfoil_hat",
+      "desc": "A crude metal foil cap.",
+      "biomes": [],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/tinfoil_hat.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            1136,
+            801
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "wizard_hat",
+      "desc": "A tall pointed wizard's hat.",
+      "biomes": [],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/wizard_hat.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            704,
+            45
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "headband",
+      "desc": "A woven cloth headband.",
+      "biomes": [],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/headband.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            92,
+            293
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "helmet",
+      "desc": "A steel combat helmet.",
+      "biomes": [],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/crested_helm.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            1352,
+            153
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "animal_hide",
+      "desc": "A rolled bundle of tanned animal hide.",
+      "biomes": [],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/animal_hide.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            470,
+            819
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "grappling_hook",
+      "desc": "An iron grappling hook on a rope.",
+      "biomes": [],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/grappling_hook.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            1658,
+            531
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "unicorn_horn",
+      "desc": "A spiraled ivory unicorn horn.",
+      "biomes": [],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/unicorn_horn.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            290,
+            477
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "rubber_hose",
+      "desc": "A coiled length of rubber hose.",
+      "biomes": [],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/rubber_hose.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            1424,
+            657
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "invitation",
+      "desc": "A folded paper invitation card.",
+      "biomes": [],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/invitation.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            704,
+            207
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "javelin",
+      "desc": "A slender throwing javelin.",
+      "biomes": [],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/javelin.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            1298,
+            153
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "royal_jelly",
+      "desc": "A glistening lump of royal jelly.",
+      "biomes": [],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/lump_of_royal_jelly.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            1604,
+            477
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "katana",
+      "desc": "A curved single-edged katana.",
+      "biomes": [],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/katana.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            1538,
+            927
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "key",
+      "desc": "An old metal door key.",
+      "biomes": [],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/key.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            1442,
+            315
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "knife",
+      "desc": "A small steel knife.",
+      "biomes": [],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/knife.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            272,
+            423
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "eucalyptus_leaf",
+      "desc": "A fresh green eucalyptus leaf.",
+      "biomes": [],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/eucalyptus_leaf.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            1460,
+            693
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "lens",
+      "desc": "A round polished glass lens.",
+      "biomes": [],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/lens.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            542,
+            27
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "loadstone",
+      "desc": "a small dark magnetic stone",
+      "biomes": [
+        "dungeon",
+        "cave"
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/loadstone.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            1010,
+            549
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "lockpicks",
+      "desc": "a set of thieves lockpicks",
+      "biomes": [
+        "dungeon",
+        "town"
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/lockpicks.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            704,
+            171
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "longbow",
+      "desc": "a wooden longbow",
+      "biomes": [
+        "dungeon",
+        "forest",
+        "town"
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/longbow.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            848,
+            225
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "luckstone",
+      "desc": "a polished lucky gemstone",
+      "biomes": [
+        "dungeon",
+        "cave"
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/luckstone.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            128,
+            437
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "luggage",
+      "desc": "a heavy travel trunk of luggage",
+      "biomes": [
+        "town",
+        "dungeon"
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/luggage.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            1496,
+            855
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "mace",
+      "desc": "a heavy iron mace",
+      "biomes": [
+        "dungeon",
+        "town"
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/mace.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            128,
+            401
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "scroll",
+      "desc": "a rolled parchment scroll",
+      "biomes": [
+        "dungeon",
+        "town"
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/mail.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            1160,
+            999
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "chainmail",
+      "desc": "a suit of banded chainmail armor",
+      "biomes": [
+        "dungeon",
+        "town"
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/banded_mail.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            1604,
+            819
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "mattock",
+      "desc": "a digging mattock pick",
+      "biomes": [
+        "dungeon",
+        "cave",
+        "mine"
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/mattock.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            926,
+            981
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "melted_metal_blob",
+      "desc": "a blob of cooled melted metal",
+      "biomes": [
+        "dungeon",
+        "cave"
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/blob_of_melted_metal.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            1172,
+            513
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "glove",
+      "desc": "a worn leather glove",
+      "biomes": [
+        "dungeon",
+        "town"
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/clumsy_mitt.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            1394,
+            999
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "red_mushroom",
+      "desc": "a bright red-capped mushroom",
+      "biomes": [
+        "cave",
+        "forest",
+        "dungeon"
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/red_cap_mushroom.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            1352,
+            261
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "glowing_mushroom",
+      "desc": "a softly luminous cave mushroom",
+      "biomes": [
+        "cave",
+        "dungeon"
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/luminous_mushroom.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            830,
+            675
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false,
+      "light": true
+    },
+    {
+      "kind": "prop",
+      "tag": "necklace",
+      "desc": "a beaded choker necklace",
+      "biomes": [
+        "dungeon",
+        "town"
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/choker_necklace.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            1808,
+            909
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "nunchaku",
+      "desc": "a pair of wooden nunchaku",
+      "biomes": [
+        "dungeon",
+        "town"
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/nunchaku.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            110,
+            455
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "orange",
+      "desc": "a ripe orange fruit",
+      "biomes": [
+        "town",
+        "forest"
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/orange.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            1910,
+            855
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "crystal_ore",
+      "desc": "a rough chunk of raw crystal ore flecked with red",
+      "biomes": [],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/raw_crystal_ore.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            1046,
+            117
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "outfit",
+      "desc": "a set of folded clothing",
+      "biomes": [],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/prisoner_outfit.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            1082,
+            351
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "pancake",
+      "desc": "a golden pancake topped with syrup",
+      "biomes": [],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/pancake.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            884,
+            351
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "pear",
+      "desc": "a ripe green pear",
+      "biomes": [],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/pear.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            794,
+            477
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "pellets",
+      "desc": "a scattering of small metal sling pellets",
+      "biomes": [],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/large_pellets.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            1496,
+            549
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "pendant",
+      "desc": "a jeweled pendant on a fine chain",
+      "biomes": [],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/amethyst_pendant.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            1406,
+            297
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "cream_pie",
+      "desc": "a cream-topped pie in a pan",
+      "biomes": [],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/cream_pie.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            182,
+            707
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "pistol",
+      "desc": "an antique flintlock pistol",
+      "biomes": [],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/pistol.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            596,
+            693
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "plate_armor",
+      "desc": "a suit of full plate armor",
+      "biomes": [],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/full_plate.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            1910,
+            765
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "obsidian_point",
+      "desc": "a knapped obsidian arrowhead",
+      "biomes": [],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/obsidian_point.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            1118,
+            153
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "pot_helm",
+      "desc": "a battered iron pot worn as a helmet",
+      "biomes": [],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/dented_pot.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            1916,
+            927
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "potion",
+      "desc": "a stoppered glass potion bottle",
+      "biomes": [],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/black_potion.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            1406,
+            729
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "pumpkin",
+      "desc": "a ripe orange pumpkin",
+      "biomes": [],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/pumpkin.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            1028,
+            315
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "quarterstaff",
+      "desc": "a wooden quarterstaff",
+      "biomes": [],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/quarterstaff.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            1514,
+            729
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "radish",
+      "desc": "a red radish",
+      "biomes": [],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/radish.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            272,
+            261
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "ration",
+      "desc": "a packaged travel ration",
+      "biomes": [],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/c_ration.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            1118,
+            603
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "rifle",
+      "desc": "a long-barreled rifle",
+      "biomes": [],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/rifle.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            1658,
+            513
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "robes",
+      "desc": "a folded set of cloth robes",
+      "biomes": [],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/monk_robes.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            920,
+            369
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "open_book",
+      "desc": "an open book with glowing pages",
+      "biomes": [],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/book_of_ruin.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            416,
+            477
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "sword",
+      "desc": "a longsword with a rune-etched blade",
+      "biomes": [],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/runesword.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            1208,
+            765
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "saber",
+      "desc": "a curved short saber",
+      "biomes": [],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/silver_saber.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            1136,
+            135
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "dragon_scales",
+      "desc": "a scattered pile of dragon scales",
+      "biomes": [],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/bogwyrm_scales.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            470,
+            549
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "scalpel",
+      "desc": "a small sharp surgical scalpel",
+      "biomes": [],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/scalpel.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            146,
+            275
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "scimitar",
+      "desc": "a curved steel scimitar",
+      "biomes": [],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/scimitar.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            218,
+            563
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "scythe",
+      "desc": "a long-handled scythe with a curved blade",
+      "biomes": [],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/scythe.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            1682,
+            891
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "shield",
+      "desc": "a round wooden shield with an iron rim",
+      "biomes": [],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/dwarvish_shield.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            2000,
+            801
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "chain_shirt",
+      "desc": "a folded chain mail shirt",
+      "biomes": [],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/chain_shirt.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            182,
+            419
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "leather_boots",
+      "desc": "a pair of leather boots",
+      "biomes": [],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/buckled_shoes.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            1388,
+            225
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "bamboo_shoots",
+      "desc": "a bundle of fresh green bamboo shoots",
+      "biomes": [],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/bamboo_shoots.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            560,
+            369
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "shortbow",
+      "desc": "a wooden shortbow strung and ready",
+      "biomes": [],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/shortbow.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            992,
+            531
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "shuriken",
+      "desc": "a set of steel throwing stars",
+      "biomes": [],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/shuriken.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            398,
+            9
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "pole_sickle",
+      "desc": "a long-hafted sickle polearm",
+      "biomes": [],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/pole_sickle.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            632,
+            513
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "sling",
+      "desc": "a leather sling",
+      "biomes": [],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/sling.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            470,
+            567
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "spear",
+      "desc": "a wooden spear with an iron tip",
+      "biomes": [],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/spear.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            1082,
+            441
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "morning_star",
+      "desc": "a spiked morning star mace",
+      "biomes": [],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/morning_star.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            1046,
+            225
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "flint_stone",
+      "desc": "A chunk of gray flint striking-stone.",
+      "biomes": [
+        "cave",
+        "wilderness",
+        "dungeon"
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/flint_stone.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            1484,
+            981
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "greatsword",
+      "desc": "A large two-handed greatsword.",
+      "biomes": [
+        "dungeon",
+        "town",
+        "battlefield"
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/two_handed_sword.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            920,
+            801
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "long_sword",
+      "desc": "A steel longsword with a crossguard.",
+      "biomes": [
+        "dungeon",
+        "town",
+        "battlefield"
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/long_sword.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            974,
+            765
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "short_sword",
+      "desc": "A short steel sword.",
+      "biomes": [
+        "dungeon",
+        "town",
+        "battlefield"
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/short_sword.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            272,
+            171
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "shirt",
+      "desc": "A cloth tunic shirt.",
+      "biomes": [
+        "town",
+        "dungeon",
+        "home"
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/novelty_tee.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            434,
+            801
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "tome",
+      "desc": "A thick leather-bound tome.",
+      "biomes": [
+        "library",
+        "dungeon",
+        "tower"
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/military_text.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            1496,
+            801
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "tin_can",
+      "desc": "A sealed metal food tin.",
+      "biomes": [
+        "town",
+        "dungeon",
+        "camp"
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/tin.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            422,
+            999
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "tomato",
+      "desc": "A ripe red tomato.",
+      "biomes": [
+        "farm",
+        "town",
+        "kitchen"
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/tomato.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            20,
+            851
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "fang_knife",
+      "desc": "A small curved tooth-blade knife.",
+      "biomes": [
+        "cave",
+        "dungeon",
+        "wilderness"
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/worm_tooth.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            38,
+            833
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "gemstones",
+      "desc": "A scatter of small glittering gemstones.",
+      "biomes": [
+        "dungeon",
+        "cave",
+        "treasure"
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/touchstone.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            884,
+            153
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "touchstone",
+      "desc": "a dark touchstone for assaying gold",
+      "biomes": [
+        "dungeon",
+        "town"
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/dull_touchstone.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            272,
+            477
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "trident",
+      "desc": "a three-pronged trident",
+      "biomes": [
+        "dungeon",
+        "coast",
+        "town"
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/trident.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            308,
+            27
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "food_wafer",
+      "desc": "a wrapped travel bread wafer",
+      "biomes": [
+        "dungeon",
+        "town",
+        "forest"
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/lembas_wafer.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            1136,
+            513
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "wand",
+      "desc": "a slender magic wand",
+      "biomes": [
+        "dungeon",
+        "town",
+        "tower"
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/adamantine_wand.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            1622,
+            639
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
+    },
+    {
+      "kind": "prop",
+      "tag": "herb_sprig",
+      "desc": "a small sprig of dried herbs",
+      "biomes": [],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas",
+      "art": "/assets/dawnlike-atlas/props/sprig_of_wolfsbane.png",
+      "from": {
+        "pack": "DawnLike-atlas",
+        "crop": "Dawnlike.png",
+        "frames": [
+          [
+            776,
+            99
+          ]
+        ],
+        "wh": [
+          16,
+          16
+        ]
+      },
+      "frameW": 16,
+      "frameH": 16,
+      "frames": 1,
+      "footW": 1,
+      "footH": 1,
+      "blocks": false
     }
   ]
 }
