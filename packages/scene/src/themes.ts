@@ -9,9 +9,13 @@
 
 import type { LayoutGrammar } from '@mythweaver/shared';
 
-/** Wall MATERIAL families. wood/stone are the DawnLike originals; the rest are forged 9-suffix
- *  families (wall_<mat> + _t/_b/_l/_r/_tl/_tr/_bl/_br) — bakeWoodWalls autotiles all of them. */
-export type WallMat = 'wood' | 'stone' | 'sandstone' | 'moss' | 'obsidian' | 'bone' | 'ice';
+/** Wall MATERIAL families. wood/stone are the DawnLike originals; sandstone…ice are forged 9-suffix
+ *  families; acid…snow are the promoted DawnLike-atlas wall families (autotile remapped from DawnLike's
+ *  connectivity naming to our suffix scheme). All are wall_<mat> + _t/_b/_l/_r/_tl/_tr/_bl/_br and
+ *  autotile through bakeWoodWalls. */
+export type WallMat =
+  | 'wood' | 'stone' | 'sandstone' | 'moss' | 'obsidian' | 'bone' | 'ice'
+  | 'acid' | 'blue' | 'brick' | 'deep' | 'fort' | 'heat' | 'infernal' | 'mine' | 'orange' | 'rock' | 'snow';
 
 /** Wall BASE TAG for a material: wood→wall_wood, stone→wall, forged families → wall_<mat>. */
 export const wallBaseOf = (mat: WallMat): string => (mat === 'wood' ? 'wall_wood' : mat === 'stone' ? 'wall' : `wall_${mat}`);
@@ -32,11 +36,17 @@ export const THEMES: Record<string, Theme> = {
   crypt: { ground: 'stone_brick', path: 'stone', plaza: 'flagstone', wallMat: 'stone' },
   necropolis: { ground: 'marble_dark', path: 'stone', plaza: 'marble_dark', wallMat: 'bone' }, // the bone city
   temple: { ground: 'marble', path: 'marble', plaza: 'marble_dark', wallMat: 'stone' }, // veined-marble sanctum
-  cave: { ground: 'dirt', path: 'dirt', plaza: 'road', wallMat: 'stone' }, // outdoor-ish square → unified cobble
+  cave: { ground: 'dirt', path: 'dirt', plaza: 'road', wallMat: 'rock' }, // natural rough-rock cavern walls
   desert: { ground: 'sand', path: 'dirt', plaza: 'sandstone_floor', wallMat: 'sandstone' },
   lava: { ground: 'ash', path: 'ash', plaza: 'obsidian_floor', wallMat: 'obsidian' }, // cinders + volcanic glass
   arctic: { ground: 'snow', path: 'dirt', plaza: 'snow', wallMat: 'ice' }, // trodden tracks through snowfield
   blight: { ground: 'blight', path: 'ash', plaza: 'blight', wallMat: 'stone' }, // cursed/corrupted ground
+  // DawnLike-atlas wall families (Step 3d) get their own themed scenes:
+  infernal: { ground: 'ash', path: 'ash', plaza: 'obsidian_floor', wallMat: 'infernal' }, // a hell dimension
+  fortress: { ground: 'stone', path: 'stone', plaza: 'flagstone', wallMat: 'fort' }, // heavy fitted battlements
+  sewer: { ground: 'stone', path: 'stone', plaza: 'flagstone', wallMat: 'acid' }, // grimy undercity drains
+  underdark: { ground: 'stone_brick', path: 'stone', plaza: 'marble_dark', wallMat: 'deep' }, // the deep roads
+  mine: { ground: 'dirt', path: 'dirt', plaza: 'stone', wallMat: 'mine' }, // rough-hewn shafts
 };
 export const THEME_NAMES = Object.keys(THEMES);
 
@@ -44,9 +54,14 @@ const THEME_ALIASES: [RegExp, string][] = [
   [/necropolis|ossuary|barrow|boneyard/, 'necropolis'], // before crypt — its regex also matches 'necro'
   [/crypt|tomb|catacomb|grave|undead|necro/, 'crypt'],
   [/blight|curse|corrupt|tainted|defiled|wither/, 'blight'],
-  [/lava|volcano|magma|infernal|molten|brimstone|ashen|cinder/, 'lava'],
+  [/infernal|hellish|abyssal|brimstone|diabolic|nine hells|the hells/, 'infernal'], // before lava — hell walls
+  [/lava|volcano|magma|molten|ashen|cinder/, 'lava'],
+  [/sewer|drain|cistern|aqueduct|undercity|effluent/, 'sewer'],
+  [/underdark|\bdrow\b|duergar|deep road|the deep\b|underroad/, 'underdark'],
+  [/\bmine\b|mineshaft|colliery|excavation|ore vein/, 'mine'], // before cave — rough shafts
+  [/fortress|bastion|rampart|stronghold|battlement|garrison/, 'fortress'], // before dungeon
   [/arctic|tundra|glacier|frozen|\bsnow|blizzard|permafrost|\bice\b/, 'arctic'],
-  [/cave|cavern|grotto|warren|\bmine\b|tunnel/, 'cave'],
+  [/cave|cavern|grotto|warren|tunnel/, 'cave'],
   [/desert|dune|\bsand|waste|oasis/, 'desert'],
   [/jungle|rainforest|overgrown|liana/, 'jungle'],
   [/swamp|\bfen\b|marsh|bog|mire|moor/, 'swamp'],
@@ -60,7 +75,7 @@ const THEME_ALIASES: [RegExp, string][] = [
 // OUTDOOR settlement these must never win from a brief keyword — a "mining town" or a "temple town" is a
 // grass settlement with a mine/temple FEATURE, not a scene floored in cave-dirt. (This is why a coastal
 // mining village rendered on monotone orange dirt: "mine" → cave theme → dirt ground everywhere.)
-const INTERIOR_THEMES = new Set(['crypt', 'lava', 'cave', 'dungeon', 'temple', 'necropolis']);
+const INTERIOR_THEMES = new Set(['crypt', 'lava', 'cave', 'dungeon', 'temple', 'necropolis', 'infernal', 'fortress', 'sewer', 'underdark', 'mine']);
 
 /** Resolve a theme name (or infer from the brief) to a Theme key. */
 export function themeNameFor(name: unknown, brief: string, grammar: LayoutGrammar): string {

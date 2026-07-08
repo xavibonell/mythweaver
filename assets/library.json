@@ -52694,6 +52694,2382 @@
       "footW": 1,
       "footH": 1,
       "blocks": false
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_acid",
+      "desc": "a corroded, acid-etched green stone wall",
+      "walkable": false,
+      "internal": true,
+      "biomes": [],
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/wall_acid.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "src": "bright_acid_wall_center",
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_acid_t",
+      "desc": "a corroded, acid-etched green stone wall",
+      "walkable": false,
+      "internal": true,
+      "biomes": [],
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/wall_acid_t.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "src": "bright_acid_wall_left_right",
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_acid_b",
+      "desc": "a corroded, acid-etched green stone wall",
+      "walkable": false,
+      "internal": true,
+      "biomes": [],
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/wall_acid_b.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "src": "bright_acid_wall_left_right",
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_acid_l",
+      "desc": "a corroded, acid-etched green stone wall",
+      "walkable": false,
+      "internal": true,
+      "biomes": [],
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/wall_acid_l.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "src": "bright_acid_wall_up_down",
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_acid_r",
+      "desc": "a corroded, acid-etched green stone wall",
+      "walkable": false,
+      "internal": true,
+      "biomes": [],
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/wall_acid_r.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "src": "bright_acid_wall_up_down",
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_acid_tl",
+      "desc": "a corroded, acid-etched green stone wall",
+      "walkable": false,
+      "internal": true,
+      "biomes": [],
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/wall_acid_tl.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "src": "bright_acid_wall_right_down",
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_acid_tr",
+      "desc": "a corroded, acid-etched green stone wall",
+      "walkable": false,
+      "internal": true,
+      "biomes": [],
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/wall_acid_tr.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "src": "bright_acid_wall_left_down",
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_acid_bl",
+      "desc": "a corroded, acid-etched green stone wall",
+      "walkable": false,
+      "internal": true,
+      "biomes": [],
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/wall_acid_bl.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "src": "bright_acid_wall_right_up",
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_acid_br",
+      "desc": "a corroded, acid-etched green stone wall",
+      "walkable": false,
+      "internal": true,
+      "biomes": [],
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/wall_acid_br.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "src": "bright_acid_wall_left_up",
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_blue",
+      "desc": "a cold blue-grey dungeon wall",
+      "walkable": false,
+      "internal": true,
+      "biomes": [],
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/wall_blue.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "src": "bright_blue_wall_center",
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_blue_t",
+      "desc": "a cold blue-grey dungeon wall",
+      "walkable": false,
+      "internal": true,
+      "biomes": [],
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/wall_blue_t.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "src": "bright_blue_wall_left_right",
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_blue_b",
+      "desc": "a cold blue-grey dungeon wall",
+      "walkable": false,
+      "internal": true,
+      "biomes": [],
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/wall_blue_b.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "src": "bright_blue_wall_left_right",
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_blue_l",
+      "desc": "a cold blue-grey dungeon wall",
+      "walkable": false,
+      "internal": true,
+      "biomes": [],
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/wall_blue_l.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "src": "bright_blue_wall_up_down",
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_blue_r",
+      "desc": "a cold blue-grey dungeon wall",
+      "walkable": false,
+      "internal": true,
+      "biomes": [],
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/wall_blue_r.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "src": "bright_blue_wall_up_down",
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_blue_tl",
+      "desc": "a cold blue-grey dungeon wall",
+      "walkable": false,
+      "internal": true,
+      "biomes": [],
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/wall_blue_tl.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "src": "bright_blue_wall_right_down",
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_blue_tr",
+      "desc": "a cold blue-grey dungeon wall",
+      "walkable": false,
+      "internal": true,
+      "biomes": [],
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/wall_blue_tr.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "src": "bright_blue_wall_left_down",
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_blue_bl",
+      "desc": "a cold blue-grey dungeon wall",
+      "walkable": false,
+      "internal": true,
+      "biomes": [],
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/wall_blue_bl.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "src": "bright_blue_wall_right_up",
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_blue_br",
+      "desc": "a cold blue-grey dungeon wall",
+      "walkable": false,
+      "internal": true,
+      "biomes": [],
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/wall_blue_br.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "src": "bright_blue_wall_left_up",
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_brick",
+      "desc": "a wall of laid masonry brick",
+      "walkable": false,
+      "internal": true,
+      "biomes": [],
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/wall_brick.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "src": "bright_brick_wall_center",
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_brick_t",
+      "desc": "a wall of laid masonry brick",
+      "walkable": false,
+      "internal": true,
+      "biomes": [],
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/wall_brick_t.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "src": "bright_brick_wall_left_right",
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_brick_b",
+      "desc": "a wall of laid masonry brick",
+      "walkable": false,
+      "internal": true,
+      "biomes": [],
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/wall_brick_b.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "src": "bright_brick_wall_left_right",
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_brick_l",
+      "desc": "a wall of laid masonry brick",
+      "walkable": false,
+      "internal": true,
+      "biomes": [],
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/wall_brick_l.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "src": "bright_brick_wall_up_down",
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_brick_r",
+      "desc": "a wall of laid masonry brick",
+      "walkable": false,
+      "internal": true,
+      "biomes": [],
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/wall_brick_r.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "src": "bright_brick_wall_up_down",
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_brick_tl",
+      "desc": "a wall of laid masonry brick",
+      "walkable": false,
+      "internal": true,
+      "biomes": [],
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/wall_brick_tl.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "src": "bright_brick_wall_right_down",
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_brick_tr",
+      "desc": "a wall of laid masonry brick",
+      "walkable": false,
+      "internal": true,
+      "biomes": [],
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/wall_brick_tr.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "src": "bright_brick_wall_left_down",
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_brick_bl",
+      "desc": "a wall of laid masonry brick",
+      "walkable": false,
+      "internal": true,
+      "biomes": [],
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/wall_brick_bl.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "src": "bright_brick_wall_right_up",
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_brick_br",
+      "desc": "a wall of laid masonry brick",
+      "walkable": false,
+      "internal": true,
+      "biomes": [],
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/wall_brick_br.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "src": "bright_brick_wall_left_up",
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_deep",
+      "desc": "a wall of deep dark stone, far underground",
+      "walkable": false,
+      "internal": true,
+      "biomes": [],
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/wall_deep.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "src": "bright_deep_wall_center",
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_deep_t",
+      "desc": "a wall of deep dark stone, far underground",
+      "walkable": false,
+      "internal": true,
+      "biomes": [],
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/wall_deep_t.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "src": "bright_deep_wall_left_right",
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_deep_b",
+      "desc": "a wall of deep dark stone, far underground",
+      "walkable": false,
+      "internal": true,
+      "biomes": [],
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/wall_deep_b.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "src": "bright_deep_wall_left_right",
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_deep_l",
+      "desc": "a wall of deep dark stone, far underground",
+      "walkable": false,
+      "internal": true,
+      "biomes": [],
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/wall_deep_l.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "src": "bright_deep_wall_up_down",
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_deep_r",
+      "desc": "a wall of deep dark stone, far underground",
+      "walkable": false,
+      "internal": true,
+      "biomes": [],
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/wall_deep_r.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "src": "bright_deep_wall_up_down",
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_deep_tl",
+      "desc": "a wall of deep dark stone, far underground",
+      "walkable": false,
+      "internal": true,
+      "biomes": [],
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/wall_deep_tl.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "src": "bright_deep_wall_right_down",
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_deep_tr",
+      "desc": "a wall of deep dark stone, far underground",
+      "walkable": false,
+      "internal": true,
+      "biomes": [],
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/wall_deep_tr.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "src": "bright_deep_wall_left_down",
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_deep_bl",
+      "desc": "a wall of deep dark stone, far underground",
+      "walkable": false,
+      "internal": true,
+      "biomes": [],
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/wall_deep_bl.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "src": "bright_deep_wall_right_up",
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_deep_br",
+      "desc": "a wall of deep dark stone, far underground",
+      "walkable": false,
+      "internal": true,
+      "biomes": [],
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/wall_deep_br.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "src": "bright_deep_wall_left_up",
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_fort",
+      "desc": "a heavy fitted-stone fortress wall",
+      "walkable": false,
+      "internal": true,
+      "biomes": [],
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/wall_fort.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "src": "bright_fort_wall_center",
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_fort_t",
+      "desc": "a heavy fitted-stone fortress wall",
+      "walkable": false,
+      "internal": true,
+      "biomes": [],
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/wall_fort_t.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "src": "bright_fort_wall_left_right",
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_fort_b",
+      "desc": "a heavy fitted-stone fortress wall",
+      "walkable": false,
+      "internal": true,
+      "biomes": [],
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/wall_fort_b.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "src": "bright_fort_wall_left_right",
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_fort_l",
+      "desc": "a heavy fitted-stone fortress wall",
+      "walkable": false,
+      "internal": true,
+      "biomes": [],
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/wall_fort_l.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "src": "bright_fort_wall_up_down",
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_fort_r",
+      "desc": "a heavy fitted-stone fortress wall",
+      "walkable": false,
+      "internal": true,
+      "biomes": [],
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/wall_fort_r.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "src": "bright_fort_wall_up_down",
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_fort_tl",
+      "desc": "a heavy fitted-stone fortress wall",
+      "walkable": false,
+      "internal": true,
+      "biomes": [],
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/wall_fort_tl.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "src": "bright_fort_wall_right_down",
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_fort_tr",
+      "desc": "a heavy fitted-stone fortress wall",
+      "walkable": false,
+      "internal": true,
+      "biomes": [],
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/wall_fort_tr.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "src": "bright_fort_wall_left_down",
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_fort_bl",
+      "desc": "a heavy fitted-stone fortress wall",
+      "walkable": false,
+      "internal": true,
+      "biomes": [],
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/wall_fort_bl.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "src": "bright_fort_wall_right_up",
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_fort_br",
+      "desc": "a heavy fitted-stone fortress wall",
+      "walkable": false,
+      "internal": true,
+      "biomes": [],
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/wall_fort_br.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "src": "bright_fort_wall_left_up",
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_heat",
+      "desc": "a heat-scorched dark stone wall",
+      "walkable": false,
+      "internal": true,
+      "biomes": [],
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/wall_heat.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "src": "bright_heat_wall_center",
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_heat_t",
+      "desc": "a heat-scorched dark stone wall",
+      "walkable": false,
+      "internal": true,
+      "biomes": [],
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/wall_heat_t.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "src": "bright_heat_wall_left_right",
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_heat_b",
+      "desc": "a heat-scorched dark stone wall",
+      "walkable": false,
+      "internal": true,
+      "biomes": [],
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/wall_heat_b.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "src": "bright_heat_wall_left_right",
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_heat_l",
+      "desc": "a heat-scorched dark stone wall",
+      "walkable": false,
+      "internal": true,
+      "biomes": [],
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/wall_heat_l.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "src": "bright_heat_wall_up_down",
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_heat_r",
+      "desc": "a heat-scorched dark stone wall",
+      "walkable": false,
+      "internal": true,
+      "biomes": [],
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/wall_heat_r.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "src": "bright_heat_wall_up_down",
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_heat_tl",
+      "desc": "a heat-scorched dark stone wall",
+      "walkable": false,
+      "internal": true,
+      "biomes": [],
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/wall_heat_tl.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "src": "bright_heat_wall_right_down",
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_heat_tr",
+      "desc": "a heat-scorched dark stone wall",
+      "walkable": false,
+      "internal": true,
+      "biomes": [],
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/wall_heat_tr.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "src": "bright_heat_wall_left_down",
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_heat_bl",
+      "desc": "a heat-scorched dark stone wall",
+      "walkable": false,
+      "internal": true,
+      "biomes": [],
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/wall_heat_bl.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "src": "bright_heat_wall_right_up",
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_heat_br",
+      "desc": "a heat-scorched dark stone wall",
+      "walkable": false,
+      "internal": true,
+      "biomes": [],
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/wall_heat_br.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "src": "bright_heat_wall_left_up",
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_infernal",
+      "desc": "a hellish wall of blackened infernal stone",
+      "walkable": false,
+      "internal": true,
+      "biomes": [],
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/wall_infernal.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "src": "bright_infernal_wall_center",
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_infernal_t",
+      "desc": "a hellish wall of blackened infernal stone",
+      "walkable": false,
+      "internal": true,
+      "biomes": [],
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/wall_infernal_t.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "src": "bright_infernal_wall_left_right",
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_infernal_b",
+      "desc": "a hellish wall of blackened infernal stone",
+      "walkable": false,
+      "internal": true,
+      "biomes": [],
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/wall_infernal_b.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "src": "bright_infernal_wall_left_right",
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_infernal_l",
+      "desc": "a hellish wall of blackened infernal stone",
+      "walkable": false,
+      "internal": true,
+      "biomes": [],
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/wall_infernal_l.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "src": "bright_infernal_wall_up_down",
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_infernal_r",
+      "desc": "a hellish wall of blackened infernal stone",
+      "walkable": false,
+      "internal": true,
+      "biomes": [],
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/wall_infernal_r.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "src": "bright_infernal_wall_up_down",
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_infernal_tl",
+      "desc": "a hellish wall of blackened infernal stone",
+      "walkable": false,
+      "internal": true,
+      "biomes": [],
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/wall_infernal_tl.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "src": "bright_infernal_wall_right_down",
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_infernal_tr",
+      "desc": "a hellish wall of blackened infernal stone",
+      "walkable": false,
+      "internal": true,
+      "biomes": [],
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/wall_infernal_tr.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "src": "bright_infernal_wall_left_down",
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_infernal_bl",
+      "desc": "a hellish wall of blackened infernal stone",
+      "walkable": false,
+      "internal": true,
+      "biomes": [],
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/wall_infernal_bl.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "src": "bright_infernal_wall_right_up",
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_infernal_br",
+      "desc": "a hellish wall of blackened infernal stone",
+      "walkable": false,
+      "internal": true,
+      "biomes": [],
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/wall_infernal_br.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "src": "bright_infernal_wall_left_up",
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_mine",
+      "desc": "a rough-hewn mine-shaft wall",
+      "walkable": false,
+      "internal": true,
+      "biomes": [],
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/wall_mine.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "src": "bright_mine_wall_center",
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_mine_t",
+      "desc": "a rough-hewn mine-shaft wall",
+      "walkable": false,
+      "internal": true,
+      "biomes": [],
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/wall_mine_t.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "src": "bright_mine_wall_left_right",
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_mine_b",
+      "desc": "a rough-hewn mine-shaft wall",
+      "walkable": false,
+      "internal": true,
+      "biomes": [],
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/wall_mine_b.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "src": "bright_mine_wall_left_right",
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_mine_l",
+      "desc": "a rough-hewn mine-shaft wall",
+      "walkable": false,
+      "internal": true,
+      "biomes": [],
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/wall_mine_l.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "src": "bright_mine_wall_up_down",
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_mine_r",
+      "desc": "a rough-hewn mine-shaft wall",
+      "walkable": false,
+      "internal": true,
+      "biomes": [],
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/wall_mine_r.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "src": "bright_mine_wall_up_down",
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_mine_tl",
+      "desc": "a rough-hewn mine-shaft wall",
+      "walkable": false,
+      "internal": true,
+      "biomes": [],
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/wall_mine_tl.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "src": "bright_mine_wall_right_down",
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_mine_tr",
+      "desc": "a rough-hewn mine-shaft wall",
+      "walkable": false,
+      "internal": true,
+      "biomes": [],
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/wall_mine_tr.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "src": "bright_mine_wall_left_down",
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_mine_bl",
+      "desc": "a rough-hewn mine-shaft wall",
+      "walkable": false,
+      "internal": true,
+      "biomes": [],
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/wall_mine_bl.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "src": "bright_mine_wall_right_up",
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_mine_br",
+      "desc": "a rough-hewn mine-shaft wall",
+      "walkable": false,
+      "internal": true,
+      "biomes": [],
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/wall_mine_br.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "src": "bright_mine_wall_left_up",
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_orange",
+      "desc": "a warm sandstone-orange dungeon wall",
+      "walkable": false,
+      "internal": true,
+      "biomes": [],
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/wall_orange.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "src": "bright_orange_wall_center",
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_orange_t",
+      "desc": "a warm sandstone-orange dungeon wall",
+      "walkable": false,
+      "internal": true,
+      "biomes": [],
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/wall_orange_t.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "src": "bright_orange_wall_left_right",
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_orange_b",
+      "desc": "a warm sandstone-orange dungeon wall",
+      "walkable": false,
+      "internal": true,
+      "biomes": [],
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/wall_orange_b.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "src": "bright_orange_wall_left_right",
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_orange_l",
+      "desc": "a warm sandstone-orange dungeon wall",
+      "walkable": false,
+      "internal": true,
+      "biomes": [],
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/wall_orange_l.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "src": "bright_orange_wall_up_down",
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_orange_r",
+      "desc": "a warm sandstone-orange dungeon wall",
+      "walkable": false,
+      "internal": true,
+      "biomes": [],
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/wall_orange_r.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "src": "bright_orange_wall_up_down",
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_orange_tl",
+      "desc": "a warm sandstone-orange dungeon wall",
+      "walkable": false,
+      "internal": true,
+      "biomes": [],
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/wall_orange_tl.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "src": "bright_orange_wall_right_down",
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_orange_tr",
+      "desc": "a warm sandstone-orange dungeon wall",
+      "walkable": false,
+      "internal": true,
+      "biomes": [],
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/wall_orange_tr.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "src": "bright_orange_wall_left_down",
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_orange_bl",
+      "desc": "a warm sandstone-orange dungeon wall",
+      "walkable": false,
+      "internal": true,
+      "biomes": [],
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/wall_orange_bl.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "src": "bright_orange_wall_right_up",
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_orange_br",
+      "desc": "a warm sandstone-orange dungeon wall",
+      "walkable": false,
+      "internal": true,
+      "biomes": [],
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/wall_orange_br.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "src": "bright_orange_wall_left_up",
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_rock",
+      "desc": "a natural rough rock cavern wall",
+      "walkable": false,
+      "internal": true,
+      "biomes": [],
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/wall_rock.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "src": "bright_rock_wall_center",
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_rock_t",
+      "desc": "a natural rough rock cavern wall",
+      "walkable": false,
+      "internal": true,
+      "biomes": [],
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/wall_rock_t.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "src": "bright_rock_wall_left_right",
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_rock_b",
+      "desc": "a natural rough rock cavern wall",
+      "walkable": false,
+      "internal": true,
+      "biomes": [],
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/wall_rock_b.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "src": "bright_rock_wall_left_right",
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_rock_l",
+      "desc": "a natural rough rock cavern wall",
+      "walkable": false,
+      "internal": true,
+      "biomes": [],
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/wall_rock_l.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "src": "bright_rock_wall_up_down",
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_rock_r",
+      "desc": "a natural rough rock cavern wall",
+      "walkable": false,
+      "internal": true,
+      "biomes": [],
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/wall_rock_r.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "src": "bright_rock_wall_up_down",
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_rock_tl",
+      "desc": "a natural rough rock cavern wall",
+      "walkable": false,
+      "internal": true,
+      "biomes": [],
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/wall_rock_tl.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "src": "bright_rock_wall_right_down",
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_rock_tr",
+      "desc": "a natural rough rock cavern wall",
+      "walkable": false,
+      "internal": true,
+      "biomes": [],
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/wall_rock_tr.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "src": "bright_rock_wall_left_down",
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_rock_bl",
+      "desc": "a natural rough rock cavern wall",
+      "walkable": false,
+      "internal": true,
+      "biomes": [],
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/wall_rock_bl.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "src": "bright_rock_wall_right_up",
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_rock_br",
+      "desc": "a natural rough rock cavern wall",
+      "walkable": false,
+      "internal": true,
+      "biomes": [],
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/wall_rock_br.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "src": "bright_rock_wall_left_up",
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_snow",
+      "desc": "a wall of packed snow and frost",
+      "walkable": false,
+      "internal": true,
+      "biomes": [],
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/wall_snow.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "src": "bright_snow_wall_center",
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_snow_t",
+      "desc": "a wall of packed snow and frost",
+      "walkable": false,
+      "internal": true,
+      "biomes": [],
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/wall_snow_t.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "src": "bright_snow_wall_left_right",
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_snow_b",
+      "desc": "a wall of packed snow and frost",
+      "walkable": false,
+      "internal": true,
+      "biomes": [],
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/wall_snow_b.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "src": "bright_snow_wall_left_right",
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_snow_l",
+      "desc": "a wall of packed snow and frost",
+      "walkable": false,
+      "internal": true,
+      "biomes": [],
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/wall_snow_l.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "src": "bright_snow_wall_up_down",
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_snow_r",
+      "desc": "a wall of packed snow and frost",
+      "walkable": false,
+      "internal": true,
+      "biomes": [],
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/wall_snow_r.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "src": "bright_snow_wall_up_down",
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_snow_tl",
+      "desc": "a wall of packed snow and frost",
+      "walkable": false,
+      "internal": true,
+      "biomes": [],
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/wall_snow_tl.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "src": "bright_snow_wall_right_down",
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_snow_tr",
+      "desc": "a wall of packed snow and frost",
+      "walkable": false,
+      "internal": true,
+      "biomes": [],
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/wall_snow_tr.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "src": "bright_snow_wall_left_down",
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_snow_bl",
+      "desc": "a wall of packed snow and frost",
+      "walkable": false,
+      "internal": true,
+      "biomes": [],
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/wall_snow_bl.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "src": "bright_snow_wall_right_up",
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas"
+    },
+    {
+      "kind": "terrain",
+      "tag": "wall_snow_br",
+      "desc": "a wall of packed snow and frost",
+      "walkable": false,
+      "internal": true,
+      "biomes": [],
+      "variants": [
+        {
+          "art": "/assets/dawnlike-atlas/terrain/wall_snow_br.png",
+          "from": {
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
+            "src": "bright_snow_wall_left_up",
+            "wh": [
+              16,
+              16
+            ]
+          }
+        }
+      ],
+      "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
+      "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas"
     }
   ]
 }
