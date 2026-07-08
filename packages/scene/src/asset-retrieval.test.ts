@@ -78,9 +78,11 @@ describe('compileSpec semantic bindings — the long-tail fallback AFTER the fas
       settlement: false, bindings: { actors: { 'marsh-strider': 'heron' } },
     });
     expect(generic.postOps.some((o) => o.op === 'scatter' && o.tags?.includes('heron'))).toBe(true);
-    // winter-wolf: LOOK_SYNONYMS hit → a conflicting binding must be IGNORED.
-    const specific = compileSpec(spec([{ id: 'ww', kind: 'actor.winter-wolf', geom: 'point' }]), {
-      settlement: false, bindings: { actors: { 'winter-wolf': 'camel' } },
+    // frost-wolf: no literal tag, but a LOOK_SYNONYMS hit (→ wolf_winter) → a conflicting binding must
+    // be IGNORED. (A concept that IS a literal tag, e.g. winter_wolf, resolves directly — also beating
+    // the binding — so this uses frost-wolf to exercise the synonym path specifically.)
+    const specific = compileSpec(spec([{ id: 'ww', kind: 'actor.frost-wolf', geom: 'point' }]), {
+      settlement: false, bindings: { actors: { 'frost-wolf': 'camel' } },
     });
     expect(specific.postOps.some((o) => o.op === 'scatter' && o.tags?.includes('wolf_winter'))).toBe(true);
     expect(specific.postOps.some((o) => o.op === 'scatter' && o.tags?.includes('camel'))).toBe(false);
