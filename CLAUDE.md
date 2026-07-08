@@ -64,6 +64,30 @@ python3 -m venv .venv-pdf && .venv-pdf/bin/pip install pymupdf
 node scripts/embed-corpus.mjs                                     # -> *.vectors.jsonl (needs OPENAI_API_KEY)
 ```
 
+## Style-exemplar corpus — Technique B (also NOT in the repo)
+A **second, independent** RAG namespace (`content/exemplars/`) makes the turn-DM *sound human*: each
+turn retrieves 2 real-DM beats matching the moment's register and injects them into the per-turn prompt
+(voice only — never rules, never visible to `lookupRule`). It's **fully separate from the rules corpus
+above** — the rules RAG is untouched by it and needs no re-embedding. Both `raw-data/transcripts/` (the
+source transcripts) and `content/exemplars/*.{jsonl,vectors.jsonl}` (the built corpus) are **gitignored**,
+so the *code* travels via git but each machine builds its **own** corpus once. Without it the feature is
+silently off (the DM behaves exactly as before — graceful degrade, no errors).
+
+**To build it (one-time, ~$3.70, needs `OPENAI_API_KEY`/`VOYAGE_API_KEY`):** drop speaker-labeled `.txt`
+transcripts into `raw-data/transcripts/` (`DM:` for the DM, `NAME:` for players, `#` lines ignored), then:
+```bash
+npm run build                                  # the script imports from dist/
+node scripts/ingest-exemplars.mjs --dry-run    # FREE: parse->window->tag->sample; prints per-moveType
+                                               #   counts + writes content/exemplars/cr3.candidates.jsonl
+node scripts/ingest-exemplars.mjs              # PAID: LLM curate (keep/drop + anonymize-by-rewrite +
+                                               #   strip mechanics) + embed -> cr3.jsonl + cr3.vectors.jsonl
+```
+Restart the server; confirm the boot log shows `Style exemplars: semantic (N/N exemplars, <model>)`.
+Use the **same embeddings provider** to build the corpus and to run the server (don't mix an
+OpenAI-built corpus with a Voyage-configured server). No key at all → it falls back to offline BM25 ($0).
+Code: `scripts/ingest-exemplars.mjs` + `apps/server/src/exemplar-ingest.ts` (parser/heuristics) +
+`exemplar-corpus.ts` (retriever); design + tickets in `docs/DM-LAYER-TODO.md` §Phase B.
+
 ## Key env vars (see `.env.example` for the full list)
 | Var | Purpose |
 |---|---|
@@ -75,6 +99,7 @@ node scripts/embed-corpus.mjs                                     # -> *.vectors
 | `MYTHWEAVER_SESSION_BUDGET_USD` | Per-session spend cap (off by default). |
 | `MYTHWEAVER_API_TOKEN` | Shared-secret auth (required if `HOST=0.0.0.0`). |
 | `MYTHWEAVER_PLAYBOOK_PATH` | Point the persona at a different playbook (A/B). |
+| `MYTHWEAVER_EXEMPLARS` (`on`/`off`) / `MYTHWEAVER_EXEMPLARS_DIR` | Technique B style exemplars: disable, or relocate `content/exemplars/`. |
 
 ## Architecture in one breath
 Four swappable seams: `LlmProvider` (`packages/llm`), `EmbeddingProvider` (`packages/rag`),
