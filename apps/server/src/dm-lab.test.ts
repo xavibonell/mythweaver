@@ -43,6 +43,27 @@ describe('sceneEngine knob (lab sessions pick real vs $0 scene generation)', () 
     const s = createDmLabSession({ llm: new FakeLlmProvider([]) }, 'the-sunken-bell');
     expect(s.sceneEngine).toBe('fake');
   });
+
+  it('frozenState hydrates a prerendered dev session — scene already established, forced $0/fake, no realizer', () => {
+    // A captured GameState with an already-rendered scene sitting in state.world.
+    const base = createInitialState({ sessionId: 's', scenarioId: 't', startSceneId: 'scene:b1', party: [wizard()] });
+    base.world = {
+      currentLocationId: 'loc:hollowmere-shore',
+      locations: { 'loc:hollowmere-shore': { locationId: 'loc:hollowmere-shore', seed: 1, biome: 'village', lighting: 'dusk', grammar: 'open-outdoor', grid: { cols: 4, rows: 4, feetPerTile: 5 }, tiles: [], walkable: [], objects: [], ambiance: [], entrances: [] } },
+      links: [],
+    };
+    base.log.push({ seq: 1, kind: 'player', text: 'I look around.', data: { speakerId: 'Elara' } });
+    base.log.push({ seq: 2, kind: 'narration', text: 'The reservoir stretches out flat and black.' });
+
+    const s = createDmLabSession({ llm: new FakeLlmProvider([]), realizeScene, frozenState: base }, 'the-drowned-bell');
+    expect(s.sceneEngine).toBe('fake'); // forced fake even though a realizer was wired
+    expect(s.realizeScene).toBeUndefined();
+    expect(s.engine.getState().world?.currentLocationId).toBe('loc:hollowmere-shore'); // scene ready to render
+    expect(s.scene).toBe('scene:b1');
+    expect(s.sceneRev).toBe(1); // non-zero → client renders immediately
+    expect(s.party.map((p) => p.name)).toContain('Elara');
+    expect(s.recent).toEqual(['Elara: I look around.', 'Dungeon Master: The reservoir stretches out flat and black.']);
+  });
 });
 
 describe('characterSheets (Run-view sheet serializer)', () => {

@@ -1,9 +1,9 @@
 /** Loads SRD-safe scenario seed data and validates it against the domain types. */
 
-import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import type { CharacterSheet, ItemDef, ScenePlan, StatBlock } from '@mythweaver/shared';
+import type { CharacterSheet, GameState, ItemDef, ScenePlan, StatBlock } from '@mythweaver/shared';
 
 const CONTENT_DIR =
   process.env.MYTHWEAVER_CONTENT_DIR ?? resolve(dirname(fileURLToPath(import.meta.url)), '../../../content');
@@ -88,6 +88,52 @@ export function listPregens(): { slug: string; title: string; beats: number; par
 export function readPregen(slug: string): unknown {
   if (!/^[a-z0-9-]+$/.test(slug)) throw new Error(`invalid pregen slug "${slug}"`);
   return readJson<unknown>(resolve(PREGENS_DIR, `${slug}.json`));
+}
+
+// --- Prerendered dev sessions (content/dev-sessions/*.json) ------------------------------------
+// A frozen full GameState captured AFTER a scene was rendered — hydrate it into a fresh Engine to
+// start playing over an already-drawn scene instantly, $0 (no arc-gen, no scene render). The cheap
+// iteration path for DM live-interaction work. See docs: the freeze/load flow in dm-lab.ts + index.ts.
+
+const DEV_SESSIONS_DIR = resolve(CONTENT_DIR, 'dev-sessions');
+
+/** A captured dev session: the full engine state + a little display meta. */
+export interface DevSessionFile {
+  state: GameState;
+  meta: { title: string; scene: string; locationId: string; savedAt?: string; lastNarration?: string };
+}
+
+/** List available prerendered dev sessions (slug + display summary). */
+export function listDevSessions(): { slug: string; title: string; scene: string }[] {
+  let files: string[];
+  try {
+    files = readdirSync(DEV_SESSIONS_DIR).filter((f) => f.endsWith('.json'));
+  } catch {
+    return []; // no dev-sessions dir — fine
+  }
+  const out: { slug: string; title: string; scene: string }[] = [];
+  for (const f of files) {
+    try {
+      const d = readJson<DevSessionFile>(resolve(DEV_SESSIONS_DIR, f));
+      out.push({ slug: f.replace(/\.json$/, ''), title: (d.meta?.title ?? f).slice(0, 120), scene: d.meta?.scene ?? '' });
+    } catch {
+      /* skip an unreadable file */
+    }
+  }
+  return out;
+}
+
+/** Read a captured dev session by slug (caller hydrates `state` into a fresh Engine). */
+export function readDevSession(slug: string): DevSessionFile {
+  if (!/^[a-z0-9-]+$/.test(slug)) throw new Error(`invalid dev-session slug "${slug}"`);
+  return readJson<DevSessionFile>(resolve(DEV_SESSIONS_DIR, `${slug}.json`));
+}
+
+/** Persist a captured dev session to content/dev-sessions/<slug>.json. */
+export function writeDevSession(slug: string, file: DevSessionFile): void {
+  if (!/^[a-z0-9-]+$/.test(slug)) throw new Error(`invalid dev-session slug "${slug}"`);
+  mkdirSync(DEV_SESSIONS_DIR, { recursive: true });
+  writeFileSync(resolve(DEV_SESSIONS_DIR, `${slug}.json`), `${JSON.stringify(file, null, 2)}\n`);
 }
 
 /** Validate the structural invariants of a scenario object (shared by load + override + save). */

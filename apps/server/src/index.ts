@@ -7,9 +7,9 @@ import { Engine, createInitialState } from '@mythweaver/engine';
 import { createProvider } from '@mythweaver/llm';
 import { AssetRetriever, CHARACTERS, FakeSceneComposer, LlmSceneComposer, PROPS, TERRAINS, buildSceneMap, cityBspBlueprint, cityMeshBlueprint, loadAssetLibrary, loadAssetVectors, paletteBlock, realizeCityBsp, realizeCityMesh, renderSceneMapToPng } from '@mythweaver/scene';
 import { OpenAIEmbeddingProvider, VoyageEmbeddingProvider } from '@mythweaver/rag';
-import { BIOMES, BUILDING_TYPES, classToSpriteTag, validateEstablishScene, type EstablishScene, type SceneRealizeContext } from '@mythweaver/shared';
+import { BIOMES, BUILDING_TYPES, classToSpriteTag, validateEstablishScene, type EstablishScene, type GameState, type SceneRealizeContext } from '@mythweaver/shared';
 import { Db } from './db.js';
-import { loadScenario, readScenarioRaw, writeScenarioRaw, parseScenario, loadSharedParty, loadSharedBestiary, loadItemCatalog, listPregens, readPregen, resolveParty } from './content.js';
+import { loadScenario, readScenarioRaw, writeScenarioRaw, parseScenario, loadSharedParty, loadSharedBestiary, loadItemCatalog, listPregens, readPregen, resolveParty, listDevSessions, readDevSession, writeDevSession } from './content.js';
 import {
   loadPlaybook,
   savePlaybook,
@@ -319,7 +319,10 @@ app.post('/scene/eval/capture', { bodyLimit: 32 * 1024 * 1024 }, async (req, rep
 // DM and inspect each turn, with live-editable playbook + scenario + a temperature knob.
 app.get('/dm/lab', async (_req, reply) => {
   reply.type('text/html');
-  return renderDmLabPage(DM_LAB_TRANSCRIPTS);
+  // The live-table (:6985/dm animated view) must point at whichever web app targets THIS backend.
+  // Override with MYTHWEAVER_LIVE_TABLE_URL when this backend isn't on the canonical :6984 (e.g. a
+  // dev backend on :6991 paired with a web instance on :6992).
+  return renderDmLabPage(DM_LAB_TRANSCRIPTS, process.env.MYTHWEAVER_LIVE_TABLE_URL ?? 'http://localhost:6985');
 });
 
 // Current contents of the editable inputs (playbook + scenario.json) for the chosen scenario.
@@ -634,6 +637,38 @@ app.get('/dm/lab/pregen/:slug', async (req, reply) => {
   }
 });
 
+// Prerendered dev sessions — captured full GameStates (scene already rendered) for instant, $0 play.
+app.get('/dm/lab/dev-sessions', async () => ({ devSessions: listDevSessions() }));
+
+// Freeze the CURRENT live session (its scene is already rendered in state.world) → a reusable dev-session
+// fixture. The one-time-paid capture that bootstraps instant $0 iteration for everyone downstream.
+app.post('/dm/lab/session/:id/freeze', async (req, reply) => {
+  const session = dmLabSessions.get((req.params as { id: string }).id);
+  if (!session) return badRequest(reply, 'unknown session');
+  const raw = (req.body ?? {}) as { slug?: unknown; title?: unknown };
+  const slug = typeof raw.slug === 'string' ? raw.slug.trim() : '';
+  if (!/^[a-z0-9-]+$/.test(slug)) return badRequest(reply, 'slug must be lowercase kebab-case (a-z0-9-)');
+  const state = session.engine.getState();
+  if (!state.world?.currentLocationId) return badRequest(reply, 'no scene established yet — establish the opening scene before freezing');
+  const lastNarration = [...state.log].reverse().find((e) => e.kind === 'narration')?.text;
+  try {
+    writeDevSession(slug, {
+      state,
+      meta: {
+        title: typeof raw.title === 'string' && raw.title.trim() ? raw.title.trim() : slug,
+        scene: state.currentSceneId,
+        locationId: state.world.currentLocationId,
+        ...(lastNarration ? { lastNarration: lastNarration.slice(0, 400) } : {}),
+      },
+    });
+    return { ok: true, slug };
+  } catch (err) {
+    app.log.error(err, 'freeze dev session failed');
+    reply.code(500);
+    return { error: (err as Error).message };
+  }
+});
+
 /** Resolve the {arc, beat, ctx, establish} a preview works on, from a pregen slug OR an inline arc. */
 function resolvePreviewBeat(raw: unknown): { arc: GeneratedArc; sceneId: string; establish: EstablishScene; ctx: SceneRealizeContext } | { error: string } {
   const body = (raw ?? {}) as { pregen?: unknown; generatedArc?: unknown; sceneId?: unknown; overrides?: unknown };
@@ -795,7 +830,18 @@ app.post('/dm/lab/session', async (req, reply) => {
     generatedArc?: unknown;
     party?: unknown;
     sceneEngine?: unknown;
+    frozenSession?: unknown;
   };
+  // Prerendered dev session: load a captured full GameState (scene already rendered) → instant, $0.
+  let frozenState: GameState | undefined;
+  if (typeof body.frozenSession === 'string' && body.frozenSession) {
+    if (!/^[a-z0-9-]+$/.test(body.frozenSession)) return badRequest(reply, 'invalid frozenSession slug');
+    try {
+      frozenState = readDevSession(body.frozenSession).state;
+    } catch (err) {
+      return badRequest(reply, `dev session not found: ${(err as Error).message}`);
+    }
+  }
   const sceneEngine = body.sceneEngine === 'fake' ? 'fake' as const : 'modern' as const;
   const scenario = typeof body.scenario === 'string' && body.scenario ? body.scenario : DEFAULT_SCENARIO;
   if (!/^[a-z0-9-]+$/.test(scenario)) return badRequest(reply, 'invalid scenario');
@@ -843,6 +889,7 @@ app.post('/dm/lab/session', async (req, reply) => {
         ...(party ? { party } : {}),
         ...(exemplars ? { exemplars } : {}),
         ...((req.body as Record<string, unknown>)?.exemplars === false ? { useExemplars: false } : {}),
+        ...(frozenState ? { frozenState } : {}),
       },
       scenario,
     );

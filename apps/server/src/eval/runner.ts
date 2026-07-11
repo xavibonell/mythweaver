@@ -6,7 +6,7 @@
  */
 
 import { Engine, createInitialState } from '@mythweaver/engine';
-import { AnthropicProvider, type LlmProvider } from '@mythweaver/llm';
+import { createProvider, type LlmProvider } from '@mythweaver/llm';
 import { FakeSceneComposer } from '@mythweaver/scene';
 import { loadScenario } from '../content.js';
 import { buildRetriever } from '../corpus.js';
@@ -114,18 +114,22 @@ async function runCase(
   }
   if (!last) throw new Error(`Eval case ${c.id} produced no turn`);
 
+  // Judge with a model that matches the configured provider (override with MYTHWEAVER_JUDGE_MODEL).
+  const judgeModel = process.env.MYTHWEAVER_JUDGE_MODEL || process.env.MYTHWEAVER_DM_MODEL || 'gpt-4o';
   const scores = await judgeNarration(llm, {
     playerInput: lastMessageText,
     narration: last.narration,
     toolCalls: allToolCalls, // the full sequence, so the judge sees rolls requested on earlier steps
     sceneSummary: adventure.scenes[state.currentSceneId]?.summary,
-  });
+  }, judgeModel);
   return { id: c.id, scores, narration: last.narration, toolCalls: allToolCalls, assertions: checkToolExpectation(c.expectTools, allToolCalls) };
 }
 
 export async function runEvals(opts: { runs?: number } = {}): Promise<EvalReport> {
   const runs = Math.max(1, opts.runs ?? 1);
-  const llm = new AnthropicProvider();
+  // Follow the configured provider (default openai — no Anthropic budget). The turn DM and the judge
+  // both run on it; MYTHWEAVER_JUDGE_MODEL can override just the judge.
+  const llm = createProvider(process.env.MYTHWEAVER_DM_PROVIDER || 'openai', process.env.MYTHWEAVER_DM_MODEL ? { model: process.env.MYTHWEAVER_DM_MODEL } : {});
   const { retriever } = buildRetriever(null); // vector/keyword retrieval needs no DB
   const { exemplars, description: exemplarMode } = buildExemplarRetriever(); // A/B via MYTHWEAVER_EXEMPLARS=off
   console.log(`style exemplars: ${exemplarMode}`);

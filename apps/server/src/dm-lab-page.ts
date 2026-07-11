@@ -14,7 +14,7 @@
 import type { LabTurn } from './dm-lab.js';
 
 /** Render the page. `transcripts` are injected so the UI can offer one-click presets. */
-export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string {
+export function renderDmLabPage(transcripts: Record<string, LabTurn[]>, liveTableBase = 'http://localhost:6985'): string {
   const transcriptsJson = JSON.stringify(transcripts);
   return `<!doctype html>
 <html lang="en">
@@ -274,6 +274,7 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
         <span>Style exemplars <span style="color:#6b7080">— real-DM voice beats injected per turn (off = A/B baseline)</span></span>
       </label>
       <div class="hint" style="margin-bottom:10px">Captured when you start a session from the Generate tab.</div>
+      <button class="ghost" id="freeze-btn" style="margin-bottom:10px;font-size:12px" title="Save this session (scene already rendered) as a prerendered dev session for instant $0 reloads">❄ Freeze this session</button>
       <label>Suggested actions <span style="color:#6b7080">— arc-aware; click to prefill, then tweak &amp; send</span></label>
       <div class="row" id="presets"><span class="hint">start a campaign to see suggestions</span></div>
       <div class="hint" id="status" style="margin-top:10px">Generate a campaign to begin.</div>
@@ -358,6 +359,11 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
 
   <section class="view generate active" id="view-generate">
     <div class="panel left gen-form">
+      <div id="dev-box" style="display:none;border:1px solid #3a5a8a;background:#0f1622;border-radius:8px;padding:8px 10px;margin-bottom:14px">
+        <div style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#8fb8e6;font-weight:700;margin-bottom:6px">⚡ Prerendered dev sessions — instant, $0 (scene already drawn)</div>
+        <div id="dev-list" style="display:flex;flex-direction:column;gap:4px"></div>
+        <div class="hint" style="margin-top:4px">Loads a captured session straight into the Run tab with the scene already rendered — no arc-gen, no scene render. The fast path for iterating on DM live interaction. Freeze the current session anytime with the ❄ button on the Run tab.</div>
+      </div>
       <div id="pregen-box" style="display:none;border:1px solid #2a6b40;background:#0f1f15;border-radius:8px;padding:8px 10px;margin-bottom:14px">
         <div style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#8fd6a2;font-weight:700;margin-bottom:6px">⚡ Pregenerated campaigns — load frozen, $0</div>
         <div id="pregen-list" style="display:flex;flex-direction:column;gap:4px"></div>
@@ -675,7 +681,7 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
     addSys('Session started · scene "' + b.scene + '" · party: ' + partyNames.join(', '));
     // The animated play surface (Phaser: tweened tokens, live lighting) joins THIS session by id.
     var lt = document.createElement('div');
-    lt.innerHTML = '<a href="http://localhost:6985/dm?session=' + encodeURIComponent(b.sessionId) + '" target="_blank" style="color:#3fa34d;font-weight:600">Open live table → (animated, :6985/dm)</a>';
+    lt.innerHTML = '<a href="${liveTableBase}/dm?session=' + encodeURIComponent(b.sessionId) + '" target="_blank" style="color:#3fa34d;font-weight:600">Open live table → (animated)</a>';
     lt.style.cssText = 'text-align:center;margin:4px 0';
     convo().appendChild(lt);
     var sp = $('speaker'); sp.innerHTML = '';
@@ -964,6 +970,7 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
   $('msg').addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); sendMsg(); } });
   $('declare').onclick = declareRoll;
   $('autoroll').onclick = autoRoll;
+  $('freeze-btn').onclick = freezeSession;
   $('rollval').addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); declareRoll(); } });
 
   // --- Generate tab (build a party → compose a fresh arc from a seed → start a session) ---
@@ -1103,6 +1110,60 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
         $('pregen-list').appendChild(btn);
       });
     }).catch(function () { /* pregens are optional */ });
+  }
+  // Prerendered dev sessions — captured full GameStates (scene already drawn). Load = instant, $0 play.
+  function loadDevSessionList() {
+    fetch('/dm/lab/dev-sessions').then(function (r) { return r.json(); }).then(function (b) {
+      var list = (b && b.devSessions) || [];
+      if (!list.length) return;
+      $('dev-box').style.display = '';
+      $('dev-list').innerHTML = '';
+      list.forEach(function (d) {
+        var btn = document.createElement('button');
+        btn.className = 'ghost';
+        btn.style.cssText = 'text-align:left;font-size:12px';
+        btn.textContent = '▶ ' + d.slug + (d.scene ? ' · ' + d.scene : '');
+        btn.title = d.title;
+        btn.onclick = function () { startFrozenSession(d.slug); };
+        $('dev-list').appendChild(btn);
+      });
+    }).catch(function () { /* dev sessions are optional */ });
+  }
+  function startFrozenSession(slug) {
+    $('gen-status').innerHTML = '<span class="spin"></span>loading prerendered session…';
+    fetch('/dm/lab/session', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        frozenSession: slug,
+        temperature: Number($('temp').value),
+        playbook: $('ed-playbook').value,
+        exemplars: $('exemplars') ? $('exemplars').checked : true,
+      }),
+    }).then(function (r) { return r.json().then(function (b) { return { ok: r.ok, body: b }; }); }).then(function (x) {
+      if (!x.ok) { $('gen-status').textContent = 'error: ' + (x.body.error || 'failed'); return; }
+      sessionStarted(x.body);
+      addSys('⚡ Prerendered scene loaded ($0) — the DM is ready. What do you do?');
+      showTab('run');
+      $('gen-status').textContent = '✓ prerendered session loaded — switched to the Run tab';
+      refreshScene(); $('scene-panel').open = true; // the scene is already established → show it now (NO autoOpen)
+      $('status').textContent = 'the scene is set — what do you do?';
+      try { $('msg').focus(); } catch (e) {}
+    }).catch(function (e) { $('gen-status').textContent = 'error: ' + (e.message || e); });
+  }
+  function freezeSession() {
+    var st = function (t) { $('status').textContent = t; };
+    if (!sessionId) { st('start a session first'); return; }
+    var slug = (window.prompt('Freeze this session as a prerendered dev session.\\nSlug (lowercase kebab-case):', 'the-drowned-bell') || '').trim();
+    if (!slug) return;
+    $('status').innerHTML = '<span class="spin"></span>freezing…';
+    fetch('/dm/lab/session/' + sessionId + '/freeze', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ slug: slug }),
+    }).then(function (r) { return r.json().then(function (b) { return { ok: r.ok, body: b }; }); }).then(function (x) {
+      if (!x.ok) { st('freeze failed: ' + (x.body.error || 'failed')); return; }
+      st('❄ frozen as "' + x.body.slug + '" — load it anytime from the Generate tab ($0)');
+      loadDevSessionList();
+    }).catch(function (e) { st('freeze failed: ' + (e.message || e)); });
   }
   function loadPregen(slug) {
     $('gen-status').innerHTML = '<span class="spin"></span>loading pregenerated campaign…';
@@ -1344,6 +1405,7 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
   $('view-diff').onclick = function () { setDiffView(true); };
   loadFiles();
   loadPregenList(); // frozen $0 campaigns for cheap iteration
+  loadDevSessionList(); // prerendered dev sessions — instant $0 play over an already-drawn scene
   setBusy(false); // gates the Run input off until a session is started from Generate
 </script>
 </body>

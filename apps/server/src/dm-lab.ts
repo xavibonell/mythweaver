@@ -126,6 +126,9 @@ export interface DmLabDeps {
   exemplars?: ExemplarRetriever;
   /** Session A/B knob: false = suppress exemplar injection even when a retriever is wired. */
   useExemplars?: boolean;
+  /** A captured full GameState (a prerendered dev session): hydrate it into a fresh Engine so play
+   *  starts over an ALREADY-rendered scene instantly, $0. Bypasses arc/scenario setup + scene render. */
+  frozenState?: GameState;
 }
 
 /**
@@ -310,6 +313,40 @@ export interface DmLabSession {
 
 /** Build a fresh interactive session (engine state, recorder, captured persona/scenario/temp). */
 export function createDmLabSession(deps: DmLabDeps, scenarioId: string): DmLabSession {
+  // Prerendered dev session: hydrate a captured GameState directly (the scene is already rendered and
+  // sitting in state.world) — instant, $0, no arc-gen, no realizer. Force sceneEngine 'fake' so any NEW
+  // scene the DM invents uses the $0 deterministic composer; the frozen opening is reused verbatim.
+  if (deps.frozenState) {
+    const state = deps.frozenState;
+    const engine = new Engine(state);
+    // Seed the visible transcript from the captured log so the feed shows the opening context on load.
+    const recent = state.log
+      .filter((e) => e.kind === 'narration' || e.kind === 'player')
+      .slice(-12)
+      .map((e) => (e.kind === 'narration' ? `Dungeon Master: ${e.text}` : `${(e.data as { speakerId?: string } | undefined)?.speakerId ?? 'The party'}: ${e.text}`));
+    return {
+      scenarioId,
+      engine,
+      recorder: new RecordingProvider(deps.llm),
+      composer: deps.composer ?? new FakeSceneComposer(),
+      sceneEngine: 'fake',
+      ...(deps.retriever ? { retriever: deps.retriever } : {}),
+      ...(deps.arcPlanner ? { arcPlanner: deps.arcPlanner } : {}),
+      playbook: deps.playbook ?? loadPlaybook(),
+      ...(deps.temperature !== undefined ? { temperature: deps.temperature } : {}),
+      ...(deps.arcTemperature !== undefined ? { arcTemperature: deps.arcTemperature } : {}),
+      recent,
+      turnIndex: 0,
+      sceneRev: 1, // a scene is already established → non-zero so the client renders it immediately
+      totalCostUsd: 0,
+      totalLatencyMs: 0,
+      scene: state.currentSceneId,
+      party: Object.values(state.combatants).filter((c) => c.kind === 'pc').map((c) => ({ id: c.id, name: c.name })),
+      ...(deps.exemplars ? { exemplars: deps.exemplars } : {}),
+      exemplarsOn: !!deps.exemplars && deps.useExemplars !== false,
+      recentExemplarIds: [],
+    };
+  }
   // Generate-mode: a Composer-generated arc supplies the adventure/blueprint/encounters/bestiary, and
   // the party comes from the hand-built roster (deps.party). Authored-mode: the on-disk scenario (or a
   // live-edited override) drives everything, with the scenario's own pregens + bestiary, as before.
