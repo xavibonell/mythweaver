@@ -614,3 +614,72 @@ describe('canonBlock — deterministic CANON injection (P1)', () => {
     expect(out).not.toContain('Mabon'); // NPC off-scene + unmentioned stays out
   });
 });
+
+describe('movement backstop (token truth is engine-owned, not LLM-optional)', () => {
+  function withWorld(engine: Engine): GameState {
+    const state = engine.getState();
+    const cols = 12, rows = 8;
+    state.world = {
+      currentLocationId: 'loc:shore',
+      locations: {
+        'loc:shore': {
+          locationId: 'loc:shore', seed: 1, biome: 'village', lighting: 'dusk', grammar: 'open-outdoor',
+          grid: { cols, rows, feetPerTile: 5 },
+          tiles: Array.from({ length: rows }, () => Array.from({ length: cols }, () => 'grass')),
+          walkable: Array.from({ length: rows }, () => Array.from({ length: cols }, () => true)),
+          objects: [
+            { id: 'pc:aldric', kind: 'actor', role: 'pc', tag: 'knight', name: 'Aldric', col: 1, row: 1, footprint: { w: 1, h: 1 }, facing: 'down', visible: true },
+            { id: 'npc:sedge', kind: 'actor', role: 'npc', tag: 'villager', name: 'Mother Sedge', col: 8, row: 2, footprint: { w: 1, h: 1 }, facing: 'down', visible: true },
+            { id: 'npc:keeper-1', kind: 'actor', role: 'npc', tag: 'villager', col: 3, row: 3, footprint: { w: 1, h: 1 }, facing: 'down', visible: true },
+            { id: 'prop:weir1', kind: 'prop', tag: 'weir', col: 9, row: 5, footprint: { w: 1, h: 1 }, facing: 'down', visible: true },
+          ],
+          ambiance: [], entrances: [],
+        },
+      },
+      links: [],
+    };
+    return state;
+  }
+  const pcAt = (state: GameState) => {
+    const o = state.world!.locations['loc:shore']!.objects.find((x) => x.id === 'pc:aldric')!;
+    return { col: o.col, row: o.row };
+  };
+
+  it('narration-only DM + "I go to <named NPC>" → the engine moves the token anyway', async () => {
+    const engine = newEngine();
+    const state = withWorld(engine);
+    const llm = new FakeLlmProvider([fakeText('You cross the planks toward the old woman.')]);
+    const result = await runTurn({ engine, llm, now: frozenClock }, { kind: 'message', speakerId: 'Aldric', text: 'I go to Mother Sedge and ask about the bell.' });
+    const move = (result.deltas ?? []).find((d) => d.op === 'move' && d.id === 'pc:aldric');
+    expect(move).toBeTruthy();
+    const at = pcAt(state);
+    expect(Math.abs(at.col - 8) + Math.abs(at.row - 2)).toBeLessThanOrEqual(3); // landed near Sedge, not at (1,1)
+  });
+
+  it('"go to the guy over there" → nearest visible NPC wins (no name needed)', async () => {
+    const engine = newEngine();
+    const state = withWorld(engine);
+    const llm = new FakeLlmProvider([fakeText('You walk over.')]);
+    const result = await runTurn({ engine, llm, now: frozenClock }, { kind: 'message', speakerId: 'Aldric', text: 'go to the first guy and ask what is going on' });
+    expect((result.deltas ?? []).some((d) => d.op === 'move' && d.id === 'pc:aldric')).toBe(true);
+    const at = pcAt(state);
+    expect(Math.abs(at.col - 3) + Math.abs(at.row - 3)).toBeLessThanOrEqual(3); // keeper (3,3) is nearer than Sedge (8,2)
+  });
+
+  it('no movement declared → no backstop move', async () => {
+    const engine = newEngine();
+    withWorld(engine);
+    const llm = new FakeLlmProvider([fakeText('You see mist and black water.')]);
+    const result = await runTurn({ engine, llm, now: frozenClock }, { kind: 'message', speakerId: 'Aldric', text: 'I look around carefully.' });
+    expect(result.deltas ?? []).toEqual([]);
+  });
+
+  it('nothing resolvable ("I walk to the horizon") → better no move than a wrong one', async () => {
+    const engine = newEngine();
+    const state = withWorld(engine);
+    const llm = new FakeLlmProvider([fakeText('The horizon stays where it is.')]);
+    const result = await runTurn({ engine, llm, now: frozenClock }, { kind: 'message', speakerId: 'Aldric', text: 'I walk to the horizon.' });
+    expect(result.deltas ?? []).toEqual([]);
+    expect(pcAt(state)).toEqual({ col: 1, row: 1 });
+  });
+});

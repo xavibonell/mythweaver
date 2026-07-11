@@ -1168,6 +1168,54 @@ export function predictMoveType(input: TurnInput, state: GameState): ExemplarMov
   return undefined;
 }
 
+/** Did the player DECLARE movement this turn? ("go to…", "I approach…", "we head over…") */
+const MOVEMENT_DECLARED = /\b(go|goes|walk|walks|head|heads|run|runs|stride|strides|step|steps|move|moves)\s+(to|over|toward|towards|up to|closer|across|into|see)\b|\bapproach(es)?\b|\bfollow (him|her|them|the)\b/i;
+/** Generic person-words → "the guy over there" targets the nearest visible NPC. */
+const PERSON_WORDS = /\b(guy|guys|man|men|woman|women|person|people|villager|villagers|stranger|figure|folk|keeper|him|her|them)\b/i;
+
+/**
+ * TOKEN-TRUTH BACKSTOP (engine-owned, provider-proof). The playbook orders the DM to mirror declared
+ * movement with an updateScene move, but LLM compliance is probabilistic — and the table shows tokens.
+ * So after a narration-completing message turn: if the player declared movement and NO move was applied
+ * for their PC, resolve the target deterministically (named object in the text > prop/fixture tag word >
+ * person-word → nearest visible NPC) and apply the move mechanically. The engine stays authoritative:
+ * anchors snap to free tiles, impossible moves are refused, and the applied delta rides the normal
+ * TurnResult.deltas path (client tween + player-camera glide). No target confidently resolved → no move.
+ */
+export function movementBackstop(engine: Engine, state: GameState, input: TurnInput, sceneDeltas: SceneDelta[]): void {
+  if (input.kind !== 'message') return;
+  const text = input.text.toLowerCase();
+  if (!MOVEMENT_DECLARED.test(text)) return;
+  const map = state.world?.currentLocationId ? state.world.locations[state.world.currentLocationId] : undefined;
+  if (!map) return;
+  const pcs = (map.objects ?? []).filter((o) => o.role === 'pc' && o.visible !== false);
+  const speaker = (input.speakerId ?? '').trim().toLowerCase();
+  const speakerPcs = pcs.filter((p) => (p.name ?? '').toLowerCase() === speaker);
+  const moving = (speakerPcs.length ? speakerPcs : pcs).filter((p) => !sceneDeltas.some((d) => d.op === 'move' && d.id === p.id));
+  if (moving.length === 0) return;
+
+  const words = new Set(text.split(/[^a-z0-9]+/));
+  const candidates = (map.objects ?? []).filter((o) => o.visible !== false && o.role !== 'pc');
+  // 1. An object the text names outright ("I go to Mother Sedge", "walk to the well").
+  let target = candidates.find((o) => o.name && text.includes(o.name.toLowerCase()));
+  // 2. A prop/fixture whose tag words appear ("the rope", "that chest", "the weir").
+  if (!target) target = candidates.find((o) => o.kind !== 'actor' && o.tag.split('_').some((w) => w.length > 2 && words.has(w)));
+  // 3. "the guy over there" — nearest visible NPC to the (first) mover.
+  if (!target && PERSON_WORDS.test(text)) {
+    const from = moving[0]!;
+    target = candidates
+      .filter((o) => o.role === 'npc')
+      .sort((a, b) => Math.abs(a.col - from.col) + Math.abs(a.row - from.row) - (Math.abs(b.col - from.col) + Math.abs(b.row - from.row)))[0];
+  }
+  if (!target) return; // nothing confidently resolvable — better no move than a wrong one
+
+  const res = engine.applySceneDeltas(moving.map((p) => ({ op: 'move' as const, id: p.id, to: { anchor: `near:${target!.id}` } })));
+  if (res.applied.length) {
+    sceneDeltas.push(...res.applied);
+    engine.record('engine', `Token backstop: moved ${res.applied.map((d) => d.id).join(', ')} near ${target.name ?? target.id} (declared movement had no move delta this turn).`, { backstop: true, targetId: target.id });
+  }
+}
+
 export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise<TurnResult> {
   const { engine, llm } = deps;
   const now = deps.now ?? Date.now;
@@ -1375,6 +1423,7 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
 
     if (res.toolCalls.length === 0) {
       if (res.text) engine.record('narration', res.text);
+      movementBackstop(engine, state, input, sceneDeltas); // token truth: declared movement always lands on the table
       return finish({ narration: res.text, costUsd, model: lastModel, trace: makeTrace(), ...sceneDelta() });
     }
 
@@ -1905,6 +1954,7 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
   // Loop budget exhausted — close the turn gracefully rather than hang.
   const fallback = 'The DM pauses, gathering the threads of the scene. "What do you do?"';
   engine.record('narration', fallback);
+  movementBackstop(engine, state, input, sceneDeltas); // token truth holds even on the MAX_STEPS fallback
   return finish({ narration: fallback, costUsd, model: lastModel, trace: makeTrace(), ...sceneDelta() });
 
   function sceneDelta(): { sceneChanged?: boolean; sceneMap?: SceneMap } {
