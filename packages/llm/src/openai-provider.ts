@@ -134,7 +134,11 @@ export class OpenAIProvider implements LlmProvider {
         clearTimeout(timer);
         if ((res.status === 429 || res.status >= 500) && attempt < this.retries) {
           attempt++;
-          await sleep(Math.min(8000, 500 * 2 ** attempt));
+          // 429 TPM windows tell us when to come back (retry-after) — honor it (+ jitter margin),
+          // else the old 8s cap burns every retry inside the SAME rate window and the turn dies.
+          const ra = Number(res.headers.get('retry-after'));
+          const wait = res.status === 429 && Number.isFinite(ra) && ra > 0 ? Math.min(30_000, ra * 1000 + 750) : Math.min(8000, 500 * 2 ** attempt);
+          await sleep(wait);
           continue;
         }
         return res;

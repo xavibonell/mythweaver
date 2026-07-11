@@ -84,7 +84,7 @@
       {
         "seq": 1,
         "kind": "engine",
-        "text": "POI placed: poi:bell-rope (feature) at loc:hollowmere-shore — hidden DC 12",
+        "text": "POI placed: poi:bell-rope (feature) at loc:hollowmere-shore \u2014 hidden DC 12",
         "data": {
           "poiId": "poi:bell-rope",
           "locationId": "loc:hollowmere-shore",
@@ -95,7 +95,7 @@
       {
         "seq": 2,
         "kind": "engine",
-        "text": "Canon: Mother Sedge [npc:mother-sedge] — active",
+        "text": "Canon: Mother Sedge [npc:mother-sedge] \u2014 active",
         "data": {
           "entityId": "npc:mother-sedge",
           "status": "active"
@@ -104,7 +104,7 @@
       {
         "seq": 3,
         "kind": "narration",
-        "text": "The pebbles crunch under your boots as you come over the ridge, and then the reservoir opens below you — black and vast and wrong, the way standing water is always wrong when it used to be a valley full of houses.\n\nThe first toll comes up through the ground before it reaches your ears. Low. Muffled. Like a great throat clearing itself far, far beneath the water. The surface shivers in a single ripple, spreading outward from a point near the eastern weir — and then goes still again, as though it had never happened.\n\nThe shore is a crescent of wet pebbles. Stilted shacks lean over the water on either side, their shutters barred tight, no smoke from the chimneys, no light. A stone weir curves out to the east, and anchored to an iron ring at its base: a rope. Thick. Tarred black. It descends from the ring straight down into the reservoir without touching shore at all, taut as a bowstring, trembling faintly with each invisible movement below.\n\nThe mist sits on the water's surface and does not move.\n\nAldric — you've heard that sound before. Twelve years ago, from the far bank, through the noise of machinery and flooding sluices and a man screaming from a half-submerged bell tower. Your hands probably remember it before your mind does.\n\nEvery shutter on every shack is barred. But there's a light — thin, yellow, wavering — leaking from under the door of the boathouse at the water's edge.\n\nWhat do you do?"
+        "text": "The pebbles crunch under your boots as you come over the ridge, and then the reservoir opens below you \u2014 black and vast and wrong, the way standing water is always wrong when it used to be a valley full of houses.\n\nThe first toll comes up through the ground before it reaches your ears. Low. Muffled. Like a great throat clearing itself far, far beneath the water. The surface shivers in a single ripple, spreading outward from a point near the eastern weir \u2014 and then goes still again, as though it had never happened.\n\nThe shore is a crescent of wet pebbles. Stilted shacks lean over the water on either side, their shutters barred tight, no smoke from the chimneys, no light. A stone weir curves out to the east, and anchored to an iron ring at its base: a rope. Thick. Tarred black. It descends from the ring straight down into the reservoir without touching shore at all, taut as a bowstring, trembling faintly with each invisible movement below.\n\nThe mist sits on the water's surface and does not move.\n\nAldric \u2014 you've heard that sound before. Twelve years ago, from the far bank, through the noise of machinery and flooding sluices and a man screaming from a half-submerged bell tower. Your hands probably remember it before your mind does.\n\nEvery shutter on every shack is barred. But there's a light \u2014 thin, yellow, wavering \u2014 leaking from under the door of the boathouse at the water's edge.\n\nWhat do you do?"
       }
     ],
     "spentUsd": 0,
@@ -181,7 +181,7 @@
             "damage": "1d8+3",
             "damageType": "slashing",
             "reachOrRangeFt": 5,
-            "notes": "Versatile (1d10) two-handed — forgoing the shield drops AC to 17."
+            "notes": "Versatile (1d10) two-handed \u2014 forgoing the shield drops AC to 17."
           },
           {
             "name": "Javelin",
@@ -578,7 +578,7 @@
               "narrationOnly": [
                 "the first muffled toll shuddering up through the water and into boots and bones",
                 "the smell of cold mildew and black silt rising off the reservoir",
-                "fresh drowned handprints on the tarred rope — visible only on close inspection (Perception DC 12)",
+                "fresh drowned handprints on the tarred rope \u2014 visible only on close inspection (Perception DC 12)",
                 "fisherfolk voices hushed behind barred shutters",
                 "Mother Sedge's willingness to bargain: Persuasion DC 13 yields a diving-bell and the drowned town's map",
                 "the periodic rhythm of the bell's toll felt as pressure in the chest, not heard as sound above water"
@@ -588,7 +588,7 @@
         },
         "scene:b2": {
           "title": "The Drowned Descent",
-          "summary": "Following the rope down (or by Sedge's diving-bell), the party enters the flooded upper streets of Hollowmere — a canted, silt-choked ruin threaded with air-pockets in overturned houses. Navigate the maze of streets and trapped air (Survival/Investigation DC 13 to find breathable pockets and the church's bell-arch), avoid the drowned that drift like weeds, or lure them off with light and noise. Pip may recognize a smuggler's cache here — his family fled Hollowmere before the flood, leaving debts of their own. The clapper of the great bell was stolen and hidden in a submerged countinghouse.",
+          "summary": "Following the rope down (or by Sedge's diving-bell), the party enters the flooded upper streets of Hollowmere \u2014 a canted, silt-choked ruin threaded with air-pockets in overturned houses. Navigate the maze of streets and trapped air (Survival/Investigation DC 13 to find breathable pockets and the church's bell-arch), avoid the drowned that drift like weeds, or lure them off with light and noise. Pip may recognize a smuggler's cache here \u2014 his family fled Hollowmere before the flood, leaving debts of their own. The clapper of the great bell was stolen and hidden in a submerged countinghouse.",
           "exits": [
             "scene:b3"
           ],
@@ -813,7 +813,7 @@
                 "the Navigation/Investigation challenge to locate breathable air pockets in overturned houses (Survival DC 13)",
                 "Pip's moment of recognition: his family's name scratched into a beam of the countinghouse, debts unpaid before the flood",
                 "the tolling felt as deep bone-vibration through the water rather than heard as sound",
-                "the drowned drifters' passive drift becoming agitated when the party carries a light source — luring mechanic",
+                "the drowned drifters' passive drift becoming agitated when the party carries a light source \u2014 luring mechanic",
                 "the smell of silt and rot trapped in air pockets",
                 "the Survival/Investigation DC 13 required to navigate from the entry rope to the bell-arch without being lost in silt-out"
               ]
@@ -822,7 +822,7 @@
         },
         "scene:b3": {
           "title": "The Founder in His Bell",
-          "summary": "Inside the drowned church, the great bronze bell hangs mouth-down over the founder's sealed tomb; within it, wound in the rope, is Corvin Bell — a bloated, ringing revenant who tolls the dead upward with his own bones. Confront him. He can be laid to rest by returning the clapper and tolling the bell once in true mourning (Religion/Persuasion DC 15 acknowledges his debt), or destroyed outright (harder fight, curse lingers). Elara may read the founder's inscription (Arcana DC 14) revealing the toll is a debt-count, not malice. Aldric can brace the swinging bell against him. End it as the bell rings clean and the water stills.",
+          "summary": "Inside the drowned church, the great bronze bell hangs mouth-down over the founder's sealed tomb; within it, wound in the rope, is Corvin Bell \u2014 a bloated, ringing revenant who tolls the dead upward with his own bones. Confront him. He can be laid to rest by returning the clapper and tolling the bell once in true mourning (Religion/Persuasion DC 15 acknowledges his debt), or destroyed outright (harder fight, curse lingers). Elara may read the founder's inscription (Arcana DC 14) revealing the toll is a debt-count, not malice. Aldric can brace the swinging bell against him. End it as the bell rings clean and the water stills.",
           "exits": [],
           "scenePlan": {
             "look": "A flooded stone church interior, roof half-gone to the surface light above; a colossal bronze bell hangs over a cracked founder's tomb, chains and a frayed rope coiling into its dark mouth.",
@@ -1061,11 +1061,11 @@
                 }
               ],
               "narrationOnly": [
-                "the single shaft of surface moonlight falling through the broken roof onto the bronze bell — the only illumination",
-                "the tolling sound Corvin Bell produces by striking the bell-lip with his own radius bone — felt before heard",
+                "the single shaft of surface moonlight falling through the broken roof onto the bronze bell \u2014 the only illumination",
+                "the tolling sound Corvin Bell produces by striking the bell-lip with his own radius bone \u2014 felt before heard",
                 "the ritual resolution: returning the clapper and striking one true toll requires Religion/Persuasion DC 15 to acknowledge the debt aloud",
-                "Elara's Arcana DC 14 reading of the inscription revealing the toll is a debt-count, not malice — each ring is an unpaid coin",
-                "the water stilling and clarifying when the bell rings clean — a sensory beat the engine cannot render",
+                "Elara's Arcana DC 14 reading of the inscription revealing the toll is a debt-count, not malice \u2014 each ring is an unpaid coin",
+                "the water stilling and clarifying when the bell rings clean \u2014 a sensory beat the engine cannot render",
                 "the drowned dead on the rope outside going slack and sinking as Corvin is laid to rest",
                 "the cursed aftermath if Corvin is destroyed outright: the bell continues tolling on a diminishing but persistent cycle",
                 "Aldric's option to physically brace the swinging bell during combat using the bracket, reducing its sweep arc"
@@ -1455,8 +1455,8 @@
       "blueprint": {
         "premise": "A gothic tale of drowned debt: the mining town of Hollowmere was flooded to make a reservoir, sealing bell-founder Corvin Bell inside his own half-finished church. His masterwork bronze bell went down with him. Now, every night the bell tolls beneath the water and rises a little higher on its rope, and with each toll the drowned dead climb the rope toward the living. The debt owed him must be paid",
         "centralProblem": "The bell rises nightly, dragging the reservoir's dead upward; unless the party descends to the drowned church and settles the founder's debt (his body given rest, his bell's tongue silenced or restored), the flood-dead will overrun the shore hamlet.",
-        "intendedEnding": "The party reaches the sunken church, confronts the animate remains of Corvin Bell, and pays his debt — burying his bones, returning the stolen bell-clapper to hang the bell true, and tolling it once in honest mourning. The bell falls silent, the risen dead sink back, and the reservoir stills. If they merely destroy him, the tolling stops but the valley remains cursed water.",
-        "opening": "Dusk on the shingle shore of Weirwater Reservoir, at the drowned hamlet of Hollowmere, where a rotted bell-rope trails up out of the black water onto the beach — and something has been climbing it.",
+        "intendedEnding": "The party reaches the sunken church, confronts the animate remains of Corvin Bell, and pays his debt \u2014 burying his bones, returning the stolen bell-clapper to hang the bell true, and tolling it once in honest mourning. The bell falls silent, the risen dead sink back, and the reservoir stills. If they merely destroy him, the tolling stops but the valley remains cursed water.",
+        "opening": "Dusk on the shingle shore of Weirwater Reservoir, at the drowned hamlet of Hollowmere, where a rotted bell-rope trails up out of the black water onto the beach \u2014 and something has been climbing it.",
         "spine": [
           {
             "milestone": "The Toll Begins",
@@ -1489,11 +1489,11 @@
         "fallback": false
       },
       "brief": {
-        "activeBeatIntent": "On the shore, the party learns the tolling bell is climbing its rope and the drowned dead follow it upward — the debt owed to Corvin Bell must be reckoned before the hamlet is overrun.",
+        "activeBeatIntent": "On the shore, the party learns the tolling bell is climbing its rope and the drowned dead follow it upward \u2014 the debt owed to Corvin Bell must be reckoned before the hamlet is overrun.",
         "reachable": [
           {
             "sceneId": "scene:b2",
-            "hook": "The wet rope descends into black water, still trembling with each toll — following it down is the only way to reach the church and whatever settles the debt."
+            "hook": "The wet rope descends into black water, still trembling with each toll \u2014 following it down is the only way to reach the church and whatever settles the debt."
           }
         ],
         "bridgeNpcs": [
@@ -1506,7 +1506,7 @@
           "Each nightfall the bell tolls and rises higher; the drowned climb nearer the shore.",
           "The hamlet's living grow fewer as dead reach the waterline."
         ],
-        "notes": "No divergence yet. Plant early the twin truths — bury the bones AND return the stolen clapper — so the honest-mourning resolution stays reachable rather than a mere kill."
+        "notes": "No divergence yet. Plant early the twin truths \u2014 bury the bones AND return the stolen clapper \u2014 so the honest-mourning resolution stays reachable rather than a mere kill."
       },
       "plannedForScene": "scene:b1",
       "plannedFlagSig": ""
@@ -1569,7 +1569,7 @@
         },
         "plant:stolen-clapper": {
           "id": "plant:stolen-clapper",
-          "what": "Mother Sedge mentions the great bell was hung silent because its clapper was stolen the night of the flood — recovered in beat 2, used in beat 3.",
+          "what": "Mother Sedge mentions the great bell was hung silent because its clapper was stolen the night of the flood \u2014 recovered in beat 2, used in beat 3.",
           "status": "planted"
         },
         "plant:pip-family-debt": {
@@ -8152,7 +8152,7 @@
               "role": "pc",
               "tag": "knight",
               "name": "Aldric",
-              "col": 59,
+              "col": 51,
               "row": 22,
               "footprint": {
                 "w": 1,
@@ -11647,7 +11647,7 @@
         "id": "poi:bell-rope",
         "locationId": "loc:hollowmere-shore",
         "kind": "feature",
-        "look": "A thick tarred rope, cold and slick, rising from the black water — the surface around it disturbed in slow circles. Where your lantern catches it, you can make out dark smears on the weave: handprints, fresh, climbing upward.",
+        "look": "A thick tarred rope, cold and slick, rising from the black water \u2014 the surface around it disturbed in slow circles. Where your lantern catches it, you can make out dark smears on the weave: handprints, fresh, climbing upward.",
         "hidden": true,
         "discovered": false,
         "searched": false,
@@ -11655,14 +11655,14 @@
         "fixtureId": "prop:bell-rope",
         "anchor": "near:prop:weir",
         "discoverDc": 12,
-        "notes": "Fresh drowned handprints on the rope — evidence the dead are already climbing. Tells the party the first wave is close."
+        "notes": "Fresh drowned handprints on the rope \u2014 evidence the dead are already climbing. Tells the party the first wave is close."
       }
     }
   },
   "meta": {
-    "title": "The Drowned Bell — shore of Weirwater Reservoir (opening)",
+    "title": "The Drowned Bell \u2014 shore of Weirwater Reservoir (opening)",
     "scene": "scene:b1",
     "locationId": "loc:hollowmere-shore",
-    "lastNarration": "The pebbles crunch under your boots as you come over the ridge, and then the reservoir opens below you — black and vast and wrong, the way standing water is always wrong when it used to be a valley full of houses.\n\nThe first toll comes up through the ground before it reaches your ears. Low. Muffled. Like a great throat clearing itself far, far beneath the water. The surface shivers in a single rip"
+    "lastNarration": "The pebbles crunch under your boots as you come over the ridge, and then the reservoir opens below you \u2014 black and vast and wrong, the way standing water is always wrong when it used to be a valley full of houses.\n\nThe first toll comes up through the ground before it reaches your ears. Low. Muffled. Like a great throat clearing itself far, far beneath the water. The surface shivers in a single rip"
   }
 }
