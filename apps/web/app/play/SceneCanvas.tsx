@@ -9,31 +9,97 @@
  */
 
 import { useEffect, useRef } from 'react';
-import { TILE, MAX_ZOOM, TERRAIN_SRCS, PROP_ART, SPRITES, DEFAULT_SPRITE, terrainTileVariant, loadAssetLibrary } from './manifest';
+import { TILE, MAX_ZOOM, PROP_ART, SPRITES, DEFAULT_SPRITE, terrainSrcs, terrainTileVariant, loadAssetLibrary } from './manifest';
 
 const SERVER = process.env.NEXT_PUBLIC_SERVER_URL ?? 'http://localhost:6984';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 // --- Phaser asset loading + draw helpers (operate on the live scene) ---
+//
+// The library now contains 1,800+ assets. Preloading the WHOLE catalog made Phaser sit on a black
+// canvas for minutes (and could stall entirely). Queue only the tags the current SceneMap needs;
+// later scene snapshots and spawn deltas lazily load any newly introduced art before rendering.
 
-function preloadAssets(scene: any): void {
-  // Terrain tiles are individual images, keyed by their src path.
-  for (const srcs of Object.values(TERRAIN_SRCS)) for (const src of srcs) if (!scene.textures.exists(src)) scene.load.image(src, src);
-  for (const [tag, p] of Object.entries(PROP_ART)) {
-    if (p.frames > 1) scene.load.spritesheet(`prop_${tag}`, p.src, { frameWidth: p.frameW, frameHeight: p.frameH });
-    else scene.load.image(`prop_${tag}`, p.src);
+function queueTexture(scene: any, key: string, load: () => void): number {
+  scene.queuedAssetKeys ??= new Set<string>();
+  if (scene.textures.exists(key) || scene.queuedAssetKeys.has(key)) return 0;
+  scene.queuedAssetKeys.add(key);
+  load();
+  return 1;
+}
+
+function queueTerrain(scene: any, tag: string): number {
+  let n = 0;
+  for (const src of terrainSrcs(tag)) n += queueTexture(scene, src, () => scene.load.image(src, src));
+  return n;
+}
+
+function queueProp(scene: any, tag: string): number {
+  const p = PROP_ART[tag];
+  if (!p) return 0;
+  const key = `prop_${tag}`;
+  return queueTexture(scene, key, () => {
+    if (p.frames > 1) scene.load.spritesheet(key, p.src, { frameWidth: p.frameW, frameHeight: p.frameH });
+    else scene.load.image(key, p.src);
+  });
+}
+
+function queueCharacter(scene: any, requestedTag: string): number {
+  const tag = SPRITES[requestedTag] ? requestedTag : DEFAULT_SPRITE;
+  const s = SPRITES[tag];
+  if (!s) return 0;
+  return queueTexture(scene, tag, () => scene.load.spritesheet(tag, s.src, { frameWidth: s.frameW, frameHeight: s.frameH }));
+}
+
+function queueSceneAssets(scene: any, data: any): number {
+  let n = 0;
+  const terrainTags = new Set<string>((data.tiles ?? []).flat());
+  for (const tag of terrainTags) n += queueTerrain(scene, tag);
+  for (const o of data.objects ?? []) n += o.kind === 'actor' ? queueCharacter(scene, o.tag) : queueProp(scene, o.tag);
+  for (const a of data.ambiance ?? []) n += queueProp(scene, a.tag);
+  for (const roof of data.roofs ?? []) for (const s of roof.sprites ?? []) n += queueProp(scene, s.tag);
+  n += queueProp(scene, 'light_pool'); // used by interior light sources when present
+  n += queueCharacter(scene, DEFAULT_SPRITE);
+  return n;
+}
+
+function queueDeltaAssets(scene: any, deltas: any[]): number {
+  let n = 0;
+  for (const d of deltas ?? []) {
+    if (d.op !== 'spawn' || !d.tag) continue;
+    n += d.kind === 'actor' ? queueCharacter(scene, d.tag) : queueProp(scene, d.tag);
   }
-  for (const [tag, s] of Object.entries(SPRITES)) scene.load.spritesheet(tag, s.src, { frameWidth: s.frameW, frameHeight: s.frameH });
+  return n;
+}
+
+function afterAssetsLoaded(scene: any, queue: () => number, done: () => void): void {
+  const queued = queue();
+  if (scene.load.isLoading()) {
+    scene.load.once('complete', () => afterAssetsLoaded(scene, queue, done));
+    return;
+  }
+  if (!queued) {
+    ensureAnims(scene);
+    done();
+    return;
+  }
+  scene.load.once('complete', () => {
+    ensureAnims(scene);
+    done();
+  });
+  scene.load.start();
 }
 
 function ensureAnims(scene: any): void {
   for (const [tag, s] of Object.entries(SPRITES)) {
+    if (!scene.textures.exists(tag)) continue;
     const k = `${tag}-idle`;
     if (!scene.anims.exists(k)) scene.anims.create({ key: k, frames: scene.anims.generateFrameNumbers(tag, { start: 0, end: s.idleFrames - 1 }), frameRate: s.fps, repeat: -1 });
   }
   for (const [tag, p] of Object.entries(PROP_ART)) {
     if (p.frames <= 1) continue;
+    if (!scene.textures.exists(`prop_${tag}`)) continue;
     const k = `prop_${tag}-anim`;
     if (!scene.anims.exists(k)) scene.anims.create({ key: k, frames: scene.anims.generateFrameNumbers(`prop_${tag}`, { start: 0, end: p.frames - 1 }), frameRate: p.fps, repeat: -1 });
   }
@@ -41,6 +107,43 @@ function ensureAnims(scene: any): void {
 
 function actorXY(col: number, row: number): { x: number; y: number } {
   return { x: (col + 0.5) * TILE, y: (row + 1) * TILE }; // feet at the tile's bottom edge
+}
+
+// PLAYER VIEW (the live table's around-the-party experience): distinct ring colours per PC, in
+// join order — stable for a whole session because actorObjs insertion follows the object_map.
+const PC_RING_COLORS = [0x57d98a, 0x5aa9ff, 0xffc14d, 0xff7d9c, 0xb08cff, 0x6ee7d8];
+function pcRingColor(scene: any, id: string): number {
+  scene.pcColors ??= new Map();
+  if (!scene.pcColors.has(id)) scene.pcColors.set(id, PC_RING_COLORS[scene.pcColors.size % PC_RING_COLORS.length]);
+  return scene.pcColors.get(id);
+}
+
+/** The hover name-tag (player view): one shared, reused tag — a dark parchment plaque with the
+ *  actor's accent colour, floating above the head with a soft rise-and-fade. */
+function showNameTag(scene: any, x: number, headY: number, label: string, accent: number): void {
+  hideNameTag(scene);
+  const pad = { x: 8, y: 4 };
+  const text = scene.add.text(0, 0, label, {
+    fontFamily: 'Georgia, "Times New Roman", serif', fontSize: '11px', color: '#f2ead9', resolution: 4,
+  }).setOrigin(0.5, 0.5);
+  const w = text.width + pad.x * 2;
+  const h = text.height + pad.y * 2;
+  const g = scene.add.graphics();
+  g.fillStyle(0x14161c, 0.93).fillRoundedRect(-w / 2, -h / 2, w, h, 5);
+  g.lineStyle(1.25, accent, 0.95).strokeRoundedRect(-w / 2, -h / 2, w, h, 5);
+  g.fillStyle(0x14161c, 0.93).fillTriangle(-4, h / 2, 4, h / 2, 0, h / 2 + 5); // caret to the head
+  g.lineStyle(1.25, accent, 0.95).lineBetween(-4, h / 2, 0, h / 2 + 5).lineBetween(0, h / 2 + 5, 4, h / 2);
+  const dot = scene.add.ellipse(-w / 2 + pad.x - 3.5, 0, 4, 4, accent, 1); // a tiny colour swatch before the name
+  text.setX(2.5);
+  const tagC = scene.add.container(x, headY - 6, [g, dot, text]).setDepth(200000).setAlpha(0);
+  // Counter-scale by the camera zoom so the plaque is a constant CRISP screen size (a name-tag,
+  // not a banner) whether the party camera is at 3x or a tiny room sits at fit zoom.
+  tagC.setScale(1 / Math.max(scene.cameras.main.zoom, 0.001));
+  scene.nameTag = tagC;
+  scene.tweens.add({ targets: tagC, alpha: 1, y: headY - 10, duration: 140, ease: 'Sine.easeOut' });
+}
+function hideNameTag(scene: any): void {
+  if (scene.nameTag) { scene.nameTag.destroy(); scene.nameTag = null; }
 }
 
 function createActor(scene: any, a: any, tint: number | null): void {
@@ -57,8 +160,26 @@ function createActor(scene: any, a: any, tint: number | null): void {
   if (tint) sprite.setTint(tint); // dusk/night mood; labels stay untinted + readable
   if (a.facing === 'left') sprite.setFlipX(true);
   // No name labels — keep the screen clean (names were noise; identity lives in the SceneMap).
-  container.add([shadow, sprite]);
+  const parts: any[] = [shadow, sprite];
+  if (scene.playerView && a.role === 'pc') {
+    // The PC marker: a coloured ground-ring under the token (stroke + a faint fill glow), so real
+    // players can always find THEIR character at a glance. Distinct colour per PC.
+    const accent = pcRingColor(scene, a.id);
+    const glow = scene.add.ellipse(0, 0, TILE * 1.15, TILE * 0.55, accent, 0.16);
+    const ring = scene.add.ellipse(0, 0, TILE * 1.15, TILE * 0.55).setStrokeStyle(1.6, accent, 0.95);
+    parts.splice(1, 0, glow, ring); // beneath the sprite, above the shadow
+  }
+  container.add(parts);
   container.setDepth(a.row + 0.5); // actors sort above same-row props
+  if (scene.playerView && (a.role === 'pc' || (a.role === 'npc' && a.name))) {
+    // Hover name-tags: PCs always; NPCs only once the DM has NAMED them (introduced through play) —
+    // anonymous background villagers stay anonymous, so secrets stay secret.
+    const accent = a.role === 'pc' ? pcRingColor(scene, a.id) : 0xc9a227;
+    const label = a.name ?? String(a.id).split(':').pop()!.replace(/-/g, ' ');
+    sprite.setInteractive({ useHandCursor: true });
+    sprite.on('pointerover', () => showNameTag(scene, container.x, container.y - sprite.displayHeight * (sd.anchorY ?? 1), label, accent));
+    sprite.on('pointerout', () => hideNameTag(scene));
+  }
   scene.actorObjs.set(a.id, { container, sprite, col: a.col, row: a.row });
   scene.sceneObjs.push(container);
 }
@@ -164,6 +285,12 @@ function applyDeltasImpl(scene: any, deltas: any[]): void {
       const rec = record(d.id);
       if (rec) rec.state = { ...(rec.state ?? {}), ...d.state }; // data-only in v1 (no visual treatment yet)
     }
+  }
+  // Player view: glide the locked camera after tokens move, so the frame keeps the party centred
+  // (deltas already mutated lastData, so the PC centroid is the post-move one).
+  if (scene.playerView && deltas?.some((d: any) => d.op === 'move' || d.op === 'spawn' || d.op === 'despawn')) {
+    hideNameTag(scene); // the hovered token may have moved out from under the cursor
+    playerCameraImpl(scene, data, true);
   }
 }
 
@@ -276,7 +403,8 @@ function renderFullImpl(scene: any, data: any): void {
     for (const a of data.ambiance ?? []) if (a.tag.startsWith('mist')) drawProp(scene, a.tag, a.col, a.row, 1, 1, 100001 + a.row * 0.001, null);
   }
 
-  fitCamera(scene, data);
+  if (scene.playerView) playerCameraImpl(scene, data);
+  else fitCamera(scene, data);
 }
 
 /**
@@ -320,6 +448,24 @@ function fitCamera(scene: any, data: any): void {
   cam.centerOn(box.x + box.w / 2, box.y + box.h / 2);
 }
 
+/** PLAYER VIEW camera: locked close on the party — REAL players never see the whole map. A fixed
+ *  ~this-many-tiles-across frame centred on the PC centroid, following as tokens move. No pan, no
+ *  zoom (the component simply attaches no input handlers in player view); bounds still clamp so
+ *  the frame never slides off the world. A tiny room falls back to the (tighter) fit zoom. */
+const PLAYER_VIEW_TILES = 24;
+function playerCameraImpl(scene: any, data: any, animate = false): void {
+  const cam = scene.cameras.main;
+  const box = worldBox(data);
+  cam.setBounds(box.x, box.y, box.w, box.h);
+  const fit = Math.min(scene.scale.width / box.w, scene.scale.height / box.h);
+  cam.setZoom(Math.max(scene.scale.width / (PLAYER_VIEW_TILES * TILE), fit));
+  const pcs = (data.objects ?? []).filter((o: any) => o.kind === 'actor' && o.role === 'pc' && o.visible !== false);
+  const cx = pcs.length ? ((pcs.reduce((s: number, p: any) => s + p.col, 0) / pcs.length) + 0.5) * TILE : box.x + box.w / 2;
+  const cy = pcs.length ? ((pcs.reduce((s: number, p: any) => s + p.row, 0) / pcs.length) + 0.5) * TILE : box.y + box.h / 2;
+  if (animate) cam.pan(cx, cy, 450, 'Sine.easeInOut', true);
+  else cam.centerOn(cx, cy);
+}
+
 interface Bridge {
   scene: any;
   pending: any;
@@ -328,9 +474,12 @@ interface Bridge {
 
 /** A self-contained Phaser surface that renders the SceneMap passed as `data` (null = nothing yet).
  *  `freeCamera` (Lab) enables drag-pan + wheel-zoom; bumping `fitNonce` re-frames the whole scene.
+ *  `playerView` (the LIVE TABLE) is the real-players experience: camera locked close on the party
+ *  (never the whole map), NO pan/zoom inputs, coloured rings under the PCs, and hover name-tags on
+ *  PCs + DM-named NPCs. Wins over freeCamera.
  *  INCREMENTAL updates: bump `deltaNonce` with a fresh `deltas` array to tween tokens (move/spawn/
  *  reveal/…) without a full rebuild — pass a NEW `data` reference only when the location changes. */
-export default function SceneCanvas({ data, freeCamera = false, fitNonce = 0, showRoofs = true, deltas = null, deltaNonce = 0 }: { data: any; freeCamera?: boolean; fitNonce?: number; showRoofs?: boolean; deltas?: any[] | null; deltaNonce?: number }) {
+export default function SceneCanvas({ data, freeCamera = false, playerView = false, fitNonce = 0, showRoofs = true, deltas = null, deltaNonce = 0 }: { data: any; freeCamera?: boolean; playerView?: boolean; fitNonce?: number; showRoofs?: boolean; deltas?: any[] | null; deltaNonce?: number }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const bridgeRef = useRef<Bridge>({ scene: null, pending: null, game: null });
 
@@ -353,21 +502,31 @@ export default function SceneCanvas({ data, freeCamera = false, fitNonce = 0, sh
         loader: { maxParallelDownloads: 256 }, // load all tiles in one batch (Phaser refill stalls otherwise)
         scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
         scene: {
-          preload(this: any) {
-            preloadAssets(this);
-          },
+          preload() {},
           create(this: any) {
             const scene = this;
             scene.sceneObjs = [];
             scene.actorObjs = new Map();
             scene.BLEND = Phaser.BlendModes; // ADD/MULTIPLY for the interior torch-pool lighting
-            ensureAnims(scene);
-            scene.renderFull = (d: any) => renderFullImpl(scene, d);
-            scene.applyDeltas = (ds: any[]) => applyDeltasImpl(scene, ds);
+            scene.renderVersion = 0;
+            scene.renderFull = (d: any) => {
+              const version = ++scene.renderVersion;
+              afterAssetsLoaded(scene, () => queueSceneAssets(scene, d), () => {
+                if (version === scene.renderVersion) renderFullImpl(scene, d);
+              });
+            };
+            scene.applyDeltas = (ds: any[]) =>
+              afterAssetsLoaded(scene, () => queueDeltaAssets(scene, ds), () => applyDeltasImpl(scene, ds));
             scene.fit = () => { if (scene.lastData) fitCamera(scene, scene.lastData); };
-            // /play keeps auto-fit on resize; the Lab free-camera leaves the tester's view alone.
-            scene.scale.on('resize', () => { if (!freeCamera && scene.lastData) fitCamera(scene, scene.lastData); });
-            if (freeCamera) {
+            scene.playerView = playerView; // player view: locked party camera + rings + name-tags
+            // /play keeps auto-fit on resize; player view re-locks on the party; the Lab free-camera
+            // leaves the tester's view alone.
+            scene.scale.on('resize', () => {
+              if (!scene.lastData) return;
+              if (playerView) playerCameraImpl(scene, scene.lastData);
+              else if (!freeCamera) fitCamera(scene, scene.lastData);
+            });
+            if (freeCamera && !playerView) {
               // LAB-ONLY: drag to pan, wheel to zoom toward the cursor (clamped to [fit .. LAB_MAX_ZOOM],
               // pan clamped to world bounds via fitCamera's setBounds). Lets the tester inspect a big scene.
               const LAB_MAX_ZOOM = 3; // cap — one building fills the view; no pixel-peeping past this
@@ -417,9 +576,10 @@ export default function SceneCanvas({ data, freeCamera = false, fitNonce = 0, sh
   }, [data, showRoofs]);
 
   // "Fit/Reset" — the Lab bumps fitNonce to re-frame the whole scene after free-panning/zooming.
+  // Ignored in player view: real players are never allowed to see the whole map.
   useEffect(() => {
-    if (fitNonce) bridgeRef.current.scene?.fit?.();
-  }, [fitNonce]);
+    if (fitNonce && !playerView) bridgeRef.current.scene?.fit?.();
+  }, [fitNonce]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Incremental deltas: tween tokens on the LIVE scene (no rebuild). Fired by bumping deltaNonce.
   useEffect(() => {

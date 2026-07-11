@@ -110,7 +110,6 @@ export default function DmLiveTable() {
   const [sceneData, setSceneData] = useState<any>(null);
   const [deltas, setDeltas] = useState<any[] | null>(null);
   const [deltaNonce, setDeltaNonce] = useState(0);
-  const [fitNonce, setFitNonce] = useState(0);
   const [showRoofs, setShowRoofs] = useState(true);
   const [log, setLog] = useState<Bubble[]>([]);
   const [input, setInput] = useState('');
@@ -137,7 +136,13 @@ export default function DmLiveTable() {
 
   async function join(id: string) {
     const res = await fetch(`${SERVER}/dm/lab/session/${id}/view`);
-    if (!res.ok) { setLog([{ who: 'System', text: 'session not found — start one from the DM Lab Generate tab' }]); return; }
+    if (!res.ok) {
+      // Stale ?session= links are common after a server restart (sessions are in-memory only).
+      history.replaceState(null, '', window.location.pathname);
+      fetch(`${SERVER}/dm/lab/sessions`).then((r) => r.json()).then((d) => setSessions(d.sessions ?? [])).catch(() => {});
+      setLog([{ who: 'System', text: 'session not found — start one from the DM Lab Generate tab, or pick a running session below' }]);
+      return;
+    }
     const v = await res.json();
     setView(v);
     setSpeaker(v.party?.[0]?.name ?? 'player');
@@ -232,7 +237,10 @@ export default function DmLiveTable() {
     <main style={{ height: '100vh', display: 'flex', overflow: 'hidden', background: '#0d0b0a', color: '#e8e2d6' }}>
       {/* CANVAS — the animated table */}
       <div style={{ flex: 1, minWidth: 0, position: 'relative' }}>
-        <SceneCanvas data={sceneData} freeCamera fitNonce={fitNonce} showRoofs={showRoofs} deltas={deltas} deltaNonce={deltaNonce} />
+        {/* PLAYER VIEW: camera locked close on the party (no pan / no zoom-out — real players never
+            see the whole map), PC colour-rings + hover name-tags. The old freeCamera/fit inspector
+            stays available on /play for the scene track. */}
+        <SceneCanvas data={sceneData} playerView showRoofs={showRoofs} deltas={deltas} deltaNonce={deltaNonce} />
         <div style={{ position: 'absolute', top: 8, left: 10, display: 'flex', gap: 10, alignItems: 'center', fontSize: 12 }}>
           <span style={{ color: '#c9a227', fontFamily: 'ui-serif, Georgia, serif' }}>MythWeaver — live table</span>
           <span style={{ background: view.sceneEngine === 'modern' ? '#3fa34d' : '#6b7080', color: '#0b0c10', borderRadius: 3, padding: '1px 6px', fontWeight: 600 }}>{view.sceneEngine}</span>
@@ -241,7 +249,6 @@ export default function DmLiveTable() {
           <label style={{ color: '#9a8f7d', cursor: 'pointer' }}>
             <input type="checkbox" checked={showRoofs} onChange={(e) => setShowRoofs(e.target.checked)} /> roofs
           </label>
-          <button onClick={() => setFitNonce((n) => n + 1)} style={{ ...S.btn, padding: '2px 10px', fontSize: 12 }}>fit</button>
         </div>
         {!sceneData && <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', color: '#6b7080' }}>no scene yet — play a turn; the DM will set one</div>}
         <BeatStrip arc={arc} />
