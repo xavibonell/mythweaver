@@ -1,15 +1,26 @@
 /**
- * OpenAI adapter for the LlmProvider seam (spec §3) — Chat Completions API.
+ * OpenAI adapter for the LlmProvider seam (spec §3) — Chat Completions + Responses APIs.
  *
- * Direct `fetch`, zero deps. Maps our provider-neutral content blocks to OpenAI's
- * message shape: assistant tool_use -> `tool_calls`, user tool_result -> `tool` role
- * messages (matched by tool_call_id). Uses `max_completion_tokens` (forward-compatible
- * with reasoning models).
+ * Direct `fetch`, zero deps. Two wire formats behind one provider:
+ * - CHAT COMPLETIONS (/v1/chat/completions) for gpt-4o-class + gpt-5.5-and-earlier: our blocks map
+ *   to `tool_calls` / `tool`-role messages; `max_completion_tokens`.
+ * - RESPONSES (/v1/responses) for gpt-5.6+ (routed by model id): OpenAI REQUIRES it for function
+ *   tools on those models ("Function tools … are not supported for gpt-5.6-luna in
+ *   /v1/chat/completions"). Our blocks map to `input` items — assistant tool_use ->
+ *   `function_call`, user tool_result -> `function_call_output` (matched by call_id) — with flat
+ *   tool defs, `instructions` for the system prompt, and `store:false` (we replay full history;
+ *   the engine owns state, never OpenAI's server-side thread).
  */
 
 import type { LlmContentBlock, LlmMessage, LlmProvider, LlmRequest, LlmResponse, ToolCall } from './provider.js';
 
 const OPENAI_URL = 'https://api.openai.com/v1/chat/completions';
+const RESPONSES_URL = 'https://api.openai.com/v1/responses';
+
+/** gpt-5.6+ only support function tools on the Responses API — route them there. */
+export function usesResponsesApi(model: string): boolean {
+  return /^gpt-5\.[6-9]|^gpt-[6-9]/i.test(model);
+}
 
 export interface OpenAIProviderOptions {
   apiKey?: string;
@@ -25,6 +36,21 @@ interface OpenAIResponse {
     finish_reason?: string;
   }[];
   usage?: { prompt_tokens?: number; completion_tokens?: number; prompt_tokens_details?: { cached_tokens?: number } };
+}
+
+/** /v1/responses payload (the parts we consume). `output` is an ordered item list. */
+interface OpenAIResponsesPayload {
+  status?: string;
+  incomplete_details?: { reason?: string };
+  output?: {
+    type?: string; // 'message' | 'function_call' | 'reasoning' | …
+    role?: string;
+    content?: { type?: string; text?: string }[]; // message items: output_text blocks
+    call_id?: string;
+    name?: string;
+    arguments?: string;
+  }[];
+  usage?: { input_tokens?: number; output_tokens?: number; input_tokens_details?: { cached_tokens?: number } };
 }
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
@@ -60,6 +86,30 @@ function toMessages(system: string | undefined, messages: LlmMessage[]): Record<
   return out;
 }
 
+/** Map our messages to Responses-API `input` items. Assistant tool_use becomes a top-level
+ *  `function_call` item and user tool_result a `function_call_output` — matched by call_id, in
+ *  original order, so multi-step tool loops replay exactly. */
+function toResponsesInput(messages: LlmMessage[]): Record<string, unknown>[] {
+  const out: Record<string, unknown>[] = [];
+  for (const m of messages) {
+    if (typeof m.content === 'string') {
+      out.push({ role: m.role, content: [{ type: m.role === 'assistant' ? 'output_text' : 'input_text', text: m.content }] });
+      continue;
+    }
+    const blocks = m.content as LlmContentBlock[];
+    for (const b of blocks) {
+      if (b.type === 'text') {
+        if (b.text) out.push({ role: m.role, content: [{ type: m.role === 'assistant' ? 'output_text' : 'input_text', text: b.text }] });
+      } else if (b.type === 'tool_use') {
+        out.push({ type: 'function_call', call_id: b.id, name: b.name, arguments: JSON.stringify(b.input) });
+      } else if (b.type === 'tool_result') {
+        out.push({ type: 'function_call_output', call_id: b.toolUseId, output: b.content });
+      }
+    }
+  }
+  return out;
+}
+
 export class OpenAIProvider implements LlmProvider {
   private readonly apiKey: string;
   private readonly model: string;
@@ -81,6 +131,7 @@ export class OpenAIProvider implements LlmProvider {
     // Reasoning-class models (gpt-5*, o-series) accept ONLY the default temperature (1) — sending the
     // DM Lab's slider value 400s the turn. Omit temperature for them; keep it for gpt-4o-class models.
     const reasoningClass = /^(gpt-5|o\d)/i.test(model);
+    if (usesResponsesApi(model)) return this.completeViaResponses(req, model, reasoningClass);
 
     const body: Record<string, unknown> = {
       model,
@@ -92,7 +143,7 @@ export class OpenAIProvider implements LlmProvider {
       body.tools = req.tools.map((t) => ({ type: 'function', function: { name: t.name, description: t.description, parameters: t.inputSchema } }));
     }
 
-    const res = await this.fetchWithRetry(body);
+    const res = await this.fetchWithRetry(OPENAI_URL, body);
     if (!res.ok) throw new Error(`OpenAI API error ${res.status}: ${await res.text()}`);
     const data = (await res.json()) as OpenAIResponse;
     const choice = data.choices?.[0];
@@ -122,13 +173,64 @@ export class OpenAIProvider implements LlmProvider {
     };
   }
 
-  private async fetchWithRetry(body: unknown): Promise<Response> {
+  /** /v1/responses path (gpt-5.6+): flat tool defs, `instructions` for system, store:false. */
+  private async completeViaResponses(req: LlmRequest, model: string, reasoningClass: boolean): Promise<LlmResponse> {
+    const body: Record<string, unknown> = {
+      model,
+      input: toResponsesInput(req.messages),
+      ...(req.system ? { instructions: req.system } : {}),
+      max_output_tokens: req.maxTokens ?? this.defaultMaxTokens,
+      store: false, // stateless: we replay full history; the engine owns state, not OpenAI's thread store
+      ...(req.temperature !== undefined && !reasoningClass ? { temperature: req.temperature } : {}),
+    };
+    if (req.tools && req.tools.length > 0) {
+      body.tools = req.tools.map((t) => ({ type: 'function', name: t.name, description: t.description, parameters: t.inputSchema }));
+    }
+
+    const res = await this.fetchWithRetry(RESPONSES_URL, body);
+    if (!res.ok) throw new Error(`OpenAI API error ${res.status}: ${await res.text()}`);
+    const data = (await res.json()) as OpenAIResponsesPayload;
+
+    let text = '';
+    const toolCalls: ToolCall[] = [];
+    for (const item of data.output ?? []) {
+      if (item.type === 'message') {
+        for (const c of item.content ?? []) if (c.type === 'output_text' && c.text) text += c.text;
+      } else if (item.type === 'function_call' && item.call_id && item.name) {
+        let input: Record<string, unknown> = {};
+        try {
+          input = JSON.parse(item.arguments || '{}') as Record<string, unknown>;
+        } catch {
+          input = {};
+        }
+        toolCalls.push({ id: item.call_id, name: item.name, input });
+      }
+    }
+
+    return {
+      text,
+      toolCalls,
+      usage: {
+        inputTokens: data.usage?.input_tokens ?? 0,
+        outputTokens: data.usage?.output_tokens ?? 0,
+        cacheReadInputTokens: data.usage?.input_tokens_details?.cached_tokens ?? 0,
+      },
+      model,
+      stopReason: toolCalls.length
+        ? 'tool_use'
+        : data.status === 'incomplete' && data.incomplete_details?.reason === 'max_output_tokens'
+          ? 'max_tokens'
+          : 'end',
+    };
+  }
+
+  private async fetchWithRetry(url: string, body: unknown): Promise<Response> {
     let attempt = 0;
     for (;;) {
       const ctrl = new AbortController();
       const timer = setTimeout(() => ctrl.abort(), this.timeoutMs);
       try {
-        const res = await fetch(OPENAI_URL, {
+        const res = await fetch(url, {
           method: 'POST',
           headers: { 'content-type': 'application/json', authorization: `Bearer ${this.apiKey}` },
           body: JSON.stringify(body),

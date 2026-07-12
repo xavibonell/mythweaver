@@ -1,34 +1,102 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { OpenAIProvider } from './openai-provider.js';
+import { OpenAIProvider, usesResponsesApi } from './openai-provider.js';
 
-/** Capture the request body the provider POSTs, without hitting the network. */
-function stubFetch(): { bodies: Record<string, unknown>[] } {
+/** Capture URL + body of each POST the provider makes, returning a canned payload. */
+function stubFetch(payload: unknown): { urls: string[]; bodies: Record<string, unknown>[] } {
+  const urls: string[] = [];
   const bodies: Record<string, unknown>[] = [];
-  vi.stubGlobal('fetch', async (_url: string, init: { body: string }) => {
+  vi.stubGlobal('fetch', async (url: string, init: { body: string }) => {
+    urls.push(String(url));
     bodies.push(JSON.parse(init.body));
     return {
       ok: true,
       status: 200,
       headers: { get: () => null },
-      json: async () => ({ choices: [{ message: { content: 'ok' }, finish_reason: 'stop' }], usage: {} }),
+      json: async () => payload,
     } as unknown as Response;
   });
-  return { bodies };
+  return { urls, bodies };
 }
 
-describe('OpenAIProvider temperature handling', () => {
+const CHAT_PAYLOAD = { choices: [{ message: { content: 'ok' }, finish_reason: 'stop' }], usage: {} };
+const RESPONSES_PAYLOAD = {
+  status: 'completed',
+  output: [
+    { type: 'reasoning' }, // ignored
+    { type: 'function_call', call_id: 'call_1', name: 'requestRoll', arguments: '{"expr":"1d20"}' },
+    { type: 'message', role: 'assistant', content: [{ type: 'output_text', text: 'You brace on the planks.' }] },
+  ],
+  usage: { input_tokens: 100, output_tokens: 20, input_tokens_details: { cached_tokens: 60 } },
+};
+
+describe('API routing (gpt-5.6+ requires /v1/responses for function tools)', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('routes gpt-5.6-luna to /v1/responses and gpt-4o / gpt-5.5 to chat completions', () => {
+    expect(usesResponsesApi('gpt-5.6-luna')).toBe(true);
+    expect(usesResponsesApi('gpt-6')).toBe(true);
+    expect(usesResponsesApi('gpt-5.5')).toBe(false);
+    expect(usesResponsesApi('gpt-4o')).toBe(false);
+  });
+
+  it('gpt-5.6-luna: POSTs /v1/responses with flat tools, instructions, store:false, no temperature', async () => {
+    const cap = stubFetch(RESPONSES_PAYLOAD);
+    const p = new OpenAIProvider({ apiKey: 'x', model: 'gpt-5.6-luna' });
+    await p.complete({
+      system: 'You are the DM.',
+      messages: [{ role: 'user', content: 'hi' }],
+      tools: [{ name: 'requestRoll', description: 'roll', inputSchema: { type: 'object' } }],
+      temperature: 0.7,
+      maxTokens: 900,
+    });
+    expect(cap.urls[0]).toContain('/v1/responses');
+    const b = cap.bodies[0]!;
+    expect(b.instructions).toBe('You are the DM.');
+    expect(b.store).toBe(false);
+    expect(b.max_output_tokens).toBe(900);
+    expect('temperature' in b).toBe(false); // reasoning-class
+    expect((b.tools as Record<string, unknown>[])[0]).toMatchObject({ type: 'function', name: 'requestRoll' }); // FLAT, not nested under `function`
+  });
+
+  it('replays tool history as function_call / function_call_output items matched by call_id', async () => {
+    const cap = stubFetch(RESPONSES_PAYLOAD);
+    const p = new OpenAIProvider({ apiKey: 'x', model: 'gpt-5.6-luna' });
+    await p.complete({
+      messages: [
+        { role: 'user', content: 'I search the crate.' },
+        { role: 'assistant', content: [{ type: 'tool_use', id: 'call_9', name: 'getState', input: {} }] },
+        { role: 'user', content: [{ type: 'tool_result', toolUseId: 'call_9', content: '{"hp":12}' }] },
+      ],
+    });
+    const input = cap.bodies[0]!.input as Record<string, unknown>[];
+    expect(input[1]).toMatchObject({ type: 'function_call', call_id: 'call_9', name: 'getState' });
+    expect(input[2]).toMatchObject({ type: 'function_call_output', call_id: 'call_9', output: '{"hp":12}' });
+  });
+
+  it('parses Responses output: text + toolCalls (call_id) + usage + stopReason', async () => {
+    stubFetch(RESPONSES_PAYLOAD);
+    const p = new OpenAIProvider({ apiKey: 'x', model: 'gpt-5.6-luna' });
+    const res = await p.complete({ messages: [{ role: 'user', content: 'hi' }] });
+    expect(res.text).toBe('You brace on the planks.');
+    expect(res.toolCalls).toEqual([{ id: 'call_1', name: 'requestRoll', input: { expr: '1d20' } }]);
+    expect(res.usage).toEqual({ inputTokens: 100, outputTokens: 20, cacheReadInputTokens: 60 });
+    expect(res.stopReason).toBe('tool_use');
+  });
+});
+
+describe('OpenAIProvider temperature handling (chat-completions path)', () => {
   afterEach(() => vi.unstubAllGlobals());
 
   it('OMITS temperature for reasoning-class models (gpt-5*, o-series only accept the default)', async () => {
-    const cap = stubFetch();
+    const cap = stubFetch(CHAT_PAYLOAD);
     const p = new OpenAIProvider({ apiKey: 'x', model: 'gpt-5.5' });
     await p.complete({ messages: [{ role: 'user', content: 'hi' }], temperature: 0.7 });
+    expect(cap.urls[0]).toContain('/v1/chat/completions'); // 5.5 stays on chat
     expect('temperature' in cap.bodies[0]!).toBe(false);
-    expect(cap.bodies[0]!.model).toBe('gpt-5.5');
   });
 
   it('KEEPS temperature for gpt-4o-class models', async () => {
-    const cap = stubFetch();
+    const cap = stubFetch(CHAT_PAYLOAD);
     const p = new OpenAIProvider({ apiKey: 'x', model: 'gpt-4o' });
     await p.complete({ messages: [{ role: 'user', content: 'hi' }], temperature: 0.7 });
     expect(cap.bodies[0]!.temperature).toBe(0.7);
