@@ -730,3 +730,68 @@ describe('spatial truth R1 (digest in feet + queryScene)', () => {
     expect(result.content).toMatch(/15 ft SWIMMING/);
   });
 });
+
+describe('travel gate (R2): rough water suspends via requestRoll, resumes engine-side', () => {
+  function stormPool(engine: Engine): GameState {
+    const state = engine.getState();
+    const cols = 14, rows = 5;
+    const tiles = Array.from({ length: rows }, () => Array.from({ length: cols }, () => 'grass'));
+    const walkable = Array.from({ length: rows }, () => Array.from({ length: cols }, () => true));
+    for (let r = 0; r < rows; r++) for (let c = 6; c <= 8; c++) { tiles[r]![c] = 'water_deep'; walkable[r]![c] = false; }
+    state.flags['water:rough'] = 'storm surge'; // the hazard flag gates the swim
+    state.world = {
+      currentLocationId: 'loc:pool',
+      locations: { 'loc:pool': { locationId: 'loc:pool', seed: 1, biome: 'village', lighting: 'day', grammar: 'open-outdoor', grid: { cols, rows, feetPerTile: 5 }, tiles, walkable, objects: [
+        { id: 'pc:aldric', kind: 'actor', role: 'pc', tag: 'knight', name: 'Aldric', col: 2, row: 2, footprint: { w: 1, h: 1 }, facing: 'down', visible: true },
+        { id: 'npc:hermit', kind: 'actor', role: 'npc', tag: 'villager', name: 'Hermit', col: 11, row: 2, footprint: { w: 1, h: 1 }, facing: 'down', visible: true },
+      ], ambiance: [], entrances: [] } },
+      links: [],
+    };
+    return state;
+  }
+  const cellOf = (state: GameState, id: string) => {
+    const o = state.world!.locations['loc:pool']!.objects.find((x) => x.id === id)!;
+    return { col: o.col, row: o.row };
+  };
+
+  it('success: gate → roll bar → declared success → the engine completes the crossing before the LLM resumes', async () => {
+    const engine = newEngine();
+    const state = stormPool(engine);
+    const llm = new FakeLlmProvider([
+      fakeToolUse([{ id: 't1', name: 'travel', input: { actorId: 'Aldric', to: 'npc:hermit' } }], 'Aldric wades toward the churn.'),
+      fakeText('He hauls himself out on the far bank.'),
+    ]);
+    const first = await runTurn({ engine, llm, now: frozenClock }, { kind: 'message', speakerId: 'Aldric', text: 'I cross the pool to the hermit.' });
+    expect(first.rollRequest?.reason).toContain('Athletics');
+    expect(cellOf(state, 'pc:aldric').col).toBe(5); // waiting at the waterline
+    expect(state.pendingTurn?.travelContinuation).toMatchObject({ actorId: 'pc:aldric' });
+
+    const second = await runTurn({ engine, llm, now: frozenClock }, { kind: 'roll', requestId: first.rollRequest!.id, total: 17 });
+    expect(second.narration).toBe('He hauls himself out on the far bank.');
+    expect(cellOf(state, 'pc:aldric').col).toBeGreaterThanOrEqual(9); // across
+    expect((second.deltas ?? []).some((d) => d.op === 'move' && d.id === 'pc:aldric')).toBe(true);
+    // the resumed LLM saw the travel facts alongside the roll verdict
+    const resume = llm.requests[1]!;
+    const blocks = resume.messages[resume.messages.length - 1]!.content as LlmContentBlock[];
+    const rr = blocks.find((b) => b.type === 'tool_result') as { content: string };
+    expect(rr.content).toContain('travel');
+  });
+
+  it('failure: declared fail → fail-forward (dry, displaced, a fact) — never stranded mid-pool', async () => {
+    const engine = newEngine();
+    const state = stormPool(engine);
+    const llm = new FakeLlmProvider([
+      fakeToolUse([{ id: 't1', name: 'travel', input: { actorId: 'Aldric', to: 'Hermit' } }]),
+      fakeText('The current spits him back.'),
+    ]);
+    const first = await runTurn({ engine, llm, now: frozenClock }, { kind: 'message', speakerId: 'Aldric', text: 'I swim across.' });
+    const second = await runTurn({ engine, llm, now: frozenClock }, { kind: 'roll', requestId: first.rollRequest!.id, total: 7 }); // 7 < DC 12
+    const at = cellOf(state, 'pc:aldric');
+    expect(at.col).toBeLessThanOrEqual(5); // still on the near side
+    expect(second.narration).toBe('The current spits him back.');
+    const resume = llm.requests[1]!;
+    const blocks = resume.messages[resume.messages.length - 1]!.content as LlmContentBlock[];
+    const rr = blocks.find((b) => b.type === 'tool_result') as { content: string };
+    expect(rr.content).toContain('current throws');
+  });
+});

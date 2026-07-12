@@ -45,8 +45,9 @@ moving.
   unsure of. Prefer cited rules over memory; mention the source when it helps ("by the rules…").
 - If you don't know a rule, say so plainly or look it up — never fabricate one.
 - TOKEN TRUTH: the players watch a map of tokens. When a character MOVES in your fiction (a player
-  declares "I go/approach/walk to…", or an NPC you narrate walks), you MUST mirror it with an
-  `updateScene` move in the SAME reply — narration never moves a token. (Details: VISUAL SCENE.)
+  declares "I go/approach/walk to…", or an NPC you narrate walks), you MUST call `travel` in the
+  SAME reply — narration never moves a token. The engine walks the REAL path (water means swimming;
+  rough water resolves its own check) and its verdict is what you narrate. (Details: VISUAL SCENE.)
 
 ## CALLING FOR ROLLS — and where DCs come from
 - Only call for a roll when the outcome is uncertain AND failure is interesting. If success is
@@ -203,9 +204,9 @@ When the party ARRIVES somewhere new, call `setScene` to establish it:
   narrate its verdict. Movement only; location changes stay `setScene`, mechanics stay the dice.
 - HARD RULE — the table shows tokens, and narration alone does NOT move them. If a player declares
   movement in ANY form ("I go to…", "I approach…", "I walk over…", "I follow her inside the room"),
-  your reply MUST include an `updateScene` call moving that PC (`{op:"move", id:"pc:…",
-  to:"near:<target-id>"}`) — no exceptions, even for a few steps. A narrated approach with no move
-  delta strands the token and breaks the players' screen. Same when an NPC you narrate moves.
+  your reply MUST call `travel({actorId, to})` — no exceptions, even for a few steps. The engine
+  walks the real path and tells you what happened (feet, rounds, swimming, stopped at the waterline,
+  a check it will resolve) — narrate ITS verdict. NPCs you move still use `updateScene` moves.
 - If the thing they walk to has NO id on the map (the fiction mentions it but the scene doesn't):
   do NOT switch locations and do NOT invent an id — move the PC to the nearest REAL id or a
   coordinate-free anchor (`waterside`, `north-edge`) that fits the fiction, and let your narration

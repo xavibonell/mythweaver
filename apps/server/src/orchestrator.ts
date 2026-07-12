@@ -783,6 +783,20 @@ export function buildToolDefs(retrieval: boolean, scene: boolean): ToolDef[] {
   );
   if (SPATIAL_ON) {
     tools.push({
+      name: 'travel',
+      description:
+        "MOVE a character to something on the map — the engine walks the REAL path (walkable ground; water means swimming at double cost; rough water suspends for an Athletics check it will resolve itself). Use this for ALL declared movement ('I go to…'). The verdict tells you feet, rounds, what was swum, or why they stopped short — narrate THAT, in fiction, without reciting the numbers as numbers.",
+      inputSchema: {
+        type: 'object',
+        properties: {
+          actorId: { type: 'string', description: 'who moves (id or name)' },
+          to: { type: 'string', description: 'destination: an entity id or name on the map' },
+        },
+        required: ['actorId', 'to'],
+        additionalProperties: false,
+      },
+    });
+    tools.push({
       name: 'queryScene',
       description:
         "Ask the spatial oracle about the CURRENT map (read-only, exact, in feet). asks: 'distance' between two things; 'path' = a walk/swim preview (legs, feet, rounds — how long, whether it means swimming); 'los' = line of sight; 'whereis' = medium/indoors/adjacency of one thing; 'near' = what is within 30 ft of it. Use it BEFORE narrating any distance, route, or blockage the MAP block doesn't state — never guess geometry.",
@@ -890,37 +904,39 @@ function sceneDigest(map: SceneMap): string {
 
 /** queryScene dispatch — the oracle answers in feet/media/rooms, never coordinates. Read-only;
  *  any failure returns an explanatory string (the oracle must never break a turn). */
+/** Loose fiction-word → map-object resolution: exact id, name, combatant handle, then GROUP/TAG
+ *  fuzzy match picking the member NEAREST `near` (the DM says "the drowned dead", not "#03"). */
+function resolveMapObject(engine: Engine, map: SceneMap, ref: unknown, near?: { col: number; row: number }): SceneMap['objects'][number] | undefined {
+  const s = String(ref ?? '').trim();
+  if (!s) return undefined;
+  const direct =
+    map.objects.find((o) => o.id === s) ??
+    map.objects.find((o) => (o.name ?? '').toLowerCase() === s.toLowerCase()) ??
+    map.objects.find((o) => o.id === engine.findCombatantId(s));
+  if (direct) return direct;
+  const norm = s.toLowerCase().replace(/^(mob|npc|prop|bldg|pc):/, '').replace(/[-_\s]+/g, '');
+  const loose = map.objects.filter((o) => {
+    if (o.visible === false) return false;
+    const cands = [o.group ?? '', o.tag, o.id, o.name ?? ''];
+    return cands.some((c) => {
+      const cn = c.toLowerCase().replace(/^(mob|npc|prop|bldg|pc):/, '').replace(/[-_\s#\d]+/g, '');
+      return cn && (cn.includes(norm) || norm.includes(cn));
+    });
+  });
+  if (!loose.length) return undefined;
+  if (!near) return loose[0];
+  const idx = spatialIndex(map);
+  return loose.sort((a, b) => distanceFt(idx, near, a) - distanceFt(idx, near, b))[0];
+}
+
 function answerSceneQuery(engine: Engine, state: GameState, input: Record<string, unknown>): string {
   try {
     const map = currentMap(state);
     if (!map) return 'No scene is established yet.';
     const idx = spatialIndex(map);
-    const resolve = (ref: unknown, near?: { col: number; row: number }): (typeof map.objects)[number] | undefined => {
-      const s = String(ref ?? '').trim();
-      if (!s) return undefined;
-      const direct =
-        map.objects.find((o) => o.id === s) ??
-        map.objects.find((o) => (o.name ?? '').toLowerCase() === s.toLowerCase()) ??
-        map.objects.find((o) => o.id === engine.findCombatantId(s));
-      if (direct) return direct;
-      // Groups + tags: "mob:drowned-dead" / "climbers" should find the NEAREST member of the group
-      // whose group-id/tag loosely matches (ids are exact; the DM speaks in fiction words).
-      const norm = s.toLowerCase().replace(/^(mob|npc|prop|bldg|pc):/, '').replace(/[-_\s]+/g, '');
-      const loose = map.objects.filter((o) => {
-        if (o.visible === false) return false;
-        const cands = [o.group ?? '', o.tag, o.id, o.name ?? ''];
-        return cands.some((c) => {
-          const cn = c.toLowerCase().replace(/^(mob|npc|prop|bldg|pc):/, '').replace(/[-_\s#\d]+/g, '');
-          return cn && (cn.includes(norm) || norm.includes(cn));
-        });
-      });
-      if (!loose.length) return undefined;
-      if (!near) return loose[0];
-      return loose.sort((a, b) => distanceFt(idx, near, a) - distanceFt(idx, near, b))[0];
-    };
-    const from = resolve(input.from);
+    const from = resolveMapObject(engine, map, input.from);
     if (!from) return `No object "${String(input.from)}" on this map.`;
-    const to = resolve(input.to, from);
+    const to = resolveMapObject(engine, map, input.to, from);
     const ask = String(input.ask ?? 'distance');
     const need = (): string | null => (to ? null : `ask:'${ask}' needs a 'to' — no object "${String(input.to)}" on this map.`);
 
@@ -1362,6 +1378,16 @@ export function movementBackstop(engine: Engine, state: GameState, input: TurnIn
   }
   if (!target) return; // nothing confidently resolvable — better no move than a wrong one
 
+  if (SPATIAL_ON) {
+    // SPATIAL R2: the backstop inherits real pathing + media gates. Engine-initiated ⇒ mode 'auto'
+    // (a hazardous swim degrades to the waterline; it never suspends a roll the player didn't ask for).
+    for (const p of moving) {
+      const v = engine.travel({ actorId: p.id, to: { id: target!.id }, mode: 'auto' });
+      if (v.at) sceneDeltas.push({ op: 'move', id: p.id, to: { col: v.at.col, row: v.at.row } });
+    }
+    engine.record('engine', `Token backstop: routed ${moving.map((p) => p.id).join(', ')} toward ${target.name ?? target.id} via travel (declared movement had no move delta this turn).`, { backstop: true, targetId: target.id });
+    return;
+  }
   const res = engine.applySceneDeltas(moving.map((p) => ({ op: 'move' as const, id: p.id, to: { anchor: `near:${target!.id}` } })));
   if (res.applied.length) {
     sceneDeltas.push(...res.applied);
@@ -1431,10 +1457,28 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
         trace: emptyTrace(now() - startedAt),
       });
     }
+    // SPATIAL R2: a suspended swim gate resolves ENGINE-SIDE before the LLM resumes — success
+    // completes the crossing (deltas ride the normal path), failure fail-forwards (the world moves).
+    let travelFacts: string[] = [];
+    if (pending.travelContinuation && result.accepted) {
+      const tcn = pending.travelContinuation;
+      try {
+        if (result.success === true) {
+          const v = engine.travel({ actorId: tcn.actorId, to: { id: tcn.toId ?? '' }, gatePassed: true });
+          if (v.at) sceneDeltas.push({ op: 'move', id: tcn.actorId, to: { col: v.at.col, row: v.at.row } });
+          travelFacts = v.facts;
+        } else {
+          travelFacts = engine.swimGateFail(tcn.actorId);
+          const map = currentMap(state);
+          const obj = map?.objects.find((o) => o.id === tcn.actorId);
+          if (obj) sceneDeltas.push({ op: 'move', id: tcn.actorId, to: { col: obj.col, row: obj.row } });
+        }
+      } catch { /* travel resume must never break the turn */ }
+    }
     messages = (pending.history as LlmMessage[]).slice();
     const toolResults: LlmContentBlock[] = [
       ...pending.resolvedToolResults.map((r) => ({ type: 'tool_result' as const, toolUseId: r.toolUseId, content: r.content })),
-      { type: 'tool_result', toolUseId: pending.rollToolUseId, content: JSON.stringify(result) },
+      { type: 'tool_result', toolUseId: pending.rollToolUseId, content: JSON.stringify(travelFacts.length ? { ...result, travel: travelFacts } : result) },
     ];
     messages.push({ role: 'user', content: toolResults });
     state.pendingTurn = undefined;
@@ -1583,6 +1627,7 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
     // Dispatch tool calls: resolve engine-immediate ones; suspend on a roll request.
     const resolved: { toolUseId: string; content: string }[] = [];
     let roll: { toolUseId: string; id: string; expr: string; reason: string; dc?: number } | undefined;
+    let travelGate: { actorId: string; toId: string } | undefined; // SPATIAL R2: a travel suspended on a swim gate
     for (const tc of res.toolCalls) {
       toolCallLog.push(tc.name);
       span.event(`tool:${tc.name}`);
@@ -2072,6 +2117,38 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
         } catch (e) {
           resolved.push({ toolUseId: tc.id, content: JSON.stringify({ error: (e as Error).message }) });
         }
+      } else if (tc.name === 'travel') {
+        // SPATIAL R2: the single movement gate. A rough-water crossing suspends THROUGH the normal
+        // roll machinery (pendingTurn stays the only suspension state); the continuation completes
+        // or fail-forwards engine-side on resume — a 429 mid-swim can never strand the token wet.
+        try {
+          const map = currentMap(state);
+          const actorObj = map ? resolveMapObject(engine, map, tc.input.actorId) : undefined;
+          const targetObj = map && actorObj ? resolveMapObject(engine, map, tc.input.to, actorObj) : undefined;
+          if (!map || !actorObj) {
+            resolved.push({ toolUseId: tc.id, content: JSON.stringify({ error: `no actor "${String(tc.input.actorId)}" on this map` }) });
+          } else if (!targetObj) {
+            resolved.push({ toolUseId: tc.id, content: JSON.stringify({ error: `no destination "${String(tc.input.to)}" on this map — use an id/name from the MAP block` }) });
+          } else {
+            const v = engine.travel({ actorId: actorObj.id, to: { id: targetObj.id } });
+            if (v.at) sceneDeltas.push({ op: 'move', id: actorObj.id, to: { col: v.at.col, row: v.at.row } });
+            if (v.needsRoll && !roll) {
+              // Gate → the SAME suspend-and-verdict loop dice already use, with the engine-owned modifier.
+              let expr = '1d20';
+              try {
+                const m = engine.checkModifier({ combatantId: actorObj.id, ability: 'str', skill: 'athletics' });
+                expr = `1d20${m >= 0 ? '+' : ''}${m}`;
+              } catch { /* no sheet — flat d20 */ }
+              const rr = engine.requestRoll({ expr, reason: v.needsRoll.reason, dc: v.needsRoll.dc });
+              roll = { toolUseId: tc.id, id: rr.id, expr: rr.expr, reason: rr.reason, dc: v.needsRoll.dc };
+              travelGate = { actorId: actorObj.id, toId: targetObj.id };
+            } else {
+              resolved.push({ toolUseId: tc.id, content: JSON.stringify({ ...v, at: undefined }) });
+            }
+          }
+        } catch (e) {
+          resolved.push({ toolUseId: tc.id, content: JSON.stringify({ error: (e as Error).message }) });
+        }
       } else if (tc.name === 'queryScene') {
         resolved.push({ toolUseId: tc.id, content: answerSceneQuery(engine, state, tc.input) });
       } else {
@@ -2087,6 +2164,7 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
         rollExpr: roll.expr,
         rollReason: roll.reason,
         ...(roll.dc !== undefined ? { rollDc: roll.dc } : {}),
+        ...(travelGate ? { travelContinuation: { actorId: travelGate.actorId, toId: travelGate.toId } } : {}),
         resolvedToolResults: resolved,
         history: messages,
       };

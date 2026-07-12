@@ -322,6 +322,10 @@ export interface PendingTurn {
   resolvedToolResults: { toolUseId: string; content: string }[];
   /** Opaque LLM message history for the in-flight turn. */
   history: unknown[];
+  /** SPATIAL R2: a travel that suspended on a swim gate — on submitRoll the engine completes the
+   *  crossing (success) or applies the fail-forward (failure) BEFORE the LLM resumes. Additive;
+   *  dies with the pendingTurn (no plan-staleness class). */
+  travelContinuation?: { actorId: string; toId?: string; toCol?: number; toRow?: number };
 }
 
 /** Authored adventure context fed to the DM so it runs the written scenario (GM-facing, not read aloud). */

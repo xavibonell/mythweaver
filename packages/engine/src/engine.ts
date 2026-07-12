@@ -39,6 +39,8 @@ import {
 } from '@mythweaver/shared';
 import { rollDice, validateDeclaredRoll, type Rng } from './dice.js';
 import { bumpSpatialVersion } from './spatial/oracle.js';
+import { runTravel, swimGateFailure, type TravelIntent, type TravelVerdict } from './spatial/travel.js';
+import type { SceneMap } from '@mythweaver/shared';
 import { statBlockToCombatant } from './state.js';
 import { abilityMod, deriveAbilityCheckModifier, deriveArmorClass, derivePassive, deriveProficiencyBonus, deriveSaveModifier, deriveSkillModifier, deriveSpellsPreparedMax } from './derive.js';
 import { ASI_LEVELS, XP_THRESHOLDS, hitDieAvg, hitDieForClass, levelForXp } from './progression.js';
@@ -405,6 +407,33 @@ export class Engine implements EngineTools {
    *  The engine is the sole mutation gateway: the pure applier owns geometry (anchor resolution,
    *  walkability, occupancy) and every refusal comes back as a narratable reason. Actor ids resolve
    *  loosely (combatant handles vs map ids) before applying, mirroring findCombatantId. */
+  /** SPATIAL R2: the single movement gate (docs/SPATIAL-TRUTH.md). Callers resolve fiction-words
+   *  to map ids first; the engine owns the path, media pricing, gates and the frontier degrade. */
+  travel(intent: TravelIntent): TravelVerdict {
+    const world = this.state.world;
+    const map = world?.currentLocationId ? world.locations[world.currentLocationId] : undefined;
+    if (!map) return { moved: false, ft: 0, rounds: 0, legs: [], facts: [], rejected: 'no scene established' };
+    const verdict = runTravel({ state: this.state, map, applyMove: (actorId, to) => this.travelApplyMove(map, actorId, to) }, intent);
+    if (verdict.facts.length) this.record('engine', `travel: ${verdict.facts[0]}`, { travel: { actorId: intent.actorId, ...verdict } });
+    return verdict;
+  }
+
+  /** Fail-forward after a FAILED swim gate — the world moves even on a miss (no free retries). */
+  swimGateFail(actorId: string): string[] {
+    const world = this.state.world;
+    const map = world?.currentLocationId ? world.locations[world.currentLocationId] : undefined;
+    if (!map) return [];
+    const facts = swimGateFailure({ state: this.state, map, applyMove: (id, to) => this.travelApplyMove(map, id, to) }, actorId);
+    for (const f of facts) this.record('engine', `travel: ${f}`);
+    return facts;
+  }
+
+  private travelApplyMove(map: SceneMap, actorId: string, to: { col: number; row: number }): { applied: boolean; at?: { col: number; row: number } } {
+    const res = this.applySceneDeltas([{ op: 'move', id: actorId, to: { col: to.col, row: to.row } }]);
+    const a = res.applied.find((d) => d.op === 'move');
+    return { applied: !!a, ...(a && 'to' in a ? { at: a.to as { col: number; row: number } } : {}) };
+  }
+
   applySceneDeltas(deltas: SceneDelta[]): ApplyResult {
     const world = this.state.world;
     const map = world?.currentLocationId ? world.locations[world.currentLocationId] : undefined;

@@ -62,6 +62,7 @@ export interface MoveCaps {
    *  creatures without a swim speed); 'native' = swim speed (no penalty). */
   swim: 'none' | 'double-cost' | 'native';
   waterWalk?: boolean; // water priced as ground (spell effect — wired in R2)
+  fly?: boolean; // v1: water priced as ground (full elevation is a later, whole-mechanic rung)
 }
 export const DEFAULT_CAPS: MoveCaps = { speedFt: 30, swim: 'double-cost' };
 
@@ -205,7 +206,7 @@ function enterCostHalfFt(idx: SpatialIndex, k: number, caps: MoveCaps): number |
   const m = CODE_MEDIUM[idx.medium[k]!]!;
   if (idx.roomId[k] !== -1) return m === 'difficult' ? 20 : 10; // walkable cell (5 ft; difficult ×2 PHB p.190)
   if (m === 'water-deep' || m === 'water-shallow') {
-    if (caps.waterWalk) return 10; // priced as ground
+    if (caps.waterWalk || caps.fly) return 10; // priced as ground
     if (caps.swim === 'native') return 10;
     if (caps.swim === 'double-cost') return 20; // PHB p.182: each foot costs 2 without a swim speed
     return null;
@@ -271,7 +272,7 @@ export function findPath(idx: SpatialIndex, from: Cell, to: Cell, caps: MoveCaps
         const cost = enterCostHalfFt(idx, ck, caps)!;
         totalHalf += cost;
         const m = idx.roomId[ck] !== -1 ? (CODE_MEDIUM[idx.medium[ck]!] === 'difficult' ? 'difficult' : 'ground') : CODE_MEDIUM[idx.medium[ck]!]!;
-        const swimming = idx.roomId[ck] === -1 && (m === 'water-deep' || m === 'water-shallow') && !caps.waterWalk;
+        const swimming = idx.roomId[ck] === -1 && (m === 'water-deep' || m === 'water-shallow') && !caps.waterWalk && !caps.fly;
         const last = segments[segments.length - 1];
         if (last && last.medium === m && !!last.swimming === swimming) last.ft += idx.feetPerTile;
         else segments.push({ medium: m as Medium, ft: idx.feetPerTile, ...(swimming ? { swimming: true } : {}) });
