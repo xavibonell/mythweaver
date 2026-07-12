@@ -38,6 +38,7 @@ import {
   type StatBlock,
 } from '@mythweaver/shared';
 import { rollDice, validateDeclaredRoll, type Rng } from './dice.js';
+import { bumpSpatialVersion } from './spatial/oracle.js';
 import { statBlockToCombatant } from './state.js';
 import { abilityMod, deriveAbilityCheckModifier, deriveArmorClass, derivePassive, deriveProficiencyBonus, deriveSaveModifier, deriveSkillModifier, deriveSpellsPreparedMax } from './derive.js';
 import { ASI_LEVELS, XP_THRESHOLDS, hitDieAvg, hitDieForClass, levelForXp } from './progression.js';
@@ -422,6 +423,7 @@ export class Engine implements EngineTools {
       return d; // the applier's own loose lookup gets a final try (or refuses with a reason)
     });
     const res = applySceneDeltas(map, resolved);
+    if (res.applied.length) bumpSpatialVersion(map); // spatial oracle rebuilds on next read (derive-don't-store)
     for (const a of res.applied) {
       const detail = a.op === 'move' ? ` → (${(a.to as { col: number }).col},${(a.to as { row: number }).row})` : a.op === 'spawn' ? ` at (${a.at?.col},${a.at?.row})` : '';
       this.record('engine', `scene: ${a.op} ${a.id}${detail}`, { sceneDelta: a });

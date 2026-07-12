@@ -39,6 +39,7 @@ import { CHARACTERS, PROMPT_PROPS, buildSceneMap, lookToSprite, type SceneCompos
 const FIXTURE_TAG_HINT = PROMPT_PROPS.map((p) => p.tag).join(', ');
 const ACTOR_LOOK_HINT = CHARACTERS.map((c) => c.tag).join(', ');
 import { NoopTracer, type Tracer } from './tracing.js';
+import { spatialIndex, distanceFt, whereIs, findPath, hasLineOfSight, travelTime, type SpatialIndex } from '@mythweaver/engine';
 import type { ExemplarRetriever } from './exemplar-corpus.js';
 import type { ExemplarMoveType } from './exemplar-ingest.js';
 
@@ -780,6 +781,23 @@ export function buildToolDefs(retrieval: boolean, scene: boolean): ToolDef[] {
       inputSchema: { type: 'object', properties: { id: { type: 'string' }, combatantId: { type: 'string' } }, required: ['id', 'combatantId'], additionalProperties: false },
     },
   );
+  if (SPATIAL_ON) {
+    tools.push({
+      name: 'queryScene',
+      description:
+        "Ask the spatial oracle about the CURRENT map (read-only, exact, in feet). asks: 'distance' between two things; 'path' = a walk/swim preview (legs, feet, rounds — how long, whether it means swimming); 'los' = line of sight; 'whereis' = medium/indoors/adjacency of one thing; 'near' = what is within 30 ft of it. Use it BEFORE narrating any distance, route, or blockage the MAP block doesn't state — never guess geometry.",
+      inputSchema: {
+        type: 'object',
+        properties: {
+          from: { type: 'string', description: 'entity id or name' },
+          to: { type: 'string', description: "the other entity (needed for 'distance', 'path', 'los')" },
+          ask: { type: 'string', enum: ['distance', 'path', 'los', 'whereis', 'near'] },
+        },
+        required: ['from', 'ask'],
+        additionalProperties: false,
+      },
+    });
+  }
   return tools;
 }
 
@@ -792,6 +810,21 @@ function currentMap(state: GameState): SceneMap | undefined {
 /** A compact digest of the current location so the DM narrates from TRUTH, not imagination.
  *  Object-field children (group set) are collapsed to one "group ×N" line so a row of 8 pews reads
  *  as a group, not 8 lines (the DM addresses the group, or a member by its #NN id when needed). */
+const SPATIAL_ON = (process.env.MYTHWEAVER_SPATIAL ?? 'on').toLowerCase() !== 'off';
+
+/** Compass phrase from a to b ("15 ft NE"). Distances in FEET — coordinates never enter the prompt. */
+function bearingFt(idx: SpatialIndex, a: { col: number; row: number }, b: { col: number; row: number }): string {
+  const ft = distanceFt(idx, a, b);
+  if (ft === 0) return 'adjacent';
+  const dc = b.col - a.col;
+  const dr = b.row - a.row;
+  const dir = `${Math.abs(dr) > Math.abs(dc) / 2 ? (dr < 0 ? 'N' : 'S') : ''}${Math.abs(dc) > Math.abs(dr) / 2 ? (dc < 0 ? 'W' : 'E') : ''}`;
+  return `${ft} ft${dir ? ` ${dir}` : ''}`;
+}
+
+/** SPATIAL TRUTH R1: the actor lines speak in feet, rooms and media derived by the oracle —
+ *  "25 ft NE of the party, indoors (bldg:house)" — never raw coordinates. The DM narrates from
+ *  these instead of inventing geography. Oracle failure falls back to the legacy digest. */
 function sceneDigest(map: SceneMap): string {
   const fix: string[] = [];
   const fixGroups = new Map<string, { n: number; tag: string; zone?: string }>();
@@ -803,20 +836,140 @@ function sceneDigest(map: SceneMap): string {
     } else fix.push(`${o.id}(${o.zone ?? '?'})`);
   }
   for (const [id, g] of fixGroups) fix.push(`${id} ×${g.n} ${g.tag}(${g.zone ?? '?'})`);
-  const npcs: string[] = [];
-  const npcGroups = new Map<string, number>();
-  for (const o of map.objects.filter((o) => o.kind === 'actor' && o.role !== 'pc')) {
-    if (o.group) npcGroups.set(o.group, (npcGroups.get(o.group) ?? 0) + 1);
-    else npcs.push(`${o.id} "${o.name ?? ''}"@${o.col},${o.row}${o.visible ? '' : ' [hidden]'}`);
+
+  let idx: SpatialIndex | undefined;
+  if (SPATIAL_ON) {
+    try {
+      idx = spatialIndex(map);
+    } catch {
+      /* the oracle must never break a turn — legacy digest below */
+    }
   }
-  for (const [id, n] of npcGroups) npcs.push(`${id} ×${n}`);
-  const pcs = map.objects.filter((o) => o.role === 'pc').map((o) => `${o.id}@${o.col},${o.row}`);
+  const pcObjs = map.objects.filter((o) => o.role === 'pc');
+  const centroid = pcObjs.length
+    ? { col: Math.round(pcObjs.reduce((s, p) => s + p.col, 0) / pcObjs.length), row: Math.round(pcObjs.reduce((s, p) => s + p.row, 0) / pcObjs.length) }
+    : { col: 0, row: 0 };
+  const place = (o: { col: number; row: number }): string => {
+    if (!idx) return '';
+    const w = whereIs(idx, o);
+    const bits: string[] = [];
+    if (w.indoor) bits.push(`indoors${w.buildingId ? ` (${w.buildingId})` : ''}`);
+    if (w.medium === 'water-deep' || w.medium === 'water-shallow') bits.push('IN THE WATER');
+    return bits.length ? `, ${bits.join(', ')}` : '';
+  };
+
+  const npcs: string[] = [];
+  const npcGroups = new Map<string, { n: number; sample?: { col: number; row: number } }>();
+  for (const o of map.objects.filter((o) => o.kind === 'actor' && o.role !== 'pc')) {
+    if (o.group) {
+      const g = npcGroups.get(o.group) ?? { n: 0, sample: { col: o.col, row: o.row } };
+      g.n++;
+      npcGroups.set(o.group, g);
+    } else {
+      const pos = idx ? ` — ${bearingFt(idx, centroid, o)} of the party${place(o)}` : `@${o.col},${o.row}`;
+      npcs.push(`${o.id} "${o.name ?? ''}"${pos}${o.visible ? '' : ' [hidden]'}`);
+    }
+  }
+  for (const [id, g] of npcGroups) npcs.push(`${id} ×${g.n}${idx && g.sample ? ` — nearest ${bearingFt(idx, centroid, g.sample)} of the party` : ''}`);
+
+  const pcs = pcObjs.map((o) => {
+    if (!idx) return `${o.id}@${o.col},${o.row}`;
+    const first = pcObjs[0]!;
+    const rel = o === first ? '' : `, ${bearingFt(idx, first, o)} of ${first.id}`;
+    return `${o.id}${rel}${place(o)}`;
+  });
+
   return [
-    `Location ${map.locationId} — ${map.biome}, ${map.lighting}`,
+    `Location ${map.locationId} — ${map.biome}, ${map.lighting}${idx ? ` · ${map.grid.cols * 5}×${map.grid.rows * 5} ft` : ''}`,
     `Fixtures: ${fix.join(', ') || 'none'}`,
     `NPCs here: ${npcs.join('; ') || 'none'}`,
     `Party here: ${pcs.join(', ') || 'none'}`,
+    ...(idx ? ['(distances above are AUTHORITATIVE — narrate from them; use queryScene for a path/line-of-sight)'] : []),
   ].join('\n');
+}
+
+/** queryScene dispatch — the oracle answers in feet/media/rooms, never coordinates. Read-only;
+ *  any failure returns an explanatory string (the oracle must never break a turn). */
+function answerSceneQuery(engine: Engine, state: GameState, input: Record<string, unknown>): string {
+  try {
+    const map = currentMap(state);
+    if (!map) return 'No scene is established yet.';
+    const idx = spatialIndex(map);
+    const resolve = (ref: unknown, near?: { col: number; row: number }): (typeof map.objects)[number] | undefined => {
+      const s = String(ref ?? '').trim();
+      if (!s) return undefined;
+      const direct =
+        map.objects.find((o) => o.id === s) ??
+        map.objects.find((o) => (o.name ?? '').toLowerCase() === s.toLowerCase()) ??
+        map.objects.find((o) => o.id === engine.findCombatantId(s));
+      if (direct) return direct;
+      // Groups + tags: "mob:drowned-dead" / "climbers" should find the NEAREST member of the group
+      // whose group-id/tag loosely matches (ids are exact; the DM speaks in fiction words).
+      const norm = s.toLowerCase().replace(/^(mob|npc|prop|bldg|pc):/, '').replace(/[-_\s]+/g, '');
+      const loose = map.objects.filter((o) => {
+        if (o.visible === false) return false;
+        const cands = [o.group ?? '', o.tag, o.id, o.name ?? ''];
+        return cands.some((c) => {
+          const cn = c.toLowerCase().replace(/^(mob|npc|prop|bldg|pc):/, '').replace(/[-_\s#\d]+/g, '');
+          return cn && (cn.includes(norm) || norm.includes(cn));
+        });
+      });
+      if (!loose.length) return undefined;
+      if (!near) return loose[0];
+      return loose.sort((a, b) => distanceFt(idx, near, a) - distanceFt(idx, near, b))[0];
+    };
+    const from = resolve(input.from);
+    if (!from) return `No object "${String(input.from)}" on this map.`;
+    const to = resolve(input.to, from);
+    const ask = String(input.ask ?? 'distance');
+    const need = (): string | null => (to ? null : `ask:'${ask}' needs a 'to' — no object "${String(input.to)}" on this map.`);
+
+    if (ask === 'distance') {
+      const miss = need();
+      if (miss) return miss;
+      const ft = distanceFt(idx, from, to!);
+      const los = hasLineOfSight(idx, from, to!);
+      return `${from.id} → ${to!.id}: ${ft} ft, line of sight ${los.clear ? 'CLEAR' : 'BLOCKED'}.`;
+    }
+    if (ask === 'los') {
+      const miss = need();
+      if (miss) return miss;
+      const los = hasLineOfSight(idx, from, to!);
+      return los.clear ? `${from.id} can see ${to!.id}.` : `${from.id} CANNOT see ${to!.id} — sight is blocked.`;
+    }
+    if (ask === 'path') {
+      const miss = need();
+      if (miss) return miss;
+      const speedFt = state.sheets?.[from.id]?.speedFt ?? 30;
+      const r = findPath(idx, from, to!, { speedFt, swim: 'double-cost' });
+      if (!r.ok) {
+        const fr = r.frontier ? ` Closest approach: ${distanceFt(idx, r.frontier, to!)} ft short of the target.` : '';
+        return `No route for ${from.id} → ${to!.id} (${r.blockedBy}).${fr}`;
+      }
+      const legs = r.segments.map((s) => `${s.ft} ft ${s.swimming ? 'SWIMMING' : s.medium}`).join(' + ');
+      const t = travelTime(r.totalFt, speedFt);
+      return `${from.id} → ${to!.id}: ${legs} = ${r.totalFt} ft of movement at speed ${speedFt} (~${t.rounds} round${t.rounds === 1 ? '' : 's'}). ${r.segments.some((s) => s.swimming) ? 'Crossing water means swimming (double cost; a check may apply in rough water).' : ''}`.trim();
+    }
+    if (ask === 'whereis') {
+      const w = whereIs(idx, from);
+      const adj = w.adjacent.length ? ` Adjacent: ${w.adjacent.join(', ')}.` : '';
+      return `${from.id}: ${w.indoor ? `indoors${w.buildingId ? ` in ${w.buildingId}` : ''}` : 'outdoors'}, on ${w.medium}.${adj}`;
+    }
+    if (ask === 'near') {
+      const namedFirst = map.objects
+        .filter((o) => o !== from && o.visible !== false)
+        .map((o) => ({ o, ft: distanceFt(idx, from, o) }))
+        .filter((x) => x.ft <= 30)
+        .sort((a, b) => a.ft - b.ft || (a.o.name ? -1 : 1))
+        .slice(0, 8);
+      return namedFirst.length
+        ? `Within 30 ft of ${from.id}: ${namedFirst.map((x) => `${x.o.id}${x.o.name ? ` "${x.o.name}"` : ''} (${x.ft} ft)`).join(', ')}.`
+        : `Nothing notable within 30 ft of ${from.id}.`;
+    }
+    return `Unknown ask "${ask}".`;
+  } catch (e) {
+    return `Spatial query failed: ${(e as Error).message}`;
+  }
 }
 
 /** Compact per-PC character-engine tail for the state block — NON-DEFAULT pools only, so a mundane L1
@@ -1919,6 +2072,8 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
         } catch (e) {
           resolved.push({ toolUseId: tc.id, content: JSON.stringify({ error: (e as Error).message }) });
         }
+      } else if (tc.name === 'queryScene') {
+        resolved.push({ toolUseId: tc.id, content: answerSceneQuery(engine, state, tc.input) });
       } else {
         resolved.push({ toolUseId: tc.id, content: `Unknown tool: ${tc.name}` });
       }

@@ -683,3 +683,50 @@ describe('movement backstop (token truth is engine-owned, not LLM-optional)', ()
     expect(pcAt(state)).toEqual({ col: 1, row: 1 });
   });
 });
+
+describe('spatial truth R1 (digest in feet + queryScene)', () => {
+  function withPool(engine: Engine): GameState {
+    const state = engine.getState();
+    const cols = 14, rows = 5;
+    const tiles = Array.from({ length: rows }, () => Array.from({ length: cols }, () => 'grass'));
+    const walkable = Array.from({ length: rows }, () => Array.from({ length: cols }, () => true));
+    for (let r = 0; r < rows; r++) for (let c = 6; c <= 8; c++) { tiles[r]![c] = 'water_deep'; walkable[r]![c] = false; } // a 15-ft pool band
+    state.world = {
+      currentLocationId: 'loc:pool',
+      locations: { 'loc:pool': { locationId: 'loc:pool', seed: 1, biome: 'village', lighting: 'day', grammar: 'open-outdoor', grid: { cols, rows, feetPerTile: 5 }, tiles, walkable, objects: [
+        { id: 'pc:aldric', kind: 'actor', role: 'pc', tag: 'knight', name: 'Aldric', col: 2, row: 2, footprint: { w: 1, h: 1 }, facing: 'down', visible: true },
+        { id: 'npc:hermit', kind: 'actor', role: 'npc', tag: 'villager', name: 'Hermit', col: 11, row: 2, footprint: { w: 1, h: 1 }, facing: 'down', visible: true },
+      ], ambiance: [], entrances: [] } },
+      links: [],
+    };
+    return state;
+  }
+
+  it('the MAP digest states feet + water facts, not coordinates', async () => {
+    const engine = newEngine();
+    withPool(engine);
+    const llm = new FakeLlmProvider([fakeText('The pool glitters.')]);
+    await runTurn({ engine, llm, now: frozenClock }, { kind: 'message', speakerId: 'Aldric', text: 'I look at the water.' });
+    const sent = llm.requests[0]!.messages[0]!.content as string;
+    expect(sent).toContain('45 ft'); // hermit is 9 tiles east of the party centroid
+    expect(sent).toContain('AUTHORITATIVE');
+    expect(sent).not.toMatch(/@\d+,\d+/); // coordinates left the prompt
+  });
+
+  it("queryScene ask:'path' previews the swim: legs, double-cost feet, rounds", async () => {
+    const engine = newEngine();
+    withPool(engine);
+    const llm = new FakeLlmProvider([
+      fakeToolUse([{ id: 'q1', name: 'queryScene', input: { from: 'pc:aldric', to: 'npc:hermit', ask: 'path' } }]),
+      fakeText('It will be a swim.'),
+    ]);
+    await runTurn({ engine, llm, now: frozenClock }, { kind: 'message', speakerId: 'Aldric', text: 'How far to the hermit?' });
+    const second = llm.requests[1]!;
+    const blocks = second.messages[second.messages.length - 1]!.content as LlmContentBlock[];
+    const result = blocks.find((b) => b.type === 'tool_result') as { content: string };
+    expect(result.content).toContain('SWIMMING');
+    expect(result.content).toContain('round');
+    // 3 water tiles at double cost = 30 ft of movement for 15 ft of pool
+    expect(result.content).toMatch(/15 ft SWIMMING/);
+  });
+});

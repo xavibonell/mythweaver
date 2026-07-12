@@ -214,6 +214,12 @@ When the party ARRIVES somewhere new, call `setScene` to establish it:
 - An NPC you narrate INTO the scene must exist on the table: if they aren't on the map yet, include
   a spawn in the same `updateScene` (`{op:"spawn", id:"npc:<slug>", kind:"actor", role:"npc",
   tag:"villager", name:"<Name>", anchor:"near:<where>"}`) so the players see who they're talking to.
+- GEOGRAPHY IS MEASURED, NOT IMAGINED. The MAP block speaks in FEET and derived facts (indoors/
+  outdoors, in the water) — those numbers are AUTHORITATIVE. Never invent a distance, route,
+  sight-line, or travel time: narrate the ones shown, or call `queryScene` first
+  ('distance'/'path'/'los'/'whereis'/'near'). A 'path' answer tells you whether the way means
+  SWIMMING and how many rounds it takes — narrate from that, in fiction, without reciting numbers
+  the players' characters wouldn't know precisely.
 - NEVER call `setScene` for movement WITHIN the current place — crossing the green, approaching a
   building, stepping to an NPC is `updateScene` (`{op:"move", id:"pc:...", to:"near:bldg:..."}`).
   `setScene` is ONLY for a genuinely DIFFERENT location (leaving town for the mine, entering a
