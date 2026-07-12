@@ -38,7 +38,7 @@ import {
   type StatBlock,
 } from '@mythweaver/shared';
 import { rollDice, validateDeclaredRoll, type Rng } from './dice.js';
-import { bumpSpatialVersion } from './spatial/oracle.js';
+import { bumpSpatialVersion, spatialIndex } from './spatial/oracle.js';
 import { runTravel, swimGateFailure, type TravelIntent, type TravelVerdict } from './spatial/travel.js';
 import type { SceneMap } from '@mythweaver/shared';
 import { statBlockToCombatant } from './state.js';
@@ -407,6 +407,88 @@ export class Engine implements EngineTools {
    *  The engine is the sole mutation gateway: the pure applier owns geometry (anchor resolution,
    *  walkability, occupancy) and every refusal comes back as a narratable reason. Actor ids resolve
    *  loosely (combatant handles vs map ids) before applying, mirroring findCombatantId. */
+  /** SPATIAL: sanitize PARTY STAGING on a loaded/frozen scene — every PC must start outdoors, on
+   *  ground that LOOKS like ground (walkable water-art reads as "standing on the lake" to players,
+   *  whatever the collision layer says), and clustered with the party. Generation staging scatter
+   *  and bad freezes both land here, so no fixture can present a stranded/indoor/wet party again. */
+  sanitizePartyStaging(): string[] {
+    const world = this.state.world;
+    const map = world?.currentLocationId ? world.locations[world.currentLocationId] : undefined;
+    if (!map) return [];
+    const idx = spatialIndex(map);
+    const { cols, rows } = map.grid;
+    const pcs = map.objects.filter((o) => o.role === 'pc');
+    if (!pcs.length) return [];
+    const occupied = new Set(map.objects.filter((o) => o.kind === 'actor' && o.visible !== false).map((o) => `${o.col},${o.row}`));
+    const sane = (c: number, r: number): boolean => {
+      if (c < 0 || c >= cols || r < 0 || r >= rows) return false;
+      const k = r * cols + c;
+      if (idx.roomId[k] === -1 || idx.roofAt.has(k)) return false; // walkable + outdoors
+      const tag = map.tiles?.[r]?.[c] ?? '';
+      return !tag.startsWith('water') && !tag.startsWith('wall'); // and LOOKS dry
+    };
+    // Cluster capacity: free sane cells within 2 of (c,r) — the anchor must have room for the PARTY
+    // (an islet PC is "sane" but can host no one; anchoring there strands everyone — seen in the wild).
+    const capacity = (c: number, r: number): number => {
+      let n = 0;
+      for (let dr = -2; dr <= 2; dr++)
+        for (let dc = -2; dc <= 2; dc++) {
+          if (!dr && !dc) continue;
+          if (sane(c + dc, r + dr) && !occupied.has(`${c + dc},${r + dr}`)) n++;
+        }
+      return n;
+    };
+    const need = pcs.length - 1;
+    const cx = pcs.reduce((t, p) => t + p.col, 0) / pcs.length;
+    const cy = pcs.reduce((t, p) => t + p.row, 0) / pcs.length;
+    const facts: string[] = [];
+
+    // Anchor: a sane PC whose neighborhood can host the party; else the roomiest sane cell nearest
+    // the party centroid (move the first PC there — the whole party regroups around it).
+    let anchorPc = pcs.find((p) => sane(p.col, p.row) && capacity(p.col, p.row) >= need);
+    if (!anchorPc) {
+      let best: { col: number; row: number } | undefined;
+      let bestScore = -Infinity;
+      for (let r = 0; r < rows; r++)
+        for (let c = 0; c < cols; c++) {
+          if (!sane(c, r) || occupied.has(`${c},${r}`)) continue;
+          const cap = capacity(c, r);
+          if (cap < need) continue;
+          const score = -Math.max(Math.abs(c - cx), Math.abs(r - cy)); // nearest roomy cell to the party
+          if (score > bestScore) { bestScore = score; best = { col: c, row: r }; }
+        }
+      if (!best) return []; // pathological map — leave it alone
+      const p0 = pcs[0]!;
+      occupied.delete(`${p0.col},${p0.row}`);
+      this.applySceneDeltas([{ op: 'move', id: p0.id, to: best }]);
+      occupied.add(`${p0.col},${p0.row}`);
+      facts.push(`staging: moved ${p0.name ?? p0.id} to open ground with room for the party`);
+      anchorPc = p0;
+    }
+    for (const p of pcs) {
+      if (p === anchorPc) continue;
+      const far = Math.max(Math.abs(p.col - anchorPc.col), Math.abs(p.row - anchorPc.row)) > 3;
+      if (sane(p.col, p.row) && !far) continue;
+      let placed = false;
+      for (let radius = 1; radius <= 4 && !placed; radius++)
+        for (let dr = -radius; dr <= radius && !placed; dr++)
+          for (let dc = -radius; dc <= radius && !placed; dc++) {
+            if (Math.max(Math.abs(dr), Math.abs(dc)) !== radius) continue;
+            const c = anchorPc.col + dc, r = anchorPc.row + dr;
+            if (!sane(c, r) || occupied.has(`${c},${r}`)) continue;
+            occupied.delete(`${p.col},${p.row}`);
+            const res = this.applySceneDeltas([{ op: 'move', id: p.id, to: { col: c, row: r } }]);
+            if (res.applied.length) {
+              occupied.add(`${p.col},${p.row}`);
+              facts.push(`staging: regrouped ${p.name ?? p.id} beside ${anchorPc.name ?? anchorPc.id}`);
+              placed = true;
+            }
+          }
+    }
+    for (const f of facts) this.record('engine', f, { staging: true });
+    return facts;
+  }
+
   /** SPATIAL R2: the single movement gate (docs/SPATIAL-TRUTH.md). Callers resolve fiction-words
    *  to map ids first; the engine owns the path, media pricing, gates and the frontier degrade. */
   travel(intent: TravelIntent): TravelVerdict {

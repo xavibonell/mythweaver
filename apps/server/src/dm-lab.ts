@@ -319,6 +319,9 @@ export function createDmLabSession(deps: DmLabDeps, scenarioId: string): DmLabSe
   if (deps.frozenState) {
     const state = deps.frozenState;
     const engine = new Engine(state);
+    try {
+      engine.sanitizePartyStaging(); // a bad freeze can never present an indoor/wet/scattered party
+    } catch { /* staging guard must never break a load */ }
     // Seed the visible transcript from the captured log so the feed shows the opening context on load.
     const recent = state.log
       .filter((e) => e.kind === 'narration' || e.kind === 'player')
