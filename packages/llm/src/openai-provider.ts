@@ -78,12 +78,15 @@ export class OpenAIProvider implements LlmProvider {
   async complete(req: LlmRequest): Promise<LlmResponse> {
     if (!this.apiKey) throw new Error('OPENAI_API_KEY is not set (see .env).');
     const model = req.model ?? this.model;
+    // Reasoning-class models (gpt-5*, o-series) accept ONLY the default temperature (1) — sending the
+    // DM Lab's slider value 400s the turn. Omit temperature for them; keep it for gpt-4o-class models.
+    const reasoningClass = /^(gpt-5|o\d)/i.test(model);
 
     const body: Record<string, unknown> = {
       model,
       messages: toMessages(req.system, req.messages),
       max_completion_tokens: req.maxTokens ?? this.defaultMaxTokens,
-      ...(req.temperature !== undefined ? { temperature: req.temperature } : {}),
+      ...(req.temperature !== undefined && !reasoningClass ? { temperature: req.temperature } : {}),
     };
     if (req.tools && req.tools.length > 0) {
       body.tools = req.tools.map((t) => ({ type: 'function', function: { name: t.name, description: t.description, parameters: t.inputSchema } }));
