@@ -15,10 +15,13 @@ export const DEFAULT_MODELS = {
 } as const;
 
 /** USD per 1M tokens, for the budget meter (spec §4.4). Re-verify before relying on it.
- *  2026-07: OpenAI gpt-4o = $2.50/$10, gpt-4o-mini = $0.15/$0.60 per 1M in/out (approx — re-verify). */
+ *  OpenAI gpt-5.5 = $5/$30, gpt-5.5-pro = $30/$180 (verified 2026-07 vs developers.openai.com/api/docs/pricing);
+ *  gpt-4o = $2.50/$10, gpt-4o-mini = $0.15/$0.60 per 1M in/out. */
 export const MODEL_PRICING_USD_PER_MTOK: Record<LlmModelId, { input: number; output: number }> = {
   [DEFAULT_MODELS.opus]: { input: 5, output: 25 },
   [DEFAULT_MODELS.sonnet]: { input: 3, output: 15 },
+  'gpt-5.5': { input: 5, output: 30 },
+  'gpt-5.5-pro': { input: 30, output: 180 },
   'gpt-4o': { input: 2.5, output: 10 },
   'gpt-4o-mini': { input: 0.15, output: 0.6 },
 };
