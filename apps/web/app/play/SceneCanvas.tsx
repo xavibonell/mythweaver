@@ -452,7 +452,7 @@ function fitCamera(scene: any, data: any): void {
  *  ~this-many-tiles-across frame centred on the PC centroid, following as tokens move. No pan, no
  *  zoom (the component simply attaches no input handlers in player view); bounds still clamp so
  *  the frame never slides off the world. A tiny room falls back to the (tighter) fit zoom. */
-const PLAYER_VIEW_TILES = 24;
+const PLAYER_VIEW_TILES = 32;
 function playerCameraImpl(scene: any, data: any, animate = false): void {
   const cam = scene.cameras.main;
   const box = worldBox(data);
