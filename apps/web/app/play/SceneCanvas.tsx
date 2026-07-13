@@ -118,41 +118,76 @@ function pcRingColor(scene: any, id: string): number {
   return scene.pcColors.get(id);
 }
 
-/** A crisp UI label. The game runs pixelArt (NEAREST filtering) for the 16px sprites, which also makes
- *  Text textures render blocky/aliased — unreadable. We render the label at high resolution and force
- *  LINEAR filtering on ITS texture so a name reads as real type, not chunky pixels, at any camera zoom. */
-function labelText(scene: any, str: string): any {
-  const t = scene.add
-    .text(0, 0, str, { fontFamily: 'Georgia, "Times New Roman", serif', fontSize: '12px', color: '#f2ead9', resolution: Math.min(8, Math.max(3, Math.round((typeof window !== 'undefined' ? window.devicePixelRatio : 1) * (scene.cameras.main.zoom || 1) * 1.5))) })
-    .setOrigin(0.5, 0.5);
-  if (t.texture?.setFilter) t.texture.setFilter(1); // 1 = LINEAR (override the global NEAREST)
-  return t;
+function escapeHtml(s: string): string {
+  return s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c] as string);
 }
 
-/** The hover name-tag (player view): one shared, reused tag — a dark parchment plaque with the
- *  actor's accent colour, floating above the head with a soft rise-and-fade. */
+/** UI labels (name-tags, story pings) live in a real DOM overlay ABOVE the pixel-art canvas — NOT as
+ *  Phaser Text. Canvas text inherits the game's pixelArt (NEAREST) filter and looks chunky at any
+ *  zoom; browser-rendered HTML is crisp, antialiased, sized in CSS px, and readable. Each label is
+ *  anchored to a WORLD point and re-projected to screen every frame by updateDomLabels(). */
+function ensureOverlay(scene: any): HTMLElement | null {
+  if (scene.domOverlay) return scene.domOverlay;
+  const parent = scene.game?.canvas?.parentNode as HTMLElement | null;
+  if (!parent) return null;
+  const el = document.createElement('div');
+  el.style.cssText = 'position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none;overflow:hidden;z-index:3;';
+  parent.appendChild(el);
+  scene.domOverlay = el;
+  scene.domLabels = [];
+  return el;
+}
+function domLabel(scene: any, str: string, accent: number, wx: number, wy: number): any {
+  const overlay = ensureOverlay(scene);
+  if (!overlay) return null;
+  const hex = '#' + (accent & 0xffffff).toString(16).padStart(6, '0');
+  const el = document.createElement('div');
+  el.style.cssText =
+    'position:absolute;left:0;top:0;will-change:transform;white-space:nowrap;display:flex;align-items:center;gap:7px;' +
+    `padding:5px 12px;border-radius:9px;background:rgba(17,19,25,0.95);border:1.5px solid ${hex};` +
+    'color:#f6eedd;font:600 16px/1.15 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;' +
+    'letter-spacing:0.01em;box-shadow:0 2px 12px rgba(0,0,0,0.55);opacity:0;transition:opacity 150ms ease;';
+  el.innerHTML = `<span style="width:9px;height:9px;border-radius:50%;background:${hex};flex:0 0 auto"></span><span>${escapeHtml(str)}</span>`;
+  overlay.appendChild(el);
+  const rec = { el, wx, wy };
+  scene.domLabels.push(rec);
+  requestAnimationFrame(() => { el.style.opacity = '1'; });
+  return rec;
+}
+function removeDomLabel(scene: any, rec: any): void {
+  if (!rec) return;
+  rec.el?.remove();
+  if (scene.domLabels) scene.domLabels = scene.domLabels.filter((r: any) => r !== rec);
+}
+/** Re-project every DOM label from its world anchor to a screen position over the canvas. Runs each
+ *  frame (scene.update) so labels track the camera and any tweening/panning. */
+function updateDomLabels(scene: any): void {
+  const labels = scene.domLabels;
+  if (!labels?.length) return;
+  const canvas = scene.game?.canvas;
+  if (!canvas) return;
+  const cam = scene.cameras.main;
+  const kx = canvas.clientWidth / canvas.width, ky = canvas.clientHeight / canvas.height;
+  const ox = canvas.offsetLeft, oy = canvas.offsetTop, wv = cam.worldView;
+  for (const rec of labels) {
+    const sx = ox + (rec.wx - wv.x) * cam.zoom * kx;
+    const sy = oy + (rec.wy - wv.y) * cam.zoom * ky;
+    rec.el.style.transform = `translate(${sx}px,${sy}px) translate(-50%,-118%)`; // centred, floating above the anchor
+  }
+}
+function clearDomLabels(scene: any): void {
+  if (scene.domLabels) for (const r of scene.domLabels) r.el?.remove();
+  scene.domLabels = [];
+  scene.nameTag = null;
+}
+
+/** The hover name-tag (player view): one crisp DOM plaque above the head, replaced on each hover. */
 function showNameTag(scene: any, x: number, headY: number, label: string, accent: number): void {
   hideNameTag(scene);
-  const pad = { x: 8, y: 4 };
-  const text = labelText(scene, label);
-  const w = text.width + pad.x * 2;
-  const h = text.height + pad.y * 2;
-  const g = scene.add.graphics();
-  g.fillStyle(0x14161c, 0.93).fillRoundedRect(-w / 2, -h / 2, w, h, 5);
-  g.lineStyle(1.25, accent, 0.95).strokeRoundedRect(-w / 2, -h / 2, w, h, 5);
-  g.fillStyle(0x14161c, 0.93).fillTriangle(-4, h / 2, 4, h / 2, 0, h / 2 + 5); // caret to the head
-  g.lineStyle(1.25, accent, 0.95).lineBetween(-4, h / 2, 0, h / 2 + 5).lineBetween(0, h / 2 + 5, 4, h / 2);
-  const dot = scene.add.ellipse(-w / 2 + pad.x - 3.5, 0, 4, 4, accent, 1); // a tiny colour swatch before the name
-  text.setX(2.5);
-  const tagC = scene.add.container(x, headY - 6, [g, dot, text]).setDepth(200000).setAlpha(0);
-  // Counter-scale by the camera zoom so the plaque is a constant CRISP screen size (a name-tag,
-  // not a banner) whether the party camera is at 3x or a tiny room sits at fit zoom.
-  tagC.setScale(1 / Math.max(scene.cameras.main.zoom, 0.001));
-  scene.nameTag = tagC;
-  scene.tweens.add({ targets: tagC, alpha: 1, y: headY - 10, duration: 140, ease: 'Sine.easeOut' });
+  scene.nameTag = domLabel(scene, label, accent, x, headY);
 }
 function hideNameTag(scene: any): void {
-  if (scene.nameTag) { scene.nameTag.destroy(); scene.nameTag = null; }
+  if (scene.nameTag) { removeDomLabel(scene, scene.nameTag); scene.nameTag = null; }
 }
 
 /** "a drowned corpse", "a stone weir" — the player's right to know what a sprite IS. */
@@ -170,7 +205,6 @@ function identifyLabel(o: { name?: string; tag: string; role?: string }): string
 function showStoryPings(scene: any, ids: string[]): void {
   const data = scene.lastData;
   if (!data || !ids?.length) return;
-  const cam = scene.cameras.main;
   for (const id of ids.slice(0, 6)) {
     const rec = (data.objects ?? []).find((o: any) => o.id === id);
     if (!rec || rec.visible === false) continue;
@@ -178,19 +212,12 @@ function showStoryPings(scene: any, ids: string[]): void {
     const p = scene.propObjs?.get(id);
     const x = a ? a.container.x : p ? p.obj.x : (rec.col + 0.5) * TILE;
     const y = a ? a.container.y : p ? p.obj.y : (rec.row + 1) * TILE;
-    // pulse ring
+    // pulse ring (a canvas shape — fine as pixels)
     const ring = scene.add.ellipse(x, y, TILE * 1.3, TILE * 0.62).setStrokeStyle(2, 0xc9a227, 0.95).setDepth(190000);
     scene.tweens.add({ targets: ring, scaleX: 1.7, scaleY: 1.7, alpha: 0, duration: 700, repeat: 2, onComplete: () => ring.destroy() });
-    // floating label (auto-fades)
-    const text = labelText(scene, identifyLabel(rec));
-    const w = text.width + 14, h = text.height + 7;
-    const g = scene.add.graphics();
-    g.fillStyle(0x14161c, 0.92).fillRoundedRect(-w / 2, -h / 2, w, h, 5);
-    g.lineStyle(1.2, 0xc9a227, 0.9).strokeRoundedRect(-w / 2, -h / 2, w, h, 5);
-    const tag = scene.add.container(x, y - TILE * 1.6, [g, text]).setDepth(200001).setAlpha(0);
-    tag.setScale(1 / Math.max(cam.zoom, 0.001));
-    scene.tweens.add({ targets: tag, alpha: 1, duration: 180 });
-    scene.time.delayedCall(2600, () => scene.tweens.add({ targets: tag, alpha: 0, duration: 350, onComplete: () => tag.destroy() }));
+    // floating label — crisp DOM, anchored above the pinged thing, auto-fades
+    const lab = domLabel(scene, identifyLabel(rec), 0xc9a227, x, y - TILE * 0.8);
+    if (lab) scene.time.delayedCall(2600, () => { if (lab.el) { lab.el.style.opacity = '0'; scene.time.delayedCall(400, () => removeDomLabel(scene, lab)); } });
   }
 }
 
@@ -388,6 +415,7 @@ function renderFullImpl(scene: any, data: any): void {
   scene.sceneObjs = [];
   scene.actorObjs = new Map();
   scene.propObjs = new Map(); // id-addressed props/fixtures (the delta path repositions/toggles them)
+  clearDomLabels(scene); // drop any name-tag / ping labels from the previous scene
   scene.lastData = data;
 
   // Lighting = a per-object color multiply (tint), NOT a flat overlay, so name labels stay
@@ -653,6 +681,7 @@ export default function SceneCanvas({ data, freeCamera = false, playerView = fal
         scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
         scene: {
           preload() {},
+          update(this: any) { updateDomLabels(this); }, // keep DOM labels glued to their world anchors each frame
           create(this: any) {
             const scene = this;
             scene.sceneObjs = [];
@@ -744,5 +773,5 @@ export default function SceneCanvas({ data, freeCamera = false, playerView = fal
     }
   }, [pingNonce]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  return <div ref={containerRef} style={{ width: '100%', height: '100%', background: '#0d0b0a' }} />;
+  return <div ref={containerRef} style={{ position: 'relative', overflow: 'hidden', width: '100%', height: '100%', background: '#0d0b0a' }} />;
 }
