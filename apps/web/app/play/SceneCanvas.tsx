@@ -192,8 +192,12 @@ function hideNameTag(scene: any): void {
 
 /** "a drowned corpse", "a stone weir" — the player's right to know what a sprite IS. */
 function identifyLabel(o: { name?: string; tag: string; role?: string }): string {
-  if (o.name) return o.name;
-  const words = o.tag.replace(/_/g, ' ');
+  const name = o.name?.trim();
+  // A PROPER name (has a capital, no slug underscores) shows verbatim — "Mother Sedge". A slug like
+  // "anchor_ring" / "weir1" is a filename, not a name → fall through to the common-noun form.
+  if (name && /[A-Z]/.test(name) && !/_/.test(name)) return name;
+  const src = name && !/[_\d]/.test(name) ? name : o.tag; // a clean lowercase name ("nets") is fine too
+  const words = src.replace(/[_-]+/g, ' ').replace(/\d+/g, '').replace(/\s+/g, ' ').trim();
   return /^[aeiou]/i.test(words) ? `an ${words}` : `a ${words}`;
 }
 
@@ -253,7 +257,7 @@ function createActor(scene: any, a: any, tint: number | null): void {
     const accent = a.role === 'pc' ? pcRingColor(scene, a.id) : a.name ? 0xc9a227 : 0x9a8f7d;
     const label = a.name ?? identifyLabel(a);
     sprite.setInteractive({ useHandCursor: true });
-    sprite.on('pointerover', () => showNameTag(scene, container.x, container.y - sprite.displayHeight * (sd.anchorY ?? 1), label, accent));
+    sprite.on('pointerover', () => { if (!coveredByShownRoof(scene, container.x, container.y)) showNameTag(scene, container.x, container.y - sprite.displayHeight * (sd.anchorY ?? 1), label, accent); });
     sprite.on('pointerout', () => hideNameTag(scene));
   }
   scene.actorObjs.set(a.id, { container, sprite, col: a.col, row: a.row });
@@ -408,6 +412,17 @@ function updateRoofReveal(scene: any): void {
   }
 }
 
+/** True if a map point sits under a roof that is CURRENTLY drawn (not lifted) — the party can't see
+ *  what's inside, so it must not be hoverable/identifiable. A lifted roof (PC inside) exposes it. */
+function coveredByShownRoof(scene: any, px: number, py: number): boolean {
+  for (const rg of scene.roofGroups ?? []) {
+    if (rg.objs?.[0]?.visible === false) continue; // this roof is lifted → its interior IS visible
+    const b = rg.bbox;
+    if (px >= b.minX && px <= b.maxX && py >= b.minY && py <= b.maxY) return true;
+  }
+  return false;
+}
+
 /** Full rebuild: terrain + props + actors + lighting + camera. */
 function renderFullImpl(scene: any, data: any): void {
   if (typeof window !== 'undefined' && process.env.NODE_ENV !== 'production') (window as any).__mwScene = scene; // dev hook: inspect the live scene (anims/objects) from the console
@@ -460,7 +475,11 @@ function renderFullImpl(scene: any, data: any): void {
         scene.propObjs.set(o.id, { obj, footW: o.footprint?.w ?? 1, footH: o.footprint?.h ?? 1 });
         if (scene.playerView) {
           obj.setInteractive({ useHandCursor: true });
-          obj.on('pointerover', () => showNameTag(scene, obj.x, obj.y - obj.displayHeight, identifyLabel(o), o.name ? 0xc9a227 : 0x9a8f7d));
+          obj.on('pointerover', () => {
+            if (coveredByShownRoof(scene, obj.x, obj.y)) return;
+            const lbl = identifyLabel(o);
+            showNameTag(scene, obj.x, obj.y - obj.displayHeight, lbl, /^an? /.test(lbl) ? 0x9a8f7d : 0xc9a227); // grey for a common noun, gold for a proper name
+          });
           obj.on('pointerout', () => hideNameTag(scene));
         }
       }
