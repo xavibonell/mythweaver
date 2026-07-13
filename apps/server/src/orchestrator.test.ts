@@ -4,7 +4,7 @@ import { FakeLlmProvider, fakeText, fakeToolUse, type LlmContentBlock } from '@m
 import { InMemoryRetriever } from '@mythweaver/rag';
 import { FakeSceneComposer, buildSceneMap, type SceneComposer } from '@mythweaver/scene';
 import { validateSceneMap, type CharacterSheet, type EstablishScene, type SceneRealizeContext, type StatBlock } from '@mythweaver/shared';
-import { runTurn, canonBlock, parseEstablish } from './orchestrator.js';
+import { runTurn, canonBlock, parseEstablish, classifySpeechAct } from './orchestrator.js';
 import { FakeArcPlanner } from './arc-planner.js';
 import type { GameState } from '@mythweaver/shared';
 
@@ -793,5 +793,27 @@ describe('travel gate (R2): rough water suspends via requestRoll, resumes engine
     const blocks = resume.messages[resume.messages.length - 1]!.content as LlmContentBlock[];
     const rr = blocks.find((b) => b.type === 'tool_result') as { content: string };
     expect(rr.content).toContain('current throws');
+  });
+});
+
+describe('classifySpeechAct — a question must not be executed as a move', () => {
+  const ask = (text: string) => classifySpeechAct({ kind: 'message', speakerId: 'Aldric', text });
+  it('reads feasibility / spatial QUESTIONS as ask (withhold the move)', () => {
+    expect(ask('can we reach Mother Sedge? do we need a boat?')).toBe('ask');
+    expect(ask('How far is the tower from here?')).toBe('ask');
+    expect(ask('Is there a bridge across, or is it cut off?')).toBe('ask');
+    expect(ask('should we swim across to her?')).toBe('ask'); // the verb is ASKED about, not commanded
+    expect(ask('(to the DM) can I even make that jump?')).toBe('ask');
+    expect(ask('where is the boathouse keeper?')).toBe('ask');
+  });
+  it('reads DECLARED actions as act (movement still executes)', () => {
+    expect(ask('I go to Mother Sedge to question her')).toBe('act');
+    expect(ask('I swim across to her')).toBe('act');
+    expect(ask('We head over to the well.')).toBe('act');
+    expect(ask('I draw my bow and loose an arrow at the goblin!')).toBe('act');
+    expect(ask('Forget the tower — I want to leave and go fishing.')).toBe('act');
+  });
+  it('a declared roll is never an ask', () => {
+    expect(classifySpeechAct({ kind: 'roll', requestId: 'r1', total: 12 })).toBe('act');
   });
 });

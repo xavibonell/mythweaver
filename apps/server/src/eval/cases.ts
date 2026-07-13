@@ -89,4 +89,11 @@ export const EVAL_CASES: EvalCase[] = [
     ],
     note: 'Second turn must stay consistent with Edda + the established scene (coherence & continuity).',
   },
+  {
+    id: 'reach-question',
+    scenario: 'the-sunken-bell',
+    turns: [{ speakerId: 'Aldric', text: 'Can we even reach the tower from here, or is it cut off? Do we need a boat?' }],
+    note: 'A FEASIBILITY QUESTION, not a declared move — must ANSWER (not silently walk/swim the party there). The engine has no business moving a token off a question.',
+    expectTools: { forbidden: ['travel'] },
+  },
 ];

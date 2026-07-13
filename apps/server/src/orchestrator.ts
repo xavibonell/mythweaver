@@ -1340,6 +1340,34 @@ export function predictMoveType(input: TurnInput, state: GameState): ExemplarMov
   return undefined;
 }
 
+/**
+ * SPEECH-ACT classifier (deterministic, $0) — is the player ASKING about the situation/space (a
+ * question to ANSWER) or DECLARING an action (to execute)? This closes the coherence leak where a
+ * feasibility question ("can we reach her? do we need a boat?") was silently run as a committed move:
+ * the engine had no notion of a speech act, so an interrogative line and a command flowed through the
+ * identical tool loop and the model resolved the ambiguity toward acting. On 'ask', the turn withholds
+ * movement and the DM answers (via queryScene) — the player still chooses whether to actually go.
+ *
+ * Errs toward 'act' (only WITHHOLDS the move when it is confident it is a question): a line reads as
+ * 'ask' iff it is interrogative (ends with '?' or opens with an interrogative word) AND does not also
+ * DECLARE a first-person action ("…so I swim across"). A declared action under an interrogative opener
+ * ("should we swim?") stays 'ask' — the verb is what's being ASKED about, not commanded.
+ */
+export function classifySpeechAct(input: TurnInput): 'ask' | 'act' {
+  if (input.kind !== 'message') return 'act';
+  const t = input.text.trim().toLowerCase().replace(/^\(?\s*(to the dm|ooc|meta)\b[:)\s]*/i, '').trim();
+  if (!t) return 'act';
+  const opensInterrogative = /^(can|could|should|shall|would|do|does|did|is|are|was|were|how|where|what|which|who|why|when|will|are there|is there)\b/.test(t);
+  const interrogative = t.endsWith('?') || opensInterrogative;
+  if (!interrogative) return 'act';
+  // A first-person COMMITTED action makes it a declaration — UNLESS it sits under an interrogative
+  // opener, where the action verb is the subject of the question ("should we swim?"), not a command.
+  const declaresAction =
+    !opensInterrogative &&
+    /\b(i|we)\s+(?:now\s+|then\s+|will\s+|'?ll\s+|just\s+|also\s+)?(go|goes|walk|walks|run|runs|move|moves|approach|head|heads|swim|swims|climb|enter|cross|step|charge|attack|cast|draw|shoot|fire|strike|grab|open|push|pull|leap|jump|sneak|throw|follow)\b/.test(t);
+  return declaresAction ? 'act' : 'ask';
+}
+
 /** Did the player DECLARE movement this turn? ("go to…", "I approach…", "we head over…") */
 const MOVEMENT_DECLARED = /\b(go|goes|walk|walks|head|heads|run|runs|stride|strides|step|steps|move|moves)\s+(to|over|toward|towards|up to|closer|across|into|see)\b|\bapproach(es)?\b|\bfollow (him|her|them|the)\b/i;
 /** Generic person-words → "the guy over there" targets the nearest visible NPC. */
@@ -1421,8 +1449,14 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
   const now = deps.now ?? Date.now;
   const startedAt = now();
   const playbook = deps.playbook ?? DEFAULT_DM_PLAYBOOK;
-  const tools = buildToolDefs(Boolean(deps.retriever), Boolean(deps.composer));
+  let tools = buildToolDefs(Boolean(deps.retriever), Boolean(deps.composer));
   const state = engine.getState();
+  // SPEECH-ACT GATE (coherence leak ①): an information-seeking question must NOT silently execute a
+  // move. On an 'ask' turn we withhold `travel`, skip the movement backstop, and reject PC-move ops
+  // (below) — so the DM answers (queryScene + fiction) and hands control back, instead of committing
+  // an unasked crossing (e.g. swimming a fighter across deep water because they wondered if they could).
+  const answeringOnly = classifySpeechAct(input) === 'ask';
+  if (answeringOnly) tools = tools.filter((t) => t.name !== 'travel');
 
   let messages: LlmMessage[];
   let inTok = 0;
@@ -1615,7 +1649,7 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
           (recent ? `=== RECENT ===\n${recent}\n\n` : '') +
           (input.kind === 'opening'
             ? `=== SESSION START — OPENING NARRATION ===\nThe session is beginning. Deliver the OPENING: vividly establish where the party is, the immediate situation and what's at stake, and what they can see/sense right now. CRITICALLY: make the party's PURPOSE plain in-fiction — why THEY came here and what they're after (the premise's hook); a table that doesn't know why it's here can't play. Then end by asking what they do. If a concrete location is established, call setScene. Do NOT request rolls, resolve actions, or advance scenes yet.`
-            : `${input.speakerId}: ${input.text}`),
+            : `${answeringOnly ? `[This line is a QUESTION, not a declared move. ANSWER it — for anything about distance, a route, reachability, or "do we need a boat" feasibility, call queryScene first ('distance'/'path'/'los'/'whereis'/'near') and narrate from its facts. Do NOT move any token this turn; let the player decide whether to actually go.]\n` : ''}${input.speakerId}: ${input.text}`),
       },
     ];
   }
@@ -1641,7 +1675,7 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
 
     if (res.toolCalls.length === 0) {
       if (res.text) engine.record('narration', res.text);
-      movementBackstop(engine, state, input, sceneDeltas); // token truth: declared movement always lands on the table
+      if (!answeringOnly) movementBackstop(engine, state, input, sceneDeltas); // token truth: declared movement always lands on the table (never on a question)
       const mentioned = extractMentions(currentMap(state), res.text);
       return finish({ narration: res.text, costUsd, model: lastModel, trace: makeTrace(), ...(mentioned.length ? { mentions: mentioned } : {}), ...sceneDelta() });
     }
@@ -1763,6 +1797,8 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
           const op = String(c.op ?? '');
           const id = String(c.id ?? '');
           if (op === 'move') {
+            // Speech-act gate: on an 'ask' turn a PC never moves — the player asked, they didn't declare it.
+            if (answeringOnly && id.startsWith('pc:')) { preRejected.push({ op, id, reason: 'the player is asking, not declaring a move — answer their question; do not move them' }); continue; }
             if (typeof c.to !== 'string' || !c.to.trim()) { preRejected.push({ op, id, reason: 'move needs a "to" anchor' }); continue; }
             proposals.push({ op: 'move', id, to: { anchor: c.to.trim() } });
           } else if (op === 'face') {
@@ -2209,7 +2245,7 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
   // Loop budget exhausted — close the turn gracefully rather than hang.
   const fallback = 'The DM pauses, gathering the threads of the scene. "What do you do?"';
   engine.record('narration', fallback);
-  movementBackstop(engine, state, input, sceneDeltas); // token truth holds even on the MAX_STEPS fallback
+  if (!answeringOnly) movementBackstop(engine, state, input, sceneDeltas); // token truth holds even on the MAX_STEPS fallback (never on a question)
   const mentionedF = extractMentions(currentMap(state), fallback);
   return finish({ narration: fallback, costUsd, model: lastModel, trace: makeTrace(), ...(mentionedF.length ? { mentions: mentionedF } : {}), ...sceneDelta() });
 
