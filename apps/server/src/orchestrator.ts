@@ -932,6 +932,40 @@ function resolveMapObject(engine: Engine, map: SceneMap, ref: unknown, near?: { 
   return loose.sort((a, b) => distanceFt(idx, near, a) - distanceFt(idx, near, b))[0];
 }
 
+/** COHERENCE: when a player ADDRESSES a named NPC from a distance, the DM must narrate the reply AT
+ *  that distance — a shout across the water is not an at-the-shoulder murmur. The oracle knows the gap
+ *  (feet, water between, line of sight); this binds the NPC's blocking to it, so dialogue stops ignoring
+ *  relational position. Empty string when they're face-to-face (normal blocking) or no NPC is addressed. */
+function addresseeSpatialNote(engine: Engine, state: GameState, input: TurnInput): string {
+  if (input.kind !== 'message') return '';
+  const map = currentMap(state);
+  if (!map) return '';
+  const speaker = (map.objects ?? []).find((o) => o.role === 'pc' && (o.name ?? '').toLowerCase() === (input.speakerId ?? '').trim().toLowerCase());
+  if (!speaker) return '';
+  const text = input.text.toLowerCase();
+  const npc = (map.objects ?? []).find((o) => o.kind === 'actor' && o.role === 'npc' && o.name && o.visible !== false && text.includes(o.name.toLowerCase()));
+  if (!npc) return '';
+  const idx = spatialIndex(map);
+  const ft = distanceFt(idx, speaker, npc);
+  if (ft <= 10) return ''; // within a step — a normal face-to-face exchange; say nothing
+  // Water between them? sample the straight line for water tiles (a swim, not a stroll, separates them).
+  let waterN = 0, samples = 0;
+  const dc = npc.col - speaker.col, dr = npc.row - speaker.row, steps = Math.max(Math.abs(dc), Math.abs(dr));
+  for (let i = 1; i < steps; i++) {
+    const c = Math.round(speaker.col + (dc * i) / steps), r = Math.round(speaker.row + (dr * i) / steps);
+    samples++; if ((map.tiles?.[r]?.[c] ?? '').startsWith('water')) waterN++;
+  }
+  const acrossWater = samples > 0 && waterN / samples > 0.3;
+  const los = hasLineOfSight(idx, speaker, npc).clear;
+  const register = ft >= 30 ? 'a SHOUT across the gap' : 'several paces apart, out of arm’s reach';
+  return (
+    `=== SPATIAL — SOCIAL DISTANCE (authoritative; from the oracle) ===\n` +
+    `${speaker.name} is ~${ft} ft from ${npc.name}${acrossWater ? ', across open water' : ''}${los ? '' : ', not in clear line of sight'} — this is ${register}, NOT a face-to-face exchange. ` +
+    `Narrate ${npc.name}'s reply AT that distance: they raise their voice, beckon ${speaker.name} closer, or only part of it carries${acrossWater ? ' over the water' : ''}. ` +
+    `Do NOT block it as an intimate, at-the-shoulder conversation, and do NOT have them touch/hand over/lean in across that gap. For a close exchange, ${speaker.name} must approach (a declared move).\n\n`
+  );
+}
+
 function answerSceneQuery(engine: Engine, state: GameState, input: Record<string, unknown>): string {
   try {
     const map = currentMap(state);
@@ -1457,6 +1491,9 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
   // an unasked crossing (e.g. swimming a fighter across deep water because they wondered if they could).
   const answeringOnly = classifySpeechAct(input) === 'ask';
   if (answeringOnly) tools = tools.filter((t) => t.name !== 'travel');
+  // Bind NPC dialogue to the oracle: if the player addresses a named NPC across a gap, the DM is told
+  // the real distance so the reply happens AT that distance (shout/beckon), not at the shoulder.
+  const socialNote = SPATIAL_ON ? addresseeSpatialNote(engine, state, input) : '';
 
   let messages: LlmMessage[];
   let inTok = 0;
@@ -1649,7 +1686,7 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
           (recent ? `=== RECENT ===\n${recent}\n\n` : '') +
           (input.kind === 'opening'
             ? `=== SESSION START — OPENING NARRATION ===\nThe session is beginning. Deliver the OPENING: vividly establish where the party is, the immediate situation and what's at stake, and what they can see/sense right now. CRITICALLY: make the party's PURPOSE plain in-fiction — why THEY came here and what they're after (the premise's hook); a table that doesn't know why it's here can't play. Then end by asking what they do. If a concrete location is established, call setScene. Do NOT request rolls, resolve actions, or advance scenes yet.`
-            : `${answeringOnly ? `[This line is a QUESTION, not a declared move. ANSWER it — for anything about distance, a route, reachability, or "do we need a boat" feasibility, call queryScene first ('distance'/'path'/'los'/'whereis'/'near') and narrate from its facts. Do NOT move any token this turn; let the player decide whether to actually go.]\n` : ''}${input.speakerId}: ${input.text}`),
+            : `${socialNote}${answeringOnly ? `[This line is a QUESTION, not a declared move. ANSWER it — for anything about distance, a route, reachability, or "do we need a boat" feasibility, call queryScene first ('distance'/'path'/'los'/'whereis'/'near') and narrate from its facts. Do NOT move any token this turn; let the player decide whether to actually go.]\n` : ''}${input.speakerId}: ${input.text}`),
       },
     ];
   }

@@ -164,13 +164,13 @@ function identifyLabel(o: { name?: string; tag: string; role?: string }): string
 
 /** STORY PINGS: pulse + label every map object the DM's narration just mentioned, so players can
  *  connect the fiction's nouns to pixels ("Mother Sedge counts softly" → HER token pulses with her
- *  name). If the first mentioned thing is off-frame, the camera GLANCES at it — a human DM pointing
- *  at the map — then glides back to the party. */
+ *  name). Pings pulse IN PLACE — no camera move. (An earlier "glance at the first off-frame mention"
+ *  kept yanking the camera to a distant duplicate the narration didn't really point at — e.g. a second
+ *  "rope" prop across the map — so it was removed; the focus-framing already keeps the subject in view.) */
 function showStoryPings(scene: any, ids: string[]): void {
   const data = scene.lastData;
   if (!data || !ids?.length) return;
   const cam = scene.cameras.main;
-  let glanced = false;
   for (const id of ids.slice(0, 6)) {
     const rec = (data.objects ?? []).find((o: any) => o.id === id);
     if (!rec || rec.visible === false) continue;
@@ -191,15 +191,6 @@ function showStoryPings(scene: any, ids: string[]): void {
     tag.setScale(1 / Math.max(cam.zoom, 0.001));
     scene.tweens.add({ targets: tag, alpha: 1, duration: 180 });
     scene.time.delayedCall(2600, () => scene.tweens.add({ targets: tag, alpha: 0, duration: 350, onComplete: () => tag.destroy() }));
-    // camera glance at the FIRST off-frame mention (player view only), then back to the party — but
-    // NOT while a token is moving: the camera is already following the mover, and a glance would yank
-    // it away to an unrelated noun (a distant duplicate "rope" the narration didn't really point at).
-    const moving = (scene._suppressGlanceUntil ?? 0) > (typeof performance !== 'undefined' ? performance.now() : 0);
-    if (!glanced && !moving && scene.playerView && !cam.worldView.contains(x, y)) {
-      glanced = true;
-      cam.pan(x, y, 550, 'Sine.easeInOut', true);
-      scene.time.delayedCall(1900, () => { if (scene.lastData) playerCameraImpl(scene, scene.lastData, true); });
-    }
   }
 }
 
@@ -366,9 +357,6 @@ function applyDeltasImpl(scene: any, deltas: any[]): void {
   // (deltas already mutated lastData, so the PC centroid is the post-move one).
   if (scene.playerView && deltas?.some((d: any) => d.op === 'move' || d.op === 'spawn' || d.op === 'despawn')) {
     hideNameTag(scene); // the hovered token may have moved out from under the cursor
-    // The camera is now telling the story by following the mover — suppress the ping-glance for the
-    // duration of the walk so it doesn't fight the follow (see showStoryPings). Roughly the walk length.
-    scene._suppressGlanceUntil = (typeof performance !== 'undefined' ? performance.now() : 0) + 3200;
     playerCameraImpl(scene, data, true);
   }
   updateRoofReveal(scene); // a PC that moved under (or out from under) a roof reveals/re-covers it
@@ -382,11 +370,12 @@ function updateRoofReveal(scene: any): void {
   const groups = scene.roofGroups;
   if (!groups?.length) return;
   const pcs = (scene.lastData?.objects ?? []).filter((o: any) => o.kind === 'actor' && o.role === 'pc' && o.visible !== false);
+  const M = TILE * 1.5; // reveal when a PC is INSIDE or AT the building (doorway/wall), not only dead-centre
   for (const rg of groups) {
     const b = rg.bbox;
     const covered = pcs.some((pc: any) => {
       const px = (pc.col + 0.5) * TILE, py = (pc.row + 0.5) * TILE;
-      return px >= b.minX && px <= b.maxX && py >= b.minY && py <= b.maxY;
+      return px >= b.minX - M && px <= b.maxX + M && py >= b.minY - M && py <= b.maxY + M;
     });
     for (const o of rg.objs) o.setVisible(!covered);
   }
@@ -645,11 +634,17 @@ export default function SceneCanvas({ data, freeCamera = false, playerView = fal
       const Phaser: any = await import('phaser');
       await loadAssetLibrary(SERVER); // fill art tables BEFORE Phaser preloads
       if (cancelled || !containerRef.current) return;
+      // Render at the container's DEVICE resolution instead of a fixed 1024×576 that FIT then CSS-upscales
+      // ~1.5× into blur (that upscale — not the pixelArt filter — was what pixelated EVERYTHING, labels
+      // worst). Native backing store → crisp sprites AND crisp text. FIT still letterboxes if aspect drifts.
+      const dpr = Math.min(typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1, 2);
+      const cw = containerRef.current.clientWidth || 1024;
+      const ch = containerRef.current.clientHeight || 576;
       bridge.game = new Phaser.Game({
         type: Phaser.AUTO,
         parent: containerRef.current,
-        width: 1024,
-        height: 576,
+        width: Math.round(cw * dpr),
+        height: Math.round(ch * dpr),
         backgroundColor: '#0d0b0a',
         pixelArt: true,
         roundPixels: true,
