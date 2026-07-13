@@ -516,20 +516,65 @@ function fitCamera(scene: any, data: any): void {
   cam.centerOn(box.x + box.w / 2, box.y + box.h / 2);
 }
 
-/** PLAYER VIEW camera: locked close on the party — REAL players never see the whole map. A fixed
- *  ~this-many-tiles-across frame centred on the PC centroid, following as tokens move. No pan, no
- *  zoom (the component simply attaches no input handlers in player view); bounds still clamp so
- *  the frame never slides off the world. A tiny room falls back to the (tighter) fit zoom. */
-const PLAYER_VIEW_TILES = 32;
+/** PLAYER VIEW camera: locked close on the party — REAL players never see the whole map. An intimate
+ *  ~PLAYER_VIEW_TILES-across frame centred on the PC centroid, following as tokens move. No pan, no
+ *  zoom (the component simply attaches no input handlers in player view); bounds still clamp so the
+ *  frame never slides off the world. A tiny room falls back to the (tighter) fit zoom.
+ *
+ *  FOCUS FRAMING: a map is data-rich but the beat has a SUBJECT — the NPC you're told to talk to, the
+ *  boathouse you arrive at. When a DM-named NPC stands within FOCUS_MAX tiles of the party, the frame
+ *  GROWS to include them (so the subject is on screen, not off the corner) — but never past a hard
+ *  zoom-out cap: a subject beyond the cap is "elsewhere", so we keep the intimate party frame and let
+ *  the story-ping glance sweep to it instead. Anonymous villagers (no DM name) never pull the camera. */
+const PLAYER_VIEW_TILES = 32; // intimate baseline (tiles across the width)
+const PLAYER_VIEW_MAX_TILES = 48; // never zoom out past this to chase a focus
+const FOCUS_MAX_TILES = 16; // a named subject beyond this is "elsewhere" — glance, don't reframe
+
+function playerFocusCells(data: any, cxTile: number, cyTile: number): { col: number; row: number }[] {
+  const out: { col: number; row: number }[] = [];
+  for (const o of data.objects ?? []) {
+    if (o.visible === false) continue;
+    // a DM-NAMED non-PC actor is a story subject; anonymous mobs/keepers (name '') are not.
+    if (!(o.kind === 'actor' && o.role !== 'pc' && typeof o.name === 'string' && o.name.trim().length > 0)) continue;
+    if (Math.max(Math.abs((o.col ?? 0) - cxTile), Math.abs((o.row ?? 0) - cyTile)) <= FOCUS_MAX_TILES) out.push({ col: o.col, row: o.row });
+  }
+  return out;
+}
+
 function playerCameraImpl(scene: any, data: any, animate = false): void {
   const cam = scene.cameras.main;
   const box = worldBox(data);
   cam.setBounds(box.x, box.y, box.w, box.h);
-  const fit = Math.min(scene.scale.width / box.w, scene.scale.height / box.h);
-  cam.setZoom(Math.max(scene.scale.width / (PLAYER_VIEW_TILES * TILE), fit));
+  const W = scene.scale.width, H = scene.scale.height;
+  const fit = Math.min(W / box.w, H / box.h); // whole-scene floor (tiny rooms)
+  const baseZoom = Math.max(W / (PLAYER_VIEW_TILES * TILE), fit); // intimate frame
+  const minZoom = Math.max(W / (PLAYER_VIEW_MAX_TILES * TILE), fit); // hard zoom-out cap
   const pcs = (data.objects ?? []).filter((o: any) => o.kind === 'actor' && o.role === 'pc' && o.visible !== false);
-  const cx = pcs.length ? ((pcs.reduce((s: number, p: any) => s + p.col, 0) / pcs.length) + 0.5) * TILE : box.x + box.w / 2;
-  const cy = pcs.length ? ((pcs.reduce((s: number, p: any) => s + p.row, 0) / pcs.length) + 0.5) * TILE : box.y + box.h / 2;
+  const cxTile = pcs.length ? pcs.reduce((s: number, p: any) => s + p.col, 0) / pcs.length : (box.x + box.w / 2) / TILE - 0.5;
+  const cyTile = pcs.length ? pcs.reduce((s: number, p: any) => s + p.row, 0) / pcs.length : (box.y + box.h / 2) / TILE - 0.5;
+
+  // Default: the intimate party frame.
+  let zoom = baseZoom;
+  let cx = (cxTile + 0.5) * TILE, cy = (cyTile + 0.5) * TILE;
+
+  // Widen to keep the beat's focus (a named NPC nearby) in view — bounded by the zoom-out cap.
+  const focus = pcs.length ? playerFocusCells(data, cxTile, cyTile) : [];
+  if (focus.length) {
+    const cells = [...pcs.map((p: any) => ({ col: p.col, row: p.row })), ...focus];
+    let minC = Infinity, minR = Infinity, maxC = -Infinity, maxR = -Infinity;
+    for (const c of cells) { minC = Math.min(minC, c.col); minR = Math.min(minR, c.row); maxC = Math.max(maxC, c.col); maxR = Math.max(maxR, c.row); }
+    const pad = 2; // tiles of breathing room around the union
+    const bw = (maxC - minC + 1 + 2 * pad) * TILE, bh = (maxR - minR + 1 + 2 * pad) * TILE;
+    const fitFocus = Math.min(W / bw, H / bh);
+    if (fitFocus >= minZoom) { // the union fits within the cap → frame party + subject together
+      zoom = Math.min(baseZoom, fitFocus); // never TIGHTER than baseline; zoom out only as needed
+      cx = ((minC + maxC) / 2 + 0.5) * TILE;
+      cy = ((minR + maxR) / 2 + 0.5) * TILE;
+    }
+    // else: the subject needs more than the cap — keep the party frame; the ping glance covers it.
+  }
+
+  cam.setZoom(zoom);
   if (animate) cam.pan(cx, cy, 450, 'Sine.easeInOut', true);
   else cam.centerOn(cx, cy);
 }

@@ -5185,96 +5185,6 @@
           ],
           "objects": [
             {
-              "id": "mob:drowned-dead#00",
-              "kind": "actor",
-              "role": "mob",
-              "tag": "drowned_dead",
-              "col": 8,
-              "row": 33,
-              "footprint": {
-                "w": 1,
-                "h": 1
-              },
-              "facing": "down",
-              "visible": true,
-              "group": "mob:drowned-dead"
-            },
-            {
-              "id": "mob:drowned-dead#01",
-              "kind": "actor",
-              "role": "mob",
-              "tag": "drowned_dead",
-              "col": 38,
-              "row": 32,
-              "footprint": {
-                "w": 1,
-                "h": 1
-              },
-              "facing": "down",
-              "visible": true,
-              "group": "mob:drowned-dead"
-            },
-            {
-              "id": "mob:drowned-dead#02",
-              "kind": "actor",
-              "role": "mob",
-              "tag": "drowned_dead",
-              "col": 11,
-              "row": 25,
-              "footprint": {
-                "w": 1,
-                "h": 1
-              },
-              "facing": "down",
-              "visible": true,
-              "group": "mob:drowned-dead"
-            },
-            {
-              "id": "mob:drowned-dead#03",
-              "kind": "actor",
-              "role": "mob",
-              "tag": "drowned_dead",
-              "col": 39,
-              "row": 28,
-              "footprint": {
-                "w": 1,
-                "h": 1
-              },
-              "facing": "down",
-              "visible": true,
-              "group": "mob:drowned-dead"
-            },
-            {
-              "id": "mob:drowned-dead#04",
-              "kind": "actor",
-              "role": "mob",
-              "tag": "drowned_dead",
-              "col": 33,
-              "row": 29,
-              "footprint": {
-                "w": 1,
-                "h": 1
-              },
-              "facing": "down",
-              "visible": true,
-              "group": "mob:drowned-dead"
-            },
-            {
-              "id": "mob:drowned-dead#05",
-              "kind": "actor",
-              "role": "mob",
-              "tag": "drowned_dead",
-              "col": 8,
-              "row": 29,
-              "footprint": {
-                "w": 1,
-                "h": 1
-              },
-              "facing": "down",
-              "visible": true,
-              "group": "mob:drowned-dead"
-            },
-            {
               "id": "prop:house#00",
               "kind": "prop",
               "tag": "bed",
@@ -5532,8 +5442,8 @@
               "role": "npc",
               "tag": "villager",
               "name": "Mother Sedge",
-              "col": 25,
-              "row": 7,
+              "col": 23,
+              "row": 4,
               "footprint": {
                 "w": 1,
                 "h": 1
@@ -5698,96 +5608,6 @@
               "visible": true
             },
             {
-              "id": "mob:zombie#00",
-              "kind": "actor",
-              "role": "mob",
-              "tag": "zombie",
-              "col": 12,
-              "row": 23,
-              "footprint": {
-                "w": 1,
-                "h": 1
-              },
-              "facing": "down",
-              "visible": true,
-              "group": "mob:zombie"
-            },
-            {
-              "id": "mob:zombie#01",
-              "kind": "actor",
-              "role": "mob",
-              "tag": "zombie",
-              "col": 40,
-              "row": 16,
-              "footprint": {
-                "w": 1,
-                "h": 1
-              },
-              "facing": "down",
-              "visible": true,
-              "group": "mob:zombie"
-            },
-            {
-              "id": "mob:zombie#02",
-              "kind": "actor",
-              "role": "mob",
-              "tag": "zombie",
-              "col": 27,
-              "row": 16,
-              "footprint": {
-                "w": 1,
-                "h": 1
-              },
-              "facing": "down",
-              "visible": true,
-              "group": "mob:zombie"
-            },
-            {
-              "id": "mob:zombie#03",
-              "kind": "actor",
-              "role": "mob",
-              "tag": "zombie",
-              "col": 10,
-              "row": 26,
-              "footprint": {
-                "w": 1,
-                "h": 1
-              },
-              "facing": "down",
-              "visible": true,
-              "group": "mob:zombie"
-            },
-            {
-              "id": "mob:zombie#04",
-              "kind": "actor",
-              "role": "mob",
-              "tag": "zombie",
-              "col": 12,
-              "row": 26,
-              "footprint": {
-                "w": 1,
-                "h": 1
-              },
-              "facing": "down",
-              "visible": true,
-              "group": "mob:zombie"
-            },
-            {
-              "id": "mob:zombie#05",
-              "kind": "actor",
-              "role": "mob",
-              "tag": "zombie",
-              "col": 29,
-              "row": 22,
-              "footprint": {
-                "w": 1,
-                "h": 1
-              },
-              "facing": "down",
-              "visible": true,
-              "group": "mob:zombie"
-            },
-            {
               "id": "prop:weir1",
               "kind": "prop",
               "tag": "weir",
@@ -5830,78 +5650,18 @@
               "visible": true
             },
             {
-              "id": "mob:climbers#00",
-              "kind": "actor",
-              "role": "mob",
-              "tag": "drowned_dead",
-              "col": 21,
-              "row": 3,
-              "footprint": {
-                "w": 1,
-                "h": 1
-              },
-              "facing": "down",
-              "visible": true,
-              "group": "mob:climbers"
-            },
-            {
-              "id": "mob:climbers#01",
-              "kind": "actor",
-              "role": "mob",
-              "tag": "drowned_dead",
-              "col": 22,
-              "row": 3,
-              "footprint": {
-                "w": 1,
-                "h": 1
-              },
-              "facing": "down",
-              "visible": true,
-              "group": "mob:climbers"
-            },
-            {
-              "id": "mob:climbers#02",
-              "kind": "actor",
-              "role": "mob",
-              "tag": "drowned_dead",
-              "col": 23,
-              "row": 3,
-              "footprint": {
-                "w": 1,
-                "h": 1
-              },
-              "facing": "down",
-              "visible": true,
-              "group": "mob:climbers"
-            },
-            {
-              "id": "mob:climbers#03",
-              "kind": "actor",
-              "role": "mob",
-              "tag": "drowned_dead",
-              "col": 24,
-              "row": 3,
-              "footprint": {
-                "w": 1,
-                "h": 1
-              },
-              "facing": "down",
-              "visible": true,
-              "group": "mob:climbers"
-            },
-            {
               "id": "pc:pc-1-fighter",
               "kind": "actor",
               "role": "pc",
               "tag": "knight",
               "name": "Aldric",
-              "col": 42,
-              "row": 20,
+              "col": 16,
+              "row": 17,
               "footprint": {
                 "w": 1,
                 "h": 1
               },
-              "facing": "down",
+              "facing": "up",
               "visible": true
             },
             {
@@ -5910,13 +5670,13 @@
               "role": "pc",
               "tag": "wizard",
               "name": "Elara",
-              "col": 41,
-              "row": 20,
+              "col": 15,
+              "row": 17,
               "footprint": {
                 "w": 1,
                 "h": 1
               },
-              "facing": "down",
+              "facing": "up",
               "visible": true
             },
             {
@@ -5925,13 +5685,13 @@
               "role": "pc",
               "tag": "rogue",
               "name": "Pip",
-              "col": 43,
-              "row": 20,
+              "col": 17,
+              "row": 17,
               "footprint": {
                 "w": 1,
                 "h": 1
               },
-              "facing": "down",
+              "facing": "up",
               "visible": true
             }
           ],
