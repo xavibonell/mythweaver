@@ -118,14 +118,23 @@ function pcRingColor(scene: any, id: string): number {
   return scene.pcColors.get(id);
 }
 
+/** A crisp UI label. The game runs pixelArt (NEAREST filtering) for the 16px sprites, which also makes
+ *  Text textures render blocky/aliased — unreadable. We render the label at high resolution and force
+ *  LINEAR filtering on ITS texture so a name reads as real type, not chunky pixels, at any camera zoom. */
+function labelText(scene: any, str: string): any {
+  const t = scene.add
+    .text(0, 0, str, { fontFamily: 'Georgia, "Times New Roman", serif', fontSize: '12px', color: '#f2ead9', resolution: Math.min(8, Math.max(3, Math.round((typeof window !== 'undefined' ? window.devicePixelRatio : 1) * (scene.cameras.main.zoom || 1) * 1.5))) })
+    .setOrigin(0.5, 0.5);
+  if (t.texture?.setFilter) t.texture.setFilter(1); // 1 = LINEAR (override the global NEAREST)
+  return t;
+}
+
 /** The hover name-tag (player view): one shared, reused tag — a dark parchment plaque with the
  *  actor's accent colour, floating above the head with a soft rise-and-fade. */
 function showNameTag(scene: any, x: number, headY: number, label: string, accent: number): void {
   hideNameTag(scene);
   const pad = { x: 8, y: 4 };
-  const text = scene.add.text(0, 0, label, {
-    fontFamily: 'Georgia, "Times New Roman", serif', fontSize: '11px', color: '#f2ead9', resolution: 4,
-  }).setOrigin(0.5, 0.5);
+  const text = labelText(scene, label);
   const w = text.width + pad.x * 2;
   const h = text.height + pad.y * 2;
   const g = scene.add.graphics();
@@ -173,7 +182,7 @@ function showStoryPings(scene: any, ids: string[]): void {
     const ring = scene.add.ellipse(x, y, TILE * 1.3, TILE * 0.62).setStrokeStyle(2, 0xc9a227, 0.95).setDepth(190000);
     scene.tweens.add({ targets: ring, scaleX: 1.7, scaleY: 1.7, alpha: 0, duration: 700, repeat: 2, onComplete: () => ring.destroy() });
     // floating label (auto-fades)
-    const text = scene.add.text(0, 0, identifyLabel(rec), { fontFamily: 'Georgia, "Times New Roman", serif', fontSize: '11px', color: '#f2ead9', resolution: 4 }).setOrigin(0.5, 0.5);
+    const text = labelText(scene, identifyLabel(rec));
     const w = text.width + 14, h = text.height + 7;
     const g = scene.add.graphics();
     g.fillStyle(0x14161c, 0.92).fillRoundedRect(-w / 2, -h / 2, w, h, 5);
@@ -182,8 +191,11 @@ function showStoryPings(scene: any, ids: string[]): void {
     tag.setScale(1 / Math.max(cam.zoom, 0.001));
     scene.tweens.add({ targets: tag, alpha: 1, duration: 180 });
     scene.time.delayedCall(2600, () => scene.tweens.add({ targets: tag, alpha: 0, duration: 350, onComplete: () => tag.destroy() }));
-    // camera glance at the FIRST off-frame mention (player view only), then back to the party
-    if (!glanced && scene.playerView && !cam.worldView.contains(x, y)) {
+    // camera glance at the FIRST off-frame mention (player view only), then back to the party — but
+    // NOT while a token is moving: the camera is already following the mover, and a glance would yank
+    // it away to an unrelated noun (a distant duplicate "rope" the narration didn't really point at).
+    const moving = (scene._suppressGlanceUntil ?? 0) > (typeof performance !== 'undefined' ? performance.now() : 0);
+    if (!glanced && !moving && scene.playerView && !cam.worldView.contains(x, y)) {
       glanced = true;
       cam.pan(x, y, 550, 'Sine.easeInOut', true);
       scene.time.delayedCall(1900, () => { if (scene.lastData) playerCameraImpl(scene, scene.lastData, true); });
@@ -279,10 +291,13 @@ function applyDeltasImpl(scene: any, deltas: any[]): void {
         const via: { col: number; row: number }[] = Array.isArray((d as { via?: { col: number; row: number }[] }).via) ? (d as { via: { col: number; row: number }[] }).via : [];
         if (via.length > 1) {
           const steps = via.map((c) => actorXY(c.col, c.row));
+          // A steady, readable pace: ~160 ms/tile (a walking gait, not a blur), capped so a very long
+          // crossing still finishes in a few seconds. 90 ms/tile read as teleport-fast on a 14-tile swim.
+          const per = Math.max(90, Math.min(165, Math.round(2600 / steps.length)));
           const walkOne = (i: number) => {
             if (i >= steps.length) { a.container.setPosition(x, y); a.container.setDepth(d.to.row + 0.5); return; }
             scene.tweens.add({
-              targets: a.container, x: steps[i]!.x, y: steps[i]!.y, duration: 90, ease: 'Linear',
+              targets: a.container, x: steps[i]!.x, y: steps[i]!.y, duration: per, ease: 'Linear',
               onComplete: () => { a.container.setDepth(via[i]!.row + 0.5); walkOne(i + 1); },
             });
           };
@@ -351,7 +366,29 @@ function applyDeltasImpl(scene: any, deltas: any[]): void {
   // (deltas already mutated lastData, so the PC centroid is the post-move one).
   if (scene.playerView && deltas?.some((d: any) => d.op === 'move' || d.op === 'spawn' || d.op === 'despawn')) {
     hideNameTag(scene); // the hovered token may have moved out from under the cursor
+    // The camera is now telling the story by following the mover — suppress the ping-glance for the
+    // duration of the walk so it doesn't fight the follow (see showStoryPings). Roughly the walk length.
+    scene._suppressGlanceUntil = (typeof performance !== 'undefined' ? performance.now() : 0) + 3200;
     playerCameraImpl(scene, data, true);
+  }
+  updateRoofReveal(scene); // a PC that moved under (or out from under) a roof reveals/re-covers it
+}
+
+/** Reveal a building's roof when a PC stands within its footprint — a player whose character is inside
+ *  (or among the interior) should see the ROOM, not a lid. Per-roof, re-checked whenever a token moves.
+ *  Footprint = the roof faces' bounding box (forgiving: a PC anywhere under the building rectangle lifts
+ *  it, not only dead-centre — matches how a player reads "I'm at/in that building"). */
+function updateRoofReveal(scene: any): void {
+  const groups = scene.roofGroups;
+  if (!groups?.length) return;
+  const pcs = (scene.lastData?.objects ?? []).filter((o: any) => o.kind === 'actor' && o.role === 'pc' && o.visible !== false);
+  for (const rg of groups) {
+    const b = rg.bbox;
+    const covered = pcs.some((pc: any) => {
+      const px = (pc.col + 0.5) * TILE, py = (pc.row + 0.5) * TILE;
+      return px >= b.minX && px <= b.maxX && py >= b.minY && py <= b.maxY;
+    });
+    for (const o of rg.objs) o.setVisible(!covered);
   }
 }
 
@@ -417,30 +454,35 @@ function renderFullImpl(scene: any, data: any): void {
   // chimney/dormer sprites), drawn ABOVE walls/props so a player sees only rooftops. Hidden when the operator
   // flips the lab switch (or a building is revealed in play). Depth 90000 sits above every row-depth object,
   // below the fog wash. Colours are multiplied by the day/night tint.
+  scene.roofGroups = []; // per-roof draw groups + footprint bbox, so a roof can lift when a PC is under it
   if (scene.showRoofs !== false && (data.roofs?.length ?? 0) > 0) {
     const lit = (c: number): number => {
       if (!tint) return c;
       const tr = (tint >> 16) & 0xff, tg = (tint >> 8) & 0xff, tb = tint & 0xff;
       return (Math.round(((c >> 16) & 0xff) * tr / 255) << 16) | (Math.round(((c >> 8) & 0xff) * tg / 255) << 8) | Math.round((c & 0xff) * tb / 255);
     };
-    const g = scene.add.graphics().setDepth(90000);
     for (const rb of data.roofs) {
+      const objs: any[] = [];
+      const g = scene.add.graphics().setDepth(90000);
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
       for (const f of rb.faces) {
         const top = lit(f.top), bot = lit(f.bot);
         g.fillGradientStyle(top, top, bot, bot, 1);
         const pts: { x: number; y: number }[] = [];
-        for (let i = 0; i < f.pts.length; i += 2) pts.push({ x: f.pts[i], y: f.pts[i + 1] });
+        for (let i = 0; i < f.pts.length; i += 2) { pts.push({ x: f.pts[i], y: f.pts[i + 1] }); minX = Math.min(minX, f.pts[i]); maxX = Math.max(maxX, f.pts[i]); minY = Math.min(minY, f.pts[i + 1]); maxY = Math.max(maxY, f.pts[i + 1]); }
         g.fillPoints(pts, true);
       }
       for (const ln of rb.lines) { g.lineStyle(ln.w, lit(ln.c), 1); g.lineBetween(ln.x1, ln.y1, ln.x2, ln.y2); }
+      objs.push(g); scene.sceneObjs.push(g);
+      for (const sp of rb.sprites) {
+        if (!PROP_ART[sp.tag]) continue;
+        const img = scene.add.image(sp.x, sp.y, `prop_${sp.tag}`).setOrigin(0.5, 0.5).setDepth(90001);
+        if (tint) img.setTint(tint);
+        objs.push(img); scene.sceneObjs.push(img);
+      }
+      scene.roofGroups.push({ objs, bbox: { minX, minY, maxX, maxY } });
     }
-    scene.sceneObjs.push(g);
-    for (const rb of data.roofs) for (const sp of rb.sprites) {
-      if (!PROP_ART[sp.tag]) continue;
-      const img = scene.add.image(sp.x, sp.y, `prop_${sp.tag}`).setOrigin(0.5, 0.5).setDepth(90001);
-      if (tint) img.setTint(tint);
-      scene.sceneObjs.push(img);
-    }
+    updateRoofReveal(scene); // a PC already standing inside a building opens its roof from the first frame
   }
 
   // INTERIOR LIGHTING — an enclosed scene is DARK (a multiply overlay) lit only in warm ADDITIVE pools around
