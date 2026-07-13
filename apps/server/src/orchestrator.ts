@@ -196,6 +196,9 @@ export interface TurnResult {
   beat?: { from: string; to: string; title?: string; outcome?: 'resolved' | 'fled' | 'done' };
   /** Style exemplars injected this turn (Technique B) — for the lab trace + session de-dup. */
   exemplars?: { id: string; moveType: string; source: string }[];
+  /** Map-object ids the narration MENTIONS this turn (names + story-prop words) — the live table
+   *  pulses them so players can connect the DM's nouns to pixels ("where is Mother Sedge?"). */
+  mentions?: string[];
 }
 
 export interface OrchestratorDeps {
@@ -1351,6 +1354,24 @@ const PERSON_WORDS = /\b(guy|guys|man|men|woman|women|person|people|villager|vil
  * anchors snap to free tiles, impossible moves are refused, and the applied delta rides the normal
  * TurnResult.deltas path (client tween + player-camera glide). No target confidently resolved → no move.
  */
+/** Which map objects does this narration TALK ABOUT? Named objects by name; story props by tag
+ *  words (weir/rope/bell/ring/…). Powers the live table's story pings. Cap 6, dedup'd. */
+export function extractMentions(map: SceneMap | undefined, narration: string): string[] {
+  if (!map || !narration) return [];
+  const text = narration.toLowerCase();
+  const out: string[] = [];
+  for (const o of map.objects) {
+    if (o.visible === false || out.includes(o.id)) continue;
+    if (o.name && text.includes(o.name.toLowerCase())) { out.push(o.id); continue; }
+    if (o.kind !== 'actor') {
+      const words = o.tag.split('_').filter((w) => w.length > 3);
+      if (words.some((w) => new RegExp(`\\b${w}s?\\b`).test(text))) out.push(o.id);
+    }
+    if (out.length >= 6) break;
+  }
+  return out;
+}
+
 export function movementBackstop(engine: Engine, state: GameState, input: TurnInput, sceneDeltas: SceneDelta[]): void {
   if (input.kind !== 'message') return;
   const text = input.text.toLowerCase();
@@ -1383,7 +1404,7 @@ export function movementBackstop(engine: Engine, state: GameState, input: TurnIn
     // (a hazardous swim degrades to the waterline; it never suspends a roll the player didn't ask for).
     for (const p of moving) {
       const v = engine.travel({ actorId: p.id, to: { id: target!.id }, mode: 'auto' });
-      if (v.at) sceneDeltas.push({ op: 'move', id: p.id, to: { col: v.at.col, row: v.at.row } });
+      if (v.at) sceneDeltas.push({ op: 'move', id: p.id, to: { col: v.at.col, row: v.at.row }, ...(v.pathCells?.length ? { via: v.pathCells } : {}) });
     }
     engine.record('engine', `Token backstop: routed ${moving.map((p) => p.id).join(', ')} toward ${target.name ?? target.id} via travel (declared movement had no move delta this turn).`, { backstop: true, targetId: target.id });
     return;
@@ -1465,7 +1486,7 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
       try {
         if (result.success === true) {
           const v = engine.travel({ actorId: tcn.actorId, to: { id: tcn.toId ?? '' }, gatePassed: true });
-          if (v.at) sceneDeltas.push({ op: 'move', id: tcn.actorId, to: { col: v.at.col, row: v.at.row } });
+          if (v.at) sceneDeltas.push({ op: 'move', id: tcn.actorId, to: { col: v.at.col, row: v.at.row }, ...(v.pathCells?.length ? { via: v.pathCells } : {}) });
           travelFacts = v.facts;
         } else {
           travelFacts = engine.swimGateFail(tcn.actorId);
@@ -1593,7 +1614,7 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
           `=== CURRENT STATE (authoritative; from the engine) ===\n${summarizeState(state)}\n\n` +
           (recent ? `=== RECENT ===\n${recent}\n\n` : '') +
           (input.kind === 'opening'
-            ? `=== SESSION START — OPENING NARRATION ===\nThe session is beginning. Deliver the OPENING: vividly establish where the party is, the immediate situation and what's at stake, and what they can see/sense right now — then end by asking what they do. If a concrete location is established, call setScene. Do NOT request rolls, resolve actions, or advance scenes yet.`
+            ? `=== SESSION START — OPENING NARRATION ===\nThe session is beginning. Deliver the OPENING: vividly establish where the party is, the immediate situation and what's at stake, and what they can see/sense right now. CRITICALLY: make the party's PURPOSE plain in-fiction — why THEY came here and what they're after (the premise's hook); a table that doesn't know why it's here can't play. Then end by asking what they do. If a concrete location is established, call setScene. Do NOT request rolls, resolve actions, or advance scenes yet.`
             : `${input.speakerId}: ${input.text}`),
       },
     ];
@@ -1621,7 +1642,8 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
     if (res.toolCalls.length === 0) {
       if (res.text) engine.record('narration', res.text);
       movementBackstop(engine, state, input, sceneDeltas); // token truth: declared movement always lands on the table
-      return finish({ narration: res.text, costUsd, model: lastModel, trace: makeTrace(), ...sceneDelta() });
+      const mentioned = extractMentions(currentMap(state), res.text);
+      return finish({ narration: res.text, costUsd, model: lastModel, trace: makeTrace(), ...(mentioned.length ? { mentions: mentioned } : {}), ...sceneDelta() });
     }
 
     // Dispatch tool calls: resolve engine-immediate ones; suspend on a roll request.
@@ -2131,7 +2153,7 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
             resolved.push({ toolUseId: tc.id, content: JSON.stringify({ error: `no destination "${String(tc.input.to)}" on this map — use an id/name from the MAP block` }) });
           } else {
             const v = engine.travel({ actorId: actorObj.id, to: { id: targetObj.id } });
-            if (v.at) sceneDeltas.push({ op: 'move', id: actorObj.id, to: { col: v.at.col, row: v.at.row } });
+            if (v.at) sceneDeltas.push({ op: 'move', id: actorObj.id, to: { col: v.at.col, row: v.at.row }, ...(v.pathCells?.length ? { via: v.pathCells } : {}) });
             if (v.needsRoll && !roll) {
               // Gate → the SAME suspend-and-verdict loop dice already use, with the engine-owned modifier.
               let expr = '1d20';
@@ -2188,7 +2210,8 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
   const fallback = 'The DM pauses, gathering the threads of the scene. "What do you do?"';
   engine.record('narration', fallback);
   movementBackstop(engine, state, input, sceneDeltas); // token truth holds even on the MAX_STEPS fallback
-  return finish({ narration: fallback, costUsd, model: lastModel, trace: makeTrace(), ...sceneDelta() });
+  const mentionedF = extractMentions(currentMap(state), fallback);
+  return finish({ narration: fallback, costUsd, model: lastModel, trace: makeTrace(), ...(mentionedF.length ? { mentions: mentionedF } : {}), ...sceneDelta() });
 
   function sceneDelta(): { sceneChanged?: boolean; sceneMap?: SceneMap } {
     return {

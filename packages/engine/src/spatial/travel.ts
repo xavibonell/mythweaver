@@ -46,6 +46,9 @@ export interface TravelVerdict {
   rejected?: string;
   /** The actor's cell after this call (post-snap) — callers synthesize the client tween from it. */
   at?: Cell;
+  /** The cells actually walked this call (prefix on a gate stop; full path on success) — becomes
+   *  the move delta's `via` so the token WALKS instead of teleporting. */
+  pathCells?: Cell[];
 }
 
 export function deriveMoveCaps(state: GameState, actorId: string): MoveCaps {
@@ -112,6 +115,7 @@ export function runTravel(deps: TravelDeps, intent: TravelIntent): TravelVerdict
       return idx.roomId[k] === -1; // off the walkable network = in the water
     });
     const bank = firstSwim > 0 ? path.cells[firstSwim - 1]! : { col: actor.col, row: actor.row };
+    const prefixCells = firstSwim > 0 ? path.cells.slice(0, firstSwim) : [];
     let bankAt: Cell = { col: actor.col, row: actor.row };
     if (bank.col !== actor.col || bank.row !== actor.row) {
       const r = deps.applyMove(intent.actorId, bank);
@@ -120,12 +124,12 @@ export function runTravel(deps: TravelDeps, intent: TravelIntent): TravelVerdict
     const swimFt = swimLegs.reduce((s, l) => s + l.ft, 0);
     if (intent.mode === 'auto') {
       return {
-        moved: true, ft: 0, rounds: 0, legs: path.segments, stoppedAt: 'waterline', at: bankAt,
+        moved: true, ft: 0, rounds: 0, legs: path.segments, stoppedAt: 'waterline', at: bankAt, pathCells: prefixCells,
         facts: [`${actor.name ?? actor.id} stops at the waterline — ${swimFt} ft of rough water ahead (a swim would need an Athletics check).`],
       };
     }
     return {
-      moved: bank.col !== actor.col || bank.row !== actor.row, ft: 0, rounds: 0, legs: path.segments, stoppedAt: 'waterline', at: bankAt,
+      moved: bank.col !== actor.col || bank.row !== actor.row, ft: 0, rounds: 0, legs: path.segments, stoppedAt: 'waterline', at: bankAt, pathCells: prefixCells,
       needsRoll: { ability: 'str', skill: 'athletics', dc, reason: `Athletics to swim ${swimFt} ft of rough water` },
       facts: [`${swimFt} ft of rough water lies ahead; the crossing needs an Athletics check (the engine will resolve it).`],
     };
@@ -139,7 +143,7 @@ export function runTravel(deps: TravelDeps, intent: TravelIntent): TravelVerdict
     `${actor.name ?? actor.id} covers ${path.totalFt} ft of movement (~${t.rounds} round${t.rounds === 1 ? '' : 's'})${swamFt ? `, swimming ${swamFt} ft of it${caps.waterWalk ? '' : ' at double cost'}` : ''}.`,
     ...(caps.waterWalk && path.segments.some((s) => s.medium.startsWith('water')) ? [`${actor.name ?? actor.id} walks ON the water (spell effect).`] : []),
   ];
-  return { moved: landed, ft: path.totalFt, rounds: t.rounds, legs: path.segments, facts, ...(res.at ? { at: res.at } : {}) };
+  return { moved: landed, ft: path.totalFt, rounds: t.rounds, legs: path.segments, facts, ...(res.at ? { at: res.at } : {}), pathCells: path.cells };
 }
 
 /** Fail-forward for a FAILED swim gate: the actor stays out of the deep but the world moves —

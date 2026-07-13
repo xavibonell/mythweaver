@@ -119,6 +119,9 @@ export default function DmLiveTable() {
   const [characters, setCharacters] = useState<any[]>([]);
   const [arc, setArc] = useState<any>(null);
   const [titleCard, setTitleCard] = useState<any>(null); // {title, outcome} — shown ~2.4s on a beat transition
+  const [pings, setPings] = useState<string[] | null>(null); // story pings: narration-mentioned map ids
+  const [pingNonce, setPingNonce] = useState(0);
+  const [prologue, setPrologue] = useState<any>(null); // {premise, goal} — the WHY, shown once on join
   const [cost, setCost] = useState(0);
   const [busy, setBusy] = useState(false);
   const sceneRev = useRef(0);
@@ -158,6 +161,11 @@ export default function DmLiveTable() {
       const who = m?.[1] ?? '—';
       return { who, text: m?.[2] ?? line, dm: who === 'Dungeon Master' };
     }));
+    // THE WHY: on a fresh table (turn 0), show the campaign's purpose once — players should never
+    // wonder "why are we here". Premise from the blueprint; goal from the active beat's intent.
+    if ((v.turnIndex ?? 0) === 0 && (v.arc?.blueprint?.premise || v.arc?.brief?.activeBeatIntent)) {
+      setPrologue({ premise: v.arc?.blueprint?.premise ?? '', goal: v.arc?.brief?.activeBeatIntent ?? '' });
+    }
     history.replaceState(null, '', `?session=${id}`);
   }
 
@@ -198,6 +206,11 @@ export default function DmLiveTable() {
         setTimeout(() => setTitleCard(null), 2400);
       }
       applyScene(d.scene);
+      if (t.mentions?.length) {
+        // STORY PINGS after the map settles: pulse+label what the narration talked about.
+        setPings(t.mentions);
+        setTimeout(() => setPingNonce((n) => n + 1), t.deltas?.length ? 900 : 150);
+      }
     } finally {
       setBusy(false);
       setRollVal('');
@@ -240,7 +253,7 @@ export default function DmLiveTable() {
         {/* PLAYER VIEW: camera locked close on the party (no pan / no zoom-out — real players never
             see the whole map), PC colour-rings + hover name-tags. The old freeCamera/fit inspector
             stays available on /play for the scene track. */}
-        <SceneCanvas data={sceneData} playerView showRoofs={showRoofs} deltas={deltas} deltaNonce={deltaNonce} />
+        <SceneCanvas data={sceneData} playerView showRoofs={showRoofs} deltas={deltas} deltaNonce={deltaNonce} pings={pings} pingNonce={pingNonce} />
         <div style={{ position: 'absolute', top: 8, left: 10, display: 'flex', gap: 10, alignItems: 'center', fontSize: 12 }}>
           <span style={{ color: '#c9a227', fontFamily: 'ui-serif, Georgia, serif' }}>MythWeaver — live table</span>
           <span style={{ background: view.sceneEngine === 'modern' ? '#3fa34d' : '#6b7080', color: '#0b0c10', borderRadius: 3, padding: '1px 6px', fontWeight: 600 }}>{view.sceneEngine}</span>
@@ -259,6 +272,22 @@ export default function DmLiveTable() {
               <div style={{ color: '#c9a227', fontFamily: 'ui-serif, Georgia, serif', fontSize: 34 }}>{titleCard.title}</div>
             </div>
             <style>{'@keyframes mwfade { 0% {opacity: 0} 12% {opacity: 1} 78% {opacity: 1} 100% {opacity: 0} }'}</style>
+          </div>
+        )}
+        {prologue && (
+          // THE WHY — a one-time session prologue so players start knowing their purpose. Click to begin.
+          <div onClick={() => setPrologue(null)} style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', background: 'rgba(8,7,6,0.86)', cursor: 'pointer', zIndex: 5 }}>
+            <div style={{ maxWidth: 560, textAlign: 'center', padding: 24 }}>
+              <div style={{ color: '#7a8494', fontSize: 12, letterSpacing: 3, textTransform: 'uppercase', marginBottom: 14 }}>Your story</div>
+              {prologue.premise && <div style={{ color: '#e8e2d6', fontFamily: 'ui-serif, Georgia, serif', fontSize: 17, lineHeight: 1.55, marginBottom: 18 }}>{prologue.premise}</div>}
+              {prologue.goal && (
+                <div style={{ borderTop: '1px solid #2a2620', paddingTop: 14 }}>
+                  <span style={{ color: '#c9a227', fontSize: 12, letterSpacing: 2, textTransform: 'uppercase', marginRight: 8 }}>Now</span>
+                  <span style={{ color: '#cfc7b8', fontSize: 14 }}>{prologue.goal}</span>
+                </div>
+              )}
+              <div style={{ color: '#6b6252', fontSize: 12, marginTop: 22 }}>click to take your places</div>
+            </div>
           </div>
         )}
       </div>

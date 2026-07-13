@@ -79,6 +79,8 @@ export interface DmLabTurn {
   beat?: TurnResult['beat'];
   /** Style exemplars injected this turn (Technique B) — which real-DM beats shaped the register. */
   exemplars?: TurnResult['exemplars'];
+  /** Map-object ids the narration mentions — the live table pings them (story pings). */
+  mentions?: string[];
   model: string;
   steps: number;
   costUsd: number;
@@ -513,6 +515,7 @@ export async function dmLabSubmit(
     ...(result.deltas?.length ? { deltas: result.deltas } : {}),
     ...(result.beat ? { beat: result.beat } : {}),
     ...(result.exemplars?.length ? { exemplars: result.exemplars } : {}),
+    ...(result.mentions?.length ? { mentions: result.mentions } : {}),
     model: result.model,
     steps: result.trace.steps,
     costUsd: result.costUsd,

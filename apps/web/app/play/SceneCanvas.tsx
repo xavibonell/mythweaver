@@ -146,6 +146,51 @@ function hideNameTag(scene: any): void {
   if (scene.nameTag) { scene.nameTag.destroy(); scene.nameTag = null; }
 }
 
+/** "a drowned corpse", "a stone weir" — the player's right to know what a sprite IS. */
+function identifyLabel(o: { name?: string; tag: string; role?: string }): string {
+  if (o.name) return o.name;
+  const words = o.tag.replace(/_/g, ' ');
+  return /^[aeiou]/i.test(words) ? `an ${words}` : `a ${words}`;
+}
+
+/** STORY PINGS: pulse + label every map object the DM's narration just mentioned, so players can
+ *  connect the fiction's nouns to pixels ("Mother Sedge counts softly" → HER token pulses with her
+ *  name). If the first mentioned thing is off-frame, the camera GLANCES at it — a human DM pointing
+ *  at the map — then glides back to the party. */
+function showStoryPings(scene: any, ids: string[]): void {
+  const data = scene.lastData;
+  if (!data || !ids?.length) return;
+  const cam = scene.cameras.main;
+  let glanced = false;
+  for (const id of ids.slice(0, 6)) {
+    const rec = (data.objects ?? []).find((o: any) => o.id === id);
+    if (!rec || rec.visible === false) continue;
+    const a = scene.actorObjs?.get(id);
+    const p = scene.propObjs?.get(id);
+    const x = a ? a.container.x : p ? p.obj.x : (rec.col + 0.5) * TILE;
+    const y = a ? a.container.y : p ? p.obj.y : (rec.row + 1) * TILE;
+    // pulse ring
+    const ring = scene.add.ellipse(x, y, TILE * 1.3, TILE * 0.62).setStrokeStyle(2, 0xc9a227, 0.95).setDepth(190000);
+    scene.tweens.add({ targets: ring, scaleX: 1.7, scaleY: 1.7, alpha: 0, duration: 700, repeat: 2, onComplete: () => ring.destroy() });
+    // floating label (auto-fades)
+    const text = scene.add.text(0, 0, identifyLabel(rec), { fontFamily: 'Georgia, "Times New Roman", serif', fontSize: '11px', color: '#f2ead9', resolution: 4 }).setOrigin(0.5, 0.5);
+    const w = text.width + 14, h = text.height + 7;
+    const g = scene.add.graphics();
+    g.fillStyle(0x14161c, 0.92).fillRoundedRect(-w / 2, -h / 2, w, h, 5);
+    g.lineStyle(1.2, 0xc9a227, 0.9).strokeRoundedRect(-w / 2, -h / 2, w, h, 5);
+    const tag = scene.add.container(x, y - TILE * 1.6, [g, text]).setDepth(200001).setAlpha(0);
+    tag.setScale(1 / Math.max(cam.zoom, 0.001));
+    scene.tweens.add({ targets: tag, alpha: 1, duration: 180 });
+    scene.time.delayedCall(2600, () => scene.tweens.add({ targets: tag, alpha: 0, duration: 350, onComplete: () => tag.destroy() }));
+    // camera glance at the FIRST off-frame mention (player view only), then back to the party
+    if (!glanced && scene.playerView && !cam.worldView.contains(x, y)) {
+      glanced = true;
+      cam.pan(x, y, 550, 'Sine.easeInOut', true);
+      scene.time.delayedCall(1900, () => { if (scene.lastData) playerCameraImpl(scene, scene.lastData, true); });
+    }
+  }
+}
+
 function createActor(scene: any, a: any, tint: number | null): void {
   if (!SPRITES[a.tag] && typeof console !== 'undefined') console.warn(`[renderer] no sprite for '${a.tag}', using ${DEFAULT_SPRITE}`);
   const tag = SPRITES[a.tag] ? a.tag : DEFAULT_SPRITE;
@@ -171,11 +216,12 @@ function createActor(scene: any, a: any, tint: number | null): void {
   }
   container.add(parts);
   container.setDepth(a.row + 0.5); // actors sort above same-row props
-  if (scene.playerView && (a.role === 'pc' || (a.role === 'npc' && a.name))) {
-    // Hover name-tags: PCs always; NPCs only once the DM has NAMED them (introduced through play) —
-    // anonymous background villagers stay anonymous, so secrets stay secret.
-    const accent = a.role === 'pc' ? pcRingColor(scene, a.id) : 0xc9a227;
-    const label = a.name ?? String(a.id).split(':').pop()!.replace(/-/g, ' ');
+  if (scene.playerView) {
+    // Hover-identify EVERYTHING: named characters show their name (colour accent); anonymous actors
+    // show what they LOOK like ("a villager", "a drowned corpse") in grey — players always get to
+    // know what they're looking at, while secret identities stay secret until the DM names them.
+    const accent = a.role === 'pc' ? pcRingColor(scene, a.id) : a.name ? 0xc9a227 : 0x9a8f7d;
+    const label = a.name ?? identifyLabel(a);
     sprite.setInteractive({ useHandCursor: true });
     sprite.on('pointerover', () => showNameTag(scene, container.x, container.y - sprite.displayHeight * (sd.anchorY ?? 1), label, accent));
     sprite.on('pointerout', () => hideNameTag(scene));
@@ -228,7 +274,22 @@ function applyDeltasImpl(scene: any, deltas: any[]): void {
       if (a) {
         const { x, y } = actorXY(d.to.col, d.to.row);
         a.col = d.to.col; a.row = d.to.row;
-        scene.tweens.add({ targets: a.container, x, y, duration: 300, ease: 'Sine.easeInOut', onComplete: () => a.container.setDepth(d.to.row + 0.5) });
+        // WALK, don't teleport: a travel delta carries the actual path (`via`) — chain short tweens
+        // through the waypoints at a constant per-tile pace so a long walk LOOKS like walking.
+        const via: { col: number; row: number }[] = Array.isArray((d as { via?: { col: number; row: number }[] }).via) ? (d as { via: { col: number; row: number }[] }).via : [];
+        if (via.length > 1) {
+          const steps = via.map((c) => actorXY(c.col, c.row));
+          const walkOne = (i: number) => {
+            if (i >= steps.length) { a.container.setPosition(x, y); a.container.setDepth(d.to.row + 0.5); return; }
+            scene.tweens.add({
+              targets: a.container, x: steps[i]!.x, y: steps[i]!.y, duration: 90, ease: 'Linear',
+              onComplete: () => { a.container.setDepth(via[i]!.row + 0.5); walkOne(i + 1); },
+            });
+          };
+          walkOne(0);
+        } else {
+          scene.tweens.add({ targets: a.container, x, y, duration: 300, ease: 'Sine.easeInOut', onComplete: () => a.container.setDepth(d.to.row + 0.5) });
+        }
       } else {
         const p = scene.propObjs?.get(d.id);
         if (p) {
@@ -341,7 +402,14 @@ function renderFullImpl(scene: any, data: any): void {
     if (o.kind === 'actor') createActor(scene, o, tint);
     else {
       const obj = drawProp(scene, o.tag, o.col, o.row, o.footprint?.w ?? 1, o.footprint?.h ?? 1, o.row + 0.1, tint);
-      if (obj) scene.propObjs.set(o.id, { obj, footW: o.footprint?.w ?? 1, footH: o.footprint?.h ?? 1 });
+      if (obj) {
+        scene.propObjs.set(o.id, { obj, footW: o.footprint?.w ?? 1, footH: o.footprint?.h ?? 1 });
+        if (scene.playerView) {
+          obj.setInteractive({ useHandCursor: true });
+          obj.on('pointerover', () => showNameTag(scene, obj.x, obj.y - obj.displayHeight, identifyLabel(o), o.name ? 0xc9a227 : 0x9a8f7d));
+          obj.on('pointerout', () => hideNameTag(scene));
+        }
+      }
     }
   }
 
@@ -479,7 +547,7 @@ interface Bridge {
  *  PCs + DM-named NPCs. Wins over freeCamera.
  *  INCREMENTAL updates: bump `deltaNonce` with a fresh `deltas` array to tween tokens (move/spawn/
  *  reveal/…) without a full rebuild — pass a NEW `data` reference only when the location changes. */
-export default function SceneCanvas({ data, freeCamera = false, playerView = false, fitNonce = 0, showRoofs = true, deltas = null, deltaNonce = 0 }: { data: any; freeCamera?: boolean; playerView?: boolean; fitNonce?: number; showRoofs?: boolean; deltas?: any[] | null; deltaNonce?: number }) {
+export default function SceneCanvas({ data, freeCamera = false, playerView = false, fitNonce = 0, showRoofs = true, deltas = null, deltaNonce = 0, pings = null, pingNonce = 0 }: { data: any; freeCamera?: boolean; playerView?: boolean; fitNonce?: number; showRoofs?: boolean; deltas?: any[] | null; deltaNonce?: number; pings?: string[] | null; pingNonce?: number }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const bridgeRef = useRef<Bridge>({ scene: null, pending: null, game: null });
 
@@ -585,6 +653,14 @@ export default function SceneCanvas({ data, freeCamera = false, playerView = fal
   useEffect(() => {
     if (deltaNonce && deltas?.length) bridgeRef.current.scene?.applyDeltas?.(deltas);
   }, [deltaNonce]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // STORY PINGS: pulse+label the objects the narration just mentioned (bump pingNonce per turn).
+  useEffect(() => {
+    if (pingNonce && pings?.length) {
+      const sc = bridgeRef.current.scene;
+      if (sc) showStoryPings(sc, pings);
+    }
+  }, [pingNonce]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return <div ref={containerRef} style={{ width: '100%', height: '100%', background: '#0d0b0a' }} />;
 }

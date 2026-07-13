@@ -432,7 +432,10 @@ export interface WorldState {
 export type MoveTarget = { anchor: SemanticAnchor } | { col: number; row: number };
 
 export type SceneDelta =
-  | { op: 'move'; id: EntityId; to: MoveTarget }
+  | { op: 'move'; id: EntityId; to: MoveTarget;
+      /** The actual path walked (travel gate output) — renderers tween THROUGH these waypoints so
+       *  a long walk looks like walking, not teleporting. Display-only; `to` stays authoritative. */
+      via?: { col: number; row: number }[] }
   | { op: 'face'; id: EntityId; facing: Facing }
   | { op: 'reveal'; id: EntityId }
   | { op: 'hide'; id: EntityId }
