@@ -4,7 +4,7 @@ import { FakeLlmProvider, fakeText, fakeToolUse, type LlmContentBlock } from '@m
 import { InMemoryRetriever } from '@mythweaver/rag';
 import { FakeSceneComposer, buildSceneMap, type SceneComposer } from '@mythweaver/scene';
 import { validateSceneMap, type CharacterSheet, type EstablishScene, type SceneRealizeContext, type StatBlock } from '@mythweaver/shared';
-import { runTurn, canonBlock, parseEstablish, classifySpeechAct } from './orchestrator.js';
+import { runTurn, canonBlock, parseEstablish, classifySpeechAct, classifyBuilding } from './orchestrator.js';
 import { FakeArcPlanner } from './arc-planner.js';
 import type { GameState } from '@mythweaver/shared';
 
@@ -793,6 +793,18 @@ describe('travel gate (R2): rough water suspends via requestRoll, resumes engine
     const blocks = resume.messages[resume.messages.length - 1]!.content as LlmContentBlock[];
     const rr = blocks.find((b) => b.type === 'tool_result') as { content: string };
     expect(rr.content).toContain('current throws');
+  });
+});
+
+describe('classifyBuilding (One World ⑤/⑥) — a building is named by its interior', () => {
+  const c = (...tags: string[]) => classifyBuilding(new Set(tags));
+  it('reads the building TYPE from its furniture', () => {
+    expect(c('forge', 'anvil', 'barrel', 'crate')).toBe('forge'); // forge wins over the barrels
+    expect(c('bar_counter', 'bed', 'shelf_food')).toBe('inn');
+    expect(c('altar', 'candelabra', 'bench')).toBe('chapel');
+    expect(c('shelf_wares', 'table', 'crate')).toBe('storehouse');
+    expect(c('bed', 'table')).toBe('cottage'); // small + a bed
+    expect(c('table', 'chair', 'bookshelf_full', 'books', 'chest')).toBe('house'); // a study/home
   });
 });
 

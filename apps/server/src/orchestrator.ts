@@ -927,9 +927,14 @@ function sceneDigest(map: SceneMap): string {
     return `${o.id}${rel}${place(o)}`;
   });
 
+  // BUILDINGS — addressable places (derived from roofs, named by interior). "go to the storehouse"
+  // targets one of these by name, arriving at its door. Anonymous "house"s are omitted as noise.
+  const bld = idx ? deriveBuildings(map, idx, centroid).filter((b) => b.type !== 'house').map((b) => `${b.name} (${b.id}) — ${bearingFt(idx!, centroid, b)} of the party (enter at its door)`) : [];
+
   return [
     `Location ${map.locationId} — ${map.biome}, ${map.lighting}${idx ? ` · ${map.grid.cols * 5}×${map.grid.rows * 5} ft` : ''}`,
     `Fixtures: ${fix.join(', ') || 'none'}`,
+    ...(bld.length ? [`Buildings: ${bld.join(' · ')}`] : []),
     `NPCs here: ${npcs.join('; ') || 'none'}`,
     `Party here: ${pcs.join(', ') || 'none'}`,
     ...(idx ? ['(distances above are AUTHORITATIVE — narrate from them; use queryScene for a path/line-of-sight)'] : []),
@@ -938,8 +943,66 @@ function sceneDigest(map: SceneMap): string {
 
 /** queryScene dispatch — the oracle answers in feet/media/rooms, never coordinates. Read-only;
  *  any failure returns an explanatory string (the oracle must never break a turn). */
-/** Loose fiction-word → map-object resolution: exact id, name, combatant handle, then GROUP/TAG
- *  fuzzy match picking the member NEAREST `near` (the DM says "the drowned dead", not "#03"). */
+/** ONE WORLD — buildings are addressable ENTITIES, derived from the oracle's roofs and NAMED BY THEIR
+ *  INTERIOR (a forge inside ⇒ "the forge"; a bar ⇒ "the inn"; an altar ⇒ "the chapel"; wares/sacks ⇒
+ *  "the storehouse"). The scene's SceneSpec is often dropped, so building names can't come from the arc;
+ *  the furniture is the ground truth of what a building IS. This is what lets "go to the storehouse"
+ *  resolve to the storehouse's DOOR instead of the DM substituting a nearby NPC/prop. */
+const BUILDING_WORDS: Record<string, string> = {
+  storehouse: 'storehouse', store: 'storehouse', granary: 'storehouse', warehouse: 'storehouse', silo: 'storehouse',
+  forge: 'forge', smithy: 'forge', smith: 'forge', blacksmith: 'forge',
+  inn: 'inn', tavern: 'inn', pub: 'inn', alehouse: 'inn', taphouse: 'inn',
+  chapel: 'chapel', church: 'chapel', shrine: 'chapel', temple: 'chapel',
+  shop: 'shop', market: 'shop', stall: 'shop',
+  cottage: 'cottage', hut: 'cottage', home: 'house', house: 'house', manor: 'house', hall: 'house',
+};
+export function classifyBuilding(tags: Set<string>): string {
+  const has = (...t: string[]) => t.some((x) => tags.has(x));
+  if (has('forge', 'anvil', 'bellows')) return 'forge';
+  if (has('bar_counter', 'ale_barrel', 'beer_keg', 'tankard')) return 'inn';
+  if (has('altar', 'shrine', 'pew', 'reliquary')) return 'chapel';
+  if (has('shelf_wares', 'sacks', 'grain', 'grain_sack', 'crate_stack', 'market_stall')) return 'storehouse';
+  if (has('bed', 'bed_down') && tags.size <= 4) return 'cottage';
+  return 'house';
+}
+interface DerivedBuilding { id: string; name: string; type: string; col: number; row: number; }
+function deriveBuildings(map: SceneMap, idx: SpatialIndex, near?: { col: number; row: number }): DerivedBuilding[] {
+  if (!idx.roofAt?.size) return [];
+  const cols = map.grid.cols, rows = map.grid.rows;
+  const box = new Map<string, { minc: number; maxc: number; minr: number; maxr: number }>();
+  for (const [k, bid] of idx.roofAt) {
+    const c = k % cols, r = (k - c) / cols;
+    const g = box.get(bid) ?? { minc: 1e9, maxc: -1, minr: 1e9, maxr: -1 };
+    g.minc = Math.min(g.minc, c); g.maxc = Math.max(g.maxc, c); g.minr = Math.min(g.minr, r); g.maxr = Math.max(g.maxr, r);
+    box.set(bid, g);
+  }
+  const aim = near ?? { col: Math.round(cols / 2), row: Math.round(rows / 2) };
+  const out: DerivedBuilding[] = [];
+  for (const [bid, bb] of box) {
+    const inB = (o: { col: number; row: number }) => o.col >= bb.minc && o.col <= bb.maxc && o.row >= bb.minr && o.row <= bb.maxr;
+    const tags = new Set(map.objects.filter((o) => o.kind !== 'actor' && o.visible !== false && inB(o)).map((o) => o.tag));
+    const type = classifyBuilding(tags);
+    // DOOR = a WALKABLE, non-roofed cell on the ring just outside the footprint, nearest `aim` (the party) —
+    // the approach the party actually reaches. If a building has no reachable approach, it isn't targetable.
+    let door: { col: number; row: number } | null = null, bestD = Infinity;
+    for (let r = bb.minr - 1; r <= bb.maxr + 1; r++) for (let c = bb.minc - 1; c <= bb.maxc + 1; c++) {
+      if (c < 0 || r < 0 || c >= cols || r >= rows) continue;
+      if (!(c === bb.minc - 1 || c === bb.maxc + 1 || r === bb.minr - 1 || r === bb.maxr + 1)) continue; // ring only
+      if (map.walkable?.[r]?.[c] !== true || idx.roofAt.has(r * cols + c)) continue; // walkable + exterior
+      const d = Math.abs(c - aim.col) + Math.abs(r - aim.row);
+      if (d < bestD) { bestD = d; door = { col: c, row: r }; }
+    }
+    if (door) out.push({ id: bid, name: `the ${type}`, type, col: door.col, row: door.row });
+  }
+  return out;
+}
+/** A synthetic MapObject for a derived building (door cell), so travel/digest treat it like any target. */
+function buildingAsObject(b: DerivedBuilding): SceneMap['objects'][number] {
+  return { id: b.id, kind: 'fixture', tag: b.type, name: b.name, col: b.col, row: b.row, footprint: { w: 1, h: 1 }, facing: 'down', visible: false } as SceneMap['objects'][number];
+}
+
+/** Loose fiction-word → map-object resolution: exact id, name, combatant handle, then a derived BUILDING
+ *  (by its interior-classified type), then GROUP/TAG fuzzy match picking the member NEAREST `near`. */
 function resolveMapObject(engine: Engine, map: SceneMap, ref: unknown, near?: { col: number; row: number }): SceneMap['objects'][number] | undefined {
   const s = String(ref ?? '').trim();
   if (!s) return undefined;
@@ -948,6 +1011,19 @@ function resolveMapObject(engine: Engine, map: SceneMap, ref: unknown, near?: { 
     map.objects.find((o) => (o.name ?? '').toLowerCase() === s.toLowerCase()) ??
     map.objects.find((o) => o.id === engine.findCombatantId(s));
   if (direct) return direct;
+  // BUILDING: "the storehouse"/"the forge"/"the inn" → the building of that type (nearest `near`), at its door.
+  const words = s.toLowerCase().split(/[^a-z]+/).filter(Boolean);
+  const wantType = words.map((w) => BUILDING_WORDS[w]).find(Boolean);
+  if (wantType) {
+    try {
+      const idxB = spatialIndex(map);
+      const blds = deriveBuildings(map, idxB, near).filter((b) => b.type === wantType);
+      if (blds.length) {
+        const pick = near ? blds.sort((a, b) => (Math.abs(a.col - near.col) + Math.abs(a.row - near.row)) - (Math.abs(b.col - near.col) + Math.abs(b.row - near.row)))[0]! : blds[0]!;
+        return buildingAsObject(pick);
+      }
+    } catch { /* oracle failure → fall through to loose match */ }
+  }
   const norm = s.toLowerCase().replace(/^(mob|npc|prop|bldg|pc):/, '').replace(/[-_\s]+/g, '');
   const loose = map.objects.filter((o) => {
     if (o.visible === false) return false;
@@ -2318,7 +2394,12 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
           } else if (!targetObj) {
             resolved.push({ toolUseId: tc.id, content: JSON.stringify({ error: `no destination "${String(tc.input.to)}" on this map — use an id/name from the MAP block` }) });
           } else {
-            const v = engine.travel({ actorId: actorObj.id, to: { id: targetObj.id } });
+            // A derived BUILDING is not in map.objects — travel to its DOOR cell by coordinate. Real
+            // objects still resolve by id (engine snaps to a free adjacent cell). Bind the narration to
+            // the resolved place either way, so "go to the storehouse" narrates arriving AT the storehouse.
+            const inMap = map.objects.some((o) => o.id === targetObj!.id);
+            const arrivalNote = !inMap ? `arrived at ${targetObj.name ?? targetObj.tag} (its door) — narrate reaching THAT building` : personNote;
+            const v = engine.travel({ actorId: actorObj.id, to: inMap ? { id: targetObj.id } : { col: targetObj.col, row: targetObj.row } });
             if (v.at) sceneDeltas.push({ op: 'move', id: actorObj.id, to: { col: v.at.col, row: v.at.row }, ...(v.pathCells?.length ? { via: v.pathCells } : {}) });
             if (v.moved && v.legs?.some((l) => l.swimming)) crossedWater = true; // the verdict swam — bind the prose (below)
             if (v.needsRoll && !roll) {
@@ -2332,7 +2413,7 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
               roll = { toolUseId: tc.id, id: rr.id, expr: rr.expr, reason: rr.reason, dc: v.needsRoll.dc };
               travelGate = { actorId: actorObj.id, toId: targetObj.id };
             } else {
-              resolved.push({ toolUseId: tc.id, content: JSON.stringify({ ...v, at: undefined, ...(personNote ? { resolution: personNote } : {}) }) });
+              resolved.push({ toolUseId: tc.id, content: JSON.stringify({ ...v, at: undefined, ...(arrivalNote ? { resolution: arrivalNote } : {}) }) });
             }
           }
         } catch (e) {
