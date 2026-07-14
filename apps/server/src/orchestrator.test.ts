@@ -796,6 +796,73 @@ describe('travel gate (R2): rough water suspends via requestRoll, resumes engine
   });
 });
 
+describe('movement fidelity gate (coherence ②) — a swim narrated as dry is re-narrated', () => {
+  function calmPool(engine: Engine): GameState {
+    const state = engine.getState();
+    const cols = 14, rows = 5;
+    const tiles = Array.from({ length: rows }, () => Array.from({ length: cols }, () => 'grass'));
+    const walkable = Array.from({ length: rows }, () => Array.from({ length: cols }, () => true));
+    for (let r = 0; r < rows; r++) for (let c = 6; c <= 8; c++) { tiles[r]![c] = 'water_deep'; walkable[r]![c] = false; }
+    // NO water:rough flag — calm deep water swims at double-cost with no gate (moved, not suspended).
+    state.world = {
+      currentLocationId: 'loc:pool',
+      locations: { 'loc:pool': { locationId: 'loc:pool', seed: 1, biome: 'village', lighting: 'day', grammar: 'open-outdoor', grid: { cols, rows, feetPerTile: 5 }, tiles, walkable, objects: [
+        { id: 'pc:aldric', kind: 'actor', role: 'pc', tag: 'knight', name: 'Aldric', col: 2, row: 2, footprint: { w: 1, h: 1 }, facing: 'down', visible: true },
+        { id: 'npc:sedge', kind: 'actor', role: 'npc', tag: 'villager', name: 'Sedge', col: 11, row: 2, footprint: { w: 1, h: 1 }, facing: 'down', visible: true },
+      ], ambiance: [], entrances: [] } },
+      links: [],
+    };
+    return state;
+  }
+
+  it('re-narrates a dry crossing when the verdict swam (verdict binds the prose)', async () => {
+    const engine = newEngine();
+    calmPool(engine);
+    const llm = new FakeLlmProvider([
+      fakeToolUse([{ id: 't1', name: 'travel', input: { actorId: 'Aldric', to: 'Sedge' } }]),
+      fakeText('Aldric strides across on solid ground and reaches Sedge, boots dry.'), // DENIES the water
+      fakeText('Aldric wades in and swims the cold channel, hauling out beside Sedge, soaked.'), // corrected
+    ]);
+    const turn = await runTurn({ engine, llm, now: frozenClock }, { kind: 'message', speakerId: 'Aldric', text: 'I swim across to Sedge' });
+    expect(turn.narration).toContain('swims'); // the corrected, water-true narration is what returns
+    expect(llm.requests.length).toBe(3); // travel → dry (rejected) → re-narrate
+    // the correction directive was injected before the retry
+    const retry = llm.requests[2]!;
+    const lastUser = retry.messages[retry.messages.length - 1]!;
+    expect(JSON.stringify(lastUser.content)).toContain('FIDELITY');
+  });
+
+  it('does NOT re-narrate when the first narration already shows the swim', async () => {
+    const engine = newEngine();
+    calmPool(engine);
+    const llm = new FakeLlmProvider([
+      fakeToolUse([{ id: 't1', name: 'travel', input: { actorId: 'Aldric', to: 'Sedge' } }]),
+      fakeText('Aldric wades into the cold water and swims across to Sedge.'),
+    ]);
+    const turn = await runTurn({ engine, llm, now: frozenClock }, { kind: 'message', speakerId: 'Aldric', text: 'I swim across to Sedge' });
+    expect(turn.narration).toContain('swims');
+    expect(llm.requests.length).toBe(2); // travel → narration (accepted, no retry)
+  });
+
+  it('the GATED (rough-water) swim also binds: a dry resume narration is re-narrated', async () => {
+    // rough water → the travel SUSPENDS on turn 1; the swim completes on the ROLL resume turn, which
+    // must still arm the fidelity gate (the review caught this being uncovered).
+    const engine = newEngine();
+    const state = calmPool(engine);
+    state.flags['water:rough'] = 'storm surge'; // now the deep-water swim gates on an Athletics check
+    const llm = new FakeLlmProvider([
+      fakeToolUse([{ id: 't1', name: 'travel', input: { actorId: 'Aldric', to: 'Sedge' } }]), // turn 1 → suspends
+      fakeText('Aldric strolls up onto dry stone beside Sedge, not a drop on him.'), // resume: DENIES water
+      fakeText('Aldric fights the cold current, swims the last stretch, and drags himself out by Sedge.'), // corrected
+    ]);
+    const first = await runTurn({ engine, llm, now: frozenClock }, { kind: 'message', speakerId: 'Aldric', text: 'I swim across to Sedge' });
+    expect(first.rollRequest).toBeTruthy(); // suspended on the swim gate
+    const resume = await runTurn({ engine, llm, now: frozenClock }, { kind: 'roll', requestId: first.rollRequest!.id, total: 18 });
+    expect(resume.narration).toContain('swims'); // the corrected, water-true narration returned
+    expect(llm.requests.length).toBe(3); // turn1 travel → resume dry (rejected) → resume re-narrate
+  });
+});
+
 describe('person-first travel resolution (coherence ④) — the player-named NPC outranks the DM\'s guessed id', () => {
   function village(engine: Engine): GameState {
     const state = engine.getState();

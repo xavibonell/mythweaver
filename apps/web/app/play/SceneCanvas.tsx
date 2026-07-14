@@ -190,6 +190,24 @@ function hideNameTag(scene: any): void {
   if (scene.nameTag) { removeDomLabel(scene, scene.nameTag); scene.nameTag = null; }
 }
 
+/** Is a token crossing this cell SWIMMING? Water ART alone isn't enough — a bridge/plank/ford/boat is
+ *  a WATER tile the cartographer left WALKABLE (a dry crossing the engine never swims). So: water tile
+ *  AND off the walkable network — mirrors the oracle's "roomId === -1 ⇒ swimming" rule. */
+function isWaterCell(scene: any, col: number, row: number): boolean {
+  const t = scene.lastData?.tiles?.[row]?.[col];
+  if (typeof t !== 'string' || !t.startsWith('water')) return false;
+  return scene.lastData?.walkable?.[row]?.[col] !== true; // a walkable water tile = a platform, not a swim
+}
+/** A quick white FOAM ripple where a token swims over water — the visible proof of a wet crossing
+ *  (a splash reads as "swimming"; cyan-on-blue was too subtle). Two rings expand + fade JUST UNDER the
+ *  swimmer (depth < the token's row+0.5) so a swim never looks like a mystery glide over solid water. */
+function spawnRipple(scene: any, x: number, y: number, depth: number): void {
+  for (const [d, sc] of [[0, 2.2], [140, 1.7]] as const) {
+    const ring = scene.add.ellipse(x, y, TILE * 0.85, TILE * 0.42).setStrokeStyle(2.5, 0xffffff, 0.9).setDepth(depth);
+    scene.tweens.add({ targets: ring, scaleX: sc, scaleY: sc, alpha: 0, duration: 720, delay: d, ease: 'Sine.easeOut', onComplete: () => ring.destroy() });
+  }
+}
+
 /** "a drowned corpse", "a stone weir" — the player's right to know what a sprite IS. */
 function identifyLabel(o: { name?: string; tag: string; role?: string }): string {
   const name = o.name?.trim();
@@ -320,7 +338,13 @@ function applyDeltasImpl(scene: any, deltas: any[]): void {
             if (i >= steps.length) { a.container.setPosition(x, y); a.container.setDepth(d.to.row + 0.5); return; }
             scene.tweens.add({
               targets: a.container, x: steps[i]!.x, y: steps[i]!.y, duration: per, ease: 'Linear',
-              onComplete: () => { a.container.setDepth(via[i]!.row + 0.5); walkOne(i + 1); },
+              onComplete: () => {
+                a.container.setDepth(via[i]!.row + 0.5);
+                // AFFORDANCE (coherence ③): a step onto a WATER cell is a SWIM — leave a ripple so the
+                // player SEES the crossing was over water, not a mystery glide ("how did he go over it?").
+                if (isWaterCell(scene, via[i]!.col, via[i]!.row)) spawnRipple(scene, steps[i]!.x, steps[i]!.y, via[i]!.row + 0.4); // 0.4 < the swimmer's row+0.5 → foam sits under them
+                walkOne(i + 1);
+              },
             });
           };
           walkOne(0);

@@ -991,6 +991,18 @@ function addresseeSpatialNote(engine: Engine, state: GameState, input: TurnInput
   );
 }
 
+/** Coherence ② — did the narration DENY a water crossing the gate actually made? We flag only prose that
+ *  EXPLICITLY asserts dryness ("solid ground", "boots dry", "not a drop") AND never mentions water — the
+ *  exact "solid ground rises beneath his boots" failure. Prose that merely IMPLIES the crossing without a
+ *  named water word ("hauls himself out on the far bank") is NOT second-guessed: a false positive would
+ *  re-narrate good prose, worse than an occasional miss. This binds the verdict without nagging. */
+function narrationDeniesWater(text: string): boolean {
+  const dry = /\b(dry(?:-shod|-footed)?|solid ground|firm ground|dry stone|without (?:getting )?wet|not a drop|(?:boots?|feet) (?:stay(?:ed)? )?dry|dry (?:boots?|feet))\b/i;
+  if (!dry.test(text)) return false; // no explicit dryness claim → trust the prose
+  const wet = /\b(swim|swam|swum|wad(?:e|es|ed|ing)|water|current|soak|soaked|drench|drip|flood|reservoir|submerg|wet|waist-deep|knee-deep)\b/i;
+  return !wet.test(text); // asserts dryness AND never mentions water → the failure we re-narrate
+}
+
 function answerSceneQuery(engine: Engine, state: GameState, input: Record<string, unknown>): string {
   try {
     const map = currentMap(state);
@@ -1552,6 +1564,12 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
     return result;
   };
 
+  // SPATIAL ②: a travel this turn actually SWAM — the final narration must show the water. Declared
+  // HERE (above the roll branch) so a rough-water swim that suspended and completes on THIS resume turn
+  // arms the fidelity gate too — the gated crossing is the exact "the die's verdict binds the prose" case.
+  let crossedWater = false;
+  let fidelityRetries = 0; // bounded: at most one re-narration if the prose denies the swim
+
   if (input.kind === 'roll') {
     const pending = state.pendingTurn as PendingTurn | undefined;
     if (!pending) throw new Error('No pending roll to resolve for this session.');
@@ -1578,6 +1596,7 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
     // completes the crossing (deltas ride the normal path), failure fail-forwards (the world moves).
     let travelFacts: string[] = [];
     if (pending.travelContinuation && result.accepted) {
+      crossedWater = true; // a travelContinuation IS a swim gate — success completes the swim, failure spits them back wet; either way the prose must show water
       const tcn = pending.travelContinuation;
       try {
         if (result.success === true) {
@@ -1736,6 +1755,15 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
     messages.push(responseToAssistantMessage(res));
 
     if (res.toolCalls.length === 0) {
+      // SPATIAL ② — FIDELITY GATE: the travel verdict swam, but the prose denies the water. Re-narrate
+      // once (the flawed line is already in `messages`) so the crossing reads as the swim it was — the
+      // spatial verdict BINDS the narration, exactly as a die result does. Bounded to one retry.
+      if (crossedWater && res.text && narrationDeniesWater(res.text) && fidelityRetries < 1 && steps < MAX_STEPS) {
+        fidelityRetries++;
+        span.event('fidelity-renarrate', { reason: 'swim narrated as dry' });
+        messages.push({ role: 'user', content: `[FIDELITY: the travel this turn crossed DEEP WATER — the character SWAM (the engine's verdict). Your narration shows a dry crossing and never mentions the water. Rewrite the narration so the swim/wade through cold water is clear — same events, corrected. Narrate only; call no tools.]` });
+        continue;
+      }
       if (res.text) engine.record('narration', res.text);
       if (!answeringOnly) movementBackstop(engine, state, input, sceneDeltas); // token truth: declared movement always lands on the table (never on a question)
       const mentioned = extractMentions(currentMap(state), res.text);
@@ -2286,6 +2314,7 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
           } else {
             const v = engine.travel({ actorId: actorObj.id, to: { id: targetObj.id } });
             if (v.at) sceneDeltas.push({ op: 'move', id: actorObj.id, to: { col: v.at.col, row: v.at.row }, ...(v.pathCells?.length ? { via: v.pathCells } : {}) });
+            if (v.moved && v.legs?.some((l) => l.swimming)) crossedWater = true; // the verdict swam — bind the prose (below)
             if (v.needsRoll && !roll) {
               // Gate → the SAME suspend-and-verdict loop dice already use, with the engine-owned modifier.
               let expr = '1d20';
