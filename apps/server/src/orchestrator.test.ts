@@ -4,7 +4,7 @@ import { FakeLlmProvider, fakeText, fakeToolUse, type LlmContentBlock } from '@m
 import { InMemoryRetriever } from '@mythweaver/rag';
 import { FakeSceneComposer, buildSceneMap, type SceneComposer } from '@mythweaver/scene';
 import { validateSceneMap, type CharacterSheet, type EstablishScene, type SceneRealizeContext, type StatBlock } from '@mythweaver/shared';
-import { runTurn, canonBlock, parseEstablish, classifySpeechAct, classifyBuilding } from './orchestrator.js';
+import { runTurn, canonBlock, parseEstablish, classifySpeechAct, classifyBuilding, deriveBuildings } from './orchestrator.js';
 import { FakeArcPlanner } from './arc-planner.js';
 import type { GameState } from '@mythweaver/shared';
 
@@ -805,6 +805,40 @@ describe('classifyBuilding (One World ⑤/⑥) — a building is named by its in
     expect(c('shelf_wares', 'table', 'crate')).toBe('storehouse');
     expect(c('bed', 'table')).toBe('cottage'); // small + a bed
     expect(c('table', 'chair', 'bookshelf_full', 'books', 'chest')).toBe('house'); // a study/home
+  });
+});
+
+describe('deriveBuildings (One World ⑥) — a door is READ from map.entrances, never guessed', () => {
+  // A storehouse whose real door is on the SOUTH (row 7); the party stands to the NORTH (row 0). The old
+  // heuristic ("nearest walkable roof-edge to the party") snaps the door to the NORTH ring cell (4,2) — the
+  // wrong wall, an interior/behind-the-wall cell an entire footprint from the lock. map.entrances holds truth.
+  const buildMap = (entrances: unknown[]): any => {
+    const cols = 10, rows = 10;
+    const tiles = Array.from({ length: rows }, () => Array.from({ length: cols }, () => 'grass'));
+    const walkable = Array.from({ length: rows }, () => Array.from({ length: cols }, () => false));
+    walkable[2]![4] = true; // a NORTH exterior ring cell — what the legacy guess would pick
+    walkable[7]![4] = true; // the real SOUTH door approach
+    return {
+      locationId: 'loc:x', seed: 1, biome: 'village', lighting: 'day', grammar: 'town-square',
+      grid: { cols, rows, feetPerTile: 5 }, tiles, walkable,
+      objects: [{ id: 'p1', kind: 'prop', tag: 'shelf_wares', col: 4, row: 4, footprint: { w: 1, h: 1 }, facing: 'down', visible: true }],
+      ambiance: [], entrances, roofs: [],
+    };
+  };
+  const roofAt = new Map<number, string>();
+  for (let r = 3; r <= 6; r++) for (let c = 3; c <= 6; c++) roofAt.set(r * 10 + c, 'bldg:store'); // 4×4 roof, cols/rows 3–6
+  const idx: any = { roofAt };
+
+  it('reads the real (south) door from map.entrances even when the party is north', () => {
+    const map = buildMap([{ toLocationId: 'loc:x', col: 4, row: 7, fixtureId: 'bldg:store' }]);
+    const b = deriveBuildings(map, idx, { col: 4, row: 0 })[0]!; // party to the NORTH
+    expect(b.type).toBe('storehouse');
+    expect({ col: b.col, row: b.row }).toEqual({ col: 4, row: 7 }); // the ENTRANCE, not the north ring cell (4,2)
+  });
+
+  it('falls back to the nearest exterior ring cell only when the map carries no entrance for the building', () => {
+    const b = deriveBuildings(buildMap([]), idx, { col: 4, row: 0 })[0]!;
+    expect({ col: b.col, row: b.row }).toEqual({ col: 4, row: 2 }); // legacy guess: nearest ring cell to the party
   });
 });
 

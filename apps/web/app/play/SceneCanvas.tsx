@@ -318,9 +318,16 @@ function applyDeltasImpl(scene: any, deltas: any[]): void {
   const interior = data.grammar === 'enclosed-interior';
   const tint = interior ? null : data.lighting === 'night' ? 0x7e8cc0 : data.lighting === 'dusk' ? 0xb2b6da : null;
   const record = (id: string) => (data.objects ?? []).find((o: any) => o.id === id);
+  // Camera-follow bookkeeping (player view): every cell a PC traverses this batch, plus a live count of
+  // in-flight PC walks so we can settle the frame back onto the party once the last walker lands.
+  const pcTraversal: { col: number; row: number }[] = [];
+  let pcWalks = 0;
+  const settleCam = () => { if (--pcWalks <= 0 && scene.playerView) playerCameraImpl(scene, data, true); };
   for (const d of deltas ?? []) {
     if (d.op === 'move' && d.to && Number.isInteger(d.to.col)) {
       const rec = record(d.id);
+      const preCell = rec ? { col: rec.col, row: rec.row } : null; // BEFORE the overwrite — the walk's START cell
+      const isPcMover = rec?.role === 'pc';
       if (rec) { rec.col = d.to.col; rec.row = d.to.row; }
       const a = scene.actorObjs.get(d.id);
       if (a) {
@@ -329,13 +336,17 @@ function applyDeltasImpl(scene: any, deltas: any[]): void {
         // WALK, don't teleport: a travel delta carries the actual path (`via`) — chain short tweens
         // through the waypoints at a constant per-tile pace so a long walk LOOKS like walking.
         const via: { col: number; row: number }[] = Array.isArray((d as { via?: { col: number; row: number }[] }).via) ? (d as { via: { col: number; row: number }[] }).via : [];
+        // CAMERA: a PC's WHOLE traversal (start → path → dest) must stay in frame — not just the endpoints,
+        // or the walker is off-screen while it crosses (esp. when the path detours around water/walls).
+        if (isPcMover) { if (preCell) pcTraversal.push(preCell); for (const c of via) pcTraversal.push(c); pcTraversal.push({ col: d.to.col, row: d.to.row }); }
         if (via.length > 1) {
+          if (isPcMover) pcWalks++;
           const steps = via.map((c) => actorXY(c.col, c.row));
           // A steady, readable pace: ~160 ms/tile (a walking gait, not a blur), capped so a very long
           // crossing still finishes in a few seconds. 90 ms/tile read as teleport-fast on a 14-tile swim.
           const per = Math.max(90, Math.min(165, Math.round(2600 / steps.length)));
           const walkOne = (i: number) => {
-            if (i >= steps.length) { a.container.setPosition(x, y); a.container.setDepth(d.to.row + 0.5); return; }
+            if (i >= steps.length) { a.container.setPosition(x, y); a.container.setDepth(d.to.row + 0.5); if (isPcMover) settleCam(); return; }
             scene.tweens.add({
               targets: a.container, x: steps[i]!.x, y: steps[i]!.y, duration: per, ease: 'Linear',
               onComplete: () => {
@@ -349,7 +360,8 @@ function applyDeltasImpl(scene: any, deltas: any[]): void {
           };
           walkOne(0);
         } else {
-          scene.tweens.add({ targets: a.container, x, y, duration: 300, ease: 'Sine.easeInOut', onComplete: () => a.container.setDepth(d.to.row + 0.5) });
+          if (isPcMover) pcWalks++;
+          scene.tweens.add({ targets: a.container, x, y, duration: 300, ease: 'Sine.easeInOut', onComplete: () => { a.container.setDepth(d.to.row + 0.5); if (isPcMover) settleCam(); } });
         }
       } else {
         const p = scene.propObjs?.get(d.id);
@@ -408,11 +420,13 @@ function applyDeltasImpl(scene: any, deltas: any[]): void {
       if (rec) rec.state = { ...(rec.state ?? {}), ...d.state }; // data-only in v1 (no visual treatment yet)
     }
   }
-  // Player view: glide the locked camera after tokens move, so the frame keeps the party centred
-  // (deltas already mutated lastData, so the PC centroid is the post-move one).
+  // Player view: glide the locked camera after tokens move. Frame the whole PC TRAVERSAL (start → path →
+  // dest), not just the final cluster — otherwise the camera snaps to the destination while a PC is still
+  // walking there, leaving the walker off-screen for up to ~2.6s. During the walk the frame only GROWS
+  // (zooming out never clips); settleCam tightens smoothly back onto the party when the last walk lands.
   if (scene.playerView && deltas?.some((d: any) => d.op === 'move' || d.op === 'spawn' || d.op === 'despawn')) {
     hideNameTag(scene); // the hovered token may have moved out from under the cursor
-    playerCameraImpl(scene, data, true);
+    playerCameraImpl(scene, data, true, pcTraversal);
   }
   updateRoofReveal(scene); // a PC that moved under (or out from under) a roof reveals/re-covers it
 }
@@ -643,7 +657,7 @@ function playerFocusCells(data: any, cxTile: number, cyTile: number): { col: num
   return out;
 }
 
-function playerCameraImpl(scene: any, data: any, animate = false): void {
+function playerCameraImpl(scene: any, data: any, animate = false, extraCells: { col: number; row: number }[] = []): void {
   const cam = scene.cameras.main;
   const box = worldBox(data);
   cam.setBounds(box.x, box.y, box.w, box.h);
@@ -652,9 +666,9 @@ function playerCameraImpl(scene: any, data: any, animate = false): void {
   const baseZoom = Math.max(W / (PLAYER_VIEW_TILES * TILE), sceneFit); // intimate frame when the party is together
   const pcs = (data.objects ?? []).filter((o: any) => o.kind === 'actor' && o.role === 'pc' && o.visible !== false);
   if (!pcs.length) {
-    cam.setZoom(baseZoom);
     const c = { x: box.x + box.w / 2, y: box.y + box.h / 2 };
-    if (animate) cam.pan(c.x, c.y, 450, 'Sine.easeInOut', true); else cam.centerOn(c.x, c.y);
+    if (animate) { cam.zoomTo(baseZoom, 450, 'Sine.easeInOut'); cam.pan(c.x, c.y, 450, 'Sine.easeInOut', true); }
+    else { cam.setZoom(baseZoom); cam.centerOn(c.x, c.y); }
     return;
   }
   const pad = 2.5; // tiles of breathing room so a token never rides the very edge
@@ -666,19 +680,23 @@ function playerCameraImpl(scene: any, data: any, animate = false): void {
   };
   const pcCells = pcs.map((p: any) => ({ col: p.col, row: p.row }));
   const centroid = { col: pcs.reduce((s: number, p: any) => s + p.col, 0) / pcs.length, row: pcs.reduce((s: number, p: any) => s + p.row, 0) / pcs.length };
+  // MUST-FIT = every PC, plus (during a walk) the cells the walker is traversing — so the frame never clips
+  // a PC mid-walk, even when its A* path detours around water/walls outside the endpoints' bounding box.
+  const mustFit = extraCells.length ? [...pcCells, ...extraCells] : pcCells;
 
-  // HARD RULE: every PC stays in view. Fit the whole party's bounding box — zoom OUT smoothly as they
-  // spread (down to the whole scene), stay at the intimate baseline when clustered. Then widen to a
-  // nearby named subject too, but only if it doesn't force us past the focus cap (else frame the party).
-  const withFocus = [...pcCells, ...playerFocusCells(data, centroid.col, centroid.row)];
+  // HARD RULE: every must-fit cell stays in view. Fit the bounding box — zoom OUT as the party (or an active
+  // walk) spreads (down to the whole scene), stay at the intimate baseline when clustered. Then widen to a
+  // nearby named subject too, but only if it doesn't force us past the focus cap (else frame the must-fit set).
+  const withFocus = [...mustFit, ...playerFocusCells(data, centroid.col, centroid.row)];
   const maxOut = Math.max(sceneFit, W / (PLAYER_VIEW_MAX_TILES * TILE)); // don't zoom out THIS far merely to chase a subject
   let f = frameOf(withFocus);
-  if (f.zoom < maxOut) f = frameOf(pcCells); // the subject would push too far — frame just the party (still ALL PCs)
+  if (f.zoom < maxOut) f = frameOf(mustFit); // the subject would push too far — frame just the must-fit set (all PCs + the walk)
   const zoom = Math.max(sceneFit, Math.min(baseZoom, f.zoom)); // clamp: never past the scene, never tighter than intimate
 
-  cam.setZoom(zoom);
-  if (animate) cam.pan(f.cx, f.cy, 450, 'Sine.easeInOut', true);
-  else cam.centerOn(f.cx, f.cy);
+  // ZOOM smoothly when animating (cam.zoomTo) rather than an instant setZoom snap. The snap was what made a
+  // spread "not respond": zoom jumped to the destination frame while the walker was still en route to it.
+  if (animate) { cam.zoomTo(zoom, 450, 'Sine.easeInOut'); cam.pan(f.cx, f.cy, 450, 'Sine.easeInOut', true); }
+  else { cam.setZoom(zoom); cam.centerOn(f.cx, f.cy); }
 }
 
 interface Bridge {

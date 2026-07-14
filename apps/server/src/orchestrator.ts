@@ -966,7 +966,7 @@ export function classifyBuilding(tags: Set<string>): string {
   return 'house';
 }
 interface DerivedBuilding { id: string; name: string; type: string; col: number; row: number; }
-function deriveBuildings(map: SceneMap, idx: SpatialIndex, near?: { col: number; row: number }): DerivedBuilding[] {
+export function deriveBuildings(map: SceneMap, idx: SpatialIndex, near?: { col: number; row: number }): DerivedBuilding[] {
   if (!idx.roofAt?.size) return [];
   const cols = map.grid.cols, rows = map.grid.rows;
   const box = new Map<string, { minc: number; maxc: number; minr: number; maxr: number }>();
@@ -977,20 +977,33 @@ function deriveBuildings(map: SceneMap, idx: SpatialIndex, near?: { col: number;
     box.set(bid, g);
   }
   const aim = near ?? { col: Math.round(cols / 2), row: Math.round(rows / 2) };
+  // THE MAP OWNS EVERY DOOR. map.entrances records the real doorway cell per building (fixtureId = the
+  // building id, identical to idx.roofAt's value). READ it — never guess. The old "nearest walkable ring
+  // cell to the party" heuristic lands on the WRONG WALL (or an interior cell just inside a solid wall):
+  // e.g. the storehouse door is on the SOUTH, but a party approaching from the north got snapped to the
+  // north interior — inside the building, an entire footprint away from the lock. (Same law as the oracle:
+  // spatial truth is read from the map, never invented — see the coherence leaks.)
+  const doorByBid = new Map<string, { col: number; row: number }>();
+  for (const e of map.entrances ?? []) {
+    if (e.fixtureId && Number.isInteger(e.col) && Number.isInteger(e.row)) doorByBid.set(e.fixtureId, { col: e.col, row: e.row });
+  }
   const out: DerivedBuilding[] = [];
   for (const [bid, bb] of box) {
     const inB = (o: { col: number; row: number }) => o.col >= bb.minc && o.col <= bb.maxc && o.row >= bb.minr && o.row <= bb.maxr;
     const tags = new Set(map.objects.filter((o) => o.kind !== 'actor' && o.visible !== false && inB(o)).map((o) => o.tag));
     const type = classifyBuilding(tags);
-    // DOOR = a WALKABLE, non-roofed cell on the ring just outside the footprint, nearest `aim` (the party) —
-    // the approach the party actually reaches. If a building has no reachable approach, it isn't targetable.
-    let door: { col: number; row: number } | null = null, bestD = Infinity;
-    for (let r = bb.minr - 1; r <= bb.maxr + 1; r++) for (let c = bb.minc - 1; c <= bb.maxc + 1; c++) {
-      if (c < 0 || r < 0 || c >= cols || r >= rows) continue;
-      if (!(c === bb.minc - 1 || c === bb.maxc + 1 || r === bb.minr - 1 || r === bb.maxr + 1)) continue; // ring only
-      if (map.walkable?.[r]?.[c] !== true || idx.roofAt.has(r * cols + c)) continue; // walkable + exterior
-      const d = Math.abs(c - aim.col) + Math.abs(r - aim.row);
-      if (d < bestD) { bestD = d; door = { col: c, row: r }; }
+    // DOOR: the map's own entrance for this building (ground truth). FALLBACK only for maps that carry no
+    // entrance for it — the legacy ring guess (nearest walkable exterior cell to the party; wrong-wall-prone).
+    let door: { col: number; row: number } | null = doorByBid.get(bid) ?? null;
+    if (!door) {
+      let bestD = Infinity;
+      for (let r = bb.minr - 1; r <= bb.maxr + 1; r++) for (let c = bb.minc - 1; c <= bb.maxc + 1; c++) {
+        if (c < 0 || r < 0 || c >= cols || r >= rows) continue;
+        if (!(c === bb.minc - 1 || c === bb.maxc + 1 || r === bb.minr - 1 || r === bb.maxr + 1)) continue; // ring only
+        if (map.walkable?.[r]?.[c] !== true || idx.roofAt.has(r * cols + c)) continue; // walkable + exterior
+        const d = Math.abs(c - aim.col) + Math.abs(r - aim.row);
+        if (d < bestD) { bestD = d; door = { col: c, row: r }; }
+      }
     }
     if (door) out.push({ id: bid, name: `the ${type}`, type, col: door.col, row: door.row });
   }
@@ -1011,6 +1024,17 @@ function resolveMapObject(engine: Engine, map: SceneMap, ref: unknown, near?: { 
     map.objects.find((o) => (o.name ?? '').toLowerCase() === s.toLowerCase()) ??
     map.objects.find((o) => o.id === engine.findCombatantId(s));
   if (direct) return direct;
+  // EXPLICIT BUILDING id ("bldg:…-b3", exactly as the Buildings digest lists it, so the DM targets one by id).
+  // A building is SYNTHETIC (not in map.objects), and its id fragment collides with its interior props
+  // ("prop:…-b3#NN") — so the loose match below would snap the party to a shelf INSIDE the walls. Resolve it
+  // to the building's real DOOR (map.entrances, via deriveBuildings) instead. This is the id-path twin of the
+  // building-WORD handling below; without it "go to the storehouse" (by id) lands inside, at the wrong wall.
+  if (/^bldg:/i.test(s)) {
+    try {
+      const b = deriveBuildings(map, spatialIndex(map), near).find((x) => x.id.toLowerCase() === s.toLowerCase());
+      if (b) return buildingAsObject(b);
+    } catch { /* oracle failure → fall through to loose match */ }
+  }
   // BUILDING: "the storehouse"/"the forge"/"the inn" → the building of that type (nearest `near`), at its door.
   const words = s.toLowerCase().split(/[^a-z]+/).filter(Boolean);
   const wantType = words.map((w) => BUILDING_WORDS[w]).find(Boolean);
@@ -1060,14 +1084,13 @@ function addresseeSpatialNote(engine: Engine, state: GameState, input: TurnInput
   const idx = spatialIndex(map);
   const ft = distanceFt(idx, speaker, npc);
   if (ft <= 10) return ''; // within a step — a normal face-to-face exchange; say nothing
-  // Water between them? sample the straight line for water tiles (a swim, not a stroll, separates them).
-  let waterN = 0, samples = 0;
-  const dc = npc.col - speaker.col, dr = npc.row - speaker.row, steps = Math.max(Math.abs(dc), Math.abs(dr));
-  for (let i = 1; i < steps; i++) {
-    const c = Math.round(speaker.col + (dc * i) / steps), r = Math.round(speaker.row + (dr * i) / steps);
-    samples++; if ((map.tiles?.[r]?.[c] ?? '').startsWith('water')) waterN++;
-  }
-  const acrossWater = samples > 0 && waterN / samples > 0.3;
+  // Water between them? Ask the ORACLE, not the raw tiles. A straight-line scan of map.tiles for a "water"
+  // prefix lies about a walkable plank bridge / ford / weir (those tiles are tagged water_* but the oracle
+  // normalizes any WALKABLE water cell to `ground`) — it would force a "shout across the water" over a dry
+  // span. Reaching them "means swimming" ⇔ the REAL route has a swimming segment. (Same law as the door fix.)
+  const speedFt = state.sheets?.[speaker.id]?.speedFt ?? 30;
+  const route = findPath(idx, speaker, npc, { speedFt, swim: 'double-cost' });
+  const acrossWater = !!route.ok && route.segments.some((s) => s.swimming);
   const los = hasLineOfSight(idx, speaker, npc).clear;
   const register = ft >= 30 ? 'a SHOUT across the gap' : 'several paces apart, out of arm’s reach';
   return (
