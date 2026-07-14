@@ -30,7 +30,9 @@ import { wallBaseOf, type Theme } from './themes.js';
 export interface Contents {
   buildings: { type: BuildingType; name?: string; waterfront?: boolean }[];
   landmarks: { tag: string; name?: string }[];
-  npcs: { tag: string; name?: string }[];
+  /** `anchor` = the character's STATION from the fiction ("near:forge", "at the well") — the cast
+   *  contract: an anchored NPC stands AT their post, never round-robined onto a street cell. */
+  npcs: { tag: string; name?: string; anchor?: string }[];
   mobs: { tag: string; count: number }[];
   wall?: boolean;
   entranceSide?: 'north' | 'south' | 'east' | 'west';
@@ -58,6 +60,38 @@ export type ArchetypeGenerator = (cv: Canvas, ctx: GenContext) => void;
 export type ArchetypeKind = 'town' | 'dungeon' | 'cave' | 'wilderness' | 'coast';
 
 const slug = (s: string, i: number) => (s || 'x').replace(/[^a-z0-9]+/gi, '-').toLowerCase().replace(/^-+|-+$/g, '') + (i ? `-${i}` : '');
+
+/** Resolve a cast anchor ("near:forge", "at the well", "in:the inn") against the map's REAL objects:
+ *  a named object first, then a signature tag (forge/anvil/well/altar/bar…), then an id fragment.
+ *  Returns the free cell nearest the match (the person stands AT the thing) + the match's building
+ *  keeper when one exists (so `in:` anchors can merge identity onto the keeper). Null = no match —
+ *  the caller REPORTS it; we never guess a wrong post silently. */
+export function resolveCastStation(cv: Canvas, anchor: string): { at: Pt; what: string; keeper?: { id: string; name?: string } } | null {
+  const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '');
+  const word = anchor.toLowerCase().replace(/^(near|at|in|by|outside|beside)\s*[:\s]\s*/, '').replace(/^(the|a|an)\s+/, '').trim();
+  const nw = norm(word);
+  if (!nw) return null;
+  const objs = cv.objects;
+  const target =
+    objs.find((o) => o.name && (norm(o.name).includes(nw) || nw.includes(norm(o.name)))) ??
+    objs.find((o) => o.kind !== 'actor' && (norm(o.tag) === nw || (nw.length > 3 && (norm(o.tag).includes(nw) || nw.includes(norm(o.tag)))))) ??
+    objs.find((o) => nw.length > 3 && norm(o.id).includes(nw));
+  if (!target) return null;
+  // Nearest free cell to the match, radius ≤ 4 — the post, not a random street.
+  let at: Pt | null = null;
+  let bestD = Infinity;
+  for (let dr = -4; dr <= 4; dr++) for (let dc = -4; dc <= 4; dc++) {
+    const c = target.col + dc, r = target.row + dr;
+    if (!cv.isFree(c, r) || !cv.walkable[r]?.[c]) continue;
+    const d = dc * dc + dr * dr;
+    if (d < bestD) { bestD = d; at = { c, r }; }
+  }
+  if (!at) return null;
+  // The match's building keeper (id convention: prop:<loc>-bN#k ↔ npc:<loc>-bN[-rX]-keeper).
+  const bpref = target.id.replace(/^(prop|fixture|bldg):/, '').replace(/#\d+$/, '');
+  const keeper = bpref ? objs.find((o) => o.role === 'npc' && o.id.endsWith('-keeper') && o.id.includes(bpref)) : undefined;
+  return { at, what: target.name ?? target.tag, ...(keeper ? { keeper } : {}) };
+}
 const wmatOf = (t: Theme): string => wallBaseOf(t.wallMat);
 const edgePt = (B: Rect, side: 'north' | 'south' | 'east' | 'west'): Pt => {
   const mc = B.x + Math.floor(B.w / 2), mr = B.y + Math.floor(B.h / 2);
@@ -450,10 +484,33 @@ function townGen(cv: Canvas, ctx: GenContext): void {
   // flower beds hugging building walls
   clumpScatter(cv, interior, { tags: ['flowers', 'flowers_red', 'flowers_yellow', 'bush'], freq: 0.32, threshold: 0.4, seedOffset: 0x85eb, blocks: false, max: 80, filter: (c, r) => onGround(c, r) && nearTile(c, r, isWall) });
 
-  // STAGE 6 — CAST. NPCs along the streets/plaza; mobs scattered through the interior.
+  // STAGE 6 — CAST. The cast-station CONTRACT: an anchored NPC ("Hobb, near:forge") stands AT their
+  // post — resolved against the map's real objects — and an `in:` anchor whose station has a keeper
+  // NAMES the keeper (one identity = one token) instead of spawning a duplicate villager. Only
+  // unanchored extras take round-robin street/plaza cells. An unresolvable anchor is REPORTED (the
+  // honesty rule buildings already have): the DM re-narrates rather than pointing at a phantom post.
   const streetCells = cv.shuffle((() => { const out: Pt[] = []; for (let r = interior.y; r < interior.y + interior.h; r++) for (let c = interior.x; c < interior.x + interior.w; c++) if (cv.isFree(c, r) && (isStreet(c, r) || cv.tileAt(c, r) === theme.plaza)) out.push({ c, r }); return out; })());
   const loc = slug(locationId, 0); // namespace the cast by location so two towns on one canvas don't share ids
-  contents.npcs.forEach((npc, i) => place(cv, { id: `npc:${loc}-${slug(npc.tag, i)}`, tag: npc.tag, kind: 'actor', role: 'npc', at: streetCells[i % Math.max(1, streetCells.length)] ?? plazaCtr, ...(npc.name ? { name: npc.name } : {}) }));
+  let si = 0; // street cursor — anchored cast don't consume street slots
+  contents.npcs.forEach((npc, i) => {
+    const id = `npc:${loc}-${slug(npc.tag, i)}`;
+    const who = npc.name ?? npc.tag;
+    if (npc.anchor) {
+      const st = resolveCastStation(cv, npc.anchor);
+      if (st) {
+        if (st.keeper && /^in\b/.test(npc.anchor.trim().toLowerCase())) {
+          st.keeper.name = who; // the station's keeper IS this person — name rides the keeper
+          cv.notes.push(`cast-station: ${who} IS the keeper of ${st.what} (${st.keeper.id})`);
+          return;
+        }
+        place(cv, { id, tag: npc.tag, kind: 'actor', role: 'npc', at: st.at, ...(npc.name ? { name: npc.name } : {}) });
+        cv.notes.push(`cast-station: ${who} posted at ${st.what}`);
+        return;
+      }
+      cv.notes.push(`cast-station: ${who} anchor "${npc.anchor}" matched nothing on the map — placed on the street (re-narrate or re-anchor)`);
+    }
+    place(cv, { id, tag: npc.tag, kind: 'actor', role: 'npc', at: streetCells[si++ % Math.max(1, streetCells.length)] ?? plazaCtr, ...(npc.name ? { name: npc.name } : {}) });
+  });
   contents.mobs.forEach((mob, i) => scatter(cv, { idBase: `mob:${loc}-${slug(mob.tag, i)}`, tags: [mob.tag], kind: 'actor', role: 'mob', region: interior, count: Math.max(1, Math.min(20, mob.count)) }));
   dirtRimPaving(cv); // "stone on soil" — a dirt rim around the paving (broad credibility polish)
   if (!contents.wall) entrance(cv, edgePt(B, contents.entranceSide ?? 'south'), locationId);

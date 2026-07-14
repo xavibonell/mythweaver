@@ -171,3 +171,32 @@ describe('S4 — relation placement', () => {
     expect(notes.some((n) => n.includes('near(boathouse,dock1)') && n.includes('placed at lot time'))).toBe(true);
   });
 });
+
+describe('establish gate + cast stations (coherence ④)', () => {
+  const castSpec: SceneSpec = {
+    specVersion: 1,
+    brief: 'a village whodunit',
+    frame: { grammar: 'settlement' },
+    features: [
+      { id: 'forge1', kind: 'building.smithy', geom: 'region' },
+      { id: 'hobb_fen', kind: 'actor.blacksmith', geom: 'point' },
+      { id: 'dead1', kind: 'actor.drowned-dead', geom: 'point', count: 6 },
+    ],
+    constraints: [{ c: 'near', a: 'hobb_fen', b: 'forge1', w: 'story' }],
+  };
+
+  it('ambientHostiles:false HOLDS spec hostiles — the authored encounter owns combat creatures', () => {
+    const held = compileSpec(castSpec, { settlement: true, ambientHostiles: false });
+    expect(held.contents.mobs).toEqual([]);
+    expect(held.notes.some((n) => n.includes('HELD'))).toBe(true);
+    const def = compileSpec(castSpec, { settlement: true }); // default preserves old behavior
+    expect(def.contents.mobs.length).toBe(1);
+  });
+
+  it('a named actor near a building feature carries their STATION as an anchor', () => {
+    const comp = compileSpec(castSpec, { settlement: true, ambientHostiles: false });
+    const hobb = comp.contents.npcs.find((n) => n.name === 'hobb_fen')!;
+    expect(hobb).toBeTruthy();
+    expect(hobb.anchor).toBe('near:forge1');
+  });
+});

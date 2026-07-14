@@ -310,7 +310,7 @@ export function buildToolDefs(retrieval: boolean, scene: boolean): ToolDef[] {
                 id: { type: 'string', description: 'Stable id, e.g. "npc:edda".' },
                 name: { type: 'string' },
                 look: { type: 'string', description: `Short role/appearance, e.g. "a wary fisherwoman", "an armoured skeleton". Mapped to a sprite (${ACTOR_LOOK_HINT}).` },
-                anchor: { type: 'string', description: 'Coordinate-free placement (see fixtures).' },
+                anchor: { type: 'string', description: 'The character\'s STATION — where the fiction posts them: "near:forge", "near:well", "in:inn". GIVE ONE to every NPC with a post (the smith at his forge, the innkeep at her inn); the map places them THERE, and your narration must match. Omit only for wanderers.' },
                 visible: { type: 'boolean', description: 'false = present but hidden/lurking (placed, not drawn).' },
               },
               required: ['id', 'name', 'look'],
@@ -837,6 +837,31 @@ function bearingFt(idx: SpatialIndex, a: { col: number; row: number }, b: { col:
   const dr = b.row - a.row;
   const dir = `${Math.abs(dr) > Math.abs(dc) / 2 ? (dr < 0 ? 'N' : 'S') : ''}${Math.abs(dc) > Math.abs(dr) / 2 ? (dc < 0 ? 'W' : 'E') : ''}`;
   return `${ft} ft${dir ? ` ${dir}` : ''}`;
+}
+
+/** COHERENCE ④ — the cast's REALIZED positions, returned with every setScene so the establishing
+ *  narration places people where they ACTUALLY stand. The fiction's expectation ("the smith at his
+ *  forge") is a request; this block is the result — any deviation is now fiction to narrate, never a
+ *  false fact to assert. */
+function castPositionsBlock(map: SceneMap): string {
+  try {
+    const idx = spatialIndex(map);
+    const pcs = map.objects.filter((o) => o.role === 'pc' && o.visible !== false);
+    if (!pcs.length) return '';
+    const centroid = {
+      col: Math.round(pcs.reduce((s, p) => s + p.col, 0) / pcs.length),
+      row: Math.round(pcs.reduce((s, p) => s + p.row, 0) / pcs.length),
+    };
+    const named = map.objects.filter((o) => o.kind === 'actor' && o.role === 'npc' && o.name && o.visible !== false);
+    if (!named.length) return '';
+    const lines = named.map((o) => {
+      const w = whereIs(idx, o);
+      return `${o.name} (${o.id}): ${bearingFt(idx, centroid, o)} of the party${w.indoor ? ` — INDOORS (${w.buildingId ?? 'under a roof'}, not visible from outside)` : ''}`;
+    });
+    return ` CAST POSITIONS (authoritative — narrate people WHERE THEY STAND; if the fiction expected someone elsewhere, that mismatch is itself story, never a fact to assert): ${lines.join(' · ')}.`;
+  } catch {
+    return '';
+  }
 }
 
 /** SPATIAL TRUTH R1: the actor lines speak in feet, rooms and media derived by the oracle —
@@ -1819,7 +1844,7 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
           span.event('setScene', { locationId: est.locationId, engine: sceneProvenance?.engine, reused: existed, lighting: map.lighting });
           resolved.push({
             toolUseId: tc.id,
-            content: `Scene ${existed ? 'reused' : 'set'}: ${map.biome} (${map.lighting}), ${map.grid.cols}x${map.grid.rows}. Present: ${map.objects.filter((o) => o.visible).map((o) => o.id).join(', ')}.`,
+            content: `Scene ${existed ? 'reused' : 'set'}: ${map.biome} (${map.lighting}), ${map.grid.cols}x${map.grid.rows}. Present: ${map.objects.filter((o) => o.visible).map((o) => o.id).join(', ')}.${SPATIAL_ON ? castPositionsBlock(map) : ''}`,
           });
         } catch {
           resolved.push({ toolUseId: tc.id, content: 'Scene setup failed; continue narrating.' });
@@ -2219,7 +2244,41 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
         try {
           const map = currentMap(state);
           const actorObj = map ? resolveMapObject(engine, map, tc.input.actorId) : undefined;
-          const targetObj = map && actorObj ? resolveMapObject(engine, map, tc.input.to, actorObj) : undefined;
+          let targetObj = map && actorObj ? resolveMapObject(engine, map, tc.input.to, actorObj) : undefined;
+          // PERSON-FIRST (coherence ④): the player's own words outrank the DM's guessed id. If the
+          // line names exactly one visible NPC and the DM aimed elsewhere (a keeper, a building the
+          // fiction claims they occupy), the destination is the PERSON — never the place. This is what
+          // turns "walked to the forge, then found Hobb across the green" into one clean walk.
+          let personNote = '';
+          if (map && actorObj && input.kind === 'message') {
+            // Which named NPCs does the line mention, and WHERE? ("I go to Hobb and ask if Orrin is
+            // trustful" names two — the DESTINATION is the one right after the movement verb.)
+            const firstIdx = (name: string): number => {
+              let best = -1;
+              for (const wd of name.split(/\s+/)) {
+                if (wd.length <= 2) continue;
+                const m = new RegExp(`\\b${wd.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').exec(input.text);
+                if (m && (best === -1 || m.index < best)) best = m.index;
+              }
+              return best;
+            };
+            const hits = map.objects
+              .filter((o) => o.kind === 'actor' && o.role !== 'pc' && o.visible !== false && o.name)
+              .map((o) => ({ o, idx: firstIdx(o.name!) }))
+              .filter((h) => h.idx >= 0);
+            const mv = /\b(?:go(?:es)?|walk(?:s)?|head(?:s)?|run(?:s)?|move(?:s)?|stride(?:s)?|approach(?:es)?|over|up)\s+(?:on\s+)?(?:to|toward|towards)?\s*/i.exec(input.text);
+            let person: (typeof hits)[number]['o'] | undefined;
+            if (hits.length === 1) person = hits[0]!.o;
+            else if (hits.length > 1 && mv) {
+              // the destination = the first name mentioned AFTER the movement verb
+              const after = hits.filter((h) => h.idx >= mv.index).sort((a, b) => a.idx - b.idx);
+              person = after[0]?.o;
+            }
+            if (person && targetObj && targetObj.id !== person.id) {
+              personNote = `destination corrected to ${person.name} (${person.id}) — the person the player named; "${String(tc.input.to)}" was somewhere else. Narrate the approach to ${person.name} where they actually stand.`;
+              targetObj = person;
+            }
+          }
           if (!map || !actorObj) {
             resolved.push({ toolUseId: tc.id, content: JSON.stringify({ error: `no actor "${String(tc.input.actorId)}" on this map` }) });
           } else if (!targetObj) {
@@ -2238,7 +2297,7 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
               roll = { toolUseId: tc.id, id: rr.id, expr: rr.expr, reason: rr.reason, dc: v.needsRoll.dc };
               travelGate = { actorId: actorObj.id, toId: targetObj.id };
             } else {
-              resolved.push({ toolUseId: tc.id, content: JSON.stringify({ ...v, at: undefined }) });
+              resolved.push({ toolUseId: tc.id, content: JSON.stringify({ ...v, at: undefined, ...(personNote ? { resolution: personNote } : {}) }) });
             }
           }
         } catch (e) {

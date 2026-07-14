@@ -796,6 +796,80 @@ describe('travel gate (R2): rough water suspends via requestRoll, resumes engine
   });
 });
 
+describe('person-first travel resolution (coherence ④) — the player-named NPC outranks the DM\'s guessed id', () => {
+  function village(engine: Engine): GameState {
+    const state = engine.getState();
+    const cols = 14, rows = 6;
+    const tiles = Array.from({ length: rows }, () => Array.from({ length: cols }, () => 'grass'));
+    const walkable = Array.from({ length: rows }, () => Array.from({ length: cols }, () => true));
+    state.world = {
+      currentLocationId: 'loc:village',
+      locations: { 'loc:village': { locationId: 'loc:village', seed: 1, biome: 'village', lighting: 'day', grammar: 'open-outdoor', grid: { cols, rows, feetPerTile: 5 }, tiles, walkable, objects: [
+        { id: 'pc:aldric', kind: 'actor', role: 'pc', tag: 'knight', name: 'Aldric', col: 2, row: 2, footprint: { w: 1, h: 1 }, facing: 'down', visible: true },
+        { id: 'npc:b1-keeper', kind: 'actor', role: 'npc', tag: 'villager', col: 5, row: 4, footprint: { w: 1, h: 1 }, facing: 'down', visible: true },
+        { id: 'npc:village-hobb', kind: 'actor', role: 'npc', tag: 'villager', name: 'Hobb Fen', col: 11, row: 2, footprint: { w: 1, h: 1 }, facing: 'down', visible: true },
+      ], ambiance: [], entrances: [] } },
+      links: [],
+    };
+    return state;
+  }
+
+  it('travel aimed at a keeper walks to the PERSON the player named instead', async () => {
+    const engine = newEngine();
+    const state = village(engine);
+    const llm = new FakeLlmProvider([
+      // The DM believes "Hobb is at the forge" and aims at the anonymous keeper — the classic identity split.
+      fakeToolUse([{ id: 't1', name: 'travel', input: { actorId: 'Aldric', to: 'npc:b1-keeper' } }]),
+      fakeText('Hobb looks up as you reach him.'),
+    ]);
+    await runTurn({ engine, llm, now: frozenClock }, { kind: 'message', speakerId: 'Aldric', text: 'I go to Hobb and ask about the missing grain' });
+    const aldric = state.world!.locations['loc:village']!.objects.find((o) => o.id === 'pc:aldric')!;
+    // Landed beside Hobb Fen (11,2), NOT beside the keeper (5,4).
+    expect(Math.max(Math.abs(aldric.col - 11), Math.abs(aldric.row - 2))).toBeLessThanOrEqual(1);
+    expect(Math.max(Math.abs(aldric.col - 5), Math.abs(aldric.row - 4))).toBeGreaterThan(1);
+    // And the DM was TOLD about the correction (so its narration follows the person).
+    const resume = llm.requests[1]!;
+    const blocks = resume.messages[resume.messages.length - 1]!.content as LlmContentBlock[];
+    const rr = blocks.find((b) => b.type === 'tool_result') as { content: string };
+    expect(rr.content).toContain('destination corrected to Hobb Fen');
+  });
+
+  it('two names in the line: the destination is the one after the movement verb', async () => {
+    const engine = newEngine();
+    const state = village(engine);
+    state.world!.locations['loc:village']!.objects.push(
+      { id: 'npc:village-orrin', kind: 'actor', role: 'npc', tag: 'villager', name: 'Orrin Vale', col: 3, row: 5, footprint: { w: 1, h: 1 }, facing: 'down', visible: true },
+    );
+    const llm = new FakeLlmProvider([
+      fakeToolUse([{ id: 't1', name: 'travel', input: { actorId: 'Aldric', to: 'npc:b1-keeper' } }]),
+      fakeText('Hobb grunts.'),
+    ]);
+    await runTurn({ engine, llm, now: frozenClock }, { kind: 'message', speakerId: 'Aldric', text: 'I go to Hobb and ask if Orrin is trustful' });
+    const aldric = state.world!.locations['loc:village']!.objects.find((o) => o.id === 'pc:aldric')!;
+    expect(Math.max(Math.abs(aldric.col - 11), Math.abs(aldric.row - 2))).toBeLessThanOrEqual(1); // beside HOBB, not Orrin or the keeper
+    const resume = llm.requests[1]!;
+    const blocks = resume.messages[resume.messages.length - 1]!.content as LlmContentBlock[];
+    const rr = blocks.find((b) => b.type === 'tool_result') as { content: string };
+    expect(rr.content).toContain('destination corrected to Hobb Fen');
+  });
+
+  it('a travel aimed at the person the player named is untouched (no correction note)', async () => {
+    const engine = newEngine();
+    const state = village(engine);
+    const llm = new FakeLlmProvider([
+      fakeToolUse([{ id: 't1', name: 'travel', input: { actorId: 'Aldric', to: 'npc:village-hobb' } }]),
+      fakeText('You reach Hobb.'),
+    ]);
+    await runTurn({ engine, llm, now: frozenClock }, { kind: 'message', speakerId: 'Aldric', text: 'I go to Hobb' });
+    const aldric = state.world!.locations['loc:village']!.objects.find((o) => o.id === 'pc:aldric')!;
+    expect(Math.max(Math.abs(aldric.col - 11), Math.abs(aldric.row - 2))).toBeLessThanOrEqual(1);
+    const resume = llm.requests[1]!;
+    const blocks = resume.messages[resume.messages.length - 1]!.content as LlmContentBlock[];
+    const rr = blocks.find((b) => b.type === 'tool_result') as { content: string };
+    expect(rr.content).not.toContain('destination corrected');
+  });
+});
+
 describe('classifySpeechAct — a question must not be executed as a move', () => {
   const ask = (text: string) => classifySpeechAct({ kind: 'message', speakerId: 'Aldric', text });
   it('reads feasibility / spatial QUESTIONS as ask (withhold the move)', () => {

@@ -8546,8 +8546,8 @@
               "role": "npc",
               "tag": "villager",
               "name": "Orrin Vale",
-              "col": 27,
-              "row": 17,
+              "col": 12,
+              "row": 27,
               "footprint": {
                 "w": 1,
                 "h": 1
@@ -8561,8 +8561,8 @@
               "role": "npc",
               "tag": "villager",
               "name": "Mara Venn",
-              "col": 40,
-              "row": 13,
+              "col": 14,
+              "row": 11,
               "footprint": {
                 "w": 1,
                 "h": 1
@@ -8576,8 +8576,8 @@
               "role": "npc",
               "tag": "villager",
               "name": "Hobb Fen",
-              "col": 22,
-              "row": 26,
+              "col": 26,
+              "row": 11,
               "footprint": {
                 "w": 1,
                 "h": 1
@@ -8591,8 +8591,8 @@
               "role": "npc",
               "tag": "villager",
               "name": "Tessa Reed",
-              "col": 13,
-              "row": 6,
+              "col": 24,
+              "row": 18,
               "footprint": {
                 "w": 1,
                 "h": 1

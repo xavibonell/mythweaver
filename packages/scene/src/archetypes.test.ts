@@ -214,3 +214,24 @@ describe('town lot scarcity — a NAMED building must never be silently dropped 
     expect(GOLD_PROGRAMS.town!.notes ?? []).toEqual([]);
   });
 });
+
+describe('cast-station contract — anchored NPCs stand at their post (coherence ④)', () => {
+  it('an anchored NPC is posted AT their station, not round-robined onto a street cell', () => {
+    const prog = townProgram(717, { npcs: [{ tag: 'villager', name: 'Hobb Fen', anchor: 'near:forge' }] });
+    const m = runProgram(prog);
+    const hobb = m.objects.find((o) => o.name === 'Hobb Fen')!;
+    const forge = m.objects.find((o) => o.tag === 'forge')!;
+    expect(hobb).toBeTruthy();
+    expect(forge).toBeTruthy(); // the smithy's defining kit
+    const d = Math.max(Math.abs(hobb.col - forge.col), Math.abs(hobb.row - forge.row));
+    expect(d).toBeLessThanOrEqual(5); // at the post (resolver radius 4 + footprint slack)
+    expect((prog.notes ?? []).some((n) => n === 'cast-station: Hobb Fen posted at forge')).toBe(true);
+  });
+
+  it('an unresolvable anchor is REPORTED and the NPC still lands (street fallback, never a silent mis-post)', () => {
+    const prog = townProgram(717, { npcs: [{ tag: 'villager', name: 'Ghost', anchor: 'near:zzz-nothing' }] });
+    const m = runProgram(prog);
+    expect(m.objects.some((o) => o.name === 'Ghost')).toBe(true);
+    expect((prog.notes ?? []).some((n) => n.startsWith('cast-station: Ghost') && n.includes('matched nothing'))).toBe(true);
+  });
+});

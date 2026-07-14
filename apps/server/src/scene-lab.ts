@@ -190,7 +190,9 @@ export async function realizeStoryScene(
       bindings = undefined; // degrade: compileSpec reports unrepresented as before
     }
   }
-  const comp = opts.spec ? compileSpec(opts.spec, { settlement: program.grammar === 'town-square', ...(bindings ? { bindings } : {}) }) : null;
+  // ambientHostiles:false — this is the ESTABLISH path (always pre-combat): spec hostiles are the
+  // looming threat, not pre-scattered combatants; the authored encounter spawns the real fight.
+  const comp = opts.spec ? compileSpec(opts.spec, { settlement: program.grammar === 'town-square', ambientHostiles: false, ...(bindings ? { bindings } : {}) }) : null;
   const lightingReason: SceneProvenance['lightingReason'] = opts.lightingDeclared ? 'declared' : program.lighting !== 'day' || program.weather === 'fog' ? 'mood' : 'default';
   if (opts.lightingDeclared && program.lighting !== opts.lightingDeclared) {
     (program.notes ??= []).push(`lighting-declared: '${opts.lightingDeclared}' overrides mood-inferred '${program.lighting}'`);
@@ -231,11 +233,20 @@ export async function realizeStoryScene(
   establish.npcs.filter((n) => n.visible !== false).forEach((n, i) => {
     if (have.has(n.name.toLowerCase())) return;
     const tag = lookToSprite(`${n.look ?? ''} ${n.name}`);
-    if (arch && arch.op === 'archetype') arch.contents.npcs.push({ tag, name: n.name });
+    if (arch && arch.op === 'archetype') arch.contents.npcs.push({ tag, name: n.name, ...(n.anchor ? { anchor: n.anchor } : {}) });
     else program.ops.push({ op: 'place', id: `npc:story-${i}`, tag, kind: 'actor', role: 'npc', at: 'center', name: n.name });
     castInjected++;
   });
   if (castInjected) (program.notes ??= []).push(`cast-injection: merged ${castInjected} declared character(s) the programmer dropped`);
+  // CAST STATIONS: the DM's anchor ("near:forge") is the character's post — stamp it onto entries the
+  // programmer DID keep (matched by name), so a station survives no matter which path carried the NPC.
+  if (arch && arch.op === 'archetype') {
+    for (const decl of establish.npcs) {
+      if (!decl.anchor || decl.visible === false) continue;
+      const entry = arch.contents.npcs.find((n) => n.name && n.name.toLowerCase() === decl.name.toLowerCase());
+      if (entry && !entry.anchor) entry.anchor = decl.anchor;
+    }
+  }
   // SPEC COMPILER (S2): the beat's FUNCTIONAL contract overrides the prose harvest — features become
   // contents/ops deterministically (lossless), in-water features scatter ON the water, and the party
   // stages at the spec's entry edge. Prose keeps only the base topology + narration.

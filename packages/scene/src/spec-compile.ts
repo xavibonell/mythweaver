@@ -134,7 +134,7 @@ export interface SpecBindings {
   actors?: Record<string, string>;
 }
 
-export function compileSpec(spec: SceneSpec, opts: { settlement: boolean; bindings?: SpecBindings }): SpecCompileResult {
+export function compileSpec(spec: SceneSpec, opts: { settlement: boolean; bindings?: SpecBindings; ambientHostiles?: boolean }): SpecCompileResult {
   const contents: SpecCompileResult['contents'] = { buildings: [], landmarks: [], npcs: [], mobs: [] };
   const postOps: SceneOp[] = [];
   const notes: string[] = [];
@@ -144,6 +144,15 @@ export function compileSpec(spec: SceneSpec, opts: { settlement: boolean; bindin
   const inWater = new Set(
     (spec.constraints ?? []).filter((c) => c.c === 'in' && c.region === 'water' && (c.a || c.f)).map((c) => (c.a ?? c.f)!),
   );
+  // CAST STATIONS: a named actor's near/in constraint to another feature IS their post — carried as
+  // an anchor so the generator stands them AT it (the fiction's "Hobb the smith" belongs at his forge).
+  // The anchor word is the FEATURE ID: realized objects carry it as their name (a named building's id
+  // rides its keeper; a single landmark keeps it as `name`), so the station resolver finds it directly.
+  const stationOf = (fid: string): string | undefined => {
+    const c = (spec.constraints ?? []).find((c) => c.a === fid && (c.c === 'near' || c.c === 'in' || c.c === 'at-edge-of') && c.b && c.b !== 'PARTY' && c.region !== 'water');
+    if (!c?.b) return undefined;
+    return `${c.c === 'in' ? 'in' : 'near'}:${c.b}`;
+  };
   // Feature-id bookkeeping for relation compilation: which ids became buildings / frontiers.
   const buildingOf = new Map<string, { type: BuildingType; name?: string; waterfront?: boolean }[]>();
   const frontierIds = new Set<string>();
@@ -186,12 +195,24 @@ export function compileSpec(spec: SceneSpec, opts: { settlement: boolean; bindin
         notes.push(`spec: ${f.id} — '${t}' bound semantically → ${bound}`);
       }
       const hostile = HOSTILE.test(t);
+      // ESTABLISH GATE: spec hostiles are the beat's LOOMING threat, not pre-placed combatants — the
+      // authored encounter (startEncounter) owns combat creatures. With ambientHostiles:false we HOLD
+      // them (reported, never scattered): a pre-combat opening must not show a roaming horde that both
+      // contradicts the beat's dread and duplicates the encounter the engine will spawn.
+      if (hostile && opts.ambientHostiles === false) {
+        notes.push(`spec: ${f.id} → ${count}× ${sprite} HELD (authored encounter owns combat creatures — not pre-scattered)`);
+        continue;
+      }
       if (inWater.has(f.id)) {
         postOps.push({ op: 'scatter', idBase: `mob:${f.id}`, tags: [sprite], kind: 'actor', role: hostile ? 'mob' : 'npc', region: 'all', count, on: 'water' });
         notes.push(`spec: ${f.id} → ${count}× ${sprite} IN the water`);
       } else if (opts.settlement) {
         if (hostile) contents.mobs.push({ tag: sprite, count });
-        else for (let i = 0; i < count; i++) contents.npcs.push({ tag: sprite, ...(count === 1 ? { name: f.id } : {}) });
+        else {
+          const anchor = count === 1 ? stationOf(f.id) : undefined;
+          for (let i = 0; i < count; i++) contents.npcs.push({ tag: sprite, ...(count === 1 ? { name: f.id } : {}), ...(anchor ? { anchor } : {}) });
+          if (anchor) notes.push(`spec: ${f.id} station → ${anchor}`);
+        }
         notes.push(`spec: ${f.id} → ${count}× ${sprite}${hostile ? ' (hostile)' : ''}`);
       } else {
         postOps.push({ op: 'scatter', idBase: `${hostile ? 'mob' : 'npc'}:${f.id}`, tags: [sprite], kind: 'actor', role: hostile ? 'mob' : 'npc', region: 'all', count });
