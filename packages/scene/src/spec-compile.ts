@@ -286,11 +286,14 @@ function realizationCells(map: SceneMap, spec: SceneSpec, fid: string): Cell[] {
   return [];
 }
 
-/** The subject's movable OBJECTS (never buildings/terrain — those were placed structurally). */
+/** The subject's movable OBJECTS (never buildings/terrain — those were placed structurally). A named
+ *  BUILDING's identity rides its keeper NPC (`npc:…-keeper`), and the keeper stays at their station:
+ *  the building's relations were satisfied at LOT time (waterfront bias), so a `near(boathouse, dock)`
+ *  must not drag Mother Sedge out of her boathouse onto the quay. */
 function movableObjects(map: SceneMap, fid: string): MapObject[] {
   if (fid === 'PARTY') return map.objects.filter((o) => o.role === 'pc');
   const ids = [`prop:${fid}`, `mob:${fid}`, `npc:${fid}`];
-  return map.objects.filter((o) => ids.includes(o.id) || (o.group && ids.includes(o.group)) || o.name === fid);
+  return map.objects.filter((o) => !o.id.endsWith('-keeper') && (ids.includes(o.id) || (o.group && ids.includes(o.group)) || o.name === fid));
 }
 
 function occupied(map: SceneMap, c: number, r: number): boolean {
@@ -337,7 +340,17 @@ export function applySpecPlacement(map: SceneMap, spec: SceneSpec): string[] {
       const refId = c.b ?? c.region ?? c.of ?? 'PARTY';
       if (!subj) continue;
       const movers = movableObjects(map, subj);
-      if (!movers.length) { notes.push(`placement: ${c.c}(${subj},${refId}) — subject not movable (structural or unrealized)`); continue; }
+      if (!movers.length) {
+        // A named BUILDING realizes as walls + a name-carrying keeper — its relation was satisfied
+        // at LOT time (the waterfront bias), so say that instead of implying it went unrealized.
+        // Match by keeper name (archetype path) OR keeper-id slug (loose `building` op path).
+        const slugged = subj.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+        const asBuilding = map.objects.some((o) => o.id.endsWith('-keeper') && (o.name === subj || o.id.includes(slugged)));
+        notes.push(asBuilding
+          ? `placement: ${c.c}(${subj},${refId}) — a building: placed at lot time (waterfront bias), not moved post-hoc`
+          : `placement: ${c.c}(${subj},${refId}) — subject not movable (structural or unrealized)`);
+        continue;
+      }
       const anchors = realizationCells(map, spec, refId);
       if (!anchors.length) { notes.push(`placement: ${c.c}(${subj},${refId}) — referent has no realization`); continue; }
       // `at-edge-of water` wants the LAND cell touching water; near/along want the referent itself.

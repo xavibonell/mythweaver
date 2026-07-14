@@ -77,7 +77,7 @@ const STORY_SYSTEM = LAB_SYSTEM.replace(
  * the story's cast stands in the rendered scene. Two LLM calls (~$0.05-0.1). This is exactly the
  * routing that later flips the live setScene path — proven here first, visibly.
  */
-export async function labBuildStory(deps: { llm: LlmProvider; model?: string }, premise: string): Promise<LabResult> {
+export async function labBuildStory(deps: { llm: LlmProvider; model?: string; assetRetriever?: AssetRetriever }, premise: string): Promise<LabResult> {
   // 1. The DM — the story half: opening narration + the scene declaration.
   const res = await deps.llm.complete({
     system: STORY_SYSTEM,
@@ -92,6 +92,26 @@ export async function labBuildStory(deps: { llm: LlmProvider; model?: string }, 
   const establish = parseEstablish(tc.input as Record<string, unknown>, stub);
   const { sceneMap, program } = await realizeStoryScene(deps, establish, premise);
   return { brief: premise, establish, program, sceneMap, narration: res.text ?? '', model: res.model };
+}
+
+async function retrieveAssetPalette(
+  retriever: AssetRetriever | undefined,
+  query: string,
+): Promise<{ paletteExtra?: string; paletteNote?: string }> {
+  if (!retriever) return {};
+  try {
+    const pal = await retriever.palette(query);
+    const paletteExtra = paletteBlock(pal);
+    const tags = (xs: { tag: string }[]) => xs.map((x) => x.tag).join(', ');
+    return {
+      ...(paletteExtra ? { paletteExtra } : {}),
+      paletteNote: paletteExtra
+        ? `asset-retrieval: palette offered to the model — props: ${tags(pal.props)}; creatures: ${tags(pal.chars)}; terrain: ${tags(pal.terrain)}`
+        : 'asset-retrieval: palette was empty',
+    };
+  } catch (err) {
+    return { paletteNote: `asset-retrieval: palette FAILED (${err instanceof Error ? err.message : String(err)}) — proceeding without` };
+  }
 }
 
 /**
@@ -145,21 +165,7 @@ export async function realizeStoryScene(
   // ASSET RETRIEVAL (menu): the per-scene palette rides a MODEL-ONLY prompt channel — never the
   // brief, which normalizeProgram regex-harvests as fiction (a palette line offering 'wolf_winter'
   // must not conjure a wolf pack). Failure degrades silently; provenance records the exact menu.
-  let paletteExtra: string | undefined;
-  let paletteNote: string | null = null;
-  if (deps.assetRetriever) {
-    try {
-      const pal = await deps.assetRetriever.palette(`${premise}. ${moodText}`);
-      const block = paletteBlock(pal);
-      if (block) {
-        paletteExtra = block;
-        const tags = (xs: { tag: string }[]) => xs.map((x) => x.tag).join(', ');
-        paletteNote = `asset-retrieval: palette offered to the model — props: ${tags(pal.props)}; creatures: ${tags(pal.chars)}; terrain: ${tags(pal.terrain)}`;
-      }
-    } catch (err) {
-      paletteNote = `asset-retrieval: palette FAILED (${err instanceof Error ? err.message : String(err)}) — proceeding without`;
-    }
-  }
+  const { paletteExtra, paletteNote } = await retrieveAssetPalette(deps.assetRetriever, `${premise}. ${moodText}`);
   const program = await new LlmSceneProgrammer(deps.llm, deps.model).compose(enriched, moodText, opts.kind, paletteExtra);
   if (paletteNote) (program.notes ??= []).push(paletteNote);
   program.locationId = establish.locationId; // stamp the DM's id — the frozen map must know its own name
@@ -492,8 +498,10 @@ export function labBuildComponent(kind: string, count: number, seed: number): La
  * chooses/arranges primitives, never coordinates), then the deterministic interpreter renders it. No
  * grammar templates involved. Returns the program too, so the lab can show what the model composed.
  */
-export async function labBuildProgram(deps: { llm: LlmProvider; model?: string }, brief: string): Promise<LabResult> {
-  const program = await new LlmSceneProgrammer(deps.llm, deps.model).compose(brief);
+export async function labBuildProgram(deps: { llm: LlmProvider; model?: string; assetRetriever?: AssetRetriever }, brief: string): Promise<LabResult> {
+  const { paletteExtra, paletteNote } = await retrieveAssetPalette(deps.assetRetriever, brief);
+  const program = await new LlmSceneProgrammer(deps.llm, deps.model).compose(brief, undefined, undefined, paletteExtra);
+  if (paletteNote) (program.notes ??= []).push(paletteNote);
   const sceneMap = runProgram(program);
   const establish: EstablishScene = {
     locationId: sceneMap.locationId,

@@ -216,7 +216,7 @@ app.post('/scene/story', async (req, reply) => {
   if (!premise) return badRequest(reply, 'premise is required');
   if (premise.length > 1000) return badRequest(reply, 'premise too long (max 1000 chars)');
   try {
-    return await labBuildStory({ llm, model: dmModel }, premise);
+    return await labBuildStory({ llm, model: dmModel, ...(assetRetriever ? { assetRetriever } : {}) }, premise);
   } catch (err) {
     app.log.error(err, 'scene story failed');
     reply.code(502);
@@ -232,7 +232,7 @@ app.post('/scene/program', async (req, reply) => {
   if (!brief) return badRequest(reply, 'brief is required');
   if (brief.length > 1000) return badRequest(reply, 'brief too long (max 1000 chars)');
   try {
-    return await labBuildProgram({ llm, model: dmModel }, brief);
+    return await labBuildProgram({ llm, model: dmModel, ...(assetRetriever ? { assetRetriever } : {}) }, brief);
   } catch (err) {
     app.log.error(err, 'scene program failed');
     reply.code(502);

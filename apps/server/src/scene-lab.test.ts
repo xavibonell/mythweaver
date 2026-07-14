@@ -5,8 +5,9 @@
  */
 import { describe, expect, it } from 'vitest';
 import { FakeLlmProvider, fakeText } from '@mythweaver/llm';
+import { AssetRetriever } from '@mythweaver/scene';
 import type { EstablishScene } from '@mythweaver/shared';
-import { buildModernRealizer, establishFromBeat, modernRealizeInputs } from './scene-lab.js';
+import { buildModernRealizer, establishFromBeat, labBuildProgram, modernRealizeInputs } from './scene-lab.js';
 
 /** A minimal valid programmer response — an enclosed interior of rooms. */
 const INTERIOR_PROGRAM = JSON.stringify({
@@ -118,6 +119,27 @@ describe('buildModernRealizer — the live DM→Director handoff', () => {
     }))]);
     const res = await buildModernRealizer({ llm })(est({ kind: 'interior' }), []);
     expect(res!.sceneMap.grammar).toBe('enclosed-interior');
+  });
+});
+
+describe('Scene Lab asset retrieval', () => {
+  it('injects the retrieved full-library palette into Primitives mode and records it in provenance', async () => {
+    const llm = new FakeLlmProvider([fakeText(INTERIOR_PROGRAM)]);
+    const assetRetriever = new AssetRetriever(
+      [
+        { tag: 'wand', kind: 'prop', desc: 'a slender magic wand', vec: [1, 0] },
+        { tag: 'wolf_winter', kind: 'character', desc: 'a white winter wolf', vec: [1, 0] },
+        { tag: 'ice', kind: 'terrain', desc: 'slick cave ice', vec: [1, 0] },
+      ],
+      { model: 'fake', embed: async (texts) => texts.map(() => [1, 0]) },
+    );
+
+    const result = await labBuildProgram({ llm, assetRetriever }, 'an icy herbalist shrine with a wand');
+    const sent = llm.requests[0]!.messages[0]!.content as string;
+    expect(sent).toContain('AVAILABLE ART');
+    expect(sent).toContain('wand (a slender magic wand)');
+    expect(sent).toContain('wolf_winter (a white winter wolf)');
+    expect(result.program?.notes ?? []).toContainEqual(expect.stringContaining('asset-retrieval: palette offered'));
   });
 });
 

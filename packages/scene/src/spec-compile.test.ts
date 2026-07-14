@@ -143,4 +143,31 @@ describe('S4 — relation placement', () => {
     expect(notes.some((n) => n.includes('facing') && n.includes('deferred'))).toBe(true);
     expect(notes.filter((n) => n.includes('moved')).length).toBeGreaterThanOrEqual(3);
   });
+
+  it('never drags a named building\'s KEEPER to satisfy near() — the lot bias already did', () => {
+    // A named building realizes as walls + a name-carrying keeper NPC. near(boathouse, dock) must
+    // leave the keeper at their station (Mother Sedge stays INSIDE the boathouse), and the note
+    // must say the relation was handled structurally.
+    const p = normalizeProgram(
+      { cols: 30, rows: 20, grammar: 'open-outdoor', outdoor: true, ops: [{ op: 'fill', region: { x: 24, y: 0, w: 6, h: 20 }, tag: 'water' }] },
+      'a shore', 'day', 'wild',
+    );
+    const m = runProgram(p);
+    m.objects.push({ id: 'npc:loc-x-b3-r0-keeper', kind: 'actor', role: 'npc', tag: 'villager', name: 'boathouse', col: 3, row: 3, footprint: { w: 1, h: 1 }, facing: 'down', visible: true });
+    for (let r = 8; r < 12; r++) m.ambiance.push({ tag: 'dock_ns', col: 23, row: r });
+    const spec: SceneSpec = {
+      specVersion: 1,
+      brief: 'x',
+      frame: { grammar: 'wild', entry: { edge: 'west' } },
+      features: [
+        { id: 'dock1', kind: 'dock.long', geom: 'network' },
+        { id: 'boathouse', kind: 'building.boathouse', geom: 'region' },
+      ],
+      constraints: [{ c: 'near', a: 'boathouse', b: 'dock1', w: 'story' }],
+    };
+    const notes = applySpecPlacement(m, spec);
+    const keeper = m.objects.find((o) => o.id === 'npc:loc-x-b3-r0-keeper')!;
+    expect({ col: keeper.col, row: keeper.row }).toEqual({ col: 3, row: 3 }); // unmoved
+    expect(notes.some((n) => n.includes('near(boathouse,dock1)') && n.includes('placed at lot time'))).toBe(true);
+  });
 });

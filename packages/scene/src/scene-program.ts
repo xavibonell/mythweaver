@@ -107,6 +107,7 @@ export function runProgram(prog: SceneProgram): SceneMap {
   const theme = prog.theme ? THEMES[prog.theme] : undefined;
   const cv = new Canvas(Math.max(1, prog.cols), Math.max(1, prog.rows), prog.seed, theme ? theme.ground : prog.base ?? 'grass');
   for (const op of prog.ops) runOp(cv, op, prog.locationId, theme);
+  if (cv.notes.length) (prog.notes ??= []).push(...cv.notes); // generator honesty joins the provenance
   return finalize(cv, { locationId: prog.locationId, biome: prog.biome, lighting: prog.lighting, ...(prog.weather ? { weather: prog.weather } : {}), grammar: prog.grammar, outdoor: prog.outdoor });
 }
 
@@ -222,7 +223,7 @@ export const GOLD_PROGRAMS: Record<string, SceneProgram> = {
 /** Build one gold scene by name (the deterministic half of the G1 spike). */
 export function buildSpikeScene(name: string): SceneMap {
   const prog = GOLD_PROGRAMS[name] ?? LABYRINTH;
-  return runProgram(prog);
+  return runProgram({ ...prog, notes: [...(prog.notes ?? [])] }); // clone — runProgram appends notes, gold constants must not accumulate them across runs
 }
 
 // ---------------------------------------------------------------------------

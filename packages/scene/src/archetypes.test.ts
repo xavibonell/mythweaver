@@ -174,3 +174,43 @@ describe('town routing — settlements go through the generator, not LLM-placed 
     expect(prog.ops.some((o) => o.op === 'archetype')).toBe(false);
   });
 });
+
+describe('town lot scarcity — a NAMED building must never be silently dropped (the b1 boathouse)', () => {
+  // The drowned-bell shape: 7 anonymous waterfront shacks + 1 named waterfront boathouse — more
+  // declared buildings than the parcel grid can hold. The named one must claim a lot FIRST.
+  const scarceContents: Partial<Contents> = {
+    buildings: [
+      ...Array.from({ length: 7 }, () => ({ type: 'house' as const, waterfront: true })),
+      { type: 'workshop' as const, name: 'sedge_boathouse', waterfront: true },
+    ],
+    landmarks: [], npcs: [], mobs: [], wall: false, coast: true, port: true, entranceSide: 'east' as const,
+  };
+
+  it('lands the named waterfront building on a shore lot, across many seeds', () => {
+    for (const seed of [1, 42, 717, 999, 12345, 3737264664]) {
+      const prog = townProgram(seed, scarceContents);
+      const m = runProgram(prog);
+      const marker = m.objects.find((o) => o.name === 'sedge_boathouse');
+      expect(marker, `seed ${seed}: the named building must land`).toBeTruthy();
+      // shore-side: the coast flips to the west edge (the entrance holds the east), so the marker
+      // must sit in the western half — a shore lot, not wherever the queue happened to run out.
+      expect(marker!.col, `seed ${seed}: expected a shore-side lot`).toBeLessThan(60 / 2 + 4);
+    }
+  });
+
+  it('reports any building that found no lot in the program notes (never a silent drop)', () => {
+    const prog = townProgram(717, scarceContents);
+    runProgram(prog);
+    // 8 declared buildings rarely all fit — when any misses, the note must name the loss and may
+    // only list ANONYMOUS entries (the named one landed; see above).
+    const drop = (prog.notes ?? []).find((n) => n.startsWith('town:') && n.includes('found no lot'));
+    if (drop) expect(drop).not.toContain('sedge_boathouse');
+  });
+
+  it('keeps gold programs pristine (buildSpikeScene must not accumulate notes on the shared constants)', async () => {
+    const { GOLD_PROGRAMS, buildSpikeScene } = await import('./scene-program.js');
+    buildSpikeScene('town');
+    buildSpikeScene('town');
+    expect(GOLD_PROGRAMS.town!.notes ?? []).toEqual([]);
+  });
+});

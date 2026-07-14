@@ -282,9 +282,21 @@ function townGen(cv: Canvas, ctx: GenContext): void {
 
   // STAGE 2b — PARK. A green neighbourhood square (a fountain + benches on grass, no buildings), placed on the
   // FAR side of town from the paved plaza, so a settlement has a breathing space distinct from the market square.
+  // When the spec claims WATERFRONT lots, the shore block is spoken for — "far from the plaza" is often exactly
+  // the block behind the beach, and a park there starves the boathouse off the waterline (the b1 drop).
+  const reserveShore = !!coastField && contents.buildings.some((x) => x.waterfront);
+  const coastAdjacent = (b: Rect): boolean => {
+    if (!coastField) return false;
+    switch (coastField.edge) {
+      case 'west': return b.x <= interior.x + 2;
+      case 'east': return b.x + b.w >= interior.x + interior.w - 2;
+      case 'north': return b.y <= interior.y + 2;
+      default: return b.y + b.h >= interior.y + interior.h - 2;
+    }
+  };
   if (blocks.length >= 4) {
     let kIdx = -1, kBest = -1;
-    blocks.forEach((b, i) => { if (Math.min(b.w, b.h) < 6) return; const c = rectCenter(b); const dd = (c.c - plazaCtr.c) ** 2 + (c.r - plazaCtr.r) ** 2; if (dd > kBest) { kBest = dd; kIdx = i; } });
+    blocks.forEach((b, i) => { if (Math.min(b.w, b.h) < 6 || (reserveShore && coastAdjacent(b))) return; const c = rectCenter(b); const dd = (c.c - plazaCtr.c) ** 2 + (c.r - plazaCtr.r) ** 2; if (dd > kBest) { kBest = dd; kIdx = i; } });
     if (kIdx >= 0) {
       const park = blocks.splice(kIdx, 1)[0]!;
       const parkCtr = rectCenter(park);
@@ -336,7 +348,11 @@ function townGen(cv: Canvas, ctx: GenContext): void {
     for (const s of ['south', 'north', 'east', 'west'] as const) { const n = score(sides[s]); if (n > bestN) { bestN = n; best = s; } }
     return best;
   };
-  const named = [...contents.buildings];
+  // NAMED buildings go to the FRONT of the queue (stable within each half): the fiction leans on them
+  // by id ("Mother Sedge's boathouse"), so when parcels are scarce an anonymous count-expanded run
+  // ("7× house") must never starve the one named building out of a lot — that silently dropped a
+  // spec'd boathouse whose door the arc's narration depends on.
+  const named = [...contents.buildings].sort((a, b) => Number(!!b.name) - Number(!!a.name));
   const lotD = (l: Rect) => Math.hypot(rectCenter(l).c - plazaCtr.c, rectCenter(l).r - plazaCtr.r);
   lots.sort((a, b) => lotD(a) - lotD(b));
   // WATERFRONT bias (S4 — spec relation near(building, dock/water) as GEOMETRY): flagged buildings
@@ -344,11 +360,21 @@ function townGen(cv: Canvas, ctx: GenContext): void {
   const lotAssign = new Map<Rect, { type: BuildingType; name?: string }>();
   if (coastField) {
     const bandCtr = rectCenter(coastField.band);
+    const onCoastAxis = coastField.edge === 'east' || coastField.edge === 'west';
     const coastD = (l: Rect) => {
       const c = rectCenter(l);
-      return coastField!.edge === 'east' || coastField!.edge === 'west' ? Math.abs(c.c - bandCtr.c) : Math.abs(c.r - bandCtr.r);
+      return onCoastAxis ? Math.abs(c.c - bandCtr.c) : Math.abs(c.r - bandCtr.r);
     };
-    const byCoast = [...lots].sort((a, b) => coastD(a) - coastD(b));
+    // Order ALONG the shore toward the band centre too — the pier roots there, so the first claim
+    // (a named boathouse) takes the waterline lot nearest the jetties, not just any waterline lot.
+    // coastD is BANDED by a lot-depth (≈minLot) before along-shore distance: an exact-tie tie-break
+    // never fires (lot centres differ by a tile), but lots in the same shore column should compete
+    // on pier proximity, not centre jitter.
+    const alongD = (l: Rect) => {
+      const c = rectCenter(l);
+      return onCoastAxis ? Math.abs(c.r - bandCtr.r) : Math.abs(c.c - bandCtr.c);
+    };
+    const byCoast = [...lots].sort((a, b) => Math.floor(coastD(a) / 6) - Math.floor(coastD(b) / 6) || alongD(a) - alongD(b) || coastD(a) - coastD(b));
     for (const b of named.filter((x) => x.waterfront)) {
       const lot = byCoast.find((l) => !lotAssign.has(l) && (l.w - 2 >= 4 && l.h - 2 >= 4));
       if (lot) lotAssign.set(lot, b);
@@ -362,18 +388,22 @@ function townGen(cv: Canvas, ctx: GenContext): void {
     const fits = (['ell', 'tee', 'you', 'plus'] as ShapeKind[]).filter((s) => w >= SHAPE_MIN[s].w && h >= SHAPE_MIN[s].h);
     return !fits.length || cv.rng() < 0.6 ? 'rect' : fits[Math.floor(cv.rng() * fits.length)]!;
   };
+  const landed = new Set<{ type: BuildingType; name?: string }>();
   for (const lot of lots) {
     const sb = (dim: number) => (dim >= 8 ? Math.floor(cv.rng() * 2) : 0);
     const ox = sb(lot.w), oy = sb(lot.h);
     const fp: Rect = { x: lot.x + ox, y: lot.y + oy, w: lot.w - ox - sb(lot.w), h: lot.h - oy - sb(lot.h) };
     if (fp.w < 4 || fp.h < 4) continue;
     let type: BuildingType, name: string | undefined;
-    const assigned = lotAssign.get(lot);
-    if (assigned) { type = assigned.type; name = assigned.name; } // a waterfront claim — this lot is spoken for
-    else if (ni < namedQueue.length) { type = namedQueue[ni]!.type; name = namedQueue[ni]!.name; ni++; }
+    const assigned = lotAssign.get(lot) ?? (ni < namedQueue.length ? namedQueue[ni++]! : undefined);
+    if (assigned) { type = assigned.type; name = assigned.name; } // a waterfront claim / the declared queue — this lot is spoken for
     else { const big = fp.w * fp.h >= 72; type = big ? (cv.rng() < 0.3 ? 'shop' : 'house') : 'house'; } // procedural fill = mostly homes (big lots → manors/shops)
     const dside = doorToward(fp);
-    compound(cv, fp, type, { door: dside, shape: chooseShape(fp.w, fp.h), locationId, ...(name ? { name } : {}), id: `bldg:${slug(locationId, 0)}-b${bi++}` });
+    const door = compound(cv, fp, type, { door: dside, shape: chooseShape(fp.w, fp.h), locationId, ...(name ? { name } : {}), id: `bldg:${slug(locationId, 0)}-b${bi++}` });
+    if (assigned) {
+      if (door) landed.add(assigned);
+      else if (assigned.name) namedQueue.push(assigned); // a NAMED building whose lot failed gets another lot, not a silent drop
+    }
     // ENTRANCE PATH — a short dirt path from the door OUT across the front-yard grass to the nearest street, so
     // every building has a deliberate, hand-placed approach instead of a door opening onto bare ground.
     const dir = dside === 'north' ? { c: 0, r: -1 } : dside === 'south' ? { c: 0, r: 1 } : dside === 'west' ? { c: -1, r: 0 } : { c: 1, r: 0 };
@@ -385,6 +415,10 @@ function townGen(cv: Canvas, ctx: GenContext): void {
       pc += dir.c; pr += dir.r;
     }
   }
+  // HONESTY: anything declared that found no parcel is REPORTED (never silently dropped) — the DM
+  // must know a building didn't land, so the fiction re-narrates instead of pointing at a phantom.
+  const droppedBldgs = named.filter((b) => !landed.has(b));
+  if (droppedBldgs.length) cv.notes.push(`town: ${droppedBldgs.length}/${named.length} declared building(s) found no lot (${droppedBldgs.map((b) => b.name ?? b.type).join(', ')})`);
 
   // STAGE 5 — DENSITY (two deliberate textures, region-masked, depth-ordered). Trees/bushes spread by
   // BLUE noise on grass margins; flower beds + groundcover CLUMP via noise-threshold; street furniture

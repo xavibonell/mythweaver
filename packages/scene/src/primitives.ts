@@ -64,6 +64,7 @@ export class Canvas {
   readonly ambiance: AmbianceItem[] = [];
   readonly entrances: Entrance[] = [];
   readonly buildings: BuildingFootprint[] = []; // footprints for the ROOF pass (finalize)
+  readonly notes: string[] = []; // generator honesty channel — joins program.notes after the run
   readonly rng: () => number;
 
   constructor(readonly cols: number, readonly rows: number, readonly seed: number, base = 'grass') {
