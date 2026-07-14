@@ -788,7 +788,7 @@ export function buildToolDefs(retrieval: boolean, scene: boolean): ToolDef[] {
     tools.push({
       name: 'travel',
       description:
-        "MOVE a character to something on the map — the engine walks the REAL path (walkable ground; water means swimming at double cost; rough water suspends for an Athletics check it will resolve itself). Use this for ALL declared movement ('I go to…'). The verdict tells you feet, rounds, what was swum, or why they stopped short — narrate THAT, in fiction, without reciting the numbers as numbers.",
+        "MOVE a character to something on the map — the engine walks the REAL path (walkable ground; water means swimming at double cost; rough water suspends for an Athletics check it will resolve itself). Use this for ALL declared movement ('I go to…'). Set `to` to the EXACT (id) of the target as listed in the MAP block's Fixtures/NPCs (each entry is 'a barrel (prop:…-1) — 10 ft NW'); pick the id whose noun AND bearing match what the player named ('the barrel next to the fountain' → the barrel id nearest the fountain, NOT some other prop). If the thing the player named is NOT in the MAP block, call queryScene ('near'/'whereis') to find its id FIRST — NEVER invent or guess an id. The verdict tells you feet, rounds, what was swum, or why they stopped short — narrate THAT, in fiction, without reciting the numbers as numbers.",
       inputSchema: {
         type: 'object',
         properties: {
@@ -868,17 +868,6 @@ function castPositionsBlock(map: SceneMap): string {
  *  "25 ft NE of the party, indoors (bldg:house)" — never raw coordinates. The DM narrates from
  *  these instead of inventing geography. Oracle failure falls back to the legacy digest. */
 function sceneDigest(map: SceneMap): string {
-  const fix: string[] = [];
-  const fixGroups = new Map<string, { n: number; tag: string; zone?: string }>();
-  for (const o of map.objects.filter((o) => o.kind !== 'actor')) {
-    if (o.group) {
-      const g = fixGroups.get(o.group) ?? { n: 0, tag: o.tag, zone: o.zone };
-      g.n++;
-      fixGroups.set(o.group, g);
-    } else fix.push(`${o.id}(${o.zone ?? '?'})`);
-  }
-  for (const [id, g] of fixGroups) fix.push(`${id} ×${g.n} ${g.tag}(${g.zone ?? '?'})`);
-
   let idx: SpatialIndex | undefined;
   if (SPATIAL_ON) {
     try {
@@ -899,6 +888,23 @@ function sceneDigest(map: SceneMap): string {
     if (w.medium === 'water-deep' || w.medium === 'water-shallow') bits.push('IN THE WATER');
     return bits.length ? `, ${bits.join(', ')}` : '';
   };
+  const human = (tag: string): string => tag.replace(/[_-]+/g, ' ').replace(/\d+/g, '').trim() || 'object';
+
+  // FIXTURES — a plain noun + its (id) + bearing, so the DM can TARGET the right prop by id ("the barrel
+  // next to the fountain" → the barrel's real id) instead of guessing from opaque strings. Was: bare
+  // `id(zone)` with no tag or position, which forced the DM to hallucinate a target.
+  const single: SceneMap['objects'] = [];
+  const fixGroups = new Map<string, { n: number; tag: string; sample: { col: number; row: number } }>();
+  for (const o of map.objects.filter((o) => o.kind !== 'actor')) {
+    if (o.group) {
+      const g = fixGroups.get(o.group) ?? { n: 0, tag: o.tag, sample: { col: o.col, row: o.row } };
+      g.n++;
+      fixGroups.set(o.group, g);
+    } else single.push(o);
+  }
+  if (idx) single.sort((a, b) => distanceFt(idx!, centroid, a) - distanceFt(idx!, centroid, b)); // nearest first — the props players actually reference
+  const fix = single.map((o) => `a ${human(o.tag)} (${o.id})${idx ? ` — ${bearingFt(idx, centroid, o)} of the party${place(o)}` : ` @${o.col},${o.row}`}`);
+  for (const [id, g] of fixGroups) fix.push(`${human(g.tag)} ×${g.n} (${id})${idx ? ` — nearest ${bearingFt(idx, centroid, g.sample)} of the party` : ''}`);
 
   const npcs: string[] = [];
   const npcGroups = new Map<string, { n: number; sample?: { col: number; row: number } }>();
