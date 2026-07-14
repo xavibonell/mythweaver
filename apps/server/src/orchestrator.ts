@@ -1014,10 +1014,15 @@ function resolveMapObject(engine: Engine, map: SceneMap, ref: unknown, near?: { 
   // BUILDING: "the storehouse"/"the forge"/"the inn" → the building of that type (nearest `near`), at its door.
   const words = s.toLowerCase().split(/[^a-z]+/).filter(Boolean);
   const wantType = words.map((w) => BUILDING_WORDS[w]).find(Boolean);
-  if (wantType) {
+  // A bare "door"/"lock"/"latch"/"entrance"/"gate" means the NEAREST building's door — resolve it to that
+  // building's EXTERIOR door cell (where the lock is), so the party inspects at the threshold and never
+  // gets snapped INSIDE by a door-prop match. (Precision at the door; interior stays for a declared "enter".)
+  const wantsDoor = !wantType && /\b(door|doorway|entrance|entry|threshold|gate|lock|latch|keyhole)\b/i.test(s);
+  if (wantType || wantsDoor) {
     try {
       const idxB = spatialIndex(map);
-      const blds = deriveBuildings(map, idxB, near).filter((b) => b.type === wantType);
+      let blds = deriveBuildings(map, idxB, near);
+      if (wantType) blds = blds.filter((b) => b.type === wantType);
       if (blds.length) {
         const pick = near ? blds.sort((a, b) => (Math.abs(a.col - near.col) + Math.abs(a.row - near.row)) - (Math.abs(b.col - near.col) + Math.abs(b.row - near.row)))[0]! : blds[0]!;
         return buildingAsObject(pick);

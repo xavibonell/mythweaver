@@ -648,37 +648,37 @@ function playerCameraImpl(scene: any, data: any, animate = false): void {
   const box = worldBox(data);
   cam.setBounds(box.x, box.y, box.w, box.h);
   const W = scene.scale.width, H = scene.scale.height;
-  const fit = Math.min(W / box.w, H / box.h); // whole-scene floor (tiny rooms)
-  const baseZoom = Math.max(W / (PLAYER_VIEW_TILES * TILE), fit); // intimate frame
-  const minZoom = Math.max(W / (PLAYER_VIEW_MAX_TILES * TILE), fit); // hard zoom-out cap
+  const sceneFit = Math.min(W / box.w, H / box.h); // the whole scene — the hard zoom-out floor
+  const baseZoom = Math.max(W / (PLAYER_VIEW_TILES * TILE), sceneFit); // intimate frame when the party is together
   const pcs = (data.objects ?? []).filter((o: any) => o.kind === 'actor' && o.role === 'pc' && o.visible !== false);
-  const cxTile = pcs.length ? pcs.reduce((s: number, p: any) => s + p.col, 0) / pcs.length : (box.x + box.w / 2) / TILE - 0.5;
-  const cyTile = pcs.length ? pcs.reduce((s: number, p: any) => s + p.row, 0) / pcs.length : (box.y + box.h / 2) / TILE - 0.5;
-
-  // Default: the intimate party frame.
-  let zoom = baseZoom;
-  let cx = (cxTile + 0.5) * TILE, cy = (cyTile + 0.5) * TILE;
-
-  // Widen to keep the beat's focus (a named NPC nearby) in view — bounded by the zoom-out cap.
-  const focus = pcs.length ? playerFocusCells(data, cxTile, cyTile) : [];
-  if (focus.length) {
-    const cells = [...pcs.map((p: any) => ({ col: p.col, row: p.row })), ...focus];
+  if (!pcs.length) {
+    cam.setZoom(baseZoom);
+    const c = { x: box.x + box.w / 2, y: box.y + box.h / 2 };
+    if (animate) cam.pan(c.x, c.y, 450, 'Sine.easeInOut', true); else cam.centerOn(c.x, c.y);
+    return;
+  }
+  const pad = 2.5; // tiles of breathing room so a token never rides the very edge
+  const frameOf = (cells: { col: number; row: number }[]) => {
     let minC = Infinity, minR = Infinity, maxC = -Infinity, maxR = -Infinity;
     for (const c of cells) { minC = Math.min(minC, c.col); minR = Math.min(minR, c.row); maxC = Math.max(maxC, c.col); maxR = Math.max(maxR, c.row); }
-    const pad = 2; // tiles of breathing room around the union
     const bw = (maxC - minC + 1 + 2 * pad) * TILE, bh = (maxR - minR + 1 + 2 * pad) * TILE;
-    const fitFocus = Math.min(W / bw, H / bh);
-    if (fitFocus >= minZoom) { // the union fits within the cap → frame party + subject together
-      zoom = Math.min(baseZoom, fitFocus); // never TIGHTER than baseline; zoom out only as needed
-      cx = ((minC + maxC) / 2 + 0.5) * TILE;
-      cy = ((minR + maxR) / 2 + 0.5) * TILE;
-    }
-    // else: the subject needs more than the cap — keep the party frame; the ping glance covers it.
-  }
+    return { zoom: Math.min(W / bw, H / bh), cx: ((minC + maxC) / 2 + 0.5) * TILE, cy: ((minR + maxR) / 2 + 0.5) * TILE };
+  };
+  const pcCells = pcs.map((p: any) => ({ col: p.col, row: p.row }));
+  const centroid = { col: pcs.reduce((s: number, p: any) => s + p.col, 0) / pcs.length, row: pcs.reduce((s: number, p: any) => s + p.row, 0) / pcs.length };
+
+  // HARD RULE: every PC stays in view. Fit the whole party's bounding box — zoom OUT smoothly as they
+  // spread (down to the whole scene), stay at the intimate baseline when clustered. Then widen to a
+  // nearby named subject too, but only if it doesn't force us past the focus cap (else frame the party).
+  const withFocus = [...pcCells, ...playerFocusCells(data, centroid.col, centroid.row)];
+  const maxOut = Math.max(sceneFit, W / (PLAYER_VIEW_MAX_TILES * TILE)); // don't zoom out THIS far merely to chase a subject
+  let f = frameOf(withFocus);
+  if (f.zoom < maxOut) f = frameOf(pcCells); // the subject would push too far — frame just the party (still ALL PCs)
+  const zoom = Math.max(sceneFit, Math.min(baseZoom, f.zoom)); // clamp: never past the scene, never tighter than intimate
 
   cam.setZoom(zoom);
-  if (animate) cam.pan(cx, cy, 450, 'Sine.easeInOut', true);
-  else cam.centerOn(cx, cy);
+  if (animate) cam.pan(f.cx, f.cy, 450, 'Sine.easeInOut', true);
+  else cam.centerOn(f.cx, f.cy);
 }
 
 interface Bridge {
