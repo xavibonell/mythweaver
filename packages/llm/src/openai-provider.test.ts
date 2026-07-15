@@ -73,6 +73,26 @@ describe('API routing (gpt-5.6+ requires /v1/responses for function tools)', () 
     expect(input[2]).toMatchObject({ type: 'function_call_output', call_id: 'call_9', output: '{"hp":12}' });
   });
 
+  it('maps an ImageBlock to input_image on the Responses path (gpt-5.6+) — was dropped silently', async () => {
+    const cap = stubFetch(RESPONSES_PAYLOAD);
+    const p = new OpenAIProvider({ apiKey: 'x', model: 'gpt-5.6-luna' });
+    await p.complete({ messages: [{ role: 'user', content: [{ type: 'text', text: 'what do you see?' }, { type: 'image', mediaType: 'image/png', dataBase64: 'AAAA' }] }] });
+    const input = cap.bodies[0]!.input as Record<string, unknown>[];
+    const img = input.find((i) => Array.isArray((i as any).content) && (i as any).content[0]?.type === 'input_image') as any;
+    expect(img).toBeTruthy();
+    expect(img.content[0].image_url).toBe('data:image/png;base64,AAAA');
+  });
+
+  it('maps an ImageBlock to an image_url content part on the chat path (gpt-4o)', async () => {
+    const cap = stubFetch(CHAT_PAYLOAD);
+    const p = new OpenAIProvider({ apiKey: 'x', model: 'gpt-4o' });
+    await p.complete({ messages: [{ role: 'user', content: [{ type: 'text', text: 'look' }, { type: 'image', mediaType: 'image/png', dataBase64: 'BBBB' }] }] });
+    const msgs = cap.bodies[0]!.messages as any[];
+    const u = msgs.find((m) => m.role === 'user' && Array.isArray(m.content));
+    expect(u.content).toContainEqual({ type: 'image_url', image_url: { url: 'data:image/png;base64,BBBB' } });
+    expect(u.content).toContainEqual({ type: 'text', text: 'look' });
+  });
+
   it('parses Responses output: text + toolCalls (call_id) + usage + stopReason', async () => {
     stubFetch(RESPONSES_PAYLOAD);
     const p = new OpenAIProvider({ apiKey: 'x', model: 'gpt-5.6-luna' });

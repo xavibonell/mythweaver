@@ -74,13 +74,18 @@ function toMessages(system: string | undefined, messages: LlmMessage[]): Record<
       }
       out.push({ role: 'assistant', content: text || null, ...(toolCalls.length ? { tool_calls: toolCalls } : {}) });
     } else {
-      // user turn: tool_result blocks become `tool` messages; any text becomes a user message.
+      // user turn: tool_result blocks become `tool` messages; text + images become a user message.
       let text = '';
+      const imageParts: unknown[] = [];
       for (const b of blocks) {
         if (b.type === 'tool_result') out.push({ role: 'tool', tool_call_id: b.toolUseId, content: b.content });
         else if (b.type === 'text') text += b.text;
+        else if (b.type === 'image') imageParts.push({ type: 'image_url', image_url: { url: `data:${b.mediaType};base64,${b.dataBase64}` } });
       }
-      if (text) out.push({ role: 'user', content: text });
+      // Vision input rides the user message as content PARTS (Chat Completions can't put images in a
+      // `tool` message). Previously image blocks were dropped SILENTLY — a vision experiment saw nothing.
+      if (imageParts.length) out.push({ role: 'user', content: [...(text ? [{ type: 'text', text }] : []), ...imageParts] });
+      else if (text) out.push({ role: 'user', content: text });
     }
   }
   return out;
@@ -104,6 +109,9 @@ function toResponsesInput(messages: LlmMessage[]): Record<string, unknown>[] {
         out.push({ type: 'function_call', call_id: b.id, name: b.name, arguments: JSON.stringify(b.input) });
       } else if (b.type === 'tool_result') {
         out.push({ type: 'function_call_output', call_id: b.toolUseId, output: b.content });
+      } else if (b.type === 'image') {
+        // Vision input on the Responses API (the path gpt-5.6+ uses) — was DROPPED silently before.
+        out.push({ role: 'user', content: [{ type: 'input_image', image_url: `data:${b.mediaType};base64,${b.dataBase64}` }] });
       }
     }
   }
