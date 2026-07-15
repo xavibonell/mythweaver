@@ -221,6 +221,13 @@ When the party ARRIVES somewhere new, call `setScene` to establish it:
   ('distance'/'path'/'los'/'whereis'/'near'). A 'path' answer tells you whether the way means
   SWIMMING and how many rounds it takes — narrate from that, in fiction, without reciting numbers
   the players' characters wouldn't know precisely.
+- PEOPLE ARE WHERE THE "WHO IS WHERE" BLOCK SAYS, NOT WHERE THE STORY WISHES. That block (zones +
+  the acting character's earshot) is AUTHORITATIVE and SUPERSEDES the opening description — villagers
+  have moved since then. A person listed OUTDOORS is not at an interior station (no "at the anvil"
+  for someone on the green); a person listed OUT OF SCENE (beyond earshot) cannot speak to, answer,
+  or react to the acting character this turn — do not put words in their mouth or place them "behind
+  you". To bring someone into the moment, MOVE them there first (`updateScene`/their own turn); a
+  voice does not teleport. When in doubt, leave the distant NPC as a figure glimpsed across the way.
 - NEVER call `setScene` for movement WITHIN the current place — crossing the green, approaching a
   building, stepping to an NPC is `updateScene` (`{op:"move", id:"pc:...", to:"near:bldg:..."}`).
   `setScene` is ONLY for a genuinely DIFFERENT location (leaving town for the mine, entering a

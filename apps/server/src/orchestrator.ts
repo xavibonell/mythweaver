@@ -40,6 +40,8 @@ const FIXTURE_TAG_HINT = PROMPT_PROPS.map((p) => p.tag).join(', ');
 const ACTOR_LOOK_HINT = CHARACTERS.map((c) => c.tag).join(', ');
 import { NoopTracer, type Tracer } from './tracing.js';
 import { spatialIndex, distanceFt, whereIs, findPath, hasLineOfSight, travelTime, type SpatialIndex } from '@mythweaver/engine';
+import { deriveBuildings, buildingAsObject, zoneDigest, narrationBreaksScene, arrivalZoneNote } from './scene-graph.js';
+export { classifyBuilding, deriveBuildings } from './scene-graph.js'; // re-exported for existing callers/tests
 import type { ExemplarRetriever } from './exemplar-corpus.js';
 import type { ExemplarMoveType } from './exemplar-ingest.js';
 
@@ -828,6 +830,9 @@ function currentMap(state: GameState): SceneMap | undefined {
  *  Object-field children (group set) are collapsed to one "group ×N" line so a row of 8 pews reads
  *  as a group, not 8 lines (the DM addresses the group, or a member by its #NN id when needed). */
 const SPATIAL_ON = (process.env.MYTHWEAVER_SPATIAL ?? 'on').toLowerCase() !== 'off';
+/** P2 COHERENCE GATE: bind narration to zone membership + earshot (the deterministic twin of the swim
+ *  fidelity gate). 'on' re-narrates a break once; 'dry' only logs would-fire (soak mode); 'off' disables. */
+const COHERENCE_GATE = (process.env.MYTHWEAVER_COHERENCE_GATE ?? 'on').toLowerCase();
 
 /** Compass phrase from a to b ("15 ft NE"). Distances in FEET — coordinates never enter the prompt. */
 function bearingFt(idx: SpatialIndex, a: { col: number; row: number }, b: { col: number; row: number }): string {
@@ -956,63 +961,9 @@ const BUILDING_WORDS: Record<string, string> = {
   shop: 'shop', market: 'shop', stall: 'shop',
   cottage: 'cottage', hut: 'cottage', home: 'house', house: 'house', manor: 'house', hall: 'house',
 };
-export function classifyBuilding(tags: Set<string>): string {
-  const has = (...t: string[]) => t.some((x) => tags.has(x));
-  if (has('forge', 'anvil', 'bellows')) return 'forge';
-  if (has('bar_counter', 'ale_barrel', 'beer_keg', 'tankard')) return 'inn';
-  if (has('altar', 'shrine', 'pew', 'reliquary')) return 'chapel';
-  if (has('shelf_wares', 'sacks', 'grain', 'grain_sack', 'crate_stack', 'market_stall')) return 'storehouse';
-  if (has('bed', 'bed_down') && tags.size <= 4) return 'cottage';
-  return 'house';
-}
-interface DerivedBuilding { id: string; name: string; type: string; col: number; row: number; }
-export function deriveBuildings(map: SceneMap, idx: SpatialIndex, near?: { col: number; row: number }): DerivedBuilding[] {
-  if (!idx.roofAt?.size) return [];
-  const cols = map.grid.cols, rows = map.grid.rows;
-  const box = new Map<string, { minc: number; maxc: number; minr: number; maxr: number }>();
-  for (const [k, bid] of idx.roofAt) {
-    const c = k % cols, r = (k - c) / cols;
-    const g = box.get(bid) ?? { minc: 1e9, maxc: -1, minr: 1e9, maxr: -1 };
-    g.minc = Math.min(g.minc, c); g.maxc = Math.max(g.maxc, c); g.minr = Math.min(g.minr, r); g.maxr = Math.max(g.maxr, r);
-    box.set(bid, g);
-  }
-  const aim = near ?? { col: Math.round(cols / 2), row: Math.round(rows / 2) };
-  // THE MAP OWNS EVERY DOOR. map.entrances records the real doorway cell per building (fixtureId = the
-  // building id, identical to idx.roofAt's value). READ it — never guess. The old "nearest walkable ring
-  // cell to the party" heuristic lands on the WRONG WALL (or an interior cell just inside a solid wall):
-  // e.g. the storehouse door is on the SOUTH, but a party approaching from the north got snapped to the
-  // north interior — inside the building, an entire footprint away from the lock. (Same law as the oracle:
-  // spatial truth is read from the map, never invented — see the coherence leaks.)
-  const doorByBid = new Map<string, { col: number; row: number }>();
-  for (const e of map.entrances ?? []) {
-    if (e.fixtureId && Number.isInteger(e.col) && Number.isInteger(e.row)) doorByBid.set(e.fixtureId, { col: e.col, row: e.row });
-  }
-  const out: DerivedBuilding[] = [];
-  for (const [bid, bb] of box) {
-    const inB = (o: { col: number; row: number }) => o.col >= bb.minc && o.col <= bb.maxc && o.row >= bb.minr && o.row <= bb.maxr;
-    const tags = new Set(map.objects.filter((o) => o.kind !== 'actor' && o.visible !== false && inB(o)).map((o) => o.tag));
-    const type = classifyBuilding(tags);
-    // DOOR: the map's own entrance for this building (ground truth). FALLBACK only for maps that carry no
-    // entrance for it — the legacy ring guess (nearest walkable exterior cell to the party; wrong-wall-prone).
-    let door: { col: number; row: number } | null = doorByBid.get(bid) ?? null;
-    if (!door) {
-      let bestD = Infinity;
-      for (let r = bb.minr - 1; r <= bb.maxr + 1; r++) for (let c = bb.minc - 1; c <= bb.maxc + 1; c++) {
-        if (c < 0 || r < 0 || c >= cols || r >= rows) continue;
-        if (!(c === bb.minc - 1 || c === bb.maxc + 1 || r === bb.minr - 1 || r === bb.maxr + 1)) continue; // ring only
-        if (map.walkable?.[r]?.[c] !== true || idx.roofAt.has(r * cols + c)) continue; // walkable + exterior
-        const d = Math.abs(c - aim.col) + Math.abs(r - aim.row);
-        if (d < bestD) { bestD = d; door = { col: c, row: r }; }
-      }
-    }
-    if (door) out.push({ id: bid, name: `the ${type}`, type, col: door.col, row: door.row });
-  }
-  return out;
-}
-/** A synthetic MapObject for a derived building (door cell), so travel/digest treat it like any target. */
-function buildingAsObject(b: DerivedBuilding): SceneMap['objects'][number] {
-  return { id: b.id, kind: 'fixture', tag: b.type, name: b.name, col: b.col, row: b.row, footprint: { w: 1, h: 1 }, facing: 'down', visible: false } as SceneMap['objects'][number];
-}
+// classifyBuilding / deriveBuildings / buildingAsObject moved to ./scene-graph.ts (the low-level scene
+// module the orchestrator imports from) so the scene graph + coherence gate can share them without a
+// circular import. Re-exported below for existing callers/tests.
 
 /** Loose fiction-word → map-object resolution: exact id, name, combatant handle, then a derived BUILDING
  *  (by its interior-classified type), then GROUP/TAG fuzzy match picking the member NEAREST `near`. */
@@ -1207,7 +1158,19 @@ function characterTail(c: Combatant, cs?: CharacterState, sheet?: CharacterSheet
   return parts.length ? ` — ${parts.join('; ')}` : '';
 }
 
-function summarizeState(state: GameState): string {
+/** P1 SCENE GRAPH: the DM reads a WHO-IS-WHERE zone block (membership + acting-PC earshot) instead of
+ *  object-soup bearings. Behind a flag; oracle failure degrades to the flat digest (never breaks a turn). */
+const SCENE_GRAPH_ON = SPATIAL_ON && (process.env.MYTHWEAVER_SCENE_GRAPH ?? 'on').toLowerCase() !== 'off';
+function zoneBlock(map: SceneMap, actingPcName?: string): string {
+  if (!SCENE_GRAPH_ON) return '';
+  try {
+    return '\n' + zoneDigest(map, spatialIndex(map), actingPcName);
+  } catch {
+    return '';
+  }
+}
+
+function summarizeState(state: GameState, actingPcName?: string): string {
   const pcs = Object.values(state.combatants)
     .filter((c) => c.kind === 'pc')
     .map((c) => {
@@ -1232,7 +1195,7 @@ function summarizeState(state: GameState): string {
     `Party:\n${pcs || '- (none)'}`,
     ...(npcs ? [`Enemies/NPCs present:\n${npcs}`] : []),
     `In combat: ${inCombat}`,
-    ...(map ? [`\n=== MAP (current location, authoritative) ===\n${sceneDigest(map)}`] : []),
+    ...(map ? [`\n=== MAP (current location, authoritative) ===\n${sceneDigest(map)}${zoneBlock(map, actingPcName)}`] : []),
     ...(poiDigest(state) ? [poiDigest(state)] : []),
   ].join('\n');
 }
@@ -1679,6 +1642,7 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
   // arms the fidelity gate too — the gated crossing is the exact "the die's verdict binds the prose" case.
   let crossedWater = false;
   let fidelityRetries = 0; // bounded: at most one re-narration if the prose denies the swim
+  let coherenceRetries = 0; // P2: at most one re-narration if prose breaks zone membership / earshot
 
   if (input.kind === 'roll') {
     const pending = state.pendingTurn as PendingTurn | undefined;
@@ -1836,7 +1800,7 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
           canon +
           steering +
           exemplarBlock +
-          `=== CURRENT STATE (authoritative; from the engine) ===\n${summarizeState(state)}\n\n` +
+          `=== CURRENT STATE (authoritative; from the engine) ===\n${summarizeState(state, input.kind === 'message' ? input.speakerId : undefined)}\n\n` +
           (recent ? `=== RECENT ===\n${recent}\n\n` : '') +
           (input.kind === 'opening'
             ? `=== SESSION START — OPENING NARRATION ===\nThe session is beginning. Deliver the OPENING: vividly establish where the party is, the immediate situation and what's at stake, and what they can see/sense right now. CRITICALLY: make the party's PURPOSE plain in-fiction — why THEY came here and what they're after (the premise's hook); a table that doesn't know why it's here can't play. Then end by asking what they do. If a concrete location is established, call setScene. Do NOT request rolls, resolve actions, or advance scenes yet.`
@@ -1868,14 +1832,38 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
       // SPATIAL ② — FIDELITY GATE: the travel verdict swam, but the prose denies the water. Re-narrate
       // once (the flawed line is already in `messages`) so the crossing reads as the swim it was — the
       // spatial verdict BINDS the narration, exactly as a die result does. Bounded to one retry.
+      // Settle token positions FIRST: declared movement lands on the table even without a move tool call,
+      // so the coherence gate below reads the turn's FINAL geometry (red-team fix — a pre-move snapshot
+      // would false-flag "you reach the forge" while the PC is still on the green). Idempotent on re-narrate.
+      if (!answeringOnly) movementBackstop(engine, state, input, sceneDeltas);
+
       if (crossedWater && res.text && narrationDeniesWater(res.text) && fidelityRetries < 1 && steps < MAX_STEPS) {
         fidelityRetries++;
         span.event('fidelity-renarrate', { reason: 'swim narrated as dry' });
         messages.push({ role: 'user', content: `[FIDELITY: the travel this turn crossed DEEP WATER — the character SWAM (the engine's verdict). Your narration shows a dry crossing and never mentions the water. Rewrite the narration so the swim/wade through cold water is clear — same events, corrected. Narrate only; call no tools.]` });
         continue;
       }
+
+      // P2 — COHERENCE GATE: prose that breaks zone MEMBERSHIP (an NPC at an interior station they're not
+      // in) or EARSHOT (an NPC too far to speak with the acting PC) is re-narrated once — the deterministic
+      // twin of the swim gate: the map BINDS the prose. Reads post-backstop positions; combined re-narrate
+      // budget with the swim gate is 2. 'dry' logs would-fire without correcting (soak mode); 'off' skips.
+      if (COHERENCE_GATE !== 'off' && res.text && coherenceRetries < 1 && fidelityRetries + coherenceRetries < 2 && steps < MAX_STEPS) {
+        const cmap = currentMap(state);
+        let cidx: SpatialIndex | undefined;
+        if (cmap && SPATIAL_ON) { try { cidx = spatialIndex(cmap); } catch { /* oracle must not break a turn */ } }
+        const brk = cmap && cidx ? narrationBreaksScene(cmap, cidx, res.text, input.kind === 'message' ? input.speakerId : undefined) : null;
+        if (brk) {
+          span.event('coherence-break', { code: brk.code, reason: brk.reason, mode: COHERENCE_GATE });
+          if (COHERENCE_GATE === 'on') {
+            coherenceRetries++;
+            messages.push({ role: 'user', content: brk.corrective });
+            continue;
+          }
+        }
+      }
+
       if (res.text) engine.record('narration', res.text);
-      if (!answeringOnly) movementBackstop(engine, state, input, sceneDeltas); // token truth: declared movement always lands on the table (never on a question)
       const mentioned = extractMentions(currentMap(state), res.text);
       return finish({ narration: res.text, costUsd, model: lastModel, trace: makeTrace(), ...(mentioned.length ? { mentions: mentioned } : {}), ...sceneDelta() });
     }
@@ -2441,7 +2429,13 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
               roll = { toolUseId: tc.id, id: rr.id, expr: rr.expr, reason: rr.reason, dc: v.needsRoll.dc };
               travelGate = { actorId: actorObj.id, toId: targetObj.id };
             } else {
-              resolved.push({ toolUseId: tc.id, content: JSON.stringify({ ...v, at: undefined, ...(arrivalNote ? { resolution: arrivalNote } : {}) }) });
+              // P1 mid-turn refresh: append the mover's POST-move zone + earshot so the DM narrates from
+              // current geometry, not the opening tableau (a shout "from behind" won't survive an empty NOW).
+              let nowNote = '';
+              if (SCENE_GRAPH_ON && v.at) {
+                try { const m2 = currentMap(state); if (m2) nowNote = arrivalZoneNote(m2, spatialIndex(m2), actorObj, v.at); } catch { /* never break a turn */ }
+              }
+              resolved.push({ toolUseId: tc.id, content: JSON.stringify({ ...v, at: undefined, ...(arrivalNote ? { resolution: arrivalNote } : {}), ...(nowNote ? { now: nowNote } : {}) }) });
             }
           }
         } catch (e) {
