@@ -60,6 +60,14 @@ describe('zoneDigest / nearbyLine — the WHO-IS-WHERE block', () => {
     expect(n).toMatch(/in earshot ≤60 ft.*Hobb Fen \(20 ft\)/); // Hobb is a shout away
     expect(n).toMatch(/OUT OF SCENE >60 ft.*Tessa Reed/); // Tessa is out of scene (75 ft)
   });
+  it('reports which building door the acting PC is standing at (disambiguates "the house I\'m in front of")', () => {
+    const atForge: any = { ...map, objects: map.objects.map((o: any) => (o.id === 'pc:aldric' ? { ...o, col: 6, row: 10 } : o)) }; // 1 tile S of the forge door (6,9)
+    const n = nearbyLine(atForge, idx, 'Aldric');
+    expect(n).toMatch(/standing AT the door of the forge/);
+    expect(n).toMatch(/bldg:forge/); // the concrete id so travel targets THIS building
+    // far from any door → no door line
+    expect(nearbyLine(map, idx, 'Aldric')).not.toMatch(/standing AT the door/);
+  });
   it('arrivalZoneNote reports the post-move zone + earshot', () => {
     const note = arrivalZoneNote(map, idx, { id: 'pc:aldric', name: 'Aldric' }, { col: 6, row: 7 }); // step INTO the forge
     expect(note).toMatch(/Aldric is the forge/);

@@ -243,11 +243,22 @@ export function nearbyLine(map: SceneMap, idx: SpatialIndex, actingPcName: strin
     else farAnon++;
   }
   const far = [...farNamed, ...(farAnon ? [`${farAnon} unnamed villagers/keepers`] : [])];
+  // WHICH DOOR is the acting PC standing at? "enter the house I'm in front of" is unresolvable unless the
+  // DM knows the PC's ADJACENT building. Report the nearest building door within 2 tiles — it disambiguates.
+  let atDoor: { b: DerivedBuilding; d: number } | undefined;
+  for (const b of deriveBuildings(map, idx)) {
+    const d = Math.max(Math.abs(b.col - pc.col), Math.abs(b.row - pc.row));
+    if (d <= 2 && (!atDoor || d < atDoor.d)) atDoor = { b, d };
+  }
+  const doorLine = atDoor
+    ? ` ${pc.name} is standing AT the door of ${atDoor.b.name} (${atDoor.d * idx.feetPerTile} ft) — "enter"/"go inside"/"the house I'm in front of" means THIS building (${atDoor.b.id}), not another.`
+    : '';
   return (
     `  AROUND ${pc.name} (the acting character): ` +
     `within reach ≤${REACH_FT} ft: ${reach.join(', ') || 'no one'}; ` +
     `in earshot ≤${EARSHOT_FT} ft (a raised voice): ${shout.join(', ') || 'no one'}; ` +
-    `OUT OF SCENE >${EARSHOT_FT} ft (cannot hear, speak to, or react to ${pc.name} this turn — they must move closer first): ${far.join(', ') || 'no one'}.`
+    `OUT OF SCENE >${EARSHOT_FT} ft (cannot hear, speak to, or react to ${pc.name} this turn — they must move closer first): ${far.join(', ') || 'no one'}.` +
+    doorLine
   );
 }
 
