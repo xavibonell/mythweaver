@@ -842,6 +842,56 @@ describe('deriveBuildings (One World ⑥) — a door is READ from map.entrances,
   });
 });
 
+describe('DM vision (P3) — the annotated view rides the turn; never persisted into state', () => {
+  function villageState(engine: Engine): void {
+    const state = engine.getState();
+    const cols = 10, rows = 10;
+    state.world = {
+      currentLocationId: 'loc:v',
+      locations: { 'loc:v': { locationId: 'loc:v', seed: 1, biome: 'village', lighting: 'day', grammar: 'town-square', grid: { cols, rows, feetPerTile: 5 },
+        tiles: Array.from({ length: rows }, () => Array.from({ length: cols }, () => 'grass')),
+        walkable: Array.from({ length: rows }, () => Array.from({ length: cols }, () => true)),
+        objects: [{ id: 'pc:aldric', kind: 'actor', role: 'pc', tag: 'knight', name: 'Aldric', col: 2, row: 2, footprint: { w: 1, h: 1 }, facing: 'down', visible: true }],
+        ambiance: [], entrances: [] } },
+      links: [],
+    };
+  }
+
+  it('attaches the dmView image + perception contract to the turn message', async () => {
+    const engine = newEngine();
+    villageState(engine);
+    const llm = new FakeLlmProvider([fakeText('The green lies quiet.')]);
+    await runTurn({ engine, llm, now: frozenClock, dmView: () => 'QUJD' }, { kind: 'message', speakerId: 'Aldric', text: 'I look around' });
+    const content = llm.requests[0]!.messages[0]!.content;
+    expect(Array.isArray(content)).toBe(true);
+    const blocks = content as Extract<typeof content, unknown[]>;
+    expect(blocks.some((b: any) => b.type === 'image' && b.dataBase64 === 'QUJD')).toBe(true);
+    expect(blocks.some((b: any) => b.type === 'text' && /TABLE VIEW/.test(b.text) && /NEVER overrides/.test(b.text))).toBe(true);
+  });
+
+  it('strips image blocks from pendingTurn.history on a roll suspension (state stays lean; view is re-renderable)', async () => {
+    const engine = newEngine();
+    villageState(engine);
+    const llm = new FakeLlmProvider([
+      fakeToolUse([{ id: 't1', name: 'requestRoll', input: { expr: '1d20', reason: 'Perception' } }]),
+    ]);
+    const turn = await runTurn({ engine, llm, now: frozenClock, dmView: () => 'QUJD' }, { kind: 'message', speakerId: 'Aldric', text: 'I search the ground' });
+    expect(turn.rollRequest).toBeTruthy();
+    const history = (engine.getState().pendingTurn as { history: { content: unknown }[] }).history;
+    const flat = JSON.stringify(history);
+    expect(flat).not.toContain('QUJD'); // no image bytes in persisted state
+    expect(flat).toContain('TABLE VIEW'); // the text part survives
+  });
+
+  it('runs text-only when no dmView dep is provided (tests/providers without vision)', async () => {
+    const engine = newEngine();
+    villageState(engine);
+    const llm = new FakeLlmProvider([fakeText('ok')]);
+    await runTurn({ engine, llm, now: frozenClock }, { kind: 'message', speakerId: 'Aldric', text: 'hello' });
+    expect(typeof llm.requests[0]!.messages[0]!.content).toBe('string');
+  });
+});
+
 describe('movement fidelity gate (coherence ②) — a swim narrated as dry is re-narrated', () => {
   function calmPool(engine: Engine): GameState {
     const state = engine.getState();

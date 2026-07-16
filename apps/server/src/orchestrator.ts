@@ -225,6 +225,10 @@ export interface OrchestratorDeps {
   exemplars?: ExemplarRetriever;
   /** Exemplar ids used in recent turns (the session tracks them) — suppressed to avoid repetition. */
   excludeExemplarIds?: string[];
+  /** P3 — THE DM'S EYE: renders the current map as an annotated, roofless PNG (base64) the DM SEES each
+   *  turn (feed-forward vision). Injected where assetsRoot is known (index.ts/dm-lab.ts, via renderDmView);
+   *  absent in tests / non-vision setups. Gated by MYTHWEAVER_DM_VISION; failure never breaks a turn. */
+  dmView?: (map: SceneMap, actingPcName?: string) => string | undefined;
   /** Sampling temperature for the DM model (omit to use the provider default). Used by the DM Lab. */
   temperature?: number;
   /** Sampling temperature for the Game Director's own calls (architect/plan). Falls back to `temperature`. */
@@ -833,6 +837,24 @@ const SPATIAL_ON = (process.env.MYTHWEAVER_SPATIAL ?? 'on').toLowerCase() !== 'o
 /** P2 COHERENCE GATE: bind narration to zone membership + earshot (the deterministic twin of the swim
  *  fidelity gate). 'on' re-narrates a break once; 'dry' only logs would-fire (soak mode); 'off' disables. */
 const COHERENCE_GATE = (process.env.MYTHWEAVER_COHERENCE_GATE ?? 'on').toLowerCase();
+/** P3 — feed-forward vision: attach the annotated DM view to each message turn (~0.7-1.1k image tokens,
+ *  ≈$0.001/turn). 'off' to A/B against text-only. Requires deps.dmView (injected where assetsRoot is known). */
+const DM_VISION_ON = (process.env.MYTHWEAVER_DM_VISION ?? 'on').toLowerCase() !== 'off';
+/** Drop image blocks from a message list (pendingTurn persistence — the view is re-renderable, never state). */
+function stripImages(messages: LlmMessage[]): LlmMessage[] {
+  return messages.map((m) => {
+    if (typeof m.content === 'string') return m;
+    const blocks = m.content.filter((b) => b.type !== 'image');
+    return blocks.length === m.content.length ? m : { ...m, content: blocks.length ? blocks : ' ' };
+  });
+}
+/** Tracer copy with base64 image bytes redacted (a ~1MB payload per step would bloat every trace). */
+function redactImages(messages: LlmMessage[]): LlmMessage[] {
+  return messages.map((m) => {
+    if (typeof m.content === 'string') return m;
+    return { ...m, content: m.content.map((b) => (b.type === 'image' ? { ...b, dataBase64: `[image/png ${Math.round(b.dataBase64.length / 1366)}KB redacted]` } : b)) };
+  });
+}
 
 /** Compass phrase from a to b ("15 ft NE"). Distances in FEET — coordinates never enter the prompt. */
 function bearingFt(idx: SpatialIndex, a: { col: number; row: number }, b: { col: number; row: number }): string {
@@ -1792,19 +1814,33 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
         /* style retrieval must never break a turn */
       }
     }
+    const turnText =
+      gmBlock +
+      canon +
+      steering +
+      exemplarBlock +
+      `=== CURRENT STATE (authoritative; from the engine) ===\n${summarizeState(state, input.kind === 'message' ? input.speakerId : undefined)}\n\n` +
+      (recent ? `=== RECENT ===\n${recent}\n\n` : '') +
+      (input.kind === 'opening'
+        ? `=== SESSION START — OPENING NARRATION ===\nThe session is beginning. Deliver the OPENING: vividly establish where the party is, the immediate situation and what's at stake, and what they can see/sense right now. CRITICALLY: make the party's PURPOSE plain in-fiction — why THEY came here and what they're after (the premise's hook); a table that doesn't know why it's here can't play. Then end by asking what they do. If a concrete location is established, call setScene. Do NOT request rolls, resolve actions, or advance scenes yet.`
+        : `${socialNote}${answeringOnly ? `[This line is a QUESTION, not a declared move. ANSWER it — for anything about distance, a route, reachability, or "do we need a boat" feasibility, call queryScene first ('distance'/'path'/'los'/'whereis'/'near') and narrate from its facts. Do NOT move any token this turn; let the player decide whether to actually go.]\n` : ''}${input.speakerId}: ${input.text}`);
+    // P3 — THE DM'S EYE: attach the annotated table view (roofless, name plaques, party rings) so the
+    // DM SEES the scene it narrates. PERCEPTION ONLY: the contract below keeps the MAP/SCENE blocks and
+    // tool verdicts authoritative for every position/distance. One image per request (never in history).
+    let viewB64: string | undefined;
+    if (DM_VISION_ON && deps.dmView) {
+      const vmap = currentMap(state);
+      if (vmap) viewB64 = deps.dmView(vmap, input.kind === 'message' ? input.speakerId : undefined);
+    }
     messages = [
       {
         role: 'user',
-        content:
-          gmBlock +
-          canon +
-          steering +
-          exemplarBlock +
-          `=== CURRENT STATE (authoritative; from the engine) ===\n${summarizeState(state, input.kind === 'message' ? input.speakerId : undefined)}\n\n` +
-          (recent ? `=== RECENT ===\n${recent}\n\n` : '') +
-          (input.kind === 'opening'
-            ? `=== SESSION START — OPENING NARRATION ===\nThe session is beginning. Deliver the OPENING: vividly establish where the party is, the immediate situation and what's at stake, and what they can see/sense right now. CRITICALLY: make the party's PURPOSE plain in-fiction — why THEY came here and what they're after (the premise's hook); a table that doesn't know why it's here can't play. Then end by asking what they do. If a concrete location is established, call setScene. Do NOT request rolls, resolve actions, or advance scenes yet.`
-            : `${socialNote}${answeringOnly ? `[This line is a QUESTION, not a declared move. ANSWER it — for anything about distance, a route, reachability, or "do we need a boat" feasibility, call queryScene first ('distance'/'path'/'los'/'whereis'/'near') and narrate from its facts. Do NOT move any token this turn; let the player decide whether to actually go.]\n` : ''}${input.speakerId}: ${input.text}`),
+        content: viewB64
+          ? [
+              { type: 'text', text: turnText + `\n\n=== TABLE VIEW (attached image) ===\nThe picture is the CURRENT table: roofs removed so interiors show; name plaques mark people; coloured rings mark the party (double ring = the acting character); building plaques name what each is. Use it for layout, adjacency, and what things LOOK like. It NEVER overrides the MAP/SCENE blocks or tool verdicts — those are authoritative for positions and distances.` },
+              { type: 'image', mediaType: 'image/png', dataBase64: viewB64 },
+            ]
+          : turnText,
       },
     ];
   }
@@ -1820,7 +1856,7 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
     span.generation({
       name: `step-${steps}`,
       model: res.model,
-      input: messages,
+      input: redactImages(messages),
       output: res.text,
       inputTokens: res.usage.inputTokens,
       outputTokens: res.usage.outputTokens,
@@ -2458,7 +2494,8 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
         ...(roll.dc !== undefined ? { rollDc: roll.dc } : {}),
         ...(travelGate ? { travelContinuation: { actorId: travelGate.actorId, toId: travelGate.toId } } : {}),
         resolvedToolResults: resolved,
-        history: messages,
+        history: stripImages(messages), // a suspended turn persists into GameState — never serialize a ~1MB
+        // base64 view into the session (and a PRE-roll snapshot would be stale on resume anyway).
       };
       return finish({
         narration: res.text,

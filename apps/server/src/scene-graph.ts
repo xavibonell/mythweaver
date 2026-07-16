@@ -314,7 +314,10 @@ export function narrationBreaksScene(map: SceneMap, idx: SpatialIndex, narration
     for (const b of g.buildings) {
       if (zoneId === b.id) continue; // they ARE inside this building — fine
       const stationRe = STATION_WORDS[b.type];
-      const insideRe = new RegExp(`\\b(inside|within|in)\\b[^.]{0,20}\\b(the )?${b.type}\\b`, 'i');
+      // "inside the chapel" — the containment word must sit DIRECTLY on the building noun. A gap regex
+      // ("in …≤20 chars… chapel") false-fired on "in the dusk NEAR the chapel" and burned a re-narrate
+      // against true facts (the red-team's conjunction-discipline warning, observed live).
+      const insideRe = new RegExp(`\\b(inside|within|into|in)\\s+(the\\s+)?${b.type}\\b`, 'i');
       const atStation = (stationRe && stationRe.test(window)) || insideRe.test(window);
       if (!atStation) continue;
       // Only flag when THIS building is the plausible referent: it must be the nearest building of its
@@ -329,7 +332,7 @@ export function narrationBreaksScene(map: SceneMap, idx: SpatialIndex, narration
       return {
         code: 'membership',
         reason: `${npc.name} narrated at ${STATION_NOUN[b.type] ?? 'an interior station'} / inside ${b.name}, but is ${where}`,
-        corrective: `[COHERENCE: ${npc.name} is ${where} — NOT inside ${b.name} and NOT at ${STATION_NOUN[b.type] ?? 'its interior'}. Rewrite so ${npc.name} is where they actually stand (${where}); to put them at ${STATION_NOUN[b.type] ?? 'the interior'}, they must walk there first. Same beat, corrected — narrate only, call no tools.]`,
+        corrective: `[COHERENCE: ${npc.name} is ${where} — NOT inside ${b.name} and NOT at ${STATION_NOUN[b.type] ?? 'its interior'}. Rewrite so ${npc.name} is where they actually stand (${where}); to put them at ${STATION_NOUN[b.type] ?? 'the interior'}, they must walk there first. Rewrite the WHOLE reply as scene narration in your normal voice — do NOT quote, restate, or paraphrase this note; call no tools.]`,
       };
     }
   }
@@ -348,14 +351,14 @@ export function narrationBreaksScene(map: SceneMap, idx: SpatialIndex, narration
           return {
             code: 'earshot',
             reason: `${npc.name} speaks to/near ${pc.name} but is ${dFt} ft away (> ${EARSHOT_FT} ft earshot)`,
-            corrective: `[COHERENCE: ${npc.name} is ${dFt} ft from ${pc.name} — out of speaking range (a raised voice carries ~${EARSHOT_FT} ft in a busy village). Rewrite without ${npc.name} addressing ${pc.name} from there: show them only as a distant figure, or move them closer first. Same beat, corrected — narrate only, call no tools.]`,
+            corrective: `[COHERENCE: ${npc.name} is ${dFt} ft from ${pc.name} — out of speaking range (a raised voice carries ~${EARSHOT_FT} ft in a busy village). Rewrite without ${npc.name} addressing ${pc.name} from there: show them only as a distant figure, or move them closer first. Rewrite the WHOLE reply as scene narration in your normal voice — do NOT quote, restate, or paraphrase this note; call no tools.]`,
           };
         }
         if (proximate && dFt > REACH_FT * 2) {
           return {
             code: 'earshot',
             reason: `${npc.name} placed beside/behind ${pc.name} but is ${dFt} ft away`,
-            corrective: `[COHERENCE: ${npc.name} is ${dFt} ft from ${pc.name} — not beside or behind them. Rewrite so ${npc.name} is at their real distance (${dFt} ft), or move them close first. Same beat, corrected — narrate only, call no tools.]`,
+            corrective: `[COHERENCE: ${npc.name} is ${dFt} ft from ${pc.name} — not beside or behind them. Rewrite so ${npc.name} is at their real distance (${dFt} ft), or move them close first. Rewrite the WHOLE reply as scene narration in your normal voice — do NOT quote, restate, or paraphrase this note; call no tools.]`,
           };
         }
       }

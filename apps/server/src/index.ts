@@ -28,6 +28,7 @@ import { runTurn, type TurnInput } from './orchestrator.js';
 import { buildModernRealizer, establishFromBeat, labBuildCity, labBuildComponent, labBuildProgram, labBuildScene, labBuildSpike, labBuildStory, labComposeScene, modernRealizeInputs } from './scene-lab.js';
 import { saveSceneCapture } from './scene-eval/capture.js';
 import { runDmLab, createDmLabSession, dmLabSubmit, arcView, characterSheets, autoRollTotal, DM_LAB_TRANSCRIPTS, type LabTurn, type DmLabSession } from './dm-lab.js';
+import { renderDmView } from './dm-view.js';
 import { renderDmLabPage } from './dm-lab-page.js';
 import { distillStyle, DISTILL_MAX_INPUT } from './distill.js';
 import { buildArcPlanner } from './arc-planner.js';
@@ -819,6 +820,23 @@ app.get('/dm/lab/session/:id/scene.png', async (req, reply) => {
   }
 });
 
+// P3 — the DM'S EYE, for human inspection: exactly the annotated roofless view the DM model receives
+// each turn (name plaques, party rings, building labels). Look at what the DM looks at. `?as=<PC name>`
+// adds the acting-character double ring.
+app.get('/dm/lab/session/:id/dm-view.png', async (req, reply) => {
+  const session = dmLabSessions.get((req.params as { id: string }).id);
+  if (!session) return reply.code(404).send({ error: 'unknown session' });
+  const world = session.engine.getState().world;
+  const map = world?.currentLocationId ? world.locations[world.currentLocationId] : undefined;
+  if (!map) return reply.code(404).send({ error: 'no scene established yet' });
+  const acting = (req.query as { as?: string }).as;
+  const b64 = renderDmView(map, new URL('../../web/public', import.meta.url).pathname, acting);
+  if (!b64) return reply.code(500).send({ error: 'dm view render failed' });
+  reply.header('content-type', 'image/png');
+  reply.header('cache-control', 'no-store');
+  return reply.send(Buffer.from(b64, 'base64'));
+});
+
 app.post('/dm/lab/session', async (req, reply) => {
   const body = (req.body ?? {}) as {
     scenario?: unknown;
@@ -1099,7 +1117,7 @@ app.post('/sessions/:id/turn', async (req, reply) => {
   const recent = await db.recentMessages(id, 12);
 
   try {
-    const result = await runTurn({ engine, llm, recentTranscript: recent, playbook: loadPlaybook(), retriever, tracer, composer, ...(realizeScene ? { realizeScene } : {}), ...(arcPlanner ? { arcPlanner } : {}), ...(exemplars ? { exemplars } : {}) }, parsed);
+    const result = await runTurn({ engine, llm, recentTranscript: recent, playbook: loadPlaybook(), retriever, tracer, composer, ...(realizeScene ? { realizeScene } : {}), ...(arcPlanner ? { arcPlanner } : {}), ...(exemplars ? { exemplars } : {}), dmView: (map, acting) => renderDmView(map, new URL('../../web/public', import.meta.url).pathname, acting) }, parsed);
 
     const state = engine.getState();
     const newSpent = spent + result.costUsd;

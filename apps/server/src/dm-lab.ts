@@ -46,6 +46,10 @@ import { buildRetriever } from './corpus.js';
 import { loadDirectorArchitect, loadDirectorComposer, loadDirectorPlanner, loadPlaybook } from './prompts.js';
 import { buildArcPlanner, type ArcPlanner } from './arc-planner.js';
 import { buildArcComposer, type ArcComposer, type GeneratedArc } from './arc-composer.js';
+import { renderDmView } from './dm-view.js';
+
+/** apps/web/public — where the DawnLike sheets live (same derivation as index.ts's scene.png routes). */
+const ASSETS_ROOT = new URL('../../web/public', import.meta.url).pathname;
 import { runTurn, type TurnInput, type TurnResult, type TurnRollRequest } from './orchestrator.js';
 
 /** A scripted lab turn: a player line, or a declared physical-dice total. */
@@ -476,6 +480,8 @@ export async function dmLabSubmit(
       ...(session.temperature !== undefined ? { temperature: session.temperature } : {}),
       ...(session.arcTemperature !== undefined ? { arcTemperature: session.arcTemperature } : {}),
       ...(session.exemplars && session.exemplarsOn ? { exemplars: session.exemplars, excludeExemplarIds: session.recentExemplarIds } : {}),
+      // P3 — the DM's eye: annotated roofless view of the current map (gated by MYTHWEAVER_DM_VISION).
+      dmView: (map, actingPcName) => renderDmView(map, ASSETS_ROOT, actingPcName),
     },
     turnInput,
   );

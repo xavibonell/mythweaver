@@ -10,7 +10,7 @@ export { THEMES, THEME_NAMES, themeNameFor, type Theme } from './themes.js';
 export { type SceneComposer, FakeSceneComposer, LlmSceneComposer } from './composer.js';
 export { loadAssetLibrary, type AssetLibrary, type AssetEntry, type AssetKind } from './asset-library.js';
 export { AssetRetriever, assetEmbedText, directorAssets, loadAssetVectors, paletteBlock, type AssetPalette, type QueryEmbedder } from './asset-retrieval.js';
-export { renderSceneMapToPng } from './headless-render.js';
+export { renderSceneMapToPng, type LabelSpec, type RingSpec, type RenderAnnotations } from './headless-render.js';
 export { blockCottage, blockPlaza, blockTown } from './blocks.js';
 export { buildCityMesh, cityMeshBlueprint, meshBlueprint, coreWall, type CityMesh, type CityBlueprint, type BlueprintPatch, type Patch, type Zone } from './citymesh.js';
 export { buildCityBsp, cityBspBlueprint } from './citybsp.js';

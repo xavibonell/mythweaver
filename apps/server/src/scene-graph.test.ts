@@ -97,4 +97,8 @@ describe('narrationBreaksScene — the deterministic coherence gate (P2)', () =>
   it('does not flag clean, grounded prose', () => {
     expect(brk('Aldric kneels by the door, running a thumb over the cold latch.')).toBeNull();
   });
+  it('MEMBERSHIP: does NOT false-fire on "in the <ambience> NEAR the <building>" (containment must sit on the noun)', () => {
+    expect(brk('Hobb Fen waits in the gloom near the forge, arms folded.')).toBeNull(); // outdoors NEAR ≠ inside
+    expect(brk('Hobb Fen slips into the forge without a word.')?.code).toBe('membership'); // real containment still fires
+  });
 });

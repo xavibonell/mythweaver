@@ -107,8 +107,92 @@ function strokeLine(out: PNG, x1: number, y1: number, x2: number, y2: number, c:
   }
 }
 
+// ── ANNOTATION LAYER (the DM's eye / Set-of-Mark): plaque labels + token rings, drawn from ground
+// truth positions the caller supplies. No font asset exists anywhere in the pipeline, so a tiny 5×7
+// glyph face is embedded here (uppercase+digits — enough for names and building types). Labels are
+// drawn LAST, after lighting, so they stay crisp under any tint. ──
+const FONT_5x7: Record<string, string[]> = {
+  A: ['.###.', '#...#', '#...#', '#####', '#...#', '#...#', '#...#'],
+  B: ['####.', '#...#', '#...#', '####.', '#...#', '#...#', '####.'],
+  C: ['.###.', '#...#', '#....', '#....', '#....', '#...#', '.###.'],
+  D: ['####.', '#...#', '#...#', '#...#', '#...#', '#...#', '####.'],
+  E: ['#####', '#....', '#....', '####.', '#....', '#....', '#####'],
+  F: ['#####', '#....', '#....', '####.', '#....', '#....', '#....'],
+  G: ['.###.', '#...#', '#....', '#.###', '#...#', '#...#', '.###.'],
+  H: ['#...#', '#...#', '#...#', '#####', '#...#', '#...#', '#...#'],
+  I: ['#####', '..#..', '..#..', '..#..', '..#..', '..#..', '#####'],
+  J: ['..###', '...#.', '...#.', '...#.', '#..#.', '#..#.', '.##..'],
+  K: ['#...#', '#..#.', '#.#..', '##...', '#.#..', '#..#.', '#...#'],
+  L: ['#....', '#....', '#....', '#....', '#....', '#....', '#####'],
+  M: ['#...#', '##.##', '#.#.#', '#.#.#', '#...#', '#...#', '#...#'],
+  N: ['#...#', '##..#', '#.#.#', '#..##', '#...#', '#...#', '#...#'],
+  O: ['.###.', '#...#', '#...#', '#...#', '#...#', '#...#', '.###.'],
+  P: ['####.', '#...#', '#...#', '####.', '#....', '#....', '#....'],
+  Q: ['.###.', '#...#', '#...#', '#...#', '#.#.#', '#..#.', '.##.#'],
+  R: ['####.', '#...#', '#...#', '####.', '#.#..', '#..#.', '#...#'],
+  S: ['.####', '#....', '#....', '.###.', '....#', '....#', '####.'],
+  T: ['#####', '..#..', '..#..', '..#..', '..#..', '..#..', '..#..'],
+  U: ['#...#', '#...#', '#...#', '#...#', '#...#', '#...#', '.###.'],
+  V: ['#...#', '#...#', '#...#', '#...#', '#...#', '.#.#.', '..#..'],
+  W: ['#...#', '#...#', '#...#', '#.#.#', '#.#.#', '##.##', '#...#'],
+  X: ['#...#', '#...#', '.#.#.', '..#..', '.#.#.', '#...#', '#...#'],
+  Y: ['#...#', '#...#', '.#.#.', '..#..', '..#..', '..#..', '..#..'],
+  Z: ['#####', '....#', '...#.', '..#..', '.#...', '#....', '#####'],
+  '0': ['.###.', '#...#', '#..##', '#.#.#', '##..#', '#...#', '.###.'],
+  '1': ['..#..', '.##..', '..#..', '..#..', '..#..', '..#..', '#####'],
+  '2': ['.###.', '#...#', '....#', '...#.', '..#..', '.#...', '#####'],
+  '3': ['.###.', '#...#', '....#', '..##.', '....#', '#...#', '.###.'],
+  '4': ['...#.', '..##.', '.#.#.', '#..#.', '#####', '...#.', '...#.'],
+  '5': ['#####', '#....', '####.', '....#', '....#', '#...#', '.###.'],
+  '6': ['.###.', '#....', '#....', '####.', '#...#', '#...#', '.###.'],
+  '7': ['#####', '....#', '...#.', '..#..', '.#...', '.#...', '.#...'],
+  '8': ['.###.', '#...#', '#...#', '.###.', '#...#', '#...#', '.###.'],
+  '9': ['.###.', '#...#', '#...#', '.####', '....#', '....#', '.###.'],
+  '-': ['.....', '.....', '.....', '.###.', '.....', '.....', '.....'],
+  ' ': ['.....', '.....', '.....', '.....', '.....', '.....', '.....'],
+};
+
+/** A name plaque anchored ABOVE a world point: dark box + 5×7 glyphs in the given colour. */
+export interface LabelSpec { text: string; x: number; y: number; color: number; }
+/** A flat token ring (the client's PC ring, mirrored): ellipse outline at the feet point. */
+export interface RingSpec { x: number; y: number; color: number; double?: boolean; }
+export interface RenderAnnotations { labels?: LabelSpec[]; rings?: RingSpec[]; }
+
+function drawLabel(out: PNG, l: LabelSpec): void {
+  const text = l.text.toUpperCase().replace(/[^A-Z0-9 -]/g, '').slice(0, 14);
+  if (!text) return;
+  const gw = 6, gh = 7; // 5px glyph + 1px kerning
+  const w = text.length * gw - 1 + 4, h = gh + 4;
+  const x0 = Math.round(l.x - w / 2), y0 = Math.round(l.y - h); // plaque bottom sits ON the anchor
+  const r = (l.color >> 16) & 255, g = (l.color >> 8) & 255, b = l.color & 255;
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const edge = x === 0 || y === 0 || x === w - 1 || y === h - 1;
+    if (edge) setPx(out, x0 + x, y0 + y, r >> 1, g >> 1, b >> 1); // dimmed border in the accent colour
+    else setPx(out, x0 + x, y0 + y, 16, 13, 11); // near-black plaque — crisp under any tint
+  }
+  for (let i = 0; i < text.length; i++) {
+    const glyph = FONT_5x7[text[i]!] ?? FONT_5x7[' ']!;
+    for (let gy = 0; gy < gh; gy++) for (let gx = 0; gx < 5; gx++) {
+      if (glyph[gy]![gx] === '#') setPx(out, x0 + 2 + i * gw + gx, y0 + 2 + gy, r, g, b);
+    }
+  }
+}
+function drawRing(out: PNG, ring: RingSpec): void {
+  const r = (ring.color >> 16) & 255, g = (ring.color >> 8) & 255, b = ring.color & 255;
+  const draw = (rx: number, ry: number) => {
+    const steps = Math.max(24, Math.round(rx * 6));
+    for (let s = 0; s < steps; s++) {
+      const a = (s / steps) * Math.PI * 2;
+      setPx(out, ring.x + Math.cos(a) * rx, ring.y + Math.sin(a) * ry, r, g, b);
+      setPx(out, ring.x + Math.cos(a) * (rx - 1), ring.y + Math.sin(a) * (ry - 0.5), r, g, b);
+    }
+  };
+  draw(9, 4.5); // mirrors the client ring (TILE*1.15 × TILE*0.55)
+  if (ring.double) draw(12, 6); // the acting character gets a second, outer ring
+}
+
 /** Render a SceneMap to a PNG Buffer (cols·16 × rows·16). `assetsRoot` is the absolute path to apps/web/public. */
-export function renderSceneMapToPng(scene: SceneMap, opts: { assetsRoot: string; showRoofs?: boolean }): Buffer {
+export function renderSceneMapToPng(scene: SceneMap, opts: { assetsRoot: string; showRoofs?: boolean; neutralLighting?: boolean; annotations?: RenderAnnotations }): Buffer {
   const { assetsRoot } = opts;
   const { cols, rows } = scene.grid;
   const seed = scene.seed ?? 0;
@@ -182,8 +266,11 @@ export function renderSceneMapToPng(scene: SceneMap, opts: { assetsRoot: string;
   const interior = scene.grammar === 'enclosed-interior';
   // WEATHER composes with time (S3): "dusk + fog" = the dusk tint THEN the haze wash + mist on top.
   // The legacy lighting value 'fog' still means "day + fog".
-  const foggy = !interior && (scene.weather === 'fog' || scene.lighting === 'fog');
-  if (interior) {
+  const foggy = !interior && (scene.weather === 'fog' || scene.lighting === 'fog') && !opts.neutralLighting;
+  if (opts.neutralLighting) {
+    // DM-view mode: the picture is a PERCEPTION channel, not the player's aesthetic view — a night
+    // multiply crushes small sprites below a vision model's contrast floor, so mood tints are skipped.
+  } else if (interior) {
     applyInteriorLighting(out, scene); // dark underground + warm torch pools + a vignette (not a flat tint)
   } else {
     const tint = scene.lighting === 'night' ? 0x7e8cc0 : scene.lighting === 'dusk' ? 0xb2b6da : 0;
@@ -219,6 +306,9 @@ export function renderSceneMapToPng(scene: SceneMap, opts: { assetsRoot: string;
       blit(png, Math.round((a.col + 0.5) * TILE - fw / 2), Math.round((a.row + 0.5) * TILE - fh / 2), fw, fh);
     }
   }
+  // ANNOTATIONS (the DM's eye) — rings under tokens first, then plaques on top of everything.
+  for (const ring of opts.annotations?.rings ?? []) drawRing(out, ring);
+  for (const l of opts.annotations?.labels ?? []) drawLabel(out, l);
   return PNG.sync.write(out);
 }
 
