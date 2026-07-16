@@ -200,8 +200,14 @@ export function zoneDigest(map: SceneMap, idx: SpatialIndex, actingPcName?: stri
     .filter((z) => z.kind === 'interior' && z.type !== 'house') // anonymous houses are noise
     .map((z) => {
       const who = z.occupants.length ? z.occupants.map(label).join(', ') : 'EMPTY (no one inside)';
-      const inside = z.contents.length ? ` [inside: ${z.contents.join(', ')}]` : '';
-      return `  · ${z.name}${z.sizeFt ? ` (interior, ${z.sizeFt})` : ''} — ${who}${inside}`;
+      // PERCEPTION BOUNDARY: an interior with no PC in it is behind walls + a closed door — the party CANNOT
+      // see in. The DM keeps enough to KNOW someone's there (planning), but the furniture (pure visual
+      // detail) is DROPPED for unentered buildings — it only tempts narration — and the whole line is
+      // flagged UNSEEN so GM-knowledge never becomes narrated perception (the "closed-door" leak).
+      const partyInside = z.occupants.some((o) => o.role === 'pc');
+      const inside = partyInside && z.contents.length ? ` [inside: ${z.contents.join(', ')}]` : '';
+      const unseen = partyInside ? '' : ' — UNSEEN by the party (GM-only: you know someone is here; the characters cannot perceive inside until they ENTER — do NOT narrate this interior or its occupants as observed)';
+      return `  · ${z.name}${z.sizeFt ? ` (interior, ${z.sizeFt})` : ''} — ${who}${inside}${unseen}`;
     });
 
   const outdoor = g.zones.find((z) => z.kind === 'outdoor');
@@ -273,7 +279,9 @@ export function arrivalZoneNote(map: SceneMap, idx: SpatialIndex, actor: { id: E
     .map((o) => ({ o, d: distanceFt(idx, at, o) }))
     .filter((x) => x.d <= EARSHOT_FT)
     .sort((a, b) => a.d - b.d)
-    .map((x) => `${x.o.name ?? x.o.id} (${x.d} ft)`);
+    // heard-not-seen: a contact behind a wall (LOS blocked, e.g. inside a building the mover isn't in) is
+    // audible but NOT visible — mark it so the DM doesn't narrate an unseen indoor NPC as plainly present.
+    .map((x) => `${x.o.name ?? x.o.id} (${x.d} ft${hasLineOfSight(idx, at, x.o).clear ? '' : ', heard not seen'})`);
   return `NOW ${actor.name ?? actor.id} is ${zone}. Within earshot ≤${EARSHOT_FT} ft: ${near.join(', ') || 'no one — no one is close enough to speak with them here'}. Narrate from THIS (positions changed this turn), not the earlier scene.`;
 }
 

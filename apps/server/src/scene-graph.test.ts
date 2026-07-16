@@ -68,6 +68,14 @@ describe('zoneDigest / nearbyLine — the WHO-IS-WHERE block', () => {
     // far from any door → no door line
     expect(nearbyLine(map, idx, 'Aldric')).not.toMatch(/standing AT the door/);
   });
+  it('flags an interior with no PC inside as UNSEEN (GM-knows, party-cannot-perceive) — the closed-door boundary', () => {
+    const d = zoneDigest(map, idx, 'Aldric'); // Bram (NPC) is in the forge; no PC is inside it
+    expect(d).toMatch(/the forge.*Bram.*UNSEEN by the party/s);
+    // put a PC inside the forge → the party perceives it → no UNSEEN flag on that line
+    const pcInside: any = { ...map, objects: map.objects.map((o: any) => (o.id === 'pc:aldric' ? { ...o, col: 6, row: 6 } : o)) };
+    const forgeLine = zoneDigest(pcInside, idx, 'Aldric').split('\n').find((l) => /the forge/.test(l))!;
+    expect(forgeLine).not.toMatch(/UNSEEN/);
+  });
   it('arrivalZoneNote reports the post-move zone + earshot', () => {
     const note = arrivalZoneNote(map, idx, { id: 'pc:aldric', name: 'Aldric' }, { col: 6, row: 7 }); // step INTO the forge
     expect(note).toMatch(/Aldric is the forge/);

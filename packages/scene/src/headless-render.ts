@@ -192,7 +192,7 @@ function drawRing(out: PNG, ring: RingSpec): void {
 }
 
 /** Render a SceneMap to a PNG Buffer (cols·16 × rows·16). `assetsRoot` is the absolute path to apps/web/public. */
-export function renderSceneMapToPng(scene: SceneMap, opts: { assetsRoot: string; showRoofs?: boolean; neutralLighting?: boolean; annotations?: RenderAnnotations }): Buffer {
+export function renderSceneMapToPng(scene: SceneMap, opts: { assetsRoot: string; showRoofs?: boolean; revealBuildingIds?: Set<string>; neutralLighting?: boolean; annotations?: RenderAnnotations }): Buffer {
   const { assetsRoot } = opts;
   const { cols, rows } = scene.grid;
   const seed = scene.seed ?? 0;
@@ -250,6 +250,9 @@ export function renderSceneMapToPng(scene: SceneMap, opts: { assetsRoot: string;
   // Pass 3 — ROOFS: the closed-building cover, drawn as VECTOR geometry (gradient polygon faces + hip/ridge/
   // rim lines + chimney/dormer sprites) ON TOP of walls + interior. Hidden when `showRoofs === false`.
   if (opts.showRoofs !== false) for (const rb of scene.roofs ?? []) {
+    if (opts.revealBuildingIds?.has(rb.id)) continue; // a PC stands INSIDE → lift this roof (perception:
+    // the party sees this interior). All other roofs stay closed, so a building the party is merely NEAR
+    // keeps its lid and its contents stay unseen — the DM's eye = what the players can perceive.
     for (const f of rb.faces) fillGradPoly(out, f.pts, f.top, f.bot);
     for (const ln of rb.lines) strokeLine(out, ln.x1, ln.y1, ln.x2, ln.y2, ln.c, ln.w);
     for (const sp of rb.sprites) {

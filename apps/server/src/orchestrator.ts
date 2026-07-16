@@ -907,11 +907,15 @@ function sceneDigest(map: SceneMap): string {
   const centroid = pcObjs.length
     ? { col: Math.round(pcObjs.reduce((s, p) => s + p.col, 0) / pcObjs.length), row: Math.round(pcObjs.reduce((s, p) => s + p.row, 0) / pcObjs.length) }
     : { col: 0, row: 0 };
+  const pcBuildings = new Set<string>();
+  if (idx) for (const p of pcObjs) { const w = whereIs(idx, p); if (w.indoor && w.buildingId) pcBuildings.add(w.buildingId); }
   const place = (o: { col: number; row: number }): string => {
     if (!idx) return '';
     const w = whereIs(idx, o);
     const bits: string[] = [];
-    if (w.indoor) bits.push(`indoors${w.buildingId ? ` (${w.buildingId})` : ''}`);
+    // PERCEPTION: an indoor thing in a building the party hasn't entered isn't visible from outside — mark
+    // it so the DM treats it as GM-knowledge (mirrors castPositionsBlock), not something narrated as seen.
+    if (w.indoor) bits.push(`indoors${w.buildingId ? ` (${w.buildingId})` : ''}${w.buildingId && !pcBuildings.has(w.buildingId) ? ', NOT visible from outside' : ''}`);
     if (w.medium === 'water-deep' || w.medium === 'water-shallow') bits.push('IN THE WATER');
     return bits.length ? `, ${bits.join(', ')}` : '';
   };
@@ -922,7 +926,7 @@ function sceneDigest(map: SceneMap): string {
   // `id(zone)` with no tag or position, which forced the DM to hallucinate a target.
   const single: SceneMap['objects'] = [];
   const fixGroups = new Map<string, { n: number; tag: string; sample: { col: number; row: number } }>();
-  for (const o of map.objects.filter((o) => o.kind !== 'actor')) {
+  for (const o of map.objects.filter((o) => o.kind !== 'actor' && o.visible !== false)) { // hidden props stay off the digest
     if (o.group) {
       const g = fixGroups.get(o.group) ?? { n: 0, tag: o.tag, sample: { col: o.col, row: o.row } };
       g.n++;
@@ -1837,7 +1841,7 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
         role: 'user',
         content: viewB64
           ? [
-              { type: 'text', text: turnText + `\n\n=== TABLE VIEW (attached image) ===\nThe picture is the CURRENT table: roofs removed so interiors show; name plaques mark people; coloured rings mark the party (double ring = the acting character); building plaques name what each is. Use it for layout, adjacency, and what things LOOK like. It NEVER overrides the MAP/SCENE blocks or tool verdicts — those are authoritative for positions and distances.` },
+              { type: 'text', text: turnText + `\n\n=== TABLE VIEW (attached image) ===\nThe picture is what the PARTY can perceive right now. Roofs are CLOSED except a building the party has ENTERED (shown open) — a CLOSED roof means the characters cannot see inside, so NEVER narrate an unentered building's interior, furniture, or occupants from it. Name plaques mark people the party can see; coloured rings mark the party (double ring = the acting character); building plaques name what each building is (its type is readable from outside). Use it for layout, adjacency, and what things LOOK like. It NEVER overrides the MAP/SCENE blocks or tool verdicts — those are authoritative for positions and distances.` },
               { type: 'image', mediaType: 'image/png', dataBase64: viewB64 },
             ]
           : turnText,
