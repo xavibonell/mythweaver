@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { CharacterSheet, GameState, MapObject, SceneDelta, SceneMap } from '@mythweaver/shared';
 import { Engine, createInitialState } from '@mythweaver/engine';
-import { resolveInteraction, resolveReactions, specForArchetype, type DisturbanceEvent, type Stimulus } from './interactions.js';
+import { assessCommand, commandDC, commandFact, forbiddenCommand, narrationDefiesCommand, resolveInteraction, resolveReactions, specForArchetype, standingOf, type DisturbanceEvent, type Stimulus } from './interactions.js';
 
 // A 20×20 grass village fixture. All ground/walkable, plus ONE roofed shed over cells (5-7)×(5-7) so the
 // zone-occlusion rule has a building to hide a witness behind (roof polygons are authored in 16px tiles:
@@ -276,5 +276,81 @@ describe('resolveInteraction — the broadcast DRAW lane (P4a: summon / perform)
     for (const f of out.facts) {
       expect(f).not.toMatch(/\b(commoner|keeper|authority|cleric|beast|monster),\s*(timid|steady|bold|brave|territorial|feral)\b/);
     }
+  });
+});
+
+describe('P4b command logic — assess / DC / forbidden / verdict / polarity', () => {
+  const P = (archetype: any, temper: any, extra: any = {}): any => ({ archetype, temper, ...extra });
+  const tessa = P('commoner', 'bold');
+  const target = { id: 'npc:tessa', name: 'Tessa', tag: 'villager', role: 'npc', col: 5, row: 5 } as MapObject;
+
+  it('standingOf seeds from allegiance (immutable in P4b): party > town > stranger > hostile', () => {
+    expect(standingOf(P('commoner', 'bold', { allegiance: 'the party' }))).toBe(2);
+    expect(standingOf(P('commoner', 'steady', { allegiance: 'the town' }))).toBe(1);
+    expect(standingOf(P('commoner', 'bold'))).toBe(0);
+    expect(standingOf(P('monster', 'feral'))).toBe(-2);
+  });
+
+  it('commandDC scales with cost, standing, and temper (clamped 5..25)', () => {
+    // a bold stranger, operate (cost 2): 10 + 2 − 0 + 0 = 12
+    expect(commandDC(tessa, 0, { verb: 'operate', anchorId: 'x' }, 0)).toBe(12);
+    // sworn to the party (standing 2): 12 − 4 = 8
+    expect(commandDC(tessa, 2, { verb: 'operate', anchorId: 'x' }, 0)).toBe(8);
+    // a timid stranger asked to just hold (cost 0): 10 − 2 = 8
+    expect(commandDC(P('commoner', 'timid'), 0, { verb: 'hold' }, 0)).toBe(8);
+    // a feral thing asked to fight: 10 + 8(cost) + 5(feral) = 23 — near-impossible, still under the 25 clamp
+    expect(commandDC(P('beast', 'feral'), 0, { verb: 'fight', anchorId: 'x' }, 0)).toBe(23);
+    // an authority bonus (serving the commander) can drive it to the auto-obey floor
+    expect(commandDC(P('commoner', 'timid'), 3, { verb: 'hold' }, 10)).toBe(5);
+  });
+
+  it('assessCommand bands: friendly favour auto-obeys, a stranger rolls, a hostile big ask auto-refuses', () => {
+    expect(assessCommand(tessa, 3, { verb: 'hold' }, 'order').band).toBe('obey'); // DC 10+0−6 = 4 ≤5
+    expect(assessCommand(tessa, 0, { verb: 'operate', anchorId: 'x' }, 'order').band).toBe('roll'); // DC 12
+    expect(assessCommand(P('commoner', 'brave'), -2, { verb: 'fetch', anchorId: 'x' }, 'order').band).toMatch(/roll|refuse/);
+  });
+
+  it('the fear cap (invariant 9): a threat cannot compel a costly/dangerous deed — it hardens them', () => {
+    const a = assessCommand(tessa, 0, { verb: 'fight', anchorId: 'foe' }, 'threat');
+    expect(a.band).toBe('refuse');
+    expect(a.fearCapped).toBe(true);
+    // but a threat CAN still be rolled for a small ask
+    expect(assessCommand(tessa, 0, { verb: 'operate', anchorId: 'x' }, 'threat').band).toBe('roll');
+  });
+
+  it('forbiddenCommand (invariant 5): cannot order an NPC to attack the commander or themselves — no roll', () => {
+    expect(forbiddenCommand({ verb: 'fight', anchorId: 'pc:aldric' }, 'npc:tessa', 'pc:aldric')).toMatch(/turn on/);
+    expect(forbiddenCommand({ verb: 'fight', anchorId: 'npc:tessa' }, 'npc:tessa', 'pc:aldric')).toMatch(/themselves/);
+    expect(forbiddenCommand({ verb: 'operate', anchorId: 'lock' }, 'npc:tessa', 'pc:aldric')).toBeNull(); // a chore is fine
+    expect(forbiddenCommand({ verb: 'fight', anchorId: 'mob:bandit' }, 'npc:tessa', 'pc:aldric')).toBeNull(); // fighting a foe is askable
+    expect(forbiddenCommand({ verb: 'fight' }, 'npc:tessa', 'pc:aldric')).toBeNull(); // a missing foe is an INPUT error, not a refusal
+  });
+
+  it('commandFact is pure fiction, honest about movement, and leaks no taxonomy', () => {
+    const obeyed = commandFact(target, tessa, { verb: 'operate', anchorId: 'x' }, 'order', 'obeyed', true, 'lock');
+    expect(obeyed).toMatch(/Tessa.*(moves off|to see to the lock)/);
+    const refused = commandFact(target, tessa, { verb: 'operate', anchorId: 'x' }, 'order', 'refused', false, 'lock');
+    expect(refused).toMatch(/Tessa.*(refuses|folds their arms)/);
+    const feared = commandFact(target, tessa, { verb: 'operate', anchorId: 'x' }, 'threat', 'feared-into-compliance', true, 'lock');
+    expect(feared).toMatch(/warily/);
+    for (const f of [obeyed, refused, feared]) expect(f).not.toMatch(/\bcommoner,\s*bold\b/);
+  });
+
+  it('narrationDefiesCommand (polarity gate): catches prose that reverses the verdict, ignores agreeing prose', () => {
+    // engine said OBEYED, prose says she refuses → defies
+    expect(narrationDefiesCommand('Tessa shakes her head and refuses to budge.', 'Tessa', 'obeyed')?.want).toBe('obeyed');
+    // engine said REFUSED, prose says she heads off → defies
+    expect(narrationDefiesCommand('Tessa nods and heads for the lock.', 'Tessa', 'refused')?.want).toBe('refused');
+    // agreeing prose → no flag
+    expect(narrationDefiesCommand('Tessa nods and heads for the lock.', 'Tessa', 'obeyed')).toBeNull();
+    expect(narrationDefiesCommand('Tessa folds her arms and stays put.', 'Tessa', 'refused')).toBeNull();
+    // a different NPC named → not this target's verdict
+    expect(narrationDefiesCommand('Hobb refuses and walks off.', 'Tessa', 'obeyed')).toBeNull();
+    // review-fix: everyday "won't move" refusal phrasings ARE caught over an obeyed token
+    expect(narrationDefiesCommand("Tessa plants her feet and doesn't budge.", 'Tessa', 'obeyed')?.want).toBe('obeyed');
+    expect(narrationDefiesCommand('Tessa stays rooted to the spot.', 'Tessa', 'obeyed')?.want).toBe('obeyed');
+    // review-fix: bare demeanor on a feared-into-compliance verdict does NOT false-fire (she IS complying)
+    expect(narrationDefiesCommand("Tessa moves off, though she won't take her eyes off you.", 'Tessa', 'feared-into-compliance')).toBeNull();
+    expect(narrationDefiesCommand('Tessa complies, wary and defiant.', 'Tessa', 'feared-into-compliance')).toBeNull();
   });
 });

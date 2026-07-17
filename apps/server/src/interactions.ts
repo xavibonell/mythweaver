@@ -90,6 +90,13 @@ function findCard(ledger: LedgerState, o: MapObject): LedgerState['entities'][st
   return undefined;
 }
 
+/** Resolve a map token's persona — join to its ledger card by name for any AUTHORED allegiance/stake
+ *  (so standing seeds from it), else derive from role/tag/id. The stable key is the card id when joined. */
+export function personaForToken(o: MapObject, ledger: LedgerState | undefined): Persona {
+  const card = ledger ? findCard(ledger, o) : undefined;
+  return personaOf({ id: card?.id ?? o.id, name: o.name, tag: o.tag, role: o.role }, card?.persona);
+}
+
 /** A CR/stat spec per persona archetype, for the promotion lane (a struck NPC becomes damageable). */
 export function specForArchetype(archetype: PersonaArchetype, name: string): MonsterSpec {
   switch (archetype) {
@@ -343,4 +350,143 @@ export function resolveInteraction(engine: Engine, map: SceneMap, st: Stimulus, 
     facts.push(`Beyond them, ${overflow} more ${overflow === 1 ? 'onlooker takes' : 'onlookers take'} notice.`);
   }
   return { facts, reactors, overflow, witnesses: ws.length };
+}
+
+// ── P4b: the directed COMMAND lane (directNpc) ──────────────────────────────────────────────────
+// A PC tells a specific NPC to DO something. The engine decides whether they comply — from the NPC's
+// disposition (a persona-derived PASSIVE DC the PC rolls against; the NPC never rolls) — and, on a
+// pass or an auto-obey, WALKS them to the deed. Refusal and fear are first-class verdicts. The action
+// is a CLOSED verb set: choosing the verb is declaration (like travel's `to`), never an outcome. This
+// lane runs on SEEDED-IMMUTABLE standing (mutation is a later phase) and voices tone only — the verdict
+// is the engine's. docs/INTERACTION-LAYER.md §1-2, invariants 3/5/9.
+
+/** The closed set of things an NPC can be told to do — each cashes out to an engine op the DM can't fake. */
+export type CommandVerb = 'go' | 'operate' | 'fetch' | 'give' | 'fight' | 'hold';
+/** How the PC frames it — selects the social skill and colours the verdict, never the outcome. */
+export type CommandTone = 'order' | 'request' | 'plea' | 'threat';
+/** The engine's ruling — a closed enum the narration is gated against (narrationDefiesCommand). */
+export type CommandVerdict = 'obeyed' | 'refused' | 'feared-into-compliance';
+
+export interface CommandAction {
+  verb: CommandVerb;
+  /** The thing/place/person the deed is about (the lock, the gate, the foe) — a resolved map-object id. */
+  anchorId?: string;
+}
+
+/** How costly/dangerous the ask is — the spine of the DC (a favour is easy, a fight is not). */
+const COST_TIER: Record<CommandVerb, number> = { hold: 0, go: 1, operate: 2, fetch: 3, give: 3, fight: 8 };
+/** Temper shifts resistance: the timid fold, the proud/rooted dig in, a feral thing won't be told anything. */
+const TEMPER_MOD: Record<Persona['temper'], number> = { timid: -2, steady: 0, bold: 0, brave: 2, territorial: 2, feral: 5 };
+
+const clampDC = (n: number) => Math.max(5, Math.min(25, Math.round(n)));
+
+/**
+ * Seeded standing (P4b is immutable — mutation is P4d): derived from the authored allegiance. A stranger
+ * sits at 0; someone sworn to the party bends easily; a hostile archetype resists. −3..+3.
+ */
+export function standingOf(persona: Persona): number {
+  const a = (persona.allegiance ?? '').toLowerCase();
+  if (/\b(party|the pcs?|adventurers?)\b/.test(a)) return 2;
+  if (persona.archetype === 'monster') return -2;
+  if (a) return 1; // some allegiance (the town, a guild) reads as mildly cooperative
+  return 0;
+}
+
+/** The passive DC the PC's social check must beat. Pure; clamped to a rollable band. */
+export function commandDC(persona: Persona, standing: number, action: CommandAction, authorityBonus: number): number {
+  return clampDC(10 + COST_TIER[action.verb] - 2 * standing + TEMPER_MOD[persona.temper] - authorityBonus);
+}
+
+/** Order/request/plea lean on Persuasion; a threat leans on Intimidation. Both are CHA checks. */
+export function commandSkill(tone: CommandTone): 'persuasion' | 'intimidation' {
+  return tone === 'threat' ? 'intimidation' : 'persuasion';
+}
+
+/**
+ * The KIND firewall (invariant 5), run BEFORE any DC: some asks are refused outright, no roll offered,
+ * even for a derived persona (Tier-1 has no stake, so a stake-based check fails open). You cannot order
+ * someone to attack the one commanding them, or to harm themselves. (Faction-kin forbidding needs a
+ * faction model — P4d.) Returns a refusal reason, or null if the ask is at least askable.
+ */
+export function forbiddenCommand(action: CommandAction, targetId: string, sourceId: string): string | null {
+  if (action.verb === 'fight') {
+    // (A missing fight target is an INPUT error, handled at intake — not a refusal.)
+    if (action.anchorId === sourceId) return 'will not turn on the one giving the order';
+    if (action.anchorId === targetId) return 'will not harm themselves';
+  }
+  return null;
+}
+
+export interface CommandAssessment {
+  band: 'obey' | 'refuse' | 'roll';
+  dc: number;
+  skill: 'persuasion' | 'intimidation';
+  /** Set when a threat tries to compel a costly deed — fear breaks toward defiance, not obedience. */
+  fearCapped?: boolean;
+}
+
+/**
+ * Decide how the command resolves: auto-obey (in their nature), auto-refuse (no chance), or a roll in
+ * between. Fear cap (invariant 9): a threat compels only cheap asks; menacing someone into a costly or
+ * dangerous act just hardens them (they balk), it does not conjure obedience.
+ */
+export function assessCommand(persona: Persona, standing: number, action: CommandAction, tone: CommandTone, authorityBonus = 0): CommandAssessment {
+  const skill = commandSkill(tone);
+  if (tone === 'threat' && COST_TIER[action.verb] >= 6) return { band: 'refuse', dc: 25, skill, fearCapped: true };
+  const dc = commandDC(persona, standing, action, authorityBonus);
+  if (dc <= 5) return { band: 'obey', dc, skill };
+  if (dc >= 25) return { band: 'refuse', dc, skill };
+  return { band: 'roll', dc, skill };
+}
+
+/** A verb → a short deed phrase for the verdict fiction ("to check the lock"). */
+function deedPhrase(action: CommandAction, anchorName?: string): string {
+  const at = anchorName ? ` the ${anchorName.replace(/_/g, ' ')}` : ' it';
+  switch (action.verb) {
+    case 'go': return anchorName ? ` over to${at}` : ' where they were sent';
+    case 'operate': return ` to see to${at}`;
+    case 'fetch': return ` to fetch${at}`;
+    case 'give': return ` to hand over${at}`;
+    case 'fight': return ` at${at}`;
+    case 'hold': return ' to stay put';
+  }
+}
+
+/** One plain-English command verdict line — pure fiction, honest about what the engine did. */
+export function commandFact(target: MapObject, persona: Persona, action: CommandAction, tone: CommandTone, verdict: CommandVerdict, moved: boolean, anchorName?: string): string {
+  const name = displayName(target) + personaColour(persona);
+  const deed = deedPhrase(action, anchorName);
+  if (verdict === 'refused') {
+    const flavor = tone === 'threat' ? "isn't cowed — they set their jaw and stand their ground"
+      : tone === 'plea' ? 'looks away, unmoved, and stays put'
+      : persona.temper === 'timid' ? 'shrinks back and does not go' : 'folds their arms and refuses';
+    return `${name} ${flavor}.`;
+  }
+  const coerced = verdict === 'feared-into-compliance' ? ', warily, keeping their eyes on you,' : '';
+  if (action.verb === 'hold') return `${name} stays where they are${coerced ? ' —' + coerced.replace(/,$/, '') : ''}, as told.`;
+  return moved ? `${name}${coerced} moves off${deed}.` : `${name}${coerced} turns to go${deed} — already close enough to see to it.`;
+}
+
+// ── The polarity gate (invariant 7): the DM voices TONE, the engine owns the VERDICT ────────────
+const OBEY_MARKERS = /\b(obeys?|nods?|heads?\s+(off|for|to|over)|goes?\s+(to|off|over)|sets?\s+(off|to work)|hurries?\s+(off|to|over)|moves?\s+(to|off|toward)|edges?\s+toward|does\s+as|complies|agrees|makes?\s+(her|his|their)\s+way|turns?\s+to\s+(go|check|see|do)|slips?\s+(off|away)|obliges|scurries|trots?\s+(off|over))\b/i;
+// Genuine refusal / non-movement only. "won't"/"doesn't" must GOVERN a comply-verb (so bare "won't take
+// her eyes off you" or "defiant" — pure demeanor a feared-compliance invites — is NOT counted a reversal).
+const REFUSE_MARKERS = /\b(refuses?|refusal|shakes?\s+(her|his|their)\s+head|(won'?t|will\s+not|does(n'?t|\s+not))\s+(go|move|budge|leave|comply|listen|obey|do\s+it)|declines?|balks?|scoffs?|ignores?|defies|(stays?|remains?)\s+(put|rooted)|rooted\s+to|plants?\s+(her|his|their)\s+feet|stands?\s+(firm|(her|his|their)\s+ground)|holds?\s+(her|his|their)\s+ground|folds?\s+(her|his|their)\s+arms)\b/i;
+
+/**
+ * Flag when the DM narrates a compliance polarity the engine did not rule. `obeyed` narrated as refusal
+ * (or vice-versa) trips a single bounded re-narration, the same contract as the coherence gate — so the
+ * player never reads "Tessa refuses" over a token the engine just walked to the deed. Conservative: fires
+ * only on a clear opposite-polarity marker with NO same-polarity marker, and only when the target is named.
+ */
+export function narrationDefiesCommand(narration: string, targetName: string | undefined, verdict: CommandVerdict): { code: 'command-polarity'; want: 'obeyed' | 'refused' } | null {
+  if (!narration || !targetName) return null;
+  const first = targetName.split(/\s+/)[0]!;
+  if (!new RegExp(`\\b${first.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(narration)) return null;
+  const obeyed = verdict === 'obeyed' || verdict === 'feared-into-compliance';
+  const hasObey = OBEY_MARKERS.test(narration);
+  const hasRefuse = REFUSE_MARKERS.test(narration);
+  if (obeyed && hasRefuse && !hasObey) return { code: 'command-polarity', want: 'obeyed' };
+  if (!obeyed && hasObey && !hasRefuse) return { code: 'command-polarity', want: 'refused' };
+  return null;
 }

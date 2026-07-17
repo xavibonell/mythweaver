@@ -327,6 +327,10 @@ export interface PendingTurn {
    *  crossing (success) or applies the fail-forward (failure) BEFORE the LLM resumes. Additive;
    *  dies with the pendingTurn (no plan-staleness class). */
   travelContinuation?: { actorId: string; toId?: string; toCol?: number; toRow?: number };
+  /** Interaction layer P4b: a directed COMMAND that suspended on a social check — on submitRoll the
+   *  engine either walks the target to the deed (pass → obeyed) or records a refusal (fail), BEFORE the
+   *  LLM resumes. Additive; dies with the pendingTurn. `verb`/`anchorId` are the closed DesiredAction. */
+  commandContinuation?: { targetId: string; targetName: string; verb: string; anchorId?: string; anchorCol?: number; anchorRow?: number; anchorName?: string; tone: string; sig?: string; feared?: boolean };
 }
 
 /** Authored adventure context fed to the DM so it runs the written scenario (GM-facing, not read aloud). */

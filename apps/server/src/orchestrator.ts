@@ -41,7 +41,7 @@ const ACTOR_LOOK_HINT = CHARACTERS.map((c) => c.tag).join(', ');
 import { NoopTracer, type Tracer } from './tracing.js';
 import { spatialIndex, distanceFt, whereIs, findPath, hasLineOfSight, travelTime, type SpatialIndex } from '@mythweaver/engine';
 import { deriveBuildings, buildingAsObject, zoneDigest, narrationBreaksScene, arrivalZoneNote } from './scene-graph.js';
-import { resolveInteraction, resolveReactions, specForArchetype, type DisturbanceEvent, type Stimulus } from './interactions.js';
+import { assessCommand, commandFact, forbiddenCommand, narrationDefiesCommand, personaForToken, resolveInteraction, resolveReactions, specForArchetype, standingOf, type CommandAction, type CommandTone, type CommandVerdict, type DisturbanceEvent, type Stimulus } from './interactions.js';
 export { classifyBuilding, deriveBuildings } from './scene-graph.js'; // re-exported for existing callers/tests
 import type { ExemplarRetriever } from './exemplar-corpus.js';
 import type { ExemplarMoveType } from './exemplar-ingest.js';
@@ -853,6 +853,30 @@ export function buildToolDefs(retrieval: boolean, scene: boolean): ToolDef[] {
             locusId: { type: 'string', description: 'optional: the named spot to gather at (a prop/building id); omit to gather on the PC themselves' },
           },
           required: ['kind', 'sourceId'],
+          additionalProperties: false,
+        },
+      });
+      tools.push({
+        name: 'directNpc',
+        description:
+          "Call this when a PC tells a specific NPC to DO something — 'Tessa, go check the lock', 'guard, stand aside', 'boy, fetch the rope'. You give the attempt; the ENGINE decides whether they comply, from that NPC's disposition. It may (a) obey outright, (b) refuse outright, or (c) hand you back a REQUESTED ROLL (a Persuasion/Intimidation check the PC must pass). Narrate ONLY the verdict it returns — never decide for yourself that they obey or refuse. Pick the closest `action.verb`: go (move somewhere), operate (interact with/check a thing), fetch, give, fight, hold (stay put); `action.targetId` = the thing/place/person the deed is about. `tone` = how the PC frames it.",
+        inputSchema: {
+          type: 'object',
+          properties: {
+            sourceId: { type: 'string', description: 'the PC giving the order (id or name)' },
+            targetId: { type: 'string', description: 'the NPC being told to act (id or name)' },
+            action: {
+              type: 'object',
+              properties: {
+                verb: { type: 'string', enum: ['go', 'operate', 'fetch', 'give', 'fight', 'hold'], description: 'go=move there · operate=interact with/check it · fetch · give · fight · hold=stay put' },
+                targetId: { type: 'string', description: 'what the deed is about — the lock, the gate, the foe (an id/name on the map); omit for hold' },
+              },
+              required: ['verb'],
+              additionalProperties: false,
+            },
+            tone: { type: 'string', enum: ['order', 'request', 'plea', 'threat'], description: 'order/request/plea → Persuasion; threat → Intimidation' },
+          },
+          required: ['sourceId', 'targetId', 'action', 'tone'],
           additionalProperties: false,
         },
       });
@@ -1673,7 +1697,10 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
   // (below) — so the DM answers (queryScene + fiction) and hands control back, instead of committing
   // an unasked crossing (e.g. swimming a fighter across deep water because they wondered if they could).
   const answeringOnly = classifySpeechAct(input) === 'ask';
-  if (answeringOnly) tools = tools.filter((t) => t.name !== 'travel' && t.name !== 'declareDisturbance' && t.name !== 'affectScene'); // a question never moves tokens or stirs the crowd
+  // A question never moves the PC or stirs the crowd — but directNpc is KEPT: a polite command reads as a
+  // question ("Could you check the lock, Tessa?") yet must still route through the engine's compliance
+  // ruling (it walks the NPC, never the asking PC), so stripping it would let the DM free-narrate obedience.
+  if (answeringOnly) tools = tools.filter((t) => t.name !== 'travel' && t.name !== 'declareDisturbance' && t.name !== 'affectScene');
   // Bind NPC dialogue to the oracle: if the player addresses a named NPC across a gap, the DM is told
   // the real distance so the reply happens AT that distance (shout/beckon), not at the shoulder.
   const socialNote = SPATIAL_ON ? addresseeSpatialNote(engine, state, input) : '';
@@ -1718,6 +1745,8 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
   let crossedWater = false;
   let fidelityRetries = 0; // bounded: at most one re-narration if the prose denies the swim
   let coherenceRetries = 0; // P2: at most one re-narration if prose breaks zone membership / earshot
+  let commandOutcome: { targetName: string; verdict: CommandVerdict } | undefined; // P4b: this turn's directNpc verdict
+  let commandRetries = 0; // P4b: at most one re-narration if prose defies the command verdict (polarity gate)
 
   if (input.kind === 'roll') {
     const pending = state.pendingTurn as PendingTurn | undefined;
@@ -1760,10 +1789,40 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
         }
       } catch { /* travel resume must never break the turn */ }
     }
+    // P4b: a suspended COMMAND resolves ENGINE-SIDE before the LLM resumes — a passed social check walks
+    // the target to the deed (obeyed), a failed one records a refusal. The verdict binds the prose below.
+    let commandFacts: string[] = [];
+    if (pending.commandContinuation && result.accepted) {
+      const ccn = pending.commandContinuation;
+      try {
+        const map = currentMap(state);
+        const target = map?.objects.find((o) => o.id === ccn.targetId);
+        if (target) {
+          const persona = personaForToken(target, state.ledger);
+          const action: CommandAction = { verb: ccn.verb as CommandAction['verb'], ...(ccn.anchorId ? { anchorId: ccn.anchorId } : {}) };
+          if (result.success === true) {
+            let moved = false;
+            if (ccn.verb !== 'hold' && ccn.anchorCol !== undefined && ccn.anchorRow !== undefined) {
+              // Walk to the anchor CELL captured at command time (a building has no map-object id to travel to).
+              const from = { col: target.col, row: target.row };
+              const v = engine.travel({ actorId: target.id, to: { col: ccn.anchorCol, row: ccn.anchorRow }, mode: 'auto' });
+              if (v.at && (v.at.col !== from.col || v.at.row !== from.row)) { sceneDeltas.push({ op: 'move', id: target.id, to: { col: v.at.col, row: v.at.row }, ...(v.pathCells?.length ? { via: v.pathCells } : {}) }); moved = true; }
+            }
+            const verdict: CommandVerdict = ccn.feared ? 'feared-into-compliance' : 'obeyed';
+            commandFacts = [commandFact(target, persona, action, ccn.tone as CommandTone, verdict, moved, ccn.anchorName)];
+            commandOutcome = { targetName: ccn.targetName, verdict };
+          } else {
+            if (ccn.sig) engine.applySceneDeltas([{ op: 'setState', id: target.id, state: { [`cmd-refused:${ccn.sig}`]: true } }]); // sticky refusal (invariant 12)
+            commandFacts = [commandFact(target, persona, action, ccn.tone as CommandTone, 'refused', false, ccn.anchorName)];
+            commandOutcome = { targetName: ccn.targetName, verdict: 'refused' };
+          }
+        }
+      } catch { /* command resume must never break the turn */ }
+    }
     messages = (pending.history as LlmMessage[]).slice();
     const toolResults: LlmContentBlock[] = [
       ...pending.resolvedToolResults.map((r) => ({ type: 'tool_result' as const, toolUseId: r.toolUseId, content: r.content })),
-      { type: 'tool_result', toolUseId: pending.rollToolUseId, content: JSON.stringify(travelFacts.length ? { ...result, travel: travelFacts } : result) },
+      { type: 'tool_result', toolUseId: pending.rollToolUseId, content: JSON.stringify({ ...result, ...(travelFacts.length ? { travel: travelFacts } : {}), ...(commandFacts.length ? { command: commandFacts, note: 'The engine ruled this command AND already enacted it (moving them if they complied) — narrate it exactly; do NOT call travel/updateScene to move them again, and never reverse the verdict.' } : {}) }) },
     ];
     messages.push({ role: 'user', content: toolResults });
     state.pendingTurn = undefined;
@@ -1958,6 +2017,19 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
         }
       }
 
+      // P4b POLARITY GATE: the engine ruled a command verdict; if the prose says the opposite (an NPC
+      // narrated obeying a refusal, or refusing after the engine walked them), re-narrate once.
+      if (INTERACTIONS !== 'off' && commandOutcome && res.text && commandRetries < 1 && steps < MAX_STEPS) {
+        const defy = narrationDefiesCommand(res.text, commandOutcome.targetName, commandOutcome.verdict);
+        if (defy) {
+          span.event('command-polarity', { want: defy.want, verdict: commandOutcome.verdict });
+          commandRetries++;
+          const first = commandOutcome.targetName.split(/\s+/)[0];
+          messages.push({ role: 'user', content: `The engine ruled that ${commandOutcome.targetName} ${defy.want === 'obeyed' ? 'COMPLIES' : 'REFUSES'}. Rewrite your narration so ${first} ${defy.want === 'obeyed' ? 'does as asked' : 'does NOT comply'} — narrate the verdict you were given, never its opposite.` });
+          continue;
+        }
+      }
+
       if (res.text) engine.record('narration', res.text);
       const mentioned = extractMentions(currentMap(state), res.text);
       return finish({ narration: res.text, costUsd, model: lastModel, trace: makeTrace(), ...(mentioned.length ? { mentions: mentioned } : {}), ...sceneDelta() });
@@ -1967,6 +2039,7 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
     const resolved: { toolUseId: string; content: string }[] = [];
     let roll: { toolUseId: string; id: string; expr: string; reason: string; dc?: number } | undefined;
     let travelGate: { actorId: string; toId: string } | undefined; // SPATIAL R2: a travel suspended on a swim gate
+    let commandGate: PendingTurn['commandContinuation']; // P4b: a directNpc command that suspended on a social check
     for (const tc of res.toolCalls) {
       toolCallLog.push(tc.name);
       span.event(`tool:${tc.name}`);
@@ -2659,6 +2732,79 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
         } catch (e) {
           resolved.push({ toolUseId: tc.id, content: JSON.stringify({ error: (e as Error).message }) });
         }
+      } else if (tc.name === 'directNpc') {
+        // Interaction layer P4b: a PC commands an NPC — the engine rules obey / refuse / roll.
+        try {
+          const map = currentMap(state);
+          const ai = (tc.input.action ?? {}) as { verb?: unknown; targetId?: unknown };
+          const verb = String(ai.verb ?? '');
+          const VERBS = ['go', 'operate', 'fetch', 'give', 'fight', 'hold'];
+          if (!map || INTERACTIONS === 'off') {
+            resolved.push({ toolUseId: tc.id, content: JSON.stringify({ error: 'no scene established' }) });
+          } else if (!VERBS.includes(verb)) {
+            resolved.push({ toolUseId: tc.id, content: JSON.stringify({ error: `action.verb must be one of ${VERBS.join('/')}` }) });
+          } else {
+            const source = resolveMapObject(engine, map, tc.input.sourceId);
+            const target = resolveMapObject(engine, map, tc.input.targetId, source ? { col: source.col, row: source.row } : undefined);
+            const anchor = ai.targetId ? resolveMapObject(engine, map, ai.targetId, target ? { col: target.col, row: target.row } : undefined) : undefined;
+            if (!source || !target) {
+              resolved.push({ toolUseId: tc.id, content: JSON.stringify({ error: 'source or target not found on the map' }) });
+            } else if (target.role === 'pc') {
+              resolved.push({ toolUseId: tc.id, content: JSON.stringify({ error: 'a player character cannot be commanded — players decide their own actions' }) });
+            } else if (verb !== 'hold' && !anchor) {
+              // A deed needs a place/thing/foe on the map — else "obeyed" would claim a move to nowhere.
+              resolved.push({ toolUseId: tc.id, content: JSON.stringify({ error: verb === 'fight' ? 'action.targetId (whom to fight) is required for a fight command' : `name a place or thing on the map for the NPC to ${verb} — none resolved; give a real action.targetId, or use hold` }) });
+            } else {
+              const action: CommandAction = { verb: verb as CommandAction['verb'], ...(anchor ? { anchorId: anchor.id } : {}) };
+              const tone = (['order', 'request', 'plea', 'threat'].includes(String(tc.input.tone)) ? tc.input.tone : 'order') as CommandTone;
+              const persona = personaForToken(target, state.ledger);
+              const anchorName = anchor?.name ?? anchor?.tag;
+              const sig = `${verb}:${anchor?.id ?? ''}:${tone}`; // ask-signature — invariant 12: refusal sticks per scene
+              const forbidden = forbiddenCommand(action, target.id, source.id);
+              if (forbidden) {
+                commandOutcome = { targetName: target.name ?? target.id, verdict: 'refused' };
+                const who = target.name ?? `the ${String(target.tag || 'villager').replace(/_/g, ' ')}`;
+                resolved.push({ toolUseId: tc.id, content: JSON.stringify({ verdict: 'refused', reason: forbidden, command: [`${who} ${forbidden}.`], note: 'This ask is refused outright — no roll. Narrate the refusal; do not have them do it anyway.' }) });
+              } else if (target.state?.[`cmd-refused:${sig}`] === true) {
+                // Invariant 12: they already refused this EXACT ask this scene — no re-roll until the
+                // approach materially changes (a different verb/anchor/tone forms a fresh signature).
+                commandOutcome = { targetName: target.name ?? target.id, verdict: 'refused' };
+                resolved.push({ toolUseId: tc.id, content: JSON.stringify({ verdict: 'refused', command: [commandFact(target, persona, action, tone, 'refused', false, anchorName)], note: 'They already refused this same ask this scene — narrate that they hold to it. Only a materially different approach (a new task, a bribe, a real threat) earns a fresh attempt.' }) });
+              } else {
+                const standing = standingOf(persona);
+                const a = assessCommand(persona, standing, action, tone); // authorityBonus (faction) is P4d
+                if (a.band === 'obey' || a.band === 'refuse') {
+                  const verdict: CommandVerdict = a.band === 'obey' ? 'obeyed' : 'refused';
+                  let moved = false;
+                  if (verdict === 'obeyed' && action.verb !== 'hold' && anchor) {
+                    // Travel to the anchor's CELL (a building is a synthetic id absent from map.objects; its
+                    // resolved col/row is the door — travel({id}) would reject it, so always use the cell).
+                    const from = { col: target.col, row: target.row };
+                    const v = engine.travel({ actorId: target.id, to: { col: anchor.col, row: anchor.row }, mode: 'auto' });
+                    if (v.at && (v.at.col !== from.col || v.at.row !== from.row)) { sceneDeltas.push({ op: 'move', id: target.id, to: { col: v.at.col, row: v.at.row }, ...(v.pathCells?.length ? { via: v.pathCells } : {}) }); moved = true; }
+                  }
+                  if (verdict === 'refused') engine.applySceneDeltas([{ op: 'setState', id: target.id, state: { [`cmd-refused:${sig}`]: true } }]); // sticky refusal (invariant 12)
+                  commandOutcome = { targetName: target.name ?? target.id, verdict };
+                  resolved.push({ toolUseId: tc.id, content: JSON.stringify({ verdict, command: [commandFact(target, persona, action, tone, verdict, moved, anchorName)], note: verdict === 'obeyed' ? 'The engine ruled this AND already moved them to the deed — narrate it; do NOT call travel/updateScene to move them again, and never reverse the verdict.' : 'The engine ruled this — narrate the refusal; do not have them comply anyway.' }) });
+                } else if (!roll) {
+                  // The middle band: the PC must pass a social check. Suspend on the same roll machinery.
+                  let expr = '1d20';
+                  try { const m = engine.checkModifier({ combatantId: source.id, ability: 'cha', skill: a.skill }); expr = `1d20${m >= 0 ? '+' : ''}${m}`; } catch { /* no sheet → flat d20 */ }
+                  const deed = anchorName ? ` the ${anchorName.replace(/^the\s+/i, '').replace(/_/g, ' ')}` : '';
+                  const rr = engine.requestRoll({ expr, reason: `${source.name ?? 'the PC'} tries to get ${target.name ?? 'them'} to ${verb}${deed} [${a.skill} check]`, dc: a.dc });
+                  roll = { toolUseId: tc.id, id: rr.id, expr: rr.expr, reason: rr.reason, dc: a.dc };
+                  commandGate = { targetId: target.id, targetName: target.name ?? target.id, verb, ...(anchor ? { anchorId: anchor.id, anchorCol: anchor.col, anchorRow: anchor.row } : {}), ...(anchorName ? { anchorName } : {}), tone, sig, ...(tone === 'threat' ? { feared: true } : {}) };
+                } else {
+                  // A roll is ALREADY pending this turn — every tool_use STILL needs a result, or the resume
+                  // sends an orphaned tool_use and the Anthropic API 400s (one command that needs a roll per turn).
+                  resolved.push({ toolUseId: tc.id, content: JSON.stringify({ note: 'Another action this turn already needs a roll — resolve one command at a time; ask again once the pending roll settles.' }) });
+                }
+              }
+            }
+          }
+        } catch (e) {
+          resolved.push({ toolUseId: tc.id, content: JSON.stringify({ error: (e as Error).message }) });
+        }
       } else {
         resolved.push({ toolUseId: tc.id, content: `Unknown tool: ${tc.name}` });
       }
@@ -2673,6 +2819,7 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
         rollReason: roll.reason,
         ...(roll.dc !== undefined ? { rollDc: roll.dc } : {}),
         ...(travelGate ? { travelContinuation: { actorId: travelGate.actorId, toId: travelGate.toId } } : {}),
+        ...(commandGate ? { commandContinuation: commandGate } : {}),
         resolvedToolResults: resolved,
         history: stripImages(messages), // a suspended turn persists into GameState — never serialize a ~1MB
         // base64 view into the session (and a PRE-roll snapshot would be stale on resume anyway).
