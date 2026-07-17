@@ -29,7 +29,7 @@ import {
   type ToolDef,
 } from '@mythweaver/llm';
 import type { Retriever } from '@mythweaver/rag';
-import { ABILITIES, SKILLS, isEntityId, type Ability, type ArcBrief, type CharacterSheet, type CharacterState, type Combatant, type DamageType, type EntityCard, type EstablishScene, type FixtureDecl, type GameState, type ItemDef, type NpcDecl, type PartyMemberRef, type PendingTurn, type Poi, type PoiKind, type RealizeSceneResult, type SceneDelta, type SceneMap, type SceneProvenance, type SceneRealizeContext, type Skill } from '@mythweaver/shared';
+import { ABILITIES, SKILLS, isEntityId, personaLine, personaOf, type Ability, type ArcBrief, type CharacterSheet, type CharacterState, type Combatant, type DamageType, type EntityCard, type EstablishScene, type FixtureDecl, type GameState, type ItemDef, type NpcDecl, type PartyMemberRef, type PendingTurn, type Poi, type PoiKind, type RealizeSceneResult, type SceneDelta, type SceneMap, type SceneProvenance, type SceneRealizeContext, type Skill } from '@mythweaver/shared';
 import type { ArcPlanner } from './arc-planner.js';
 import { CHARACTERS, PROMPT_PROPS, buildSceneMap, lookToSprite, type SceneComposer } from '@mythweaver/scene';
 
@@ -721,6 +721,8 @@ export function buildToolDefs(retrieval: boolean, scene: boolean): ToolDef[] {
           fear: { type: 'string', description: 'What they fear.' },
           status: { type: 'string', enum: ['active', 'wounded', 'captive', 'gone', 'dead'], description: 'Their standing; dead/gone are permanent.' },
           aliases: { type: 'array', items: { type: 'string' }, description: 'Other names they go by.' },
+          allegiance: { type: 'string', description: 'Who they answer to in a crisis — a faction/lord/"the town"/"the party". Optional.' },
+          stake: { type: 'string', description: 'One line: what they would protect or flee toward if the scene turned dangerous. Optional.' },
         },
         required: ['id', 'name'],
         additionalProperties: false,
@@ -1352,7 +1354,10 @@ export function canonBlock(state: GameState, context: string): string {
   const renderEntity = (e: (typeof entities)[number], lines: string[]) => {
     const v = e.voice;
     const voice = v ? [v.tic && `tic: ${v.tic}`, v.want && `wants: ${v.want}`, v.fear && `fears: ${v.fear}`].filter(Boolean).join('; ') : '';
-    const tail = voice || e.notes || '';
+    // Authored persona colour (living-world reactivity, P2) — only when a card carries it, so scenes
+    // without authored persona render byte-identically. archetype/temper derive from the id.
+    const per = e.persona ? personaLine(personaOf({ id: e.id, name: e.name }, e.persona)) : '';
+    const tail = [voice, per].filter(Boolean).join('; ') || e.notes || '';
     const push = (s: string) => { if (s && budget - s.length > 0) { lines.push(s); budget -= s.length + 1; } };
     push(`- ${e.name} [${e.id}] (${e.status ?? 'active'})${tail ? ` — ${tail}` : ''}`);
     for (const f of factsFor(e.id)) push(`    · ${f.attribute}: ${f.value}`);
@@ -2191,11 +2196,14 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
           const rawId = String(i.id ?? '');
           const id = /^[a-z]+:/i.test(rawId) ? rawId : `npc:${slug(rawId || String(i.name ?? ''))}`;
           const voice = { ...(i.tic ? { tic: String(i.tic) } : {}), ...(i.want ? { want: String(i.want) } : {}), ...(i.fear ? { fear: String(i.fear) } : {}) };
+          // Authored persona colour (living-world reactivity, P2): allegiance/stake only; archetype/temper derive.
+          const persona = { ...(i.allegiance ? { allegiance: String(i.allegiance) } : {}), ...(i.stake ? { stake: String(i.stake) } : {}) };
           const e = engine.upsertEntity({
             id,
             kind: 'npc',
             name: String(i.name ?? ''),
             ...(Object.keys(voice).length ? { voice } : {}),
+            ...(Object.keys(persona).length ? { persona } : {}),
             ...(typeof i.status === 'string' ? { status: i.status as EntityCard['status'] } : {}),
             ...(Array.isArray(i.aliases) ? { aliases: i.aliases.map(String) } : {}),
             scenes: [state.currentSceneId],

@@ -602,12 +602,17 @@ export class Engine implements EngineTools {
     const aliases = [...new Set([...(prev?.aliases ?? []), ...(card.aliases ?? [])].map((a) => Engine.clip(a, 60)).filter(Boolean))];
     const scenes = [...new Set([...(prev?.scenes ?? []), ...(card.scenes ?? [])])];
     const voice = { ...(prev?.voice ?? {}), ...(card.voice ?? {}) };
+    // Authored persona colour (living-world reactivity): merge over any prior, clip the free-text bits.
+    const persona = { ...(prev?.persona ?? {}), ...(card.persona ?? {}) };
     const merged: EntityCard = {
       id: card.id,
       kind: card.kind ?? prev?.kind ?? 'other',
       name: Engine.clip(card.name, 80) || prev?.name || card.id,
       ...(aliases.length ? { aliases } : {}),
       ...(voice.tic || voice.want || voice.fear ? { voice: { ...(voice.tic ? { tic: Engine.clip(voice.tic, 120) } : {}), ...(voice.want ? { want: Engine.clip(voice.want, 120) } : {}), ...(voice.fear ? { fear: Engine.clip(voice.fear, 120) } : {}) } } : {}),
+      ...(persona.archetype || persona.temper || persona.allegiance || persona.stake
+        ? { persona: { ...(persona.archetype ? { archetype: persona.archetype } : {}), ...(persona.temper ? { temper: persona.temper } : {}), ...(persona.allegiance ? { allegiance: Engine.clip(persona.allegiance, 80) } : {}), ...(persona.stake ? { stake: Engine.clip(persona.stake, 120) } : {}) } }
+        : {}),
       status: (status ?? prev?.status ?? 'active') as EntityCard['status'],
       ...(scenes.length ? { scenes } : {}),
       ...(Engine.clip(card.notes, 240) || prev?.notes ? { notes: Engine.clip(card.notes, 240) || prev?.notes } : {}),

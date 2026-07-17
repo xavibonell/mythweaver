@@ -18,7 +18,7 @@
 import { createHash } from 'node:crypto';
 import { generateStatBlock, type MonsterSpec } from '@mythweaver/engine';
 import { estimateCostUsd, type LlmProvider } from '@mythweaver/llm';
-import type { AdventureContext, ArcGenMeta, CampaignBlueprint, CharacterSheet, EncounterDef, EntityCard, Plant, ScenePlan, StatBlock } from '@mythweaver/shared';
+import type { AdventureContext, ArcGenMeta, CampaignBlueprint, CharacterSheet, EncounterDef, EntityCard, PersonaSeed, Plant, ScenePlan, StatBlock } from '@mythweaver/shared';
 import { buildBlueprint, extractJson, str } from './arc-planner.js';
 import { validateScenario, type Scenario } from './content.js';
 
@@ -146,7 +146,7 @@ export const DEFAULT_COMPOSER_SYSTEM = `You are the GAME DIRECTOR composing a br
 Design a coherent arc with a KNOWN ENDING: what the whole thing is about, the central problem, where the party starts, the envisioned ending you steer toward, and an ordered chain of BEATS (scenes) that route from the opening to that ending. Honor the seed's theme, tone, length, and constraints. Give players real agency — offer multiple approaches per beat, never a single gated path.
 
 Respond with ONLY a JSON object (no prose, no code fence):
-{"premise":"<what the campaign is about / its theme>","centralProblem":"<the concrete problem the party must address>","intendedEnding":"<a clear, specific resolution — how it should end if it lands>","opening":"<where/how the party starts>","beats":[{"title":"<short scene name>","summary":"<GM guidance: what's here, what's at stake, ways to engage; you MAY note suggested checks + DCs; reveal it through play>","scene":{"look":"<1-3 sentences: what the place LOOKS like top-down — terrain, structures, water/edges>","kind":"settlement|interior|wild","mood":"<lighting/weather in plain words, e.g. \\"grim predawn fog\\">","features":["<must-exist landmark>","<another>"]},"exits":[2,3],"intent":"<what this beat accomplishes toward the ending>","monsters":[{"from":"<library id>","count":2},{"new":{"name":"<creature>","challengeRating":1,"type":"<e.g. undead>","attackName":"<e.g. Spectral Touch>","damageType":"necrotic","ranged":false},"count":1}]}],"spine":[{"milestone":"<short label>","beat":1,"intent":"<step toward the ending>"}],"cast":[{"id":"npc:<slug>","name":"<name>","atBeats":[1],"voice":{"tic":"<a distinctive speech/behaviour tic>","want":"<what they want>","fear":"<what they fear>"}}],"plants":[{"id":"plant:<slug>","what":"<a detail planted early that pays off later>"}],"pcBackstories":[{"name":"<pc name exactly as given>","backstory":"<their backstory>"}]}
+{"premise":"<what the campaign is about / its theme>","centralProblem":"<the concrete problem the party must address>","intendedEnding":"<a clear, specific resolution — how it should end if it lands>","opening":"<where/how the party starts>","beats":[{"title":"<short scene name>","summary":"<GM guidance: what's here, what's at stake, ways to engage; you MAY note suggested checks + DCs; reveal it through play>","scene":{"look":"<1-3 sentences: what the place LOOKS like top-down — terrain, structures, water/edges>","kind":"settlement|interior|wild","mood":"<lighting/weather in plain words, e.g. \\"grim predawn fog\\">","features":["<must-exist landmark>","<another>"]},"exits":[2,3],"intent":"<what this beat accomplishes toward the ending>","monsters":[{"from":"<library id>","count":2},{"new":{"name":"<creature>","challengeRating":1,"type":"<e.g. undead>","attackName":"<e.g. Spectral Touch>","damageType":"necrotic","ranged":false},"count":1}]}],"spine":[{"milestone":"<short label>","beat":1,"intent":"<step toward the ending>"}],"cast":[{"id":"npc:<slug>","name":"<name>","atBeats":[1],"voice":{"tic":"<a distinctive speech/behaviour tic>","want":"<what they want>","fear":"<what they fear>"},"persona":{"allegiance":"<who they answer to — a faction/lord/'the town'/'the party'; omit if none>","stake":"<one line: what they'd protect or run to in a crisis>"}}],"plants":[{"id":"plant:<slug>","what":"<a detail planted early that pays off later>"}],"pcBackstories":[{"name":"<pc name exactly as given>","backstory":"<their backstory>"}]}
 
 RULES:
 - "beats" is an ORDERED array; the FIRST beat is where the party starts. Produce the requested number of beats (3-8).
@@ -154,7 +154,7 @@ RULES:
 - "spine" milestones map to a beat via its 1-based "beat" index; you MAY add 1-2 final milestones with NO "beat" (pure narrative payoff after the last scene).
 - "monsters" (optional, only on beats with a fight): each entry is EITHER {"from":"<library id>","count":N} to place an existing creature, OR {"new":{...},"count":N} to commission one — pick whichever the MONSTERS line in the seed allows. For "new", give ONLY fiction: name, challengeRating (0–5), type, attackName, damageType, ranged (true/false). The ENGINE computes its HP/AC/damage — never write any number other than challengeRating and count. Scale fights to the party size; not every beat needs combat.
 - "scene" (per beat): the beat's VISUAL design, authored now while the whole premise is in front of you — the map generator renders from it. "look" = what a top-down map of the place shows (terrain, structures, water/edges — concrete nouns, not vibes). "kind" decides the layout family: "settlement" (buildings + streets), "interior" (an enclosed space: dungeon/cave/crypt/a building's inside), "wild" (open nature). "mood" = lighting/weather in plain words (it drives the scene's light). "features" = 2-5 landmark concepts that MUST exist on the map (the generator guarantees them).
-- "cast": EVERY named NPC in your beat prose MUST appear here with a memorable VOICE (a tic, a want, a fear) and "atBeats" = the 1-based beats they appear in. This is what keeps them themselves when they return.
+- "cast": EVERY named NPC in your beat prose MUST appear here with a memorable VOICE (a tic, a want, a fear) and "atBeats" = the 1-based beats they appear in. This is what keeps them themselves when they return. "persona" is OPTIONAL: only the two things the engine can't infer from a role — "allegiance" (who they'd answer to in a crisis) and "stake" (what they'd protect or flee toward). Leave it off for a bystander with neither.
 - "plants": 2-4 Chekhov details planted early that pay off later (a heirloom, a rumour, a scar) — the seeds of callbacks.
 - PARTY BACKSTORIES: weave the party's backstories into the arc where they naturally fit — tie an NPC to a PC's past, let a beat touch a PC's stakes, plant a detail that pays off their history (no need to hook every PC). For any PC whose backstory is "(no backstory given…)", INVENT a short one that fits the theme.
 - "pcBackstories": return one entry per PC — the given backstory verbatim, or the short one you invented. Use the PC's name exactly as given.
@@ -337,11 +337,16 @@ export function buildGeneratedArc(raw: unknown, seed: ArcSeed, ctx: StampCtx, re
         .map((x) => ids[x - 1]!);
       const v = cc.voice && typeof cc.voice === 'object' ? (cc.voice as Record<string, unknown>) : cc;
       const voice = { ...(str(v.tic, 120) ? { tic: str(v.tic, 120) } : {}), ...(str(v.want, 120) ? { want: str(v.want, 120) } : {}), ...(str(v.fear, 120) ? { fear: str(v.fear, 120) } : {}) };
+      // Authored persona colour (living-world reactivity, P2): allegiance + stake only — archetype/
+      // temper are DERIVED from role/tag/id at read-time (profileOf), so we don't ask the model to guess them.
+      const pp = cc.persona && typeof cc.persona === 'object' ? (cc.persona as Record<string, unknown>) : {};
+      const persona: PersonaSeed = { ...(str(pp.allegiance, 80) ? { allegiance: str(pp.allegiance, 80) } : {}), ...(str(pp.stake, 120) ? { stake: str(pp.stake, 120) } : {}) };
       const card: EntityCard = {
         id,
         kind: 'npc',
         name,
         ...(Object.keys(voice).length ? { voice } : {}),
+        ...(Object.keys(persona).length ? { persona } : {}),
         ...(atScenes.length ? { scenes: [...new Set(atScenes)] } : {}),
         status: 'active',
       };

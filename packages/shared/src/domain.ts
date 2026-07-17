@@ -1,3 +1,4 @@
+import type { PersonaSeed } from './persona.js';
 import type { ScenePlan, WorldState } from './world.js';
 
 /**
@@ -415,6 +416,9 @@ export interface EntityCard {
   aliases?: string[];
   /** NPC personality anchors so a returning NPC sounds like themselves. */
   voice?: { tic?: string; want?: string; fear?: string };
+  /** Optional authored disposition (living-world reactivity). Absent → the resolver DERIVES one at
+   *  read-time via profileOf(); present → it overrides the derived archetype/temper and adds colour. */
+  persona?: PersonaSeed;
   status?: EntityStatus; // default 'active'; terminal states are absorbing
   /** Scenes where this entity is native — always injected into CANON when the party is there. */
   scenes?: string[];
