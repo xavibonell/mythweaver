@@ -84,7 +84,10 @@ export function themeNameFor(name: unknown, brief: string, grammar: LayoutGramma
   // there from a feature keyword. (A bare "crypt"/"cave" brief is NOT a settlement, so it still resolves
   // to its interior theme.) This is what kept a coastal mining village off monotone cave-dirt.
   const settlement = grammar === 'town-square' || /\b(town|village|city|hamlet|township|settlement|market town|port|harbou?r|fishing village|seaside|outpost)\b/.test(lc);
-  const skip = (t: string) => settlement && INTERIOR_THEMES.has(t);
+  // An OPEN-OUTDOOR (wild) scene is never floored in an INTERIOR palette (dungeon/crypt/cave stone) —
+  // a forest with a "standing stone", a "mossy stone" bank, or a DM narrating "ancient stone" must not
+  // turn the whole wood to brick. Same guard settlements already have (a mining TOWN ≠ a cave floor).
+  const skip = (t: string) => (settlement || grammar === 'open-outdoor') && INTERIOR_THEMES.has(t);
   if (typeof name === 'string' && THEMES[name.toLowerCase()] && !skip(name.toLowerCase())) return name.toLowerCase();
   for (const [re, t] of THEME_ALIASES) if (re.test(lc) && !skip(t)) return t;
   return grammar === 'enclosed-interior' ? 'dungeon' : 'village';

@@ -644,6 +644,7 @@ export function normalizeProgram(raw: unknown, brief: string, moodText: string =
     const contents = harvestTownContents(ops, lcb);
     ops.length = 0;
     ops.push({ op: 'archetype', kind: 'forest', contents });
+    r.theme = 'forest'; // a forest is GREEN — never let an incidental "stone"/"shrine" word grey the floor
     notes.push(`routed-forest: LLM geometry dropped; forest generator composes the canopy (${contents.npcs.length} npc(s) + ${contents.mobs.length} mob group(s) harvested)`);
   }
   // The completeness nets below only matter for the loose-op path; the archetype op carries its own cast.
