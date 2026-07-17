@@ -535,6 +535,13 @@ const BRIEF_PROPS: [RegExp, string][] = [
  *  hints, wall + entrance — discarding all geometry. This is the LLM-as-contents-picker step: the town
  *  generator owns the organic layout; this just collects WHAT exists from whatever ops the model emitted
  *  (plus the brief's named creatures/props, via the same nets), guaranteeing a populated town. */
+/** A harvested creature is a MOB (hostile), not an NPC, when its sprite tag is a classic monster OR its
+ *  name signals a threat — the LLM sometimes prefixes a prowling wolf pack as `npc:`, which then stands
+ *  around as a friendly. Reclassify so packs/monsters read as danger and scatter through the scene. */
+const HOSTILE_TAG = /(?:^|_)(?:wolf|goblin|orc|kobold|bandit|thug|brigand|marauder|raider|skeleton|zombie|ghoul|ghost|wraith|spectre|specter|banshee|spider|giant_rat|snake|serpent|viper|asp|boar|bear|troll|ogre|gnoll|harpy|demon|devil|imp|drake|dragon|wight|revenant|lich|slime|ooze|scorpion|crocodile|mantis|werewolf|vampire|mummy|naga|beast|hound|direwolf)(?:_|$)/;
+const hostileCreature = (tag: string, name?: string): boolean =>
+  HOSTILE_TAG.test(tag) || /\b(pack|prowl\w*|stalk\w*|circl\w*|feral|dire|rabid|hostile|hungry|snarl\w*|savage|ravenous|man-?eating|bloodthirsty)\b/.test((name ?? '').toLowerCase());
+
 function harvestTownContents(ops: SceneOp[], lcb: string): Contents {
   const buildings: Contents['buildings'] = [];
   const npcs: Contents['npcs'] = [];
@@ -546,8 +553,8 @@ function harvestTownContents(ops: SceneOp[], lcb: string): Contents {
     if (o.op === 'building') buildings.push({ type: o.type, ...(o.name ? { name: o.name } : {}) });
     else if (o.op === 'wallRing') wall = true;
     else if (o.op === 'entrance') { const a = o.at; if (a === 'north' || a === 'south' || a === 'east' || a === 'west') entranceSide = a; }
-    else if (o.op === 'place') { if (o.kind === 'actor') npcs.push({ tag: o.tag, ...(o.name ? { name: o.name } : {}) }); else landmarks.push({ tag: o.tag, ...(o.name ? { name: o.name } : {}) }); }
-    else if (o.op === 'scatter' && o.kind === 'actor') { if (o.role === 'mob') mobs.push({ tag: o.tags[0]!, count: o.count }); else for (const t of o.tags) npcs.push({ tag: t }); }
+    else if (o.op === 'place') { if (o.kind === 'actor') { if (hostileCreature(o.tag, o.name)) mobs.push({ tag: o.tag, count: 5 }); else npcs.push({ tag: o.tag, ...(o.name ? { name: o.name } : {}) }); } else landmarks.push({ tag: o.tag, ...(o.name ? { name: o.name } : {}) }); }
+    else if (o.op === 'scatter' && o.kind === 'actor') { if (o.role === 'mob') mobs.push({ tag: o.tags[0]!, count: o.count }); else for (const t of o.tags) { if (hostileCreature(t)) mobs.push({ tag: t, count: o.count }); else npcs.push({ tag: t }); } }
     else if (o.op === 'vignette') landmarks.push({ tag: o.type === 'well' ? 'fountain' : o.type });
   }
   // Completeness nets — anything the brief NAMES that the model's ops missed is added deterministically.

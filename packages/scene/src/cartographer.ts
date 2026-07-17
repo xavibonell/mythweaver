@@ -257,6 +257,17 @@ export function bakeAutoTiles(tiles: string[][], cols: number, rows: number): vo
   // fringe against any different family.
   const OPEN_GROUND = new Set(['grass', 'dirt', 'sand']);
   const openN = (c: number, r: number) => c >= 0 && r >= 0 && c < cols && r < rows && OPEN_GROUND.has(orig[r]![c]!);
+  // BARE-EARTH grounds blend into each other — grass/dirt/trail/sand/path are walkable soil that should
+  // meet with a soft transition, NOT grass's hard orange fringe tile (which is designed for grass-meets-
+  // VOID). So a dirt path or game trail through grass no longer gets an ugly orange rim. Grass still
+  // fringes hard against a real terrain boundary (water, lava, rock, snow, ice, …). See the grass1 bug.
+  const EARTH = new Set(['grass', 'dirt', 'trail', 'sand', 'road', 'farmland', 'path']);
+  const boundary = (c: number, r: number, f: string, base: string): boolean => {
+    if (c < 0 || r < 0 || c >= cols || r >= rows) return false; // the screen border doesn't fringe
+    const nb = orig[r]![c]!;
+    if (EARTH.has(base) && EARTH.has(nb)) return false; // bare-earth ↔ bare-earth: blend, no hard fringe
+    return famOf(nb) !== f;
+  };
   for (let r = 0; r < rows; r++)
     for (let c = 0; c < cols; c++) {
       const base = orig[r]![c]!;
@@ -264,7 +275,7 @@ export function bakeAutoTiles(tiles: string[][], cols: number, rows: number): vo
       const f = famOf(base);
       const suf = base === 'road'
         ? edgeSuffix(openN(c, r - 1), openN(c + 1, r), openN(c, r + 1), openN(c - 1, r)) // curb where cobble meets unpaved ground
-        : edgeSuffix(!sameFam(c, r - 1, f), !sameFam(c + 1, r, f), !sameFam(c, r + 1, f), !sameFam(c - 1, r, f));
+        : edgeSuffix(boundary(c, r - 1, f, base), boundary(c + 1, r, f, base), boundary(c, r + 1, f, base), boundary(c - 1, r, f, base));
       if (suf) tiles[r]![c] = `${base}${suf}`;
     }
 }

@@ -595,9 +595,9 @@ const forestGen: ArchetypeGenerator = (cv, ctx) => {
   const entSide: 'north' | 'south' | 'east' | 'west' = ctx.contents.entranceSide ?? SIDES[Math.floor(cv.rng() * 4)]!;
   const ent = edgePt(B, entSide);
   const far = edgePt(B, entSide === 'north' ? 'south' : entSide === 'south' ? 'north' : entSide === 'east' ? 'west' : 'east');
-  path(cv, ent, { c: glade.c, r: glade.r }, 'dirt');
-  path(cv, { c: glade.c, r: glade.r }, far, 'dirt');
-  const isTrail = (c: number, r: number) => inB(c, r) && cv.tileAt(c, r) === 'dirt' && cv.walkable[r]![c] === true;
+  path(cv, ent, { c: glade.c, r: glade.r }, 'trail');
+  path(cv, { c: glade.c, r: glade.r }, far, 'trail');
+  const isTrail = (c: number, r: number) => inB(c, r) && cv.tileAt(c, r) === 'trail' && cv.walkable[r]![c] === true;
   const nearTrail = (c: number, r: number) => isTrail(c, r - 1) || isTrail(c, r + 1) || isTrail(c - 1, r) || isTrail(c + 1, r);
 
   // 2. DENSITY-GRADIENT canopy. density = edge-bias × noise, zeroed in clearings & on the trail.

@@ -55071,6 +55071,27 @@
       ],
       "license": "CC0 (DawnLike, DragonDePlatino & DawnBringer)",
       "attribution": "DawnLike 1.4 (CC0) via DawnLikeAtlas"
+    },
+    {
+      "kind": "terrain",
+      "tag": "trail",
+      "desc": "a packed-earth footpath / game trail",
+      "walkable": true,
+      "biomes": [
+        "forest",
+        "wilderness",
+        "grassland"
+      ],
+      "variants": [
+        {
+          "art": "/assets/proc/terrain/trail0.png"
+        },
+        {
+          "art": "/assets/proc/terrain/trail1.png"
+        }
+      ],
+      "license": "procedural (MythWeaver)",
+      "attribution": "procedural asset (MythWeaver)"
     }
   ]
 }
