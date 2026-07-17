@@ -554,136 +554,91 @@ const wildernessGen: ArchetypeGenerator = (cv, ctx) => {
 };
 
 /**
- * FOREST generator — the biome analogue of townGen: a COMPOSED forest, not flat grass + random trees.
- * The four moves that lift it out of "sprinkled on a field" (mirrors the town's greenery step):
- *   1. COMPOSED GROUND — grass base, dirt/leaf-litter patches under the dense canopy (nothing grows in
- *      deep shade), a noise-mottled floor. No flat green.
- *   2. DENSITY-GRADIENT canopy — a density field = edge-bias (forest is thick at the borders) × noise,
- *      minus the clearings. Dense poisson in the thick zones, sparse in the open. Multi-species.
- *   3. GENUINE CLEARINGS — 1-2 open glades (sunlit: flowers + grass tufts, the party arrives here) with
- *      a trail threading from the entrance edge through a glade — structure, not a random void.
- *   4. UNDERSTORY + DEADFALL — ferns/bushes clumped UNDER the canopy (not in glades), mushrooms by the
- *      deadfall, a few fallen logs/stumps. Ecology, not confetti.
+ * FOREST generator — ONE composition, done cleanly: the radial CLEARING (proven by the classic
+ * `clearing` primitive to read at any size). A forest reads as FIGURE-GROUND — a solid mass of trees
+ * ringing a genuinely open glade — NOT a statistical scatter of lone trees (that's "AI slop"). So:
+ *   • a SOLID treeline: small dense trees packed toward the border (a wobbled ring, ~95% fill at the
+ *     edge), thinning to nothing at the centre. Small 16×16 trees form the MASS; big oaks only accent.
+ *   • SPECIES STANDS: a coarse field gives each region one palette (pines here, oaks there) — coherent,
+ *     not per-cell species salad.
+ *   • a CLEAN glade: the open centre stays EMPTY except the party/camp — restraint is what makes it read.
+ *   • the CAST is the focal point: camp + hermit clustered in the glade; wolves prowl the treeline.
  */
 const forestGen: ArchetypeGenerator = (cv, ctx) => {
   const B = ctx.bounds;
-  const inB = (c: number, r: number) => c >= B.x && r >= B.y && c < B.x + B.w && r < B.y + B.h;
   fill(cv, B, ctx.theme.ground, true);
-
-  // 1-2 clearings: discs of open ground the canopy avoids. One holds the party/entrance trail.
-  const nClear = 1 + (cv.rng() < 0.5 ? 1 : 0);
-  const clearings: { c: number; r: number; rad: number }[] = [];
-  for (let i = 0; i < nClear; i++) {
-    const rad = Math.max(3, Math.min(B.w, B.h) * (0.14 + cv.rng() * 0.08));
-    clearings.push({
-      c: B.x + Math.floor(B.w * (0.3 + cv.rng() * 0.4)),
-      r: B.y + Math.floor(B.h * (0.3 + cv.rng() * 0.4)),
-      rad,
-    });
-  }
-  const glade = clearings[0]!;
-  const inClearing = (c: number, r: number) => clearings.some((g) => Math.hypot(c - g.c, r - g.r) < g.rad);
-  const clearingEdge = (c: number, r: number) => clearings.some((g) => { const d = Math.hypot(c - g.c, r - g.r); return d >= g.rad * 0.7 && d < g.rad * 1.25; });
-
-  // NOTE ON GROUND: the floor stays GRASS. The town greenery taught this — richness comes from SCATTER
-  // density (tufts / flowers / undergrowth), never from painting the ground another material. An earlier
-  // pass mottled bare `dirt` under the canopy and it read as ugly orange blocks; the only earth here is
-  // the trail. Grass autotile + ground decals + the understory below carry the floor texture.
-
-  // 2b. A TRAIL from the entrance edge, through the glade, to the far edge — structure + a walk line.
-  const SIDES = ['north', 'south', 'east', 'west'] as const;
-  const entSide: 'north' | 'south' | 'east' | 'west' = ctx.contents.entranceSide ?? SIDES[Math.floor(cv.rng() * 4)]!;
-  const ent = edgePt(B, entSide);
-  const far = edgePt(B, entSide === 'north' ? 'south' : entSide === 'south' ? 'north' : entSide === 'east' ? 'west' : 'east');
-  path(cv, ent, { c: glade.c, r: glade.r }, 'trail');
-  path(cv, { c: glade.c, r: glade.r }, far, 'trail');
-  const isTrail = (c: number, r: number) => inB(c, r) && cv.tileAt(c, r) === 'trail' && cv.walkable[r]![c] === true;
-  const nearTrail = (c: number, r: number) => isTrail(c, r - 1) || isTrail(c, r + 1) || isTrail(c - 1, r) || isTrail(c + 1, r);
-
-  // 2. THE CANOPY AS MASS — the classic `clearing` primitive's lesson, at Story scale. Statistical
-  // scatter (blue-noise + edge-bias) reads as uniform porridge: evenly-spaced lone trees, species
-  // shuffled per cell, no negative space — "AI slop". A real forest reads as FIGURE-GROUND: a SOLID
-  // feathered treeline mass at the border, species in coherent STANDS, interior copse blobs, and a
-  // genuinely OPEN glade. Deterministic per-cell planting, not statistics.
-  const treeCells = new Set<string>();
-  const plant = (c: number, r: number, tag: string, blocks = true): void => {
-    if (!cv.isFree(c, r) || cv.claimed(c, r) || inClearing(c, r) || isTrail(c, r) || nearTrail(c, r)) return;
-    cv.reserve(c, r);
-    if (blocks) cv.walkable[r]![c] = false;
-    cv.ambiance.push({ tag, col: c, row: r });
-    if (blocks) treeCells.add(`${c},${r}`);
-  };
-  // SPECIES STANDS — a coarse field assigns each REGION one palette (pines here, oaks there), the way
-  // real woods grow. Within a stand, small variation; across the map, coherent patches.
-  const standF = noiseField(cv.cols, cv.rows, 0.05, (cv.seed ^ 0xabc7) >>> 0);
+  const ctr = rectCenter(B);
+  const cx = B.x + (B.w - 1) / 2, cy = B.y + (B.h - 1) / 2;
+  const maxd = Math.max(1, Math.min(B.w, B.h) / 2);
+  // A wobbled glade radius so the treeline isn't a perfect circle (organic edge).
+  const wobble = noiseField(cv.cols, cv.rows, 0.16, (cv.seed ^ 0x9a1c) >>> 0);
+  // Species stands — a coarse field assigns each region ONE small-tree palette.
+  const standF = noiseField(cv.cols, cv.rows, 0.045, (cv.seed ^ 0xabc7) >>> 0);
   const STANDS: string[][] = [
-    ['tree_pine', 'tree_pine', 'tree_pine', 'tree_dark'],
-    ['tree_oak', 'tree_oak', 'tree_oak', 'oak_ancient'],
-    ['tree_dark', 'tree_oak', 'tree_pine', 'tree_oak'],
-    ['birch', 'birch', 'tree_oak', 'tree_autumn'],
+    ['tree_pine', 'tree_pine', 'tree_dark', 'tree_pine'],
+    ['tree_oak', 'tree', 'tree_oak', 'tree'],
+    ['tree', 'tree_pine', 'tree_autumn', 'tree'],
+    ['birch', 'tree', 'tree_autumn', 'birch'],
   ];
-  const standAt = (c: number, r: number): string[] => STANDS[Math.min(3, Math.floor(standF[r]![c]! * 4))]!;
-  const pick = (pool: string[]): string => pool[Math.floor(cv.rng() * pool.length)]!;
+  const pool = (c: number, r: number): string[] => STANDS[Math.min(3, Math.floor(standF[r]![c]! * 4))]!;
+  const distOf = (c: number, r: number): number => Math.hypot((c - cx) / maxd, (r - cy) / maxd);
+  const gladeR = (c: number, r: number): number => 0.4 + wobble[r]![c]! * 0.12; // 0.40..0.52 of the half-size
 
-  // 2a. TREELINE MASS: a noise-wobbled border band (2–5 deep), planted nearly SOLID (small gaps for
-  // air). This is the single move that makes it read as "a forest with an inside".
-  const depthF = noiseField(cv.cols, cv.rows, 0.18, (cv.seed ^ 0x333) >>> 0);
+  // THE RADIAL FOREST — per cell, decide glade / fringe / treeline by distance from centre.
+  let bigOaks = 0;
   for (let r = B.y; r < B.y + B.h; r++)
     for (let c = B.x; c < B.x + B.w; c++) {
-      const d = Math.min(c - B.x, r - B.y, B.x + B.w - 1 - c, B.y + B.h - 1 - r);
-      const band = 2 + Math.floor(depthF[r]![c]! * 3.6); // 2..5 deep, wobbling along the border
-      if (d < band && cv.rng() > 0.1) plant(c, r, pick(standAt(c, r)));
+    if (!cv.isFree(c, r) || cv.claimed(c, r)) continue;
+    const d = distOf(c, r);
+    const gr = gladeR(c, r);
+    if (d < gr) continue; // the open glade — leave it clean
+    if (d < gr + 0.13) {
+      // bushy fringe between glade and wood — sparse, walkable
+      if (cv.rng() < 0.28) { cv.reserve(c, r); cv.ambiance.push({ tag: cv.rng() < 0.6 ? 'bush' : 'fern_giant', col: c, row: r }); }
+      continue;
     }
-  // 2b. INTERIOR COPSES: connected blobs of trees (one stand each), not scattered singles.
-  const copseF = noiseField(cv.cols, cv.rows, 0.085, (cv.seed ^ 0x777) >>> 0);
-  for (let r = B.y; r < B.y + B.h; r++)
-    for (let c = B.x; c < B.x + B.w; c++)
-      if (copseF[r]![c]! > 0.7 && cv.rng() > 0.15) plant(c, r, pick(standAt(c, r)));
-  // 2c. A few LONE trees breathing in the open mid-ground — sparse, so the space stays open.
-  poissonScatter(cv, B, { tags: ['tree_oak', 'birch', 'tree_dead'], r: 6, blocks: true, max: 10, filter: (c, r) => !inClearing(c, r) && !isTrail(c, r) && !nearTrail(c, r) });
-
-  // 3. GROUPED VIGNETTES, not confetti — a deadfall site is a log WITH its mushrooms; a stump stands
-  // at the treeline base. Props travel in meaningful clusters.
-  const near = (c: number, r: number, set: Set<string>): boolean => {
-    for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) if (set.has(`${c + dc},${r + dr}`)) return true;
-    return false;
-  };
-  const deadfall: Pt[] = [];
-  for (let tries = 0; tries < 200 && deadfall.length < 4; tries++) {
-    const c = B.x + 2 + Math.floor(cv.rng() * (B.w - 4));
-    const r = B.y + 2 + Math.floor(cv.rng() * (B.h - 4));
-    if (!cv.isFree(c, r) || inClearing(c, r) || isTrail(c, r) || nearTrail(c, r)) continue;
-    if (deadfall.some((p) => Math.hypot(p.c - c, p.r - r) < 8)) continue;
-    plant(c, r, cv.rng() < 0.6 ? 'log_fallen' : 'log_rotten');
-    // its mushrooms, huddled against the log
-    const spots = cv.shuffle([{ c: c + 1, r }, { c: c - 1, r }, { c, r: r + 1 }, { c: c + 1, r: r + 1 }]);
-    for (const s of spots.slice(0, 1 + Math.floor(cv.rng() * 2))) plant(s.c, s.r, cv.rng() < 0.7 ? 'mushroom' : 'mushroom_shelf', false);
-    deadfall.push({ c, r });
+    // the TREELINE MASS — density ramps hard toward the border (solid at the edge).
+    const prob = Math.min(0.95, (d - gr - 0.13) / 0.34);
+    if (cv.rng() >= prob) continue;
+    // a rare big ancient oak accents the wood; otherwise a small dense tree from the local stand.
+    let tag: string;
+    if (bigOaks < 4 && cv.rng() < 0.012 && d > gr + 0.3) { tag = 'oak_ancient'; bigOaks++; }
+    else tag = pool(c, r)[Math.floor(cv.rng() * 4)]!;
+    cv.reserve(c, r);
+    cv.walkable[r]![c] = false;
+    cv.ambiance.push({ tag, col: c, row: r });
   }
-  // stumps at the treeline base (someone felled these, at the wood's edge)
-  poissonScatter(cv, B, { tags: ['stump'], r: 11, blocks: true, max: 3, filter: (c, r) => !inClearing(c, r) && !isTrail(c, r) && near(c, r, treeCells) });
 
-  // 4. UNDERSTORY hugs the canopy FRINGE only (ferns/bushes live in tree shade) — the open mid-ground
-  // and the glade stay CLEAN. Restraint is what makes the clearing read.
-  const underF = noiseField(cv.cols, cv.rows, 0.2, (cv.seed ^ 0x5a5a) >>> 0);
-  let under = 0;
-  for (let r = B.y; r < B.y + B.h && under < 80; r++)
-    for (let c = B.x; c < B.x + B.w && under < 80; c++)
-      if (cv.isFree(c, r) && !inClearing(c, r) && !isTrail(c, r) && near(c, r, treeCells) && underF[r]![c]! > 0.52) {
-        plant(c, r, pick(['fern_giant', 'bush', 'bush_berry', 'fern_giant']), false);
-        under++;
-      }
-  // 3b. the SUNLIT glade ring: a modest ring of wildflowers at the clearing edge — the one flourish.
-  let bloom = 0;
-  for (let r = B.y; r < B.y + B.h && bloom < 14; r++)
-    for (let c = B.x; c < B.x + B.w && bloom < 14; c++)
-      if (cv.isFree(c, r) && clearingEdge(c, r) && !isTrail(c, r) && cv.rng() < 0.22) { plant(c, r, pick(['wildflowers', 'flowers']), false); bloom++; }
-  // faint floor texture in the mid-ground — sparse tufts, nothing more.
-  poissonScatter(cv, B, { tags: ['grass_tuft'], r: 5, blocks: false, max: 26, filter: (c, r) => !inClearing(c, r) && !isTrail(c, r) });
+  // A short ENTRANCE path from the arriving edge INTO the glade (not a highway across the map).
+  const SIDES = ['north', 'south', 'east', 'west'] as const;
+  const entSide: 'north' | 'south' | 'east' | 'west' = ctx.contents.entranceSide ?? 'south';
+  const ent = edgePt(B, entSide);
+  const gladeEdge = { c: Math.round(cx + (ent.c - cx) * 0.42), r: Math.round(cy + (ent.r - cy) * 0.42) };
+  path(cv, ent, gladeEdge, 'trail');
 
-  // cast arrives in the glade; wildlife roams the mid forest.
-  const gladeSpots: Pt[] = [{ c: glade.c, r: glade.r }, { c: glade.c + 2, r: glade.r + 1 }, { c: glade.c - 2, r: glade.r }, { c: glade.c + 1, r: glade.r - 2 }, { c: glade.c - 1, r: glade.r + 2 }, { c: glade.c + 3, r: glade.r }];
+  // A COUPLE of deadfall vignettes in the fringe/mid — a log WITH its toadstools, grouped (not confetti).
+  const has = (set: Contents['landmarks']) => set.length;
+  for (let n = 0, tries = 0; n < 2 && tries < 120; tries++) {
+    const ang = cv.rng() * Math.PI * 2, rad = (0.55 + cv.rng() * 0.25);
+    const c = Math.round(cx + Math.cos(ang) * rad * maxd), r = Math.round(cy + Math.sin(ang) * rad * maxd);
+    if (!cv.isFree(c, r) || cv.claimed(c, r)) continue;
+    cv.reserve(c, r); cv.ambiance.push({ tag: cv.rng() < 0.6 ? 'log_fallen' : 'log_rotten', col: c, row: r });
+    for (const s of cv.shuffle([{ c: c + 2, r }, { c: c - 1, r }, { c, r: r + 1 }]).slice(0, 2))
+      if (cv.isFree(s.c, s.r) && !cv.claimed(s.c, s.r)) { cv.reserve(s.c, s.r); cv.ambiance.push({ tag: 'mushroom', col: s.c, row: s.r }); }
+    n++;
+  }
+  void has;
+
+  // THE CAST is the focal point: camp props + hermit cluster in the glade centre; wolves prowl the ring.
+  const gladeSpots: Pt[] = [ctr, { c: ctr.c + 1, r: ctr.r + 1 }, { c: ctr.c - 1, r: ctr.r }, { c: ctr.c + 2, r: ctr.r }, { c: ctr.c - 1, r: ctr.r + 1 }, { c: ctr.c + 1, r: ctr.r - 1 }, { c: ctr.c, r: ctr.r + 2 }, { c: ctr.c - 2, r: ctr.r + 1 }];
   placeCast(cv, ctx, gladeSpots, B);
+  // CAMP FALLBACK — if someone LIVES in this glade (a harvested npc) but the cast brought no camp props,
+  // pitch a small one: "a hermit at his camp in the glade" must always read as a camp, tent forgotten or not.
+  const hasCamp = ctx.contents.landmarks.some((l) => /tent|fire|camp|brazier|hearth|bonfire|sleeping/.test(l.tag));
+  if (!hasCamp && ctx.contents.npcs.length) {
+    place(cv, { id: 'prop:camp-tent', tag: 'tent', kind: 'prop', at: { c: ctr.c - 1, r: ctr.r - 1 } });
+    place(cv, { id: 'prop:camp-fire', tag: 'fire_small', kind: 'prop', at: { c: ctr.c + 1, r: ctr.r } });
+  }
   entrance(cv, ent, ctx.locationId);
 };
 
