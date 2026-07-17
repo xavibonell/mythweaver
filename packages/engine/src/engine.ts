@@ -38,6 +38,7 @@ import {
   type StatBlock,
 } from '@mythweaver/shared';
 import { rollDice, validateDeclaredRoll, type Rng } from './dice.js';
+import { generateStatBlock, type MonsterSpec } from './monster-gen.js';
 import { bumpSpatialVersion, spatialIndex } from './spatial/oracle.js';
 import { runTravel, swimGateFailure, type TravelIntent, type TravelVerdict } from './spatial/travel.js';
 import type { SceneMap } from '@mythweaver/shared';
@@ -172,6 +173,26 @@ export class Engine implements EngineTools {
       refId: statBlock.id,
     });
     return combatant;
+  }
+
+  /**
+   * Living-world reactions (P3): promote a MAP-ONLY npc token into a damageable/movable combatant AT its
+   * current cell. The combatant id is bound to the EXISTING token id, so `applyDamage` and `travel` both
+   * resolve to the same actor with no id translation. Idempotent — a token already promoted is returned
+   * unchanged (re-promotion would reset its HP to full). Creates no new token, moves nothing, leaves
+   * occupancy untouched. `spec` (from the token's persona archetype) shapes the stats; the default is a
+   * CR-0 commoner. Returns undefined for a missing token, a non-actor, or a PC.
+   */
+  promoteToken(tokenId: string, spec?: MonsterSpec): Combatant | undefined {
+    const world = this.state.world;
+    const map = world?.currentLocationId ? world.locations[world.currentLocationId] : undefined;
+    const obj = map?.objects.find((o) => o.id === tokenId);
+    if (!obj || obj.kind !== 'actor' || obj.role === 'pc') return undefined;
+    const existing = this.state.combatants[tokenId];
+    if (existing) return existing; // idempotent — never re-promote (that would heal it to full)
+    const sb = generateStatBlock(spec ?? { name: obj.name ?? 'Villager', challengeRating: 0, primaryAbility: 'dex' });
+    (this.state.bestiary ??= {})[sb.id] = sb; // register so deriveMoveCaps reads its real speed
+    return this.spawnCombatant(sb, tokenId, obj.name);
   }
 
   /**

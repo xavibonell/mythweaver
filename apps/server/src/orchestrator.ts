@@ -41,6 +41,7 @@ const ACTOR_LOOK_HINT = CHARACTERS.map((c) => c.tag).join(', ');
 import { NoopTracer, type Tracer } from './tracing.js';
 import { spatialIndex, distanceFt, whereIs, findPath, hasLineOfSight, travelTime, type SpatialIndex } from '@mythweaver/engine';
 import { deriveBuildings, buildingAsObject, zoneDigest, narrationBreaksScene, arrivalZoneNote } from './scene-graph.js';
+import { resolveReactions, specForArchetype, type DisturbanceEvent } from './reactions.js';
 export { classifyBuilding, deriveBuildings } from './scene-graph.js'; // re-exported for existing callers/tests
 import type { ExemplarRetriever } from './exemplar-corpus.js';
 import type { ExemplarMoveType } from './exemplar-ingest.js';
@@ -822,6 +823,23 @@ export function buildToolDefs(retrieval: boolean, scene: boolean): ToolDef[] {
         additionalProperties: false,
       },
     });
+    if (REACTIONS !== 'off') {
+      tools.push({
+        name: 'declareDisturbance',
+        description:
+          "Call this the MOMENT a PC attacks, strikes, or openly threatens someone — BEFORE you narrate how anyone else reacts. The engine reads every bystander's disposition and how clearly they saw it, MOVES them on the real map (some flee, some close in to help, some freeze), and hands you back a REACTION VERDICT. You then narrate ONLY those returned reactions — you do NOT decide who runs or who charges. Give the aggressor (the PC) and, if there is one, the specific target they struck/menaced.",
+        inputSchema: {
+          type: 'object',
+          properties: {
+            aggressorId: { type: 'string', description: 'the PC who attacked/threatened (id or name)' },
+            targetId: { type: 'string', description: 'who they struck or menaced (id or name); omit for a general threat to the room' },
+            kind: { type: 'string', enum: ['attack', 'menace', 'threaten'], description: 'attack = a blow landed/swung; menace = weapon drawn on someone; threaten = a shouted threat' },
+          },
+          required: ['aggressorId', 'kind'],
+          additionalProperties: false,
+        },
+      });
+    }
   }
   return tools;
 }
@@ -842,6 +860,10 @@ const COHERENCE_GATE = (process.env.MYTHWEAVER_COHERENCE_GATE ?? 'on').toLowerCa
 /** P3 — feed-forward vision: attach the annotated DM view to each message turn (~0.7-1.1k image tokens,
  *  ≈$0.001/turn). 'off' to A/B against text-only. Requires deps.dmView (injected where assetsRoot is known). */
 const DM_VISION_ON = (process.env.MYTHWEAVER_DM_VISION ?? 'on').toLowerCase() !== 'off';
+/** Living-world reactions (P3): when a PC attacks/menaces someone, the engine moves the bystanders
+ *  (flee/confront/…) and hands the DM verdict facts to narrate. 'on' moves them; 'dry' computes the
+ *  verdict but moves nothing (soak); 'off' disables. Needs the pathfinder, so gated by SPATIAL_ON. */
+const REACTIONS = SPATIAL_ON ? (process.env.MYTHWEAVER_REACTIONS ?? 'on').toLowerCase() : 'off';
 /** Drop image blocks from a message list (pendingTurn persistence — the view is re-renderable, never state). */
 function stripImages(messages: LlmMessage[]): LlmMessage[] {
   return messages.map((m) => {
@@ -1631,7 +1653,7 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
   // (below) — so the DM answers (queryScene + fiction) and hands control back, instead of committing
   // an unasked crossing (e.g. swimming a fighter across deep water because they wondered if they could).
   const answeringOnly = classifySpeechAct(input) === 'ask';
-  if (answeringOnly) tools = tools.filter((t) => t.name !== 'travel');
+  if (answeringOnly) tools = tools.filter((t) => t.name !== 'travel' && t.name !== 'declareDisturbance'); // a question never moves tokens or stirs the crowd
   // Bind NPC dialogue to the oracle: if the player addresses a named NPC across a gap, the DM is told
   // the real distance so the reply happens AT that distance (shout/beckon), not at the shoulder.
   const socialNote = SPATIAL_ON ? addresseeSpatialNote(engine, state, input) : '';
@@ -1648,6 +1670,8 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
   let sceneMap: SceneMap | undefined; // the frozen map to render
   let sceneProvenance: SceneProvenance | undefined; // how the scene came to be (response-only)
   const sceneDeltas: SceneDelta[] = []; // APPLIED updateScene/combat-sync ops this turn (normalized tiles)
+  const disturbedThisTurn = new Set<string>(); // idempotency: one reaction resolution per aggressor→target/turn (P3)
+  const reactedThisTurn = new Set<string>(); // bystanders already moved by a disturbance this turn — never re-move (P3)
   let beatTransition: TurnResult['beat']; // an advanceScene landed this turn (title card client-side)
   let firedExemplars: TurnResult['exemplars']; // style exemplars injected this turn (Technique B)
 
@@ -2128,7 +2152,21 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
       } else if (tc.name === 'applyDamage') {
         try {
           const amount = Number(tc.input.amount);
-          const r = engine.applyDamage({ targetId: (engine.findCombatantId(String(tc.input.targetId ?? '')) ?? String(tc.input.targetId ?? '')), amount: Number.isFinite(amount) ? amount : 0, type: String(tc.input.type ?? 'bludgeoning') as DamageType });
+          const raw = String(tc.input.targetId ?? '');
+          let targetId = engine.findCombatantId(raw) ?? raw;
+          // Living-world (P3): if the target is a map-only NPC token (not yet a combatant) and we are NOT in
+          // combat, promote it so the blow lands on real HP. Guarded to out-of-combat — mid-fight promotion
+          // needs a formal initiative slot (P4); promoting off-order here would wedge maybeEndCombat.
+          if (REACTIONS !== 'off' && !engine.findCombatantId(raw) && !state.combat.active) {
+            const m = currentMap(state);
+            const tok = m ? resolveMapObject(engine, m, raw) : undefined;
+            if (tok && tok.kind === 'actor' && (tok.role === 'npc' || tok.role === 'mob')) {
+              const arch = personaOf({ id: tok.id, name: tok.name, tag: tok.tag, role: tok.role }).archetype;
+              const c = engine.promoteToken(tok.id, specForArchetype(arch, tok.name ?? 'the villager'));
+              if (c) targetId = c.id;
+            }
+          }
+          const r = engine.applyDamage({ targetId, amount: Number.isFinite(amount) ? amount : 0, type: String(tc.input.type ?? 'bludgeoning') as DamageType });
           resolved.push({ toolUseId: tc.id, content: JSON.stringify(r) });
         } catch (e) {
           resolved.push({ toolUseId: tc.id, content: JSON.stringify({ error: (e as Error).message }) });
@@ -2526,6 +2564,44 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
         }
       } else if (tc.name === 'queryScene') {
         resolved.push({ toolUseId: tc.id, content: answerSceneQuery(engine, state, tc.input) });
+      } else if (tc.name === 'declareDisturbance') {
+        // Living-world reactions (P3): the engine moves the bystanders and hands the DM verdict facts.
+        try {
+          const map = currentMap(state);
+          if (!map || REACTIONS === 'off') {
+            resolved.push({ toolUseId: tc.id, content: JSON.stringify({ error: 'no scene established' }) });
+          } else {
+            const aggressor = resolveMapObject(engine, map, tc.input.aggressorId);
+            const target = tc.input.targetId ? resolveMapObject(engine, map, tc.input.targetId, aggressor ? { col: aggressor.col, row: aggressor.row } : undefined) : undefined;
+            if (!aggressor) {
+              resolved.push({ toolUseId: tc.id, content: JSON.stringify({ error: 'aggressor not found on the map — name a character who is present' }) });
+            } else {
+              const key = `${aggressor.id}>${target?.id ?? '*'}`;
+              if (disturbedThisTurn.has(key)) {
+                resolved.push({ toolUseId: tc.id, content: JSON.stringify({ note: 'this disturbance was already resolved this turn — narrate the reactions you were already given; do not re-declare.' }) });
+              } else {
+                const kind = (['attack', 'menace', 'threaten'].includes(String(tc.input.kind)) ? tc.input.kind : 'attack') as DisturbanceEvent['kind'];
+                // The crowd reacts through real pathfinding; the reacted set stops a second disturbance this
+                // turn from re-moving anyone. (Promoting a struck NPC to a damageable combatant is done in the
+                // applyDamage handler, out-of-combat only — not here — so a mere menace leaves no lingering mob.)
+                const outcome = resolveReactions(engine, map, { aggressor, target, kind }, sceneDeltas, state.ledger, REACTIONS === 'dry' ? 'dry' : 'on', reactedThisTurn);
+                disturbedThisTurn.add(key); // mark consumed only AFTER it resolved (a throw above leaves it retryable)
+                resolved.push({
+                  toolUseId: tc.id,
+                  content: JSON.stringify({
+                    reactions: outcome.facts,
+                    note: outcome.facts.length
+                      ? "The engine moved these onlookers on the real map — narrate ONLY these reactions as the party sees them. You MAY redirect ONE named, load-bearing NPC via travel/updateScene if the story truly demands it; otherwise invent no other crowd movement."
+                      : 'No one nearby witnessed it (out of earshot, or walled off in another building). Narrate the strike itself — the surrounding world does not visibly react this beat.',
+                    ...(REACTIONS === 'dry' ? { dryRun: true } : {}),
+                  }),
+                });
+              }
+            }
+          }
+        } catch (e) {
+          resolved.push({ toolUseId: tc.id, content: JSON.stringify({ error: (e as Error).message }) });
+        }
       } else {
         resolved.push({ toolUseId: tc.id, content: `Unknown tool: ${tc.name}` });
       }
