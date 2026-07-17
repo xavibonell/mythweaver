@@ -57,7 +57,7 @@ const THEME_ALIASES: [RegExp, string][] = [
   [/infernal|hellish|abyssal|brimstone|diabolic|nine hells|the hells/, 'infernal'], // before lava — hell walls
   [/lava|volcano|magma|molten|ashen|cinder/, 'lava'],
   [/sewer|drain|cistern|aqueduct|undercity|effluent/, 'sewer'],
-  [/underdark|\bdrow\b|duergar|deep road|the deep\b|underroad/, 'underdark'],
+  [/underdark|\bdrow\b|duergar|deep roads?|underroad|the underdark/, 'underdark'], // NOT bare "the deep" — it caught "the deep wood/river"
   [/\bmine\b|mineshaft|colliery|excavation|ore vein/, 'mine'], // before cave — rough shafts
   [/fortress|bastion|rampart|stronghold|battlement|garrison/, 'fortress'], // before dungeon
   [/arctic|tundra|glacier|frozen|\bsnow|blizzard|permafrost|\bice\b/, 'arctic'],
