@@ -600,30 +600,86 @@ const forestGen: ArchetypeGenerator = (cv, ctx) => {
   const isTrail = (c: number, r: number) => inB(c, r) && cv.tileAt(c, r) === 'trail' && cv.walkable[r]![c] === true;
   const nearTrail = (c: number, r: number) => isTrail(c, r - 1) || isTrail(c, r + 1) || isTrail(c - 1, r) || isTrail(c + 1, r);
 
-  // 2. DENSITY-GRADIENT canopy. density = edge-bias × noise, zeroed in clearings & on the trail.
-  const canopyF = noiseField(cv.cols, cv.rows, 0.07, (cv.seed ^ 0x1234) >>> 0);
-  const edgeBias = (c: number, r: number) => {
-    const d = Math.min(c - B.x, r - B.y, B.x + B.w - 1 - c, B.y + B.h - 1 - r);
-    return 1 - Math.min(1, d / (Math.min(B.w, B.h) * 0.42)); // 1 at the border → 0 toward the middle
+  // 2. THE CANOPY AS MASS — the classic `clearing` primitive's lesson, at Story scale. Statistical
+  // scatter (blue-noise + edge-bias) reads as uniform porridge: evenly-spaced lone trees, species
+  // shuffled per cell, no negative space — "AI slop". A real forest reads as FIGURE-GROUND: a SOLID
+  // feathered treeline mass at the border, species in coherent STANDS, interior copse blobs, and a
+  // genuinely OPEN glade. Deterministic per-cell planting, not statistics.
+  const treeCells = new Set<string>();
+  const plant = (c: number, r: number, tag: string, blocks = true): void => {
+    if (!cv.isFree(c, r) || cv.claimed(c, r) || inClearing(c, r) || isTrail(c, r) || nearTrail(c, r)) return;
+    cv.reserve(c, r);
+    if (blocks) cv.walkable[r]![c] = false;
+    cv.ambiance.push({ tag, col: c, row: r });
+    if (blocks) treeCells.add(`${c},${r}`);
   };
-  const density = (c: number, r: number) => 0.55 * edgeBias(c, r) + 0.6 * canopyF[r]![c]!;
-  const canOpen = (c: number, r: number) => cv.isFree(c, r) && !inClearing(c, r) && !isTrail(c, r) && !nearTrail(c, r);
-  const CANOPY = ['tree_oak', 'tree_oak', 'oak_ancient', 'birch', 'tree_pine', 'tree_dark'];
-  // dense stands where density is high (thick canopy — tight spacing)
-  poissonScatter(cv, B, { tags: CANOPY, r: 2, blocks: true, max: Math.floor(B.w * B.h * 0.09), filter: (c, r) => canOpen(c, r) && density(c, r) > 0.62 });
-  // scattered trees in the mid ground (airier spacing)
-  poissonScatter(cv, B, { tags: ['tree_oak', 'birch', 'tree_autumn', 'tree_dead'], r: 4, blocks: true, filter: (c, r) => canOpen(c, r) && density(c, r) > 0.34 });
+  // SPECIES STANDS — a coarse field assigns each REGION one palette (pines here, oaks there), the way
+  // real woods grow. Within a stand, small variation; across the map, coherent patches.
+  const standF = noiseField(cv.cols, cv.rows, 0.05, (cv.seed ^ 0xabc7) >>> 0);
+  const STANDS: string[][] = [
+    ['tree_pine', 'tree_pine', 'tree_pine', 'tree_dark'],
+    ['tree_oak', 'tree_oak', 'tree_oak', 'oak_ancient'],
+    ['tree_dark', 'tree_oak', 'tree_pine', 'tree_oak'],
+    ['birch', 'birch', 'tree_oak', 'tree_autumn'],
+  ];
+  const standAt = (c: number, r: number): string[] => STANDS[Math.min(3, Math.floor(standF[r]![c]! * 4))]!;
+  const pick = (pool: string[]): string => pool[Math.floor(cv.rng() * pool.length)]!;
 
-  // 4. UNDERSTORY under the canopy (not in glades): ferns/bushes clumped, mushrooms in the deep shade.
-  clumpScatter(cv, B, { tags: ['fern_giant', 'bush', 'bush_berry', 'fern_giant'], freq: 0.17, threshold: 0.5, seedOffset: 0x77, blocks: false, max: 140, filter: (c, r) => cv.isFree(c, r) && !inClearing(c, r) && !isTrail(c, r) });
-  clumpScatter(cv, B, { tags: ['mushroom', 'mushroom_shelf'], freq: 0.22, threshold: 0.6, seedOffset: 0x9e3, blocks: false, max: 55, filter: (c, r) => cv.isFree(c, r) && !inClearing(c, r) && !isTrail(c, r) && density(c, r) > 0.55 });
-  // FLOOR TEXTURE across the whole wood (the town-greenery lesson: grass floor + dense walkable tufts).
-  clumpScatter(cv, B, { tags: ['grass_tuft', 'grass_tuft', 'bush'], freq: 0.13, threshold: 0.46, seedOffset: 0x3c9, blocks: false, max: 150, filter: (c, r) => cv.isFree(c, r) && !isTrail(c, r) });
-  // 3b. SUNLIT clearings: wildflowers + tufts in the open glades (light reaches the floor).
-  clumpScatter(cv, B, { tags: ['wildflowers', 'flowers', 'grass_tuft', 'bush_berry'], freq: 0.28, threshold: 0.4, seedOffset: 0x2b1, blocks: false, max: 90, filter: (c, r) => cv.isFree(c, r) && (inClearing(c, r) || clearingEdge(c, r)) });
+  // 2a. TREELINE MASS: a noise-wobbled border band (2–5 deep), planted nearly SOLID (small gaps for
+  // air). This is the single move that makes it read as "a forest with an inside".
+  const depthF = noiseField(cv.cols, cv.rows, 0.18, (cv.seed ^ 0x333) >>> 0);
+  for (let r = B.y; r < B.y + B.h; r++)
+    for (let c = B.x; c < B.x + B.w; c++) {
+      const d = Math.min(c - B.x, r - B.y, B.x + B.w - 1 - c, B.y + B.h - 1 - r);
+      const band = 2 + Math.floor(depthF[r]![c]! * 3.6); // 2..5 deep, wobbling along the border
+      if (d < band && cv.rng() > 0.1) plant(c, r, pick(standAt(c, r)));
+    }
+  // 2b. INTERIOR COPSES: connected blobs of trees (one stand each), not scattered singles.
+  const copseF = noiseField(cv.cols, cv.rows, 0.085, (cv.seed ^ 0x777) >>> 0);
+  for (let r = B.y; r < B.y + B.h; r++)
+    for (let c = B.x; c < B.x + B.w; c++)
+      if (copseF[r]![c]! > 0.7 && cv.rng() > 0.15) plant(c, r, pick(standAt(c, r)));
+  // 2c. A few LONE trees breathing in the open mid-ground — sparse, so the space stays open.
+  poissonScatter(cv, B, { tags: ['tree_oak', 'birch', 'tree_dead'], r: 6, blocks: true, max: 10, filter: (c, r) => !inClearing(c, r) && !isTrail(c, r) && !nearTrail(c, r) });
 
-  // 4b. DEADFALL — a few fallen logs / stumps in the mid forest.
-  poissonScatter(cv, B, { tags: ['log_fallen', 'stump', 'log_rotten'], r: 9, blocks: true, max: 5, filter: (c, r) => canOpen(c, r) && density(c, r) > 0.3 && density(c, r) < 0.62 });
+  // 3. GROUPED VIGNETTES, not confetti — a deadfall site is a log WITH its mushrooms; a stump stands
+  // at the treeline base. Props travel in meaningful clusters.
+  const near = (c: number, r: number, set: Set<string>): boolean => {
+    for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) if (set.has(`${c + dc},${r + dr}`)) return true;
+    return false;
+  };
+  const deadfall: Pt[] = [];
+  for (let tries = 0; tries < 200 && deadfall.length < 4; tries++) {
+    const c = B.x + 2 + Math.floor(cv.rng() * (B.w - 4));
+    const r = B.y + 2 + Math.floor(cv.rng() * (B.h - 4));
+    if (!cv.isFree(c, r) || inClearing(c, r) || isTrail(c, r) || nearTrail(c, r)) continue;
+    if (deadfall.some((p) => Math.hypot(p.c - c, p.r - r) < 8)) continue;
+    plant(c, r, cv.rng() < 0.6 ? 'log_fallen' : 'log_rotten');
+    // its mushrooms, huddled against the log
+    const spots = cv.shuffle([{ c: c + 1, r }, { c: c - 1, r }, { c, r: r + 1 }, { c: c + 1, r: r + 1 }]);
+    for (const s of spots.slice(0, 1 + Math.floor(cv.rng() * 2))) plant(s.c, s.r, cv.rng() < 0.7 ? 'mushroom' : 'mushroom_shelf', false);
+    deadfall.push({ c, r });
+  }
+  // stumps at the treeline base (someone felled these, at the wood's edge)
+  poissonScatter(cv, B, { tags: ['stump'], r: 11, blocks: true, max: 3, filter: (c, r) => !inClearing(c, r) && !isTrail(c, r) && near(c, r, treeCells) });
+
+  // 4. UNDERSTORY hugs the canopy FRINGE only (ferns/bushes live in tree shade) — the open mid-ground
+  // and the glade stay CLEAN. Restraint is what makes the clearing read.
+  const underF = noiseField(cv.cols, cv.rows, 0.2, (cv.seed ^ 0x5a5a) >>> 0);
+  let under = 0;
+  for (let r = B.y; r < B.y + B.h && under < 80; r++)
+    for (let c = B.x; c < B.x + B.w && under < 80; c++)
+      if (cv.isFree(c, r) && !inClearing(c, r) && !isTrail(c, r) && near(c, r, treeCells) && underF[r]![c]! > 0.52) {
+        plant(c, r, pick(['fern_giant', 'bush', 'bush_berry', 'fern_giant']), false);
+        under++;
+      }
+  // 3b. the SUNLIT glade ring: a modest ring of wildflowers at the clearing edge — the one flourish.
+  let bloom = 0;
+  for (let r = B.y; r < B.y + B.h && bloom < 14; r++)
+    for (let c = B.x; c < B.x + B.w && bloom < 14; c++)
+      if (cv.isFree(c, r) && clearingEdge(c, r) && !isTrail(c, r) && cv.rng() < 0.22) { plant(c, r, pick(['wildflowers', 'flowers']), false); bloom++; }
+  // faint floor texture in the mid-ground — sparse tufts, nothing more.
+  poissonScatter(cv, B, { tags: ['grass_tuft'], r: 5, blocks: false, max: 26, filter: (c, r) => !inClearing(c, r) && !isTrail(c, r) });
 
   // cast arrives in the glade; wildlife roams the mid forest.
   const gladeSpots: Pt[] = [{ c: glade.c, r: glade.r }, { c: glade.c + 2, r: glade.r + 1 }, { c: glade.c - 2, r: glade.r }, { c: glade.c + 1, r: glade.r - 2 }, { c: glade.c - 1, r: glade.r + 2 }, { c: glade.c + 3, r: glade.r }];
