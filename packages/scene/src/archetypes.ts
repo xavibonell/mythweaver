@@ -19,7 +19,7 @@
 
 import type { BuildingType } from '@mythweaver/shared';
 import {
-  building, bspRooms, Canvas, cave, clumpScatter, compound, entrance, fill, island, place, plaza, poissonScatter, scatter, vignette, wallRing,
+  building, bspRooms, Canvas, cave, clumpScatter, compound, entrance, fill, island, noiseField, path, place, plaza, poissonScatter, scatter, vignette, wallRing,
   type Pt, type Rect,
 } from './primitives.js';
 import { SHAPE_MIN, type ShapeKind } from './footprint.js';
@@ -57,7 +57,7 @@ export interface GenContext {
   locationId: string;
 }
 export type ArchetypeGenerator = (cv: Canvas, ctx: GenContext) => void;
-export type ArchetypeKind = 'town' | 'dungeon' | 'cave' | 'wilderness' | 'coast';
+export type ArchetypeKind = 'town' | 'dungeon' | 'cave' | 'wilderness' | 'coast' | 'forest';
 
 const slug = (s: string, i: number) => (s || 'x').replace(/[^a-z0-9]+/gi, '-').toLowerCase().replace(/^-+|-+$/g, '') + (i ? `-${i}` : '');
 
@@ -553,6 +553,84 @@ const wildernessGen: ArchetypeGenerator = (cv, ctx) => {
   entrance(cv, edgePt(B, ctx.contents.entranceSide ?? 'south'), ctx.locationId);
 };
 
+/**
+ * FOREST generator — the biome analogue of townGen: a COMPOSED forest, not flat grass + random trees.
+ * The four moves that lift it out of "sprinkled on a field" (mirrors the town's greenery step):
+ *   1. COMPOSED GROUND — grass base, dirt/leaf-litter patches under the dense canopy (nothing grows in
+ *      deep shade), a noise-mottled floor. No flat green.
+ *   2. DENSITY-GRADIENT canopy — a density field = edge-bias (forest is thick at the borders) × noise,
+ *      minus the clearings. Dense poisson in the thick zones, sparse in the open. Multi-species.
+ *   3. GENUINE CLEARINGS — 1-2 open glades (sunlit: flowers + grass tufts, the party arrives here) with
+ *      a trail threading from the entrance edge through a glade — structure, not a random void.
+ *   4. UNDERSTORY + DEADFALL — ferns/bushes clumped UNDER the canopy (not in glades), mushrooms by the
+ *      deadfall, a few fallen logs/stumps. Ecology, not confetti.
+ */
+const forestGen: ArchetypeGenerator = (cv, ctx) => {
+  const B = ctx.bounds;
+  const inB = (c: number, r: number) => c >= B.x && r >= B.y && c < B.x + B.w && r < B.y + B.h;
+  fill(cv, B, ctx.theme.ground, true);
+
+  // 1-2 clearings: discs of open ground the canopy avoids. One holds the party/entrance trail.
+  const nClear = 1 + (cv.rng() < 0.5 ? 1 : 0);
+  const clearings: { c: number; r: number; rad: number }[] = [];
+  for (let i = 0; i < nClear; i++) {
+    const rad = Math.max(3, Math.min(B.w, B.h) * (0.14 + cv.rng() * 0.08));
+    clearings.push({
+      c: B.x + Math.floor(B.w * (0.3 + cv.rng() * 0.4)),
+      r: B.y + Math.floor(B.h * (0.3 + cv.rng() * 0.4)),
+      rad,
+    });
+  }
+  const glade = clearings[0]!;
+  const inClearing = (c: number, r: number) => clearings.some((g) => Math.hypot(c - g.c, r - g.r) < g.rad);
+  const clearingEdge = (c: number, r: number) => clearings.some((g) => { const d = Math.hypot(c - g.c, r - g.r); return d >= g.rad * 0.7 && d < g.rad * 1.25; });
+
+  // NOTE ON GROUND: the floor stays GRASS. The town greenery taught this — richness comes from SCATTER
+  // density (tufts / flowers / undergrowth), never from painting the ground another material. An earlier
+  // pass mottled bare `dirt` under the canopy and it read as ugly orange blocks; the only earth here is
+  // the trail. Grass autotile + ground decals + the understory below carry the floor texture.
+
+  // 2b. A TRAIL from the entrance edge, through the glade, to the far edge — structure + a walk line.
+  const SIDES = ['north', 'south', 'east', 'west'] as const;
+  const entSide: 'north' | 'south' | 'east' | 'west' = ctx.contents.entranceSide ?? SIDES[Math.floor(cv.rng() * 4)]!;
+  const ent = edgePt(B, entSide);
+  const far = edgePt(B, entSide === 'north' ? 'south' : entSide === 'south' ? 'north' : entSide === 'east' ? 'west' : 'east');
+  path(cv, ent, { c: glade.c, r: glade.r }, 'dirt');
+  path(cv, { c: glade.c, r: glade.r }, far, 'dirt');
+  const isTrail = (c: number, r: number) => inB(c, r) && cv.tileAt(c, r) === 'dirt' && cv.walkable[r]![c] === true;
+  const nearTrail = (c: number, r: number) => isTrail(c, r - 1) || isTrail(c, r + 1) || isTrail(c - 1, r) || isTrail(c + 1, r);
+
+  // 2. DENSITY-GRADIENT canopy. density = edge-bias × noise, zeroed in clearings & on the trail.
+  const canopyF = noiseField(cv.cols, cv.rows, 0.07, (cv.seed ^ 0x1234) >>> 0);
+  const edgeBias = (c: number, r: number) => {
+    const d = Math.min(c - B.x, r - B.y, B.x + B.w - 1 - c, B.y + B.h - 1 - r);
+    return 1 - Math.min(1, d / (Math.min(B.w, B.h) * 0.42)); // 1 at the border → 0 toward the middle
+  };
+  const density = (c: number, r: number) => 0.55 * edgeBias(c, r) + 0.6 * canopyF[r]![c]!;
+  const canOpen = (c: number, r: number) => cv.isFree(c, r) && !inClearing(c, r) && !isTrail(c, r) && !nearTrail(c, r);
+  const CANOPY = ['tree_oak', 'tree_oak', 'oak_ancient', 'birch', 'tree_pine', 'tree_dark'];
+  // dense stands where density is high (thick canopy — tight spacing)
+  poissonScatter(cv, B, { tags: CANOPY, r: 2, blocks: true, max: Math.floor(B.w * B.h * 0.09), filter: (c, r) => canOpen(c, r) && density(c, r) > 0.62 });
+  // scattered trees in the mid ground (airier spacing)
+  poissonScatter(cv, B, { tags: ['tree_oak', 'birch', 'tree_autumn', 'tree_dead'], r: 4, blocks: true, filter: (c, r) => canOpen(c, r) && density(c, r) > 0.34 });
+
+  // 4. UNDERSTORY under the canopy (not in glades): ferns/bushes clumped, mushrooms in the deep shade.
+  clumpScatter(cv, B, { tags: ['fern_giant', 'bush', 'bush_berry', 'fern_giant'], freq: 0.17, threshold: 0.5, seedOffset: 0x77, blocks: false, max: 140, filter: (c, r) => cv.isFree(c, r) && !inClearing(c, r) && !isTrail(c, r) });
+  clumpScatter(cv, B, { tags: ['mushroom', 'mushroom_shelf'], freq: 0.22, threshold: 0.6, seedOffset: 0x9e3, blocks: false, max: 55, filter: (c, r) => cv.isFree(c, r) && !inClearing(c, r) && !isTrail(c, r) && density(c, r) > 0.55 });
+  // FLOOR TEXTURE across the whole wood (the town-greenery lesson: grass floor + dense walkable tufts).
+  clumpScatter(cv, B, { tags: ['grass_tuft', 'grass_tuft', 'bush'], freq: 0.13, threshold: 0.46, seedOffset: 0x3c9, blocks: false, max: 150, filter: (c, r) => cv.isFree(c, r) && !isTrail(c, r) });
+  // 3b. SUNLIT clearings: wildflowers + tufts in the open glades (light reaches the floor).
+  clumpScatter(cv, B, { tags: ['wildflowers', 'flowers', 'grass_tuft', 'bush_berry'], freq: 0.28, threshold: 0.4, seedOffset: 0x2b1, blocks: false, max: 90, filter: (c, r) => cv.isFree(c, r) && (inClearing(c, r) || clearingEdge(c, r)) });
+
+  // 4b. DEADFALL — a few fallen logs / stumps in the mid forest.
+  poissonScatter(cv, B, { tags: ['log_fallen', 'stump', 'log_rotten'], r: 9, blocks: true, max: 5, filter: (c, r) => canOpen(c, r) && density(c, r) > 0.3 && density(c, r) < 0.62 });
+
+  // cast arrives in the glade; wildlife roams the mid forest.
+  const gladeSpots: Pt[] = [{ c: glade.c, r: glade.r }, { c: glade.c + 2, r: glade.r + 1 }, { c: glade.c - 2, r: glade.r }, { c: glade.c + 1, r: glade.r - 2 }, { c: glade.c - 1, r: glade.r + 2 }, { c: glade.c + 3, r: glade.r }];
+  placeCast(cv, ctx, gladeSpots, B);
+  entrance(cv, ent, ctx.locationId);
+};
+
 const coastGen: ArchetypeGenerator = (cv, ctx) => {
   // PLACEHOLDER coast (P3 will replace with an fBm domain-warped shoreline + beach bands). For now: a
   // water expanse with an organic land blob + a couple of huts, so the seam is complete and valid.
@@ -575,5 +653,6 @@ export const GENERATORS: Record<ArchetypeKind, ArchetypeGenerator> = {
   cave: caveGen,
   wilderness: wildernessGen,
   coast: coastGen,
+  forest: forestGen,
 };
 export const ARCHETYPE_KINDS = Object.keys(GENERATORS) as ArchetypeKind[];
