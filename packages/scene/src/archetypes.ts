@@ -554,91 +554,117 @@ const wildernessGen: ArchetypeGenerator = (cv, ctx) => {
 };
 
 /**
- * FOREST generator — ONE composition, done cleanly: the radial CLEARING (proven by the classic
- * `clearing` primitive to read at any size). A forest reads as FIGURE-GROUND — a solid mass of trees
- * ringing a genuinely open glade — NOT a statistical scatter of lone trees (that's "AI slop"). So:
- *   • a SOLID treeline: small dense trees packed toward the border (a wobbled ring, ~95% fill at the
- *     edge), thinning to nothing at the centre. Small 16×16 trees form the MASS; big oaks only accent.
- *   • SPECIES STANDS: a coarse field gives each region one palette (pines here, oaks there) — coherent,
- *     not per-cell species salad.
- *   • a CLEAN glade: the open centre stays EMPTY except the party/camp — restraint is what makes it read.
- *   • the CAST is the focal point: camp + hermit clustered in the glade; wolves prowl the treeline.
+ * FOREST generator — the RADIAL-DENSE composition (won a 5-way parallel render-off vs region-stands /
+ * CA-masses / noise-stands / reference; it read as a real hand-made wood, the others as grid plantations).
+ * Three techniques the earlier scatter versions lacked:
+ *   1. SUB-CELL JITTER — a tree owns its integer cell (walkability stays exact) but its SPRITE is drawn at
+ *      a fractional col/row offset. This alone breaks the tiled-grid "orchard" lattice into an organic canopy.
+ *   2. DOMAIN-WARPED VORONOI STANDS — a handful of seeds, each ONE dominant species (+ a quiet minority);
+ *      warp noise wiggles the seams → coherent single-species MASSES (a pine stand here, an oak grove there),
+ *      never a per-cell species salad.
+ *   3. RADIAL DENSITY with a DEPTH-SCALED FLOOR — a small open glade → bushy fern fringe → a treeline ramping
+ *      to a ~97% SOLID wall that never goes sparse in the deep wood. The glade is small so the FOREST dominates.
+ * The cast is the focus: camp + hermit in the glade, wolves prowling its edge, a 2-wide trail threading in.
  */
 const forestGen: ArchetypeGenerator = (cv, ctx) => {
   const B = ctx.bounds;
   fill(cv, B, ctx.theme.ground, true);
-  const ctr = rectCenter(B);
-  const cx = B.x + (B.w - 1) / 2, cy = B.y + (B.h - 1) / 2;
-  const maxd = Math.max(1, Math.min(B.w, B.h) / 2);
-  // A wobbled glade radius so the treeline isn't a perfect circle (organic edge).
-  const wobble = noiseField(cv.cols, cv.rows, 0.16, (cv.seed ^ 0x9a1c) >>> 0);
-  // Species stands — a coarse field assigns each region ONE small-tree palette.
-  const standF = noiseField(cv.cols, cv.rows, 0.045, (cv.seed ^ 0xabc7) >>> 0);
-  const STANDS: string[][] = [
-    ['tree_pine', 'tree_pine', 'tree_dark', 'tree_pine'],
-    ['tree_oak', 'tree', 'tree_oak', 'tree'],
-    ['tree', 'tree_pine', 'tree_autumn', 'tree'],
-    ['birch', 'tree', 'tree_autumn', 'birch'],
-  ];
-  const pool = (c: number, r: number): string[] => STANDS[Math.min(3, Math.floor(standF[r]![c]! * 4))]!;
-  const distOf = (c: number, r: number): number => Math.hypot((c - cx) / maxd, (r - cy) / maxd);
-  const gladeR = (c: number, r: number): number => 0.4 + wobble[r]![c]! * 0.12; // 0.40..0.52 of the half-size
+  const inb = (c: number, r: number) => c >= B.x && r >= B.y && c < B.x + B.w && r < B.y + B.h;
+  const cx = B.x + (B.w - 1) / 2, cy = B.y + (B.h - 1) / 2, maxd = Math.min(B.w, B.h) / 2;
+  const jit = () => (cv.rng() - 0.5) * 0.7;
+  const nf = (freq: number, salt: number) => noiseField(cv.cols, cv.rows, freq, (cv.seed ^ salt) >>> 0);
+  const wob = nf(0.16, 0x9a1c), warpX = nf(0.09, 0x1111), warpY = nf(0.09, 0x2222), densF = nf(0.13, 0x33cd);
 
-  // THE RADIAL FOREST — per cell, decide glade / fringe / treeline by distance from centre.
+  // STANDS — each a mass of essentially ONE species with a quiet minority for texture.
+  const STANDS: { prim: string; min: string; p: number }[] = [
+    { prim: 'tree_pine', min: 'tree_dark', p: 0.88 },
+    { prim: 'tree_dark', min: 'tree_pine', p: 0.88 },
+    { prim: 'tree_oak', min: 'tree', p: 0.82 },
+    { prim: 'tree_autumn', min: 'tree', p: 0.86 },
+    { prim: 'birch', min: 'tree', p: 0.88 },
+    { prim: 'tree_oak', min: 'tree', p: 0.82 },
+  ];
+  const order = cv.shuffle(STANDS.map((_, i) => i));
+  const seeds = order.map((k) => ({ c: B.x + 3 + Math.floor(cv.rng() * (B.w - 6)), r: B.y + 3 + Math.floor(cv.rng() * (B.h - 6)), st: STANDS[k]! }));
+  const standAt = (c: number, r: number) => {
+    const wc = c + (warpX[r]![c]! - 0.5) * 7, wr = r + (warpY[r]![c]! - 0.5) * 7;
+    let best = 0, bd = Infinity;
+    for (let i = 0; i < seeds.length; i++) { const dc = wc - seeds[i]!.c, dr = wr - seeds[i]!.r, dd = dc * dc + dr * dr; if (dd < bd) { bd = dd; best = i; } }
+    return seeds[best]!.st;
+  };
+  const distOf = (c: number, r: number) => Math.hypot((c - cx) / maxd, (r - cy) / maxd);
+  const gladeR = (c: number, r: number) => 0.32 + wob[r]![c]! * 0.1; // small glade → the wood dominates
+  const plant = (c: number, r: number, tag: string, block: boolean): void => {
+    if (!inb(c, r) || cv.occ[r]![c] || (block && !cv.walkable[r]![c])) return;
+    cv.occ[r]![c] = true;
+    if (block) cv.walkable[r]![c] = false;
+    // the sprite jitters sub-cell (breaks the grid), CLAMPED so an edge tree never renders off-grid.
+    const jc = Math.max(0, Math.min(cv.cols - 1, c + jit())), jr = Math.max(0, Math.min(cv.rows - 1, r + jit()));
+    cv.ambiance.push({ tag, col: jc, row: jr });
+  };
+
+  // TRAIL first (the solid wall opens for it): the arriving edge → just inside the glade.
+  const entSide = ctx.contents.entranceSide ?? 'south';
+  const ent = edgePt(B, entSide);
+  const gEdge = { c: Math.round(cx + (ent.c - cx) * 0.4), r: Math.round(cy + (ent.r - cy) * 0.4) };
+  const setTrail = (c: number, r: number) => { if (inb(c, r)) { cv.tiles[r]![c] = 'trail'; cv.walkable[r]![c] = true; cv.occ[r]![c] = true; } };
+  { let c = ent.c, r = ent.r; setTrail(c, r); setTrail(c + 1, r);
+    while (r !== gEdge.r) { r += r < gEdge.r ? 1 : -1; setTrail(c, r); setTrail(c + 1, r); }
+    while (c !== gEdge.c) { c += c < gEdge.c ? 1 : -1; setTrail(c, r); setTrail(c, r + 1); } }
+
+  // THE RADIAL: glade / fern fringe / SOLID treeline.
   let bigOaks = 0;
   for (let r = B.y; r < B.y + B.h; r++)
     for (let c = B.x; c < B.x + B.w; c++) {
-    if (!cv.isFree(c, r) || cv.claimed(c, r)) continue;
-    const d = distOf(c, r);
-    const gr = gladeR(c, r);
-    if (d < gr) continue; // the open glade — leave it clean
-    if (d < gr + 0.13) {
-      // bushy fringe between glade and wood — sparse, walkable
-      if (cv.rng() < 0.28) { cv.reserve(c, r); cv.ambiance.push({ tag: cv.rng() < 0.6 ? 'bush' : 'fern_giant', col: c, row: r }); }
-      continue;
+      if (cv.occ[r]![c]) continue; // trail
+      const d = distOf(c, r), gr = gladeR(c, r);
+      if (d < gr) continue; // open glade
+      if (d < gr + 0.15) { if (cv.rng() < 0.55) plant(c, r, cv.rng() < 0.5 ? 'fern_giant' : cv.rng() < 0.55 ? 'bush' : 'bush_berry', false); continue; }
+      let prob = d > 0.9 ? 1 : Math.min(0.97, (d - gr - 0.15) / 0.16);
+      prob *= 0.82 + densF[r]![c]! * 0.34;
+      const floor = d > 0.95 ? 0.86 : d > 0.7 ? 0.66 : 0; // deep wood never sparse
+      prob = Math.max(prob, floor);
+      if (cv.rng() >= prob) continue;
+      let tag: string;
+      if (bigOaks < 7 && cv.rng() < 0.016 && d > gr + 0.35) { tag = 'oak_ancient'; bigOaks++; }
+      else { const st = standAt(c, r); tag = cv.rng() < st.p ? st.prim : st.min; }
+      plant(c, r, tag, true);
     }
-    // the TREELINE MASS — density ramps hard toward the border (solid at the edge).
-    const prob = Math.min(0.95, (d - gr - 0.13) / 0.34);
-    if (cv.rng() >= prob) continue;
-    // a rare big ancient oak accents the wood; otherwise a small dense tree from the local stand.
-    let tag: string;
-    if (bigOaks < 4 && cv.rng() < 0.012 && d > gr + 0.3) { tag = 'oak_ancient'; bigOaks++; }
-    else tag = pool(c, r)[Math.floor(cv.rng() * 4)]!;
-    cv.reserve(c, r);
-    cv.walkable[r]![c] = false;
-    cv.ambiance.push({ tag, col: c, row: r });
-  }
 
-  // A short ENTRANCE path from the arriving edge INTO the glade (not a highway across the map).
-  const SIDES = ['north', 'south', 'east', 'west'] as const;
-  const entSide: 'north' | 'south' | 'east' | 'west' = ctx.contents.entranceSide ?? 'south';
-  const ent = edgePt(B, entSide);
-  const gladeEdge = { c: Math.round(cx + (ent.c - cx) * 0.42), r: Math.round(cy + (ent.r - cy) * 0.42) };
-  path(cv, ent, gladeEdge, 'trail');
-
-  // A COUPLE of deadfall vignettes in the fringe/mid — a log WITH its toadstools, grouped (not confetti).
-  const has = (set: Contents['landmarks']) => set.length;
-  for (let n = 0, tries = 0; n < 2 && tries < 120; tries++) {
-    const ang = cv.rng() * Math.PI * 2, rad = (0.55 + cv.rng() * 0.25);
+  // DEADFALL vignettes in the fringe/mid — a log WITH its toadstools, grouped.
+  for (let n = 0, t = 0; n < 2 && t < 160; t++) {
+    const ang = cv.rng() * Math.PI * 2, rad = 0.5 + cv.rng() * 0.18;
     const c = Math.round(cx + Math.cos(ang) * rad * maxd), r = Math.round(cy + Math.sin(ang) * rad * maxd);
-    if (!cv.isFree(c, r) || cv.claimed(c, r)) continue;
-    cv.reserve(c, r); cv.ambiance.push({ tag: cv.rng() < 0.6 ? 'log_fallen' : 'log_rotten', col: c, row: r });
-    for (const s of cv.shuffle([{ c: c + 2, r }, { c: c - 1, r }, { c, r: r + 1 }]).slice(0, 2))
-      if (cv.isFree(s.c, s.r) && !cv.claimed(s.c, s.r)) { cv.reserve(s.c, s.r); cv.ambiance.push({ tag: 'mushroom', col: s.c, row: s.r }); }
+    if (!inb(c, r) || cv.occ[r]![c] || !cv.walkable[r]![c]) continue;
+    plant(c, r, cv.rng() < 0.6 ? 'log_fallen' : 'log_rotten', false);
+    for (const s of [{ c: c + 1, r }, { c: c - 1, r }, { c, r: r + 1 }]) if (inb(s.c, s.r) && !cv.occ[s.r]![s.c] && cv.rng() < 0.6) plant(s.c, s.r, 'mushroom', false);
     n++;
   }
-  void has;
 
-  // THE CAST is the focal point: camp props + hermit cluster in the glade centre; wolves prowl the ring.
-  const gladeSpots: Pt[] = [ctr, { c: ctr.c + 1, r: ctr.r + 1 }, { c: ctr.c - 1, r: ctr.r }, { c: ctr.c + 2, r: ctr.r }, { c: ctr.c - 1, r: ctr.r + 1 }, { c: ctr.c + 1, r: ctr.r - 1 }, { c: ctr.c, r: ctr.r + 2 }, { c: ctr.c - 2, r: ctr.r + 1 }];
-  placeCast(cv, ctx, gladeSpots, B);
-  // CAMP FALLBACK — if someone LIVES in this glade (a harvested npc) but the cast brought no camp props,
-  // pitch a small one: "a hermit at his camp in the glade" must always read as a camp, tent forgotten or not.
+  // THE CAST in the glade: camp props + hermit clustered centre; wolves prowl the treeline ring.
+  const ctr = { c: Math.round(cx), r: Math.round(cy) };
+  const dirtCells: [number, number][] = [[0, 0], [1, 0], [0, 1], [1, 1], [-1, 0], [0, -1], [2, 0], [1, -1]];
+  for (const [dc, dr] of dirtCells) { const c = ctr.c + dc, r = ctr.r + dr; if (inb(c, r) && !cv.occ[r]![c]) cv.set(c, r, 'dirt', true); }
+  const gladeSpots: Pt[] = [ctr, { c: ctr.c - 1, r: ctr.r - 1 }, { c: ctr.c + 1, r: ctr.r }, { c: ctr.c, r: ctr.r + 1 }, { c: ctr.c + 2, r: ctr.r }, { c: ctr.c - 1, r: ctr.r + 1 }, { c: ctr.c + 1, r: ctr.r - 1 }];
+  ctx.contents.landmarks.forEach((l, i) => place(cv, { id: `prop:${slug(l.tag, i)}`, tag: l.tag, kind: 'prop', at: gladeSpots[i % gladeSpots.length] ?? ctr, ...(l.name ? { name: l.name } : {}) }));
+  ctx.contents.npcs.forEach((n, i) => place(cv, { id: `npc:${slug(n.tag, i)}`, tag: n.tag, kind: 'actor', role: 'npc', at: gladeSpots[(i + 3) % gladeSpots.length] ?? ctr, ...(n.name ? { name: n.name } : {}) }));
+  // CAMP FALLBACK — a hermit in the glade with no camp props still gets a pitched camp.
   const hasCamp = ctx.contents.landmarks.some((l) => /tent|fire|camp|brazier|hearth|bonfire|sleeping/.test(l.tag));
   if (!hasCamp && ctx.contents.npcs.length) {
     place(cv, { id: 'prop:camp-tent', tag: 'tent', kind: 'prop', at: { c: ctr.c - 1, r: ctr.r - 1 } });
     place(cv, { id: 'prop:camp-fire', tag: 'fire_small', kind: 'prop', at: { c: ctr.c + 1, r: ctr.r } });
   }
+  // MOBS prowl the glade-edge ring (just inside the treeline).
+  let wi = 0;
+  for (const m of ctx.contents.mobs)
+    for (let k = 0; k < Math.max(1, Math.min(12, m.count)); k++, wi++) {
+      const ang = (wi / 6) * Math.PI * 2 + cv.rng() * 0.6, rad = gladeR(ctr.c, ctr.r) * (0.8 + cv.rng() * 0.3);
+      const c = Math.max(B.x + 1, Math.min(B.x + B.w - 2, Math.round(cx + Math.cos(ang) * rad * maxd)));
+      const r = Math.max(B.y + 1, Math.min(B.y + B.h - 2, Math.round(cy + Math.sin(ang) * rad * maxd)));
+      place(cv, { id: `mob:${slug(m.tag, wi)}`, tag: m.tag, kind: 'actor', role: 'mob', at: { c, r } });
+    }
+  // a few glade tufts / wildflowers (restrained).
+  for (let i = 0; i < 6; i++) { const c = ctr.c + Math.round((cv.rng() - 0.5) * 7), r = ctr.r + Math.round((cv.rng() - 0.5) * 5); if (inb(c, r) && !cv.occ[r]![c] && cv.walkable[r]![c] && distOf(c, r) < gladeR(c, r)) plant(c, r, cv.rng() < 0.5 ? 'grass_tuft' : 'wildflowers', false); }
   entrance(cv, ent, ctx.locationId);
 };
 
