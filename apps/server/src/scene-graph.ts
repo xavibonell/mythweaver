@@ -297,7 +297,7 @@ const PROXIMITY_PHRASE = /\b(behind you|beside you|at your shoulder|next to you|
 /** Does the narration contradict the zone/earshot ground truth? Conjunction-heavy by design (name AND a
  *  place/speech cue AND a contradicting oracle fact) so it fires on the real leaks, not on good prose.
  *  Returns the first break found (with a templated corrective), or null. */
-export function narrationBreaksScene(map: SceneMap, idx: SpatialIndex, narration: string, actingPcName?: string): CoherenceBreak | null {
+export function narrationBreaksScene(map: SceneMap, idx: SpatialIndex, narration: string, actingPcName?: string, movedFrom?: Map<string, { col: number; row: number }>): CoherenceBreak | null {
   if (!narration) return null;
   const g = sceneGraph(map, idx);
   const objById = new Map(map.objects.map((o) => [o.id, o] as const));
@@ -318,9 +318,13 @@ export function narrationBreaksScene(map: SceneMap, idx: SpatialIndex, narration
   // CHECK 1 — MEMBERSHIP: an NPC narrated AT an interior station of a building they are not inside.
   for (const { npc, nameIdx } of mentioned) {
     const zoneId = g.zoneOf.get(npc.id);
+    // If the NPC MOVED this turn (a reaction/DM move), its turn-START zone is also a legitimate referent —
+    // "she was at the anvil" right before fleeing out isn't a contradiction. Pass on either endpoint.
+    const startCell = movedFrom?.get(npc.id);
+    const startZoneId = startCell ? (whereIs(idx, startCell).buildingId ?? 'outdoor') : undefined;
     const window = lc.slice(Math.max(0, nameIdx - 40), nameIdx + (npc.name!.length) + 70); // the clause around the name
     for (const b of g.buildings) {
-      if (zoneId === b.id) continue; // they ARE inside this building — fine
+      if (zoneId === b.id || startZoneId === b.id) continue; // they ARE (or just were) inside this building — fine
       const stationRe = STATION_WORDS[b.type];
       // "inside the chapel" — the containment word must sit DIRECTLY on the building noun. A gap regex
       // ("in …≤20 chars… chapel") false-fired on "in the dusk NEAR the chapel" and burned a re-narrate
@@ -351,18 +355,22 @@ export function narrationBreaksScene(map: SceneMap, idx: SpatialIndex, narration
     if (pc) {
       for (const { npc, nameIdx } of mentioned) {
         const dFt = distanceFt(idx, pc, npc);
+        // A parting line from an NPC who FLED this turn ("Tessa cries out as she runs") is legit: she was in
+        // earshot when she cried. Gate on the CLOSEST of {turn-start, now} so we never re-narrate true prose.
+        const startCell = movedFrom?.get(npc.id);
+        const dEff = startCell ? Math.min(dFt, distanceFt(idx, pc, { col: startCell.col, row: startCell.row })) : dFt;
         const after = text.slice(nameIdx, nameIdx + npc.name!.length + 45); // the clause right after the name
         const before = text.slice(Math.max(0, nameIdx - 45), nameIdx);
         const speaks = SPEECH_VERB.test(after) || /["“][^"”]{0,60}["”]\s*$/.test(before);
         const proximate = PROXIMITY_PHRASE.test(before) || PROXIMITY_PHRASE.test(after);
-        if (speaks && dFt > EARSHOT_FT) {
+        if (speaks && dEff > EARSHOT_FT) {
           return {
             code: 'earshot',
             reason: `${npc.name} speaks to/near ${pc.name} but is ${dFt} ft away (> ${EARSHOT_FT} ft earshot)`,
             corrective: `[COHERENCE: ${npc.name} is ${dFt} ft from ${pc.name} — out of speaking range (a raised voice carries ~${EARSHOT_FT} ft in a busy village). Rewrite without ${npc.name} addressing ${pc.name} from there: show them only as a distant figure, or move them closer first. Rewrite the WHOLE reply as scene narration in your normal voice — do NOT quote, restate, or paraphrase this note; call no tools.]`,
           };
         }
-        if (proximate && dFt > REACH_FT * 2) {
+        if (proximate && dEff > REACH_FT * 2) {
           return {
             code: 'earshot',
             reason: `${npc.name} placed beside/behind ${pc.name} but is ${dFt} ft away`,

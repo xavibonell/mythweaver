@@ -1849,6 +1849,12 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
     ];
   }
 
+  // Snapshot actor positions at TURN START. Any actor the turn moves (declared travel, backstop, or a
+  // reaction) is compared against BOTH endpoints by the coherence gate, so a mover's parting line ("she
+  // cries out as she flees") isn't re-narrated against its post-move distance. (Living-world P1 precondition.)
+  const preTurnPos = new Map<string, { col: number; row: number }>();
+  { const m0 = currentMap(state); if (m0) for (const o of m0.objects) if (o.kind === 'actor') preTurnPos.set(o.id, { col: o.col, row: o.row }); }
+
   let steps = 0;
   for (steps = 1; steps <= MAX_STEPS; steps++) {
     const res = await llm.complete({ system: playbook, messages, tools, taskClass: pickTaskClass(state), maxTokens: MAX_OUTPUT_TOKENS, ...(deps.temperature !== undefined ? { temperature: deps.temperature } : {}) });
@@ -1892,7 +1898,7 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
         const cmap = currentMap(state);
         let cidx: SpatialIndex | undefined;
         if (cmap && SPATIAL_ON) { try { cidx = spatialIndex(cmap); } catch { /* oracle must not break a turn */ } }
-        const brk = cmap && cidx ? narrationBreaksScene(cmap, cidx, res.text, input.kind === 'message' ? input.speakerId : undefined) : null;
+        const brk = cmap && cidx ? narrationBreaksScene(cmap, cidx, res.text, input.kind === 'message' ? input.speakerId : undefined, preTurnPos) : null;
         if (brk) {
           span.event('coherence-break', { code: brk.code, reason: brk.reason, mode: COHERENCE_GATE });
           if (COHERENCE_GATE === 'on') {
@@ -2036,7 +2042,11 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
           } else if (op === 'setState') {
             const state = c.state && typeof c.state === 'object' ? (c.state as Record<string, string | number | boolean>) : undefined;
             if (!state) { preRejected.push({ op, id, reason: 'setState needs a "state" object' }); continue; }
-            proposals.push({ op: 'setState', id, state });
+            // rx:* is the engine-owned reaction namespace (living-world reactivity) — the DM narrates reactions,
+            // it never writes them. Strip any rx:* keys so DM prose can't forge a reaction/alert state.
+            const clean = Object.fromEntries(Object.entries(state).filter(([k]) => !k.toLowerCase().startsWith('rx:')));
+            if (Object.keys(clean).length < Object.keys(state).length) preRejected.push({ op, id, reason: 'rx:* is engine-owned (reaction state) — cannot be set by narration' });
+            if (Object.keys(clean).length) proposals.push({ op: 'setState', id, state: clean });
           } else if (op === 'spawn') {
             const role = c.role === 'mob' ? 'mob' as const : 'npc' as const;
             const look = typeof c.look === 'string' ? c.look : '';
@@ -2052,13 +2062,35 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
             preRejected.push({ op, id, reason: `unknown op "${op}"` });
           }
         }
-        const res = engine.applySceneDeltas(proposals);
+        // P1 precondition: a DM-driven NPC/mob move TOWARD an object walks a REAL path (engine.travel
+        // mode:'auto' — via cells, media pricing, route walkability) instead of gliding straight through
+        // walls. Compass/edge/cell anchors, props, and PCs stay on the pure applier (unchanged). This also
+        // corrects the stale travel.ts header that claimed updateScene actor moves already funnel through travel.
+        const walked: SceneDelta[] = [];
+        const remaining: SceneDelta[] = [];
+        const umap = currentMap(state);
+        for (const pr of proposals) {
+          const anchor = pr.op === 'move' ? ((pr.to as { anchor?: string }).anchor ?? '') : '';
+          if (pr.op === 'move' && umap && (pr.id.startsWith('npc:') || pr.id.startsWith('mob:')) && /^(near|behind|beside|toward|towards|to):/i.test(anchor)) {
+            const target = resolveMapObject(engine, umap, anchor.replace(/^[a-z]+:/i, ''), undefined);
+            if (target) {
+              try {
+                const inMap = umap.objects.some((o) => o.id === target.id);
+                const v = engine.travel({ actorId: pr.id, to: inMap ? { id: target.id } : { col: target.col, row: target.row }, mode: 'auto' });
+                if (v.at) { walked.push({ op: 'move', id: pr.id, to: { col: v.at.col, row: v.at.row }, ...(v.pathCells?.length ? { via: v.pathCells } : {}) }); continue; }
+              } catch { /* fall through to the pure applier */ }
+            }
+          }
+          remaining.push(pr);
+        }
+        sceneDeltas.push(...walked);
+        const res = engine.applySceneDeltas(remaining);
         sceneDeltas.push(...res.applied);
         const rej = [...preRejected, ...res.rejected.map((r) => ({ op: r.delta.op, id: 'id' in r.delta ? r.delta.id : '', reason: r.reason }))];
         resolved.push({
           toolUseId: tc.id,
           content: JSON.stringify({
-            applied: res.applied.map((a) => (a.op === 'move' ? `move ${a.id} → (${(a.to as { col: number }).col},${(a.to as { row: number }).row})` : a.op === 'spawn' ? `spawn ${a.id} at (${a.at?.col},${a.at?.row})` : `${a.op} ${a.id}`)),
+            applied: [...walked, ...res.applied].map((a) => (a.op === 'move' ? `move ${a.id} → (${(a.to as { col: number }).col},${(a.to as { row: number }).row})` : a.op === 'spawn' ? `spawn ${a.id} at (${a.at?.col},${a.at?.row})` : `${a.op} ${a.id}`)),
             ...(rej.length ? { rejected: rej } : {}),
           }),
         });
@@ -2416,7 +2448,10 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
           // fiction claims they occupy), the destination is the PERSON — never the place. This is what
           // turns "walked to the forge, then found Hobb across the green" into one clean walk.
           let personNote = '';
-          if (map && actorObj && input.kind === 'message') {
+          // Person-first destination correction applies ONLY when a PC is the mover: it exists to route the
+          // player's OWN declared move to the NPC they named ("go to Hobb"). A DM-driven NPC travel (e.g. a
+          // reaction — Tessa retreats to the chapel) must NOT be hijacked toward whoever the player line named.
+          if (map && actorObj && (actorObj.role === 'pc' || actorObj.id.startsWith('pc:')) && input.kind === 'message') {
             // Which named NPCs does the line mention, and WHERE? ("I go to Hobb and ask if Orrin is
             // trustful" names two — the DESTINATION is the one right after the movement verb.)
             const firstIdx = (name: string): number => {

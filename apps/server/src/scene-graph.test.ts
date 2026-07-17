@@ -105,6 +105,12 @@ describe('narrationBreaksScene — the deterministic coherence gate (P2)', () =>
   it('does not flag clean, grounded prose', () => {
     expect(brk('Aldric kneels by the door, running a thumb over the cold latch.')).toBeNull();
   });
+  it('EARSHOT: a parting line from an NPC who FLED this turn passes (pre-move snapshot) but a static far speaker still trips', () => {
+    const line = 'Tessa shouts a warning as she bolts away from the well.'; // Tessa is 75 ft NOW (10,25)
+    expect(narrationBreaksScene(map, idx, line, 'Aldric')?.code).toBe('earshot'); // no snapshot → trips (75 ft)
+    const fled = new Map([['npc:tessa', { col: 10, row: 12 }]]); // she was 10 ft from Aldric at turn start, then fled
+    expect(narrationBreaksScene(map, idx, line, 'Aldric', fled)).toBeNull(); // legit: in earshot when she shouted
+  });
   it('MEMBERSHIP: does NOT false-fire on "in the <ambience> NEAR the <building>" (containment must sit on the noun)', () => {
     expect(brk('Hobb Fen waits in the gloom near the forge, arms folded.')).toBeNull(); // outdoors NEAR ≠ inside
     expect(brk('Hobb Fen slips into the forge without a word.')?.code).toBe('membership'); // real containment still fires
