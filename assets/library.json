@@ -31,15 +31,16 @@
         {
           "art": "/assets/dawnlike/terrain/grass1.png",
           "from": {
-            "pack": "DawnLike",
-            "crop": "Objects/Floor.png",
+            "pack": "DawnLike-atlas",
+            "crop": "Dawnlike.png",
             "rect": [
-              192,
-              112,
+              524,
+              45,
               16,
               16
             ]
-          }
+          },
+          "note": "green companion (was a mislabeled grass-edge tile that rendered orange on every grass scene)"
         }
       ],
       "license": "CC-BY-4.0",
