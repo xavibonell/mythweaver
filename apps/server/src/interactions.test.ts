@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { CharacterSheet, GameState, MapObject, SceneDelta, SceneMap } from '@mythweaver/shared';
 import { Engine, createInitialState } from '@mythweaver/engine';
-import { resolveReactions, specForArchetype, type DisturbanceEvent } from './reactions.js';
+import { resolveInteraction, resolveReactions, specForArchetype, type DisturbanceEvent, type Stimulus } from './interactions.js';
 
 // A 20×20 grass village fixture. All ground/walkable, plus ONE roofed shed over cells (5-7)×(5-7) so the
 // zone-occlusion rule has a building to hide a witness behind (roof polygons are authored in 16px tiles:
@@ -205,5 +205,76 @@ describe('Engine.promoteToken — the promotion lane', () => {
     expect(c2.currentHitPoints).toBe(hp0 - 3);
     expect(engine.promoteToken('pc:aldric')).toBeUndefined(); // never promote a PC
     expect(engine.promoteToken('npc:nobody')).toBeUndefined(); // missing token → undefined
+  });
+});
+
+describe('resolveInteraction — the broadcast DRAW lane (P4a: summon / perform)', () => {
+  const summon = (map: SceneMap): Stimulus => ({ kind: 'summon', source: obj(map, 'pc:aldric'), locus: { col: 10, row: 10 } });
+
+  it('a summons pulls the crowd by persona: the knight comes, the keeper holds post, the walled-off and far show nothing', () => {
+    const { engine, map } = makeEngine();
+    const deltas: SceneDelta[] = [];
+    const out = resolveInteraction(engine, map, summon(map), deltas, undefined, 'on');
+    const joined = out.facts.join(' | ');
+    expect(joined).toMatch(/Ser Kael.*(comes over|attention)/); // authority answers the call
+    expect(joined).toMatch(/Hobb.*(post|where they stand)/); // keeper looks up but holds
+    expect(joined).not.toMatch(/Mott/); // inside the shed (alerted) → a draw shows nothing through a wall
+    expect(joined).not.toMatch(/Del/); // beyond earshot → oblivious
+    // Ser Kael physically walked toward the locus (started at 13,10; locus 10,10; stop ring 2)
+    expect(obj(map, 'npc:town-knight').col).toBeLessThan(13);
+    // the keeper did NOT move
+    expect(obj(map, 'npc:store-keeper')).toMatchObject({ col: 8, row: 10 });
+    // rx:* stamped with the draw verbs
+    expect(obj(map, 'npc:town-knight').state?.['rx:verb']).toBe('approach');
+    expect(obj(map, 'npc:store-keeper').state?.['rx:verb']).toBe('hold');
+  });
+
+  it('an already-close commoner turns their attention instead of shuffling a phantom step', () => {
+    const { engine, map } = makeEngine();
+    const out = resolveInteraction(engine, map, summon(map), [], undefined, 'on');
+    // Bram stands 1 tile from the locus — inside every stop ring → no walk, attention fact instead
+    expect(out.facts.find((f) => f.startsWith('Bram'))).toMatch(/already close|attention|stays where/);
+    expect(obj(map, 'npc:bram')).toMatchObject({ col: 10, row: 11 });
+  });
+
+  it('a performance draws the curious but a beast shies from the noise', () => {
+    const dog: MapObject = { id: 'npc:scrap', kind: 'actor', role: 'npc', tag: 'hound', name: 'Scrap', col: 13, row: 13, footprint: { w: 1, h: 1 }, facing: 'down', visible: true } as MapObject;
+    const { engine, map } = makeEngine([dog]);
+    const deltas: SceneDelta[] = [];
+    const out = resolveInteraction(engine, map, { kind: 'perform', source: obj(map, 'pc:aldric'), locus: { col: 10, row: 10 } }, deltas, undefined, 'on');
+    expect(out.facts.find((f) => f.startsWith('Scrap'))).toMatch(/shies away|tenses/);
+    // the dog moved AWAY from the performer (started 13,13 — dist grows)
+    const d0 = Math.hypot(13 - 10, 13 - 10);
+    const s = obj(map, 'npc:scrap');
+    expect(Math.hypot(s.col - 10, s.row - 10)).toBeGreaterThanOrEqual(d0);
+  });
+
+  it('dry mode computes the verdict but moves nothing and stamps nothing', () => {
+    const { engine, map } = makeEngine();
+    const deltas: SceneDelta[] = [];
+    const out = resolveInteraction(engine, map, summon(map), deltas, undefined, 'dry');
+    expect(out.facts.length).toBeGreaterThan(0);
+    expect(deltas.length).toBe(0);
+    expect(obj(map, 'npc:town-knight')).toMatchObject({ col: 13, row: 10 });
+    expect(obj(map, 'npc:town-knight').state?.['rx:verb']).toBeUndefined();
+  });
+
+  it('shares the per-turn reacted set with the threat lane — a summons cannot re-move someone who already reacted', () => {
+    const { engine, map } = makeEngine();
+    const reacted = new Set<string>();
+    resolveReactions(engine, map, ev(map), [], undefined, 'on', reacted); // the strike moves the crowd first
+    const out = resolveInteraction(engine, map, summon(map), [], undefined, 'on', reacted);
+    // Only Bram — the strike's VICTIM, handled directly and so never in the reacted set — may answer;
+    // every crowd member who already scattered/braced stays put.
+    expect(out.facts.every((f) => f.startsWith('Bram'))).toBe(true);
+    expect(out.reactors).toBeLessThanOrEqual(1);
+  });
+
+  it('never leaks the persona taxonomy into a draw fact', () => {
+    const { engine, map } = makeEngine();
+    const out = resolveInteraction(engine, map, summon(map), [], undefined, 'on');
+    for (const f of out.facts) {
+      expect(f).not.toMatch(/\b(commoner|keeper|authority|cleric|beast|monster),\s*(timid|steady|bold|brave|territorial|feral)\b/);
+    }
   });
 });

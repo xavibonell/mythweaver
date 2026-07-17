@@ -1,18 +1,23 @@
-// reactions.ts — the living-world reaction resolver (P3).
+// interactions.ts — the living-world INTERACTION resolver (docs/INTERACTION-LAYER.md).
 //
-// When a PC attacks or menaces someone, the ENGINE — not the narrator — decides how the bystanders
-// answer: it reads each onlooker's disposition (persona.ts) and how clearly they perceived the strike
-// (a witness oracle built from the spatial primitives), walks them on the REAL map via engine.travel,
-// and hands back a set of "verdict facts". The orchestrator injects those facts into the triggering
-// tool result, and the DM narrates ONLY them — the One-World law: the engine owns the movement, the
-// LLM edits/narrates it, it never invents who runs. This is the spine of living-world reactivity;
-// escalation (reinforcements, continuation goals) is P4.
+// One spine for every way a PC's act ripples through the scene: the ENGINE — not the narrator —
+// decides who perceives the act (the witness oracle), how each NPC answers it (persona.ts), and
+// walks them on the REAL map via engine.travel; the DM narrates ONLY the returned verdict facts.
+// The One-World law, generalized: the engine owns the movement, the LLM edits/narrates it, it never
+// invents who runs — or who gathers.
+//
+// Two lanes live here today:
+//   THREAT (P3, resolveReactions) — an attack/menace SCATTERS the crowd (flee/confront/brace/…).
+//   BROADCAST DRAW (P4a, resolveInteraction) — a summons or performance PULLS it (approach/hold),
+//     via appealTo: the appeal is derived from the stimulus kind, never authored by the LLM.
+// Directed-social (commands/requests vs a persona-DC) is the next slice (P4b, directNpc).
 //
 // Everything here is deterministic and degrade-safe: no map, no witnesses, or a thrown primitive all
-// resolve to "no reactions", never a broken turn. Gated behind MYTHWEAVER_REACTIONS in the orchestrator.
+// resolve to "no reactions", never a broken turn. Gated behind MYTHWEAVER_REACTIONS (threat) and
+// MYTHWEAVER_INTERACTIONS (draw) in the orchestrator.
 
 import { distanceFt, hasLineOfSight, spatialIndex, whereIs, type Cell, type Engine, type MonsterSpec } from '@mythweaver/engine';
-import { personaOf, reactTo, type LedgerState, type MapObject, type PerceptionGrade, type Persona, type PersonaArchetype, type ReactionIntent, type SceneDelta, type SceneMap } from '@mythweaver/shared';
+import { appealTo, personaOf, reactTo, type Appeal, type LedgerState, type MapObject, type PerceptionGrade, type Persona, type PersonaArchetype, type ReactionIntent, type SceneDelta, type SceneMap } from '@mythweaver/shared';
 import { EARSHOT_FT, sceneGraph, type SceneGraph } from './scene-graph.js';
 
 /** What happened, resolved to concrete map tokens by the caller (the orchestrator owns id resolution). */
@@ -218,6 +223,124 @@ export function resolveReactions(engine: Engine, map: SceneMap, ev: DisturbanceE
   if (overflow > 0) {
     // Disposition-neutral + no movement claim — the engine did NOT walk these tail onlookers.
     facts.push(`Around the edges of the scene, ${overflow} more ${overflow === 1 ? 'onlooker reacts' : 'onlookers react'} to the violence.`);
+  }
+  return { facts, reactors, overflow, witnesses: ws.length };
+}
+
+// ── P4a: the broadcast DRAW lane (summon / performance) ─────────────────────────────────────────
+
+/** A non-threat broadcast act, resolved to concrete tokens/cells by the caller (orchestrator). */
+export interface Stimulus {
+  /** summon = a call/announcement (appeal: authority); perform = music/spectacle (appeal: curiosity). */
+  kind: 'summon' | 'perform';
+  /** The acting actor (usually a PC). Excluded from the responding crowd. */
+  source: MapObject;
+  /** Where the crowd is being drawn TO — the source's cell, or a named spot ("gather at the well"). */
+  locus: Cell;
+}
+
+/** The appeal is DERIVED from the stimulus kind — never an LLM argument (it would steer who gathers). */
+function appealOf(kind: Stimulus['kind']): Appeal {
+  return kind === 'summon' ? 'authority' : 'curiosity';
+}
+
+/** A walkable outdoor cell ~stopTiles from the locus along the approach line — where a drawn NPC
+ *  pulls up. Walks the line from the locus TOWARD the approacher so the crowd fans out around the
+ *  locus instead of stacking on it. Undefined = no clear cell (they stay put, still narrated). */
+function towardCell(idx: ReturnType<typeof spatialIndex>, map: SceneMap, from: Cell, locus: Cell, stopTiles: number): Cell | undefined {
+  const cols = map.grid.cols, rows = map.grid.rows;
+  let dx = from.col - locus.col, dy = from.row - locus.row;
+  const len = Math.hypot(dx, dy) || 1;
+  if (len <= stopTiles) return undefined; // already close enough — hold where they are
+  dx /= len; dy /= len;
+  for (let step = stopTiles; step <= stopTiles + 3; step++) { // prefer the stop ring, degrade outward
+    const c = Math.round(locus.col + dx * step), r = Math.round(locus.row + dy * step);
+    if (c < 0 || r < 0 || c >= cols || r >= rows) continue;
+    if (map.walkable?.[r]?.[c] === true && !idx.roofAt.has(r * cols + c)) return { col: c, row: r };
+  }
+  return undefined;
+}
+
+/** One plain-English draw-verdict line — honest about whether the token actually moved. */
+function drawFact(o: MapObject, persona: Persona, kind: Stimulus['kind'], verb: 'approach' | 'hold' | 'recoil', moved: boolean, closeEnough: boolean): string {
+  const name = displayName(o) + personaColour(persona);
+  const call = kind === 'summon' ? 'the call' : 'the performance';
+  if (verb === 'approach') {
+    if (moved) return `${name} ${persona.temper === 'timid' ? `drifts warily toward ${call}, keeping some distance` : `comes over toward ${call}`}.`;
+    return closeEnough ? `${name} is already close — they turn and give ${call} their attention.` : `${name} turns toward ${call} but stays where they are.`;
+  }
+  if (verb === 'recoil') return moved ? `${name} shies away from the noise.` : `${name} tenses at the noise, unsettled.`;
+  // hold — a visible non-response IS the reaction (the keeper stays at the stall).
+  return persona.archetype === 'keeper' ? `${name} looks up but stays at their post, watching from where they stand.` : `${name} pays it no mind.`;
+}
+
+/**
+ * Resolve a broadcast draw (P4a): who hears the summons/performance, and who comes. Same contract as
+ * resolveReactions — 'on' MOVES tokens (real walks) + stamps rx:*; 'dry' computes facts only; deltas
+ * ride the caller's sceneDeltas; the returned facts are the ONLY channel the DM narrates crowd
+ * behavior from. One-beat drift only: sustained gathering is the multi-turn goals phase (P4f).
+ */
+export function resolveInteraction(engine: Engine, map: SceneMap, st: Stimulus, sceneDeltas: SceneDelta[], ledger: LedgerState | undefined, mode: 'on' | 'dry', reacted: Set<string> = new Set()): ReactionOutcome {
+  const idx = spatialIndex(map);
+  const g = sceneGraph(map, idx);
+  const appeal = appealOf(st.kind);
+  // Perception is judged from the SOURCE (the shout/music comes from the performer)…
+  const srcCell: Cell = { col: st.source.col, row: st.source.row };
+  const srcZone = whereIs(idx, srcCell).buildingId ?? 'outdoor';
+
+  type W = { o: MapObject; grade: PerceptionGrade; persona: Persona; verb: 'approach' | 'hold' | 'recoil'; approachDist: number; d: number };
+  const ws: W[] = [];
+  for (const o of map.objects) {
+    if (o.kind !== 'actor' || o.visible === false || o.role === 'pc') continue; // PCs answer for themselves
+    if (o.id === st.source.id) continue;
+    if (reacted.has(o.id)) continue; // already reacted to something this turn — don't re-move them
+    const grade = gradeOf(idx, g, srcCell, srcZone, o);
+    if (grade === 'oblivious' || grade === 'alerted') continue; // through a wall, a draw shows nothing this beat
+    const card = ledger ? findCard(ledger, o) : undefined;
+    const persona = personaOf({ id: card?.id ?? o.id, name: o.name, tag: o.tag, role: o.role }, card?.persona);
+    const r = appealTo(appeal, persona, grade);
+    ws.push({ o, grade, persona, verb: r.verb, approachDist: r.approachDist, d: distanceFt(idx, { col: o.col, row: o.row }, st.locus) });
+  }
+  ws.sort((a, b) => a.d - b.d); // nearest respond individually; the far tail aggregates
+
+  const facts: string[] = [];
+  let reactors = 0, overflow = 0;
+  for (const w of ws) {
+    if (reactors >= MAX_REACTORS) { overflow++; reacted.add(w.o.id); continue; }
+    let moved = false;
+    let closeEnough = false;
+    if (mode === 'on') {
+      if (w.verb === 'approach') {
+        const from = { col: w.o.col, row: w.o.row }; // capture BEFORE travel — it mutates w.o in place
+        const dest = towardCell(idx, map, from, st.locus, w.approachDist);
+        closeEnough = !dest && Math.hypot(from.col - st.locus.col, from.row - st.locus.row) <= w.approachDist + 0.5;
+        if (dest) {
+          const v = engine.travel({ actorId: w.o.id, to: dest, mode: 'auto' });
+          if (v.at && (v.at.col !== from.col || v.at.row !== from.row)) {
+            sceneDeltas.push({ op: 'move', id: w.o.id, to: { col: v.at.col, row: v.at.row }, ...(v.pathCells?.length ? { via: v.pathCells } : {}) });
+            moved = true;
+          }
+        }
+      } else if (w.verb === 'recoil') {
+        const from = { col: w.o.col, row: w.o.row };
+        const fc = awayCell(idx, map, from, srcCell, BACK_AWAY_TILES, 1);
+        if (fc) {
+          const v = engine.travel({ actorId: w.o.id, to: { col: fc.col, row: fc.row }, mode: 'auto' });
+          if (v.at && (v.at.col !== from.col || v.at.row !== from.row)) {
+            sceneDeltas.push({ op: 'move', id: w.o.id, to: { col: v.at.col, row: v.at.row }, ...(v.pathCells?.length ? { via: v.pathCells } : {}) });
+            moved = true;
+          }
+        }
+      }
+      const rs = engine.applySceneDeltas([{ op: 'setState', id: w.o.id, state: { 'rx:verb': w.verb, 'rx:grade': w.grade, 'rx:moved': moved } }]);
+      sceneDeltas.push(...rs.applied);
+    }
+    facts.push(drawFact(w.o, w.persona, st.kind, w.verb, moved, closeEnough));
+    reacted.add(w.o.id);
+    reactors++;
+  }
+  if (overflow > 0) {
+    facts.push(`Beyond them, ${overflow} more ${overflow === 1 ? 'onlooker takes' : 'onlookers take'} notice.`);
   }
   return { facts, reactors, overflow, witnesses: ws.length };
 }

@@ -177,6 +177,44 @@ export function reactTo(p: Persona, grade: PerceptionGrade): ReactionIntent {
   }
 }
 
+// ── The DRAW vocabulary (interaction layer P4a) ──────────────────────────────────────────────
+// Threat scatters a crowd (reactTo above); a summons or a performance PULLS one. appealTo is the
+// draw-side sibling: the APPEAL — derived from the stimulus kind by the resolver, never authored
+// by the LLM — is the PRIMARY KEY that pins the default verb; persona/temper only modulate the
+// stop-distance and the hold threshold. If a persona ever needs its own verb per appeal cell, the
+// rejected multiplicative stimulus×persona table has snuck back — stop and redesign (the P4a
+// no-go signal, docs/INTERACTION-LAYER.md §2).
+
+/** Why a broadcast stimulus pulls: authority = a summons/announcement; curiosity = a performance/
+ *  spectacle. (Fear stays on reactTo's threat lane; outrage/greed arrive with later phases.) */
+export type Appeal = 'authority' | 'curiosity';
+
+export interface AppealResponse {
+  /** approach = drift toward the locus; hold = stay put (still a visible reaction); recoil = shy away. */
+  verb: 'approach' | 'hold' | 'recoil';
+  /** Where an approacher stops, in TILES from the locus — bold presses close, timid keeps distance. */
+  approachDist: number;
+}
+
+/**
+ * Map (appeal, persona, perception grade) → a draw response. Pure and deterministic, like reactTo.
+ * 'alerted' (walled off — only caught the noise) and 'oblivious' hold: a broadcast draw produces no
+ * visible reaction through a wall this beat (coming to the door is the multi-turn goals phase).
+ */
+export function appealTo(appeal: Appeal, p: Persona, grade: PerceptionGrade): AppealResponse {
+  if (grade === 'oblivious' || grade === 'alerted') return { verb: 'hold', approachDist: 0 };
+  // Rooted-or-wary archetypes hold regardless of the appeal: a keeper won't abandon the post, a
+  // hostile doesn't join a crowd, and beasts want no part of shouting or music (recoil from the noise).
+  if (p.archetype === 'keeper') return { verb: 'hold', approachDist: 0 };
+  if (p.archetype === 'monster') return { verb: 'hold', approachDist: 0 };
+  if (p.archetype === 'beast') return { verb: 'recoil', approachDist: 0 };
+  // Everyone else approaches — the appeal pins the verb; temper sets only HOW CLOSE they come.
+  // A summons (authority) gathers tighter than a spectacle (curiosity) is watched.
+  const base = appeal === 'authority' ? 2 : 3;
+  const dist = p.temper === 'timid' ? base + 3 : p.temper === 'steady' ? base + 1 : base; // bold/brave press in
+  return { verb: 'approach', approachDist: dist };
+}
+
 /**
  * One-line human render for the canon block / reaction facts, e.g. "keeper, territorial — loyal to
  * the guild, stake: his forge". Returns just "archetype temper" when there's no authored colour.

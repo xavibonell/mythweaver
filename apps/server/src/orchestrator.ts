@@ -41,7 +41,7 @@ const ACTOR_LOOK_HINT = CHARACTERS.map((c) => c.tag).join(', ');
 import { NoopTracer, type Tracer } from './tracing.js';
 import { spatialIndex, distanceFt, whereIs, findPath, hasLineOfSight, travelTime, type SpatialIndex } from '@mythweaver/engine';
 import { deriveBuildings, buildingAsObject, zoneDigest, narrationBreaksScene, arrivalZoneNote } from './scene-graph.js';
-import { resolveReactions, specForArchetype, type DisturbanceEvent } from './reactions.js';
+import { resolveInteraction, resolveReactions, specForArchetype, type DisturbanceEvent, type Stimulus } from './interactions.js';
 export { classifyBuilding, deriveBuildings } from './scene-graph.js'; // re-exported for existing callers/tests
 import type { ExemplarRetriever } from './exemplar-corpus.js';
 import type { ExemplarMoveType } from './exemplar-ingest.js';
@@ -840,6 +840,23 @@ export function buildToolDefs(retrieval: boolean, scene: boolean): ToolDef[] {
         },
       });
     }
+    if (INTERACTIONS !== 'off') {
+      tools.push({
+        name: 'affectScene',
+        description:
+          "Call this when a PC tries to DRAW the scene's attention — shouting an announcement or summons ('everyone, come here!'), or starting a performance (music, juggling, a harmless flashy display). The engine decides who hears it and who comes: the curious drift over, the timid keep their distance, a shopkeeper stays at their post. It returns a REACTION VERDICT — narrate ONLY those returned reactions; you do NOT decide who gathers. Give the acting PC and, if they name a gathering spot ('gather at the well'), that spot's id.",
+        inputSchema: {
+          type: 'object',
+          properties: {
+            kind: { type: 'string', enum: ['summon', 'perform'], description: 'summon = a call/announcement to come; perform = music/spectacle that draws onlookers' },
+            sourceId: { type: 'string', description: 'the PC calling out / performing (id or name)' },
+            locusId: { type: 'string', description: 'optional: the named spot to gather at (a prop/building id); omit to gather on the PC themselves' },
+          },
+          required: ['kind', 'sourceId'],
+          additionalProperties: false,
+        },
+      });
+    }
   }
   return tools;
 }
@@ -864,6 +881,9 @@ const DM_VISION_ON = (process.env.MYTHWEAVER_DM_VISION ?? 'on').toLowerCase() !=
  *  (flee/confront/…) and hands the DM verdict facts to narrate. 'on' moves them; 'dry' computes the
  *  verdict but moves nothing (soak); 'off' disables. Needs the pathfinder, so gated by SPATIAL_ON. */
 const REACTIONS = SPATIAL_ON ? (process.env.MYTHWEAVER_REACTIONS ?? 'on').toLowerCase() : 'off';
+/** Interaction layer P4a (docs/INTERACTION-LAYER.md): the broadcast DRAW — a summons or performance
+ *  PULLS the crowd (affectScene → resolveInteraction). Same tri-state; needs the pathfinder. */
+const INTERACTIONS = SPATIAL_ON ? (process.env.MYTHWEAVER_INTERACTIONS ?? 'on').toLowerCase() : 'off';
 /** Drop image blocks from a message list (pendingTurn persistence — the view is re-renderable, never state). */
 function stripImages(messages: LlmMessage[]): LlmMessage[] {
   return messages.map((m) => {
@@ -1653,7 +1673,7 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
   // (below) — so the DM answers (queryScene + fiction) and hands control back, instead of committing
   // an unasked crossing (e.g. swimming a fighter across deep water because they wondered if they could).
   const answeringOnly = classifySpeechAct(input) === 'ask';
-  if (answeringOnly) tools = tools.filter((t) => t.name !== 'travel' && t.name !== 'declareDisturbance'); // a question never moves tokens or stirs the crowd
+  if (answeringOnly) tools = tools.filter((t) => t.name !== 'travel' && t.name !== 'declareDisturbance' && t.name !== 'affectScene'); // a question never moves tokens or stirs the crowd
   // Bind NPC dialogue to the oracle: if the player addresses a named NPC across a gap, the DM is told
   // the real distance so the reply happens AT that distance (shout/beckon), not at the shoulder.
   const socialNote = SPATIAL_ON ? addresseeSpatialNote(engine, state, input) : '';
@@ -2594,6 +2614,43 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
                       ? "The engine moved these onlookers on the real map — narrate ONLY these reactions as the party sees them. You MAY redirect ONE named, load-bearing NPC via travel/updateScene if the story truly demands it; otherwise invent no other crowd movement."
                       : 'No one nearby witnessed it (out of earshot, or walled off in another building). Narrate the strike itself — the surrounding world does not visibly react this beat.',
                     ...(REACTIONS === 'dry' ? { dryRun: true } : {}),
+                  }),
+                });
+              }
+            }
+          }
+        } catch (e) {
+          resolved.push({ toolUseId: tc.id, content: JSON.stringify({ error: (e as Error).message }) });
+        }
+      } else if (tc.name === 'affectScene') {
+        // Interaction layer P4a: a summons/performance PULLS the crowd — the engine decides who comes.
+        try {
+          const map = currentMap(state);
+          if (!map || INTERACTIONS === 'off') {
+            resolved.push({ toolUseId: tc.id, content: JSON.stringify({ error: 'no scene established' }) });
+          } else {
+            const source = resolveMapObject(engine, map, tc.input.sourceId);
+            if (!source) {
+              resolved.push({ toolUseId: tc.id, content: JSON.stringify({ error: 'source not found on the map — name a character who is present' }) });
+            } else {
+              const kind = (tc.input.kind === 'perform' ? 'perform' : 'summon') as Stimulus['kind'];
+              const key = `affect:${kind}:${source.id}`;
+              if (disturbedThisTurn.has(key)) {
+                resolved.push({ toolUseId: tc.id, content: JSON.stringify({ note: 'this call was already resolved this turn — narrate the reactions you were already given; do not re-declare.' }) });
+              } else {
+                // The locus is where the crowd gathers: a named spot if given, else the caller themselves.
+                const locusObj = tc.input.locusId ? resolveMapObject(engine, map, tc.input.locusId, { col: source.col, row: source.row }) : undefined;
+                const locus = locusObj ? { col: locusObj.col, row: locusObj.row } : { col: source.col, row: source.row };
+                const outcome = resolveInteraction(engine, map, { kind, source, locus }, sceneDeltas, state.ledger, INTERACTIONS === 'dry' ? 'dry' : 'on', reactedThisTurn);
+                disturbedThisTurn.add(key); // consumed only AFTER it resolved (a throw leaves it retryable)
+                resolved.push({
+                  toolUseId: tc.id,
+                  content: JSON.stringify({
+                    reactions: outcome.facts,
+                    note: outcome.facts.length
+                      ? 'The engine moved these onlookers on the real map — narrate ONLY these reactions as the party sees them; invent no other crowd movement. This is a one-beat drift: whether they linger depends on what happens next.'
+                      : 'No one nearby heard it (out of earshot, or indoors behind walls). Narrate the call/performance itself — no one visibly responds this beat.',
+                    ...(INTERACTIONS === 'dry' ? { dryRun: true } : {}),
                   }),
                 });
               }

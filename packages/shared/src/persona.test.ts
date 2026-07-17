@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { personaLine, personaOf, profileOf, reactTo, type Persona } from './persona.js';
+import { appealTo, personaLine, personaOf, profileOf, reactTo, type Persona } from './persona.js';
 
 describe('profileOf — Tier-1 derived persona (role/tag/id, no storage)', () => {
   it('reads a town-guard family as authority (brave)', () => {
@@ -130,6 +130,38 @@ describe('reactTo — (persona, perception grade) → a coordinate-free reaction
     expect(reactTo(commoner('bold'), 'saw').verb).toBe('gawk');
     expect(reactTo(commoner('bold'), 'heard').verb).toBe('back-away'); // can't gawk at what you didn't see
     expect(reactTo(commoner('brave'), 'saw').verb).toBe('confront'); // an authored-brave commoner
+  });
+});
+
+describe('appealTo — the draw vocabulary (P4a): appeal pins the verb, temper only tunes the distance', () => {
+  const commoner = (temper: Persona['temper']): Persona => ({ archetype: 'commoner', temper });
+
+  it('a walled-off or oblivious witness holds — a draw shows nothing through a wall this beat', () => {
+    expect(appealTo('authority', commoner('bold'), 'alerted').verb).toBe('hold');
+    expect(appealTo('curiosity', commoner('bold'), 'oblivious').verb).toBe('hold');
+  });
+
+  it('commoners approach; temper sets only HOW CLOSE (bold presses in, timid keeps distance)', () => {
+    const bold = appealTo('authority', commoner('bold'), 'heard');
+    const steady = appealTo('authority', commoner('steady'), 'heard');
+    const timid = appealTo('authority', commoner('timid'), 'heard');
+    expect([bold.verb, steady.verb, timid.verb]).toEqual(['approach', 'approach', 'approach']); // same verb — no per-persona verbs
+    expect(bold.approachDist).toBeLessThan(steady.approachDist);
+    expect(steady.approachDist).toBeLessThan(timid.approachDist);
+  });
+
+  it('a summons gathers tighter than a spectacle is watched', () => {
+    expect(appealTo('authority', commoner('steady'), 'saw').approachDist).toBeLessThan(appealTo('curiosity', commoner('steady'), 'saw').approachDist);
+  });
+
+  it('rooted/wary archetypes hold or recoil regardless of appeal: keeper holds post, beast shies, hostile ignores', () => {
+    expect(appealTo('authority', { archetype: 'keeper', temper: 'territorial' }, 'saw').verb).toBe('hold');
+    expect(appealTo('curiosity', { archetype: 'beast', temper: 'timid' }, 'heard').verb).toBe('recoil');
+    expect(appealTo('curiosity', { archetype: 'monster', temper: 'feral' }, 'saw').verb).toBe('hold');
+  });
+
+  it('authority figures come (to keep order) — the knight answers a summons', () => {
+    expect(appealTo('authority', { archetype: 'authority', temper: 'brave' }, 'heard').verb).toBe('approach');
   });
 });
 
