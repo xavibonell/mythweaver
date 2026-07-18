@@ -77,20 +77,28 @@ const STORY_SYSTEM = LAB_SYSTEM.replace(
  * the story's cast stands in the rendered scene. Two LLM calls (~$0.05-0.1). This is exactly the
  * routing that later flips the live setScene path — proven here first, visibly.
  */
-export async function labBuildStory(deps: { llm: LlmProvider; model?: string; assetRetriever?: AssetRetriever }, premise: string): Promise<LabResult> {
-  // 1. The DM — the story half: opening narration + the scene declaration.
-  const res = await deps.llm.complete({
+export async function labBuildStory(
+  deps: { dm: LlmProvider; dmModel?: string; scene: LlmProvider; sceneModel?: string; assetRetriever?: AssetRetriever },
+  premise: string,
+): Promise<LabResult> {
+  // 1. The DM (NARRATOR) — opening narration + the scene declaration. Uses the DM model.
+  const res = await deps.dm.complete({
     system: STORY_SYSTEM,
     messages: [{ role: 'user', content: premise }],
     tools: [SET_SCENE_TOOL],
     maxTokens: 1400,
-    ...(deps.model ? { model: deps.model } : {}),
+    ...(deps.dmModel ? { model: deps.dmModel } : {}),
   });
   const tc = res.toolCalls.find((t) => t.name === 'setScene');
   if (!tc) throw new Error('the DM did not call setScene for that premise — try a more concrete opening');
   const stub = { world: { currentLocationId: null, locations: {}, links: [] } } as unknown as GameState;
   const establish = parseEstablish(tc.input as Record<string, unknown>, stub);
-  const { sceneMap, program } = await realizeStoryScene(deps, establish, premise);
+  // 2. The scene PROGRAMMER — a SEPARATE specialized provider (spatial ops JSON is not the DM's job).
+  const { sceneMap, program } = await realizeStoryScene(
+    { llm: deps.scene, ...(deps.sceneModel ? { model: deps.sceneModel } : {}), ...(deps.assetRetriever ? { assetRetriever: deps.assetRetriever } : {}) },
+    establish,
+    premise,
+  );
   return { brief: premise, establish, program, sceneMap, narration: res.text ?? '', model: res.model };
 }
 

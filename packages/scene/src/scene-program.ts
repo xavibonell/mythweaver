@@ -759,21 +759,31 @@ export class LlmSceneProgrammer {
    *  join `brief`, because normalizeProgram regex-harvests the brief as FICTION (completeness nets,
    *  frontier flags, routing, theme): menu text in the brief injects phantom mobs/walls/seas. */
   async compose(brief: string, moodText?: string, kindHint?: SceneKindHint, promptExtra?: string): Promise<SceneProgram> {
-    const res = await this.llm.complete({
-      system: SCENE_PROGRAMMER_SYSTEM,
-      messages: [{ role: 'user', content: promptExtra ? `${brief}\n\n${promptExtra}` : brief }],
-      maxTokens: 1600,
-      ...(this.model ? { model: this.model } : {}),
-    });
-    let raw: unknown = {};
-    try {
+    const content = promptExtra ? `${brief}\n\n${promptExtra}` : brief;
+    const attempt = async (): Promise<{ raw: Record<string, unknown> | null; parseFail?: string }> => {
+      const res = await this.llm.complete({
+        system: SCENE_PROGRAMMER_SYSTEM,
+        messages: [{ role: 'user', content }],
+        maxTokens: 1600,
+        ...(this.model ? { model: this.model } : {}),
+      });
       const m = res.text.match(/\{[\s\S]*\}/);
-      if (m) raw = JSON.parse(m[0]);
-    } catch {
-      raw = {};
-    }
+      if (!m) return { raw: null, parseFail: 'no JSON object in the response' };
+      try { return { raw: JSON.parse(m[0]) as Record<string, unknown> }; }
+      catch (e) { return { raw: null, parseFail: `JSON parse failed (${(e as Error).message})` }; }
+    };
+    // The programmer's emission is the FRAGILE SEAM: an unparseable/truncated response used to become a
+    // silent {} → the scene collapsed to the completeness-net fallback yet LOOKED finished (a default glade).
+    // RETRY ONCE on a hard PARSE FAILURE; a clean-but-empty response isn't retried (it parsed), but EITHER
+    // shortfall is RECORDED, so provenance can never label the net fallback as an authored program.
+    let { raw, parseFail } = await attempt();
+    let retried = false;
+    if (raw === null) { retried = true; const second = await attempt(); raw = second.raw; parseFail = second.parseFail; }
+    const opsN = raw && Array.isArray((raw as { ops?: unknown }).ops) ? (raw as { ops: unknown[] }).ops.length : 0;
     // `moodText` (the player's premise) drives time-of-day, so the DM's flavour prose in the enriched brief
     // can't silently set night/fog. Falls back to the brief for the direct /program path.
-    return normalizeProgram(raw, brief, moodText ?? brief, kindHint);
+    const prog = normalizeProgram(raw ?? {}, brief, moodText ?? brief, kindHint);
+    if (parseFail || opsN === 0) (prog.notes ??= []).push(`programmer: model returned no usable ops (${parseFail ?? 'empty ops array'})${retried ? ', retried once' : ''} → this scene is the COMPLETENESS-NET FALLBACK, not a composed program`);
+    return prog;
   }
 }

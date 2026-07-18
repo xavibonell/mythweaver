@@ -72,6 +72,20 @@ const composer =
     : new LlmSceneComposer(createProvider(dirName, dirModel ? { model: dirModel } : {}), dirModel);
 app.log.info(`Scene Composer: ${dirName}${dirModel ? ` (${dirModel})` : ''}`);
 
+// Scene PROGRAMMER provider — the MODERN generator's brain (the G1 LlmSceneProgrammer that emits scene ops).
+// This must NOT be the DM's model: the DM is a NARRATOR (prose + tool calls), while composing spatial
+// scene-op JSON is a distinct task the DM model does badly (it silently returns unparseable output → the
+// scene collapses to the completeness-net fallback). Default it to the SAME specialized provider chosen for
+// the classic Scene Composer (Gemini) — the model already picked for exactly this spatial job — overridable
+// via MYTHWEAVER_SCENE_PROGRAMMER[_MODEL]. Only when no scene provider is configured (director=fake) does it
+// fall back to the DM provider, preserving prior single-provider behavior.
+const progName = (process.env.MYTHWEAVER_SCENE_PROGRAMMER || dirName).toLowerCase();
+const progModel = process.env.MYTHWEAVER_SCENE_PROGRAMMER_MODEL || (progName === dirName ? dirModel : undefined);
+const sceneReuseDm = progName === 'fake' || progName === '' || progName === 'none';
+const sceneLlm = sceneReuseDm ? llm : createProvider(progName, progModel ? { model: progModel } : {});
+const sceneModel = sceneReuseDm ? dmModel : progModel;
+app.log.info(`Scene programmer: ${sceneReuseDm ? `${dmProvider} (REUSING DM — set MYTHWEAVER_SCENE_PROGRAMMER=gemini for a dedicated spatial model)` : `${progName}${progModel ? ` (${progModel})` : ''}`}`);
+
 // LIVE-PLAY scene engine (wire-in part 3): settlements realize via the MODERN story path (G1 programmer
 // -> archetypes, the audited extraction pipeline) with the classic Composer as decline/failure fallback.
 // Kill-switch: MYTHWEAVER_SCENE_ENGINE=classic.
@@ -87,7 +101,7 @@ const assetRetriever =
 app.log.info(
   `Asset retrieval: ${assetRetriever ? `on (${assetVectors!.rows.length} vectors, ${assetVectors!.model})` : `off (${!assetVectors ? 'no vectors — run npm run assets:embed' : !assetEmbedder ? 'no embedding key' : `model mismatch: vectors=${assetVectors.model} embedder=${assetEmbedder.model} — re-run npm run assets:embed`})`}`,
 );
-const realizeScene = sceneEngineMode === 'classic' ? undefined : buildModernRealizer({ llm, ...(dmModel ? { model: dmModel } : {}), ...(assetRetriever ? { assetRetriever } : {}) });
+const realizeScene = sceneEngineMode === 'classic' ? undefined : buildModernRealizer({ llm: sceneLlm, ...(sceneModel ? { model: sceneModel } : {}), ...(assetRetriever ? { assetRetriever } : {}) });
 app.log.info(`Scene engine: ${realizeScene ? 'modern (all kinds: settlement/interior/wild) + classic fallback' : 'classic'}`);
 
 // Game Director / arc planner (Phase D / D2) — MYTHWEAVER_ARC_PLANNER = llm (default) | fake | off.
@@ -217,7 +231,7 @@ app.post('/scene/story', async (req, reply) => {
   if (!premise) return badRequest(reply, 'premise is required');
   if (premise.length > 1000) return badRequest(reply, 'premise too long (max 1000 chars)');
   try {
-    return await labBuildStory({ llm, model: dmModel, ...(assetRetriever ? { assetRetriever } : {}) }, premise);
+    return await labBuildStory({ dm: llm, ...(dmModel ? { dmModel } : {}), scene: sceneLlm, ...(sceneModel ? { sceneModel } : {}), ...(assetRetriever ? { assetRetriever } : {}) }, premise);
   } catch (err) {
     app.log.error(err, 'scene story failed');
     reply.code(502);
@@ -233,7 +247,7 @@ app.post('/scene/program', async (req, reply) => {
   if (!brief) return badRequest(reply, 'brief is required');
   if (brief.length > 1000) return badRequest(reply, 'brief too long (max 1000 chars)');
   try {
-    return await labBuildProgram({ llm, model: dmModel, ...(assetRetriever ? { assetRetriever } : {}) }, brief);
+    return await labBuildProgram({ llm: sceneLlm, ...(sceneModel ? { model: sceneModel } : {}), ...(assetRetriever ? { assetRetriever } : {}) }, brief);
   } catch (err) {
     app.log.error(err, 'scene program failed');
     reply.code(502);
@@ -723,7 +737,7 @@ app.post('/dm/lab/scene-preview', async (req, reply) => {
   const r = resolvePreviewBeat(req.body);
   if ('error' in r) return badRequest(reply, r.error);
   try {
-    const res = await buildModernRealizer({ llm, ...(dmModel ? { model: dmModel } : {}), ...(assetRetriever ? { assetRetriever } : {}) })(r.establish, [], r.ctx);
+    const res = await buildModernRealizer({ llm: sceneLlm, ...(sceneModel ? { model: sceneModel } : {}), ...(assetRetriever ? { assetRetriever } : {}) })(r.establish, [], r.ctx);
     if (!res) return badRequest(reply, 'the realizer declined');
     const png = renderSceneMapToPng(res.sceneMap, { assetsRoot: new URL('../../web/public', import.meta.url).pathname });
     // The addressable objects, so relation satisfaction is CHECKABLE from the preview (not just eyeballed).
