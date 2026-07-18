@@ -112,11 +112,13 @@ interface RadialMass {
 interface PatchyMass {
   shape: 'patchy';
   coreR?: number;         // central dry clearing fraction (kept open for the camp)         [0.24]
-  poolFreq?: number;      // noise frequency for the water pools                            [0.16]
-  poolThreshold?: number; // noise above this → a water pool                                [0.58]
-  deepThreshold?: number; // noise above this → DEEP water                                  [0.72]
-  treeP?: number;         // stand (mangrove/dead-tree) density on the mossy ground         [0.16]
-  underP?: number;        // understory (fern/vine) density on the ground                   [0.14]
+  poolFreq?: number;      // noise frequency for the impassable blobs                       [0.16]
+  poolThreshold?: number; // noise above this → a blob (water pool · rock outcrop)          [0.58]
+  deepThreshold?: number; // noise above this → the DEEP/dense variant                      [0.72]
+  edgeTerrain?: string;   // the blob's shallow tile (swamp 'shallow_water', desert 'rock') [shallow_water]
+  deepTerrain?: string;   // the blob's deep tile   (swamp 'deep_water',   desert 'rock')   [deep_water]
+  treeP?: number;         // stand density on the open ground (mangroves · cacti)           [0.16]
+  underP?: number;        // understory density on the open ground                          [0.14]
 }
 export interface BiomeSpec {
   ground?: string;                                     // base terrain (falls back to theme.ground)
@@ -127,9 +129,9 @@ export interface BiomeSpec {
   fringe?: { tags: string[]; p: number };              // radial: understory ring · patchy: ground understory
   accent?: { tag: string; p: number; max: number; band: number }; // rare emergent (oak_ancient)
   clusters?: { core: string[]; satellites: string[]; count: number; satP: number; band: [number, number] }; // deadfall
-  poolFringe?: { tags: string[]; p: number };          // patchy: reeds/cattails at the water's edge
-  waterDecor?: { tags: string[]; p: number };          // patchy: lily pads etc ON the water
-  camp?: { trigger: RegExp; tent?: string; fire?: string }; // cast fallback: pitch a camp for a lone NPC
+  poolFringe?: { tags: string[]; p: number };          // patchy: reeds/boulders on the GROUND at a blob's edge
+  poolDecor?: { tags: string[]; p: number };           // patchy: lily pads/boulders ON the blobs (water/rock)
+  camp?: { trigger: RegExp; tent?: string; fire?: string; pad?: string }; // cast fallback + the camp-clearing pad tag (default 'dirt'; e.g. 'snow' so an arctic camp isn't a mud patch)
   decor?: { tags: string[]; count: number };           // a few restrained tufts in the focal clearing
 }
 
@@ -204,12 +206,12 @@ function paintPatchy(cv: Canvas, B: Rect, rf: RadialField, spec: BiomeSpec, m: P
       const d = rf.distOf(c, r), gr = rf.coreAt(c, r);
       if (d < gr) continue; // central dry clearing — kept open for the cast
       const pv = at(c, r);
-      if (pv > poolT) { // a water pool
-        cv.set(c, r, pv > deepT ? 'deep_water' : 'shallow_water', false);
-        if (spec.waterDecor && cv.rng() < spec.waterDecor.p) jitterPlant(cv, c, r, pick(cv, spec.waterDecor.tags), { block: false });
+      if (pv > poolT) { // an impassable blob (a water pool, or a rock outcrop)
+        cv.set(c, r, pv > deepT ? (m.deepTerrain ?? 'deep_water') : (m.edgeTerrain ?? 'shallow_water'), false);
+        if (spec.poolDecor && cv.rng() < spec.poolDecor.p) jitterPlant(cv, c, r, pick(cv, spec.poolDecor.tags), { block: false });
         continue;
       }
-      // mossy ground: reeds at a pool shore, else a sparse mangrove stand, else understory.
+      // open ground: fringe at a blob shore, else a sparse stand, else understory.
       const shore = at(c - 1, r) > poolT || at(c + 1, r) > poolT || at(c, r - 1) > poolT || at(c, r + 1) > poolT;
       if (shore && spec.poolFringe && cv.rng() < spec.poolFringe.p) { jitterPlant(cv, c, r, pick(cv, spec.poolFringe.tags), { block: false }); continue; }
       if (cv.rng() < treeP) jitterPlant(cv, c, r, pickSpecies(cv, standAt(c, r)), { block: true });
@@ -223,8 +225,9 @@ function placeFocalCast(cv: Canvas, ctx: GenContext, spec: BiomeSpec, rf: Radial
   const c: Contents = ctx.contents;
   const ctr = rf.center;
   const spots: Pt[] = [ctr, { c: ctr.c - 1, r: ctr.r - 1 }, { c: ctr.c + 1, r: ctr.r }, { c: ctr.c, r: ctr.r + 1 }, { c: ctr.c + 2, r: ctr.r }, { c: ctr.c - 1, r: ctr.r + 1 }, { c: ctr.c + 1, r: ctr.r - 1 }];
-  // a small dirt/earth pad under the camp so it reads as a made clearing (skip for water-based biomes).
-  if (spec.mass.shape === 'radial') for (const [dc, dr] of [[0, 0], [1, 0], [0, 1], [1, 1], [-1, 0], [0, -1], [2, 0], [1, -1]] as [number, number][]) { const cc = ctr.c + dc, rr = ctr.r + dr; if (cv.inB(cc, rr) && !cv.occ[rr]![cc]) cv.set(cc, rr, 'dirt', true); }
+  // a small pad under the camp so it reads as a made clearing (skip for water-based biomes). The tag is
+  // biome-driven — 'dirt' for a forest campsite, 'snow' for an arctic one (no incongruous mud on the ice).
+  if (spec.mass.shape === 'radial') { const pad = spec.camp?.pad ?? 'dirt'; for (const [dc, dr] of [[0, 0], [1, 0], [0, 1], [1, 1], [-1, 0], [0, -1], [2, 0], [1, -1]] as [number, number][]) { const cc = ctr.c + dc, rr = ctr.r + dr; if (cv.inB(cc, rr) && !cv.occ[rr]![cc]) cv.set(cc, rr, pad, true); } }
 
   c.landmarks.forEach((l, i) => place(cv, { id: `prop:${slug(l.tag, i)}`, tag: l.tag, kind: 'prop', at: spots[i % spots.length] ?? ctr, ...(l.name ? { name: l.name } : {}) }));
   c.npcs.forEach((n, i) => place(cv, { id: `npc:${slug(n.tag, i)}`, tag: n.tag, kind: 'actor', role: 'npc', at: spots[(i + 3) % spots.length] ?? ctr, ...(n.name ? { name: n.name } : {}) }));

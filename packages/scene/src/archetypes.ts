@@ -58,7 +58,7 @@ export interface GenContext {
   locationId: string;
 }
 export type ArchetypeGenerator = (cv: Canvas, ctx: GenContext) => void;
-export type ArchetypeKind = 'town' | 'dungeon' | 'cave' | 'wilderness' | 'coast' | 'forest' | 'swamp';
+export type ArchetypeKind = 'town' | 'dungeon' | 'cave' | 'wilderness' | 'coast' | 'forest' | 'swamp' | 'desert' | 'arctic';
 
 const slug = (s: string, i: number) => (s || 'x').replace(/[^a-z0-9]+/gi, '-').toLowerCase().replace(/^-+|-+$/g, '') + (i ? `-${i}` : '');
 
@@ -598,11 +598,57 @@ const SWAMP_SPEC: BiomeSpec = {
   // out-of-place scar (the forest needs one to carve through its dense treeline; a swamp's open ground doesn't).
   fringe: { tags: ['swamp_fern', 'vine_curtain', 'swamp_gas'], p: 0.5 }, // ground understory (patchy)
   poolFringe: { tags: ['reeds', 'cattails', 'swamp_fern'], p: 0.55 },
-  waterDecor: { tags: ['lily_pad', 'lily_pad', 'lily_pad_flower'], p: 0.16 },
+  poolDecor: { tags: ['lily_pad', 'lily_pad', 'lily_pad_flower'], p: 0.16 },
   camp: { trigger: /tent|fire|camp|hut|raft|dock|hearth/ },
   decor: { tags: ['reeds', 'swamp_gas', 'grass_tuft'], count: 5 },
 };
 const swampGen: ArchetypeGenerator = (cv, ctx) => composeBiome(cv, ctx, SWAMP_SPEC);
+
+/**
+ * DESERT — the `patchy` mass again, but the impassable blobs are ROCK OUTCROPS, not water (proof the patchy
+ * engine isn't water-specific). Open walkable SAND broken by sparse rock mesas, cactus stands (saguaro/barrel)
+ * massed by warped-Voronoi, dry scrub understory, sun-bleached bone vignettes, boulders at the outcrop edges.
+ * No trail — the sand is fully walkable, so the party roams (the composeBiome apron guards the arrival cell).
+ */
+const DESERT_SPEC: BiomeSpec = {
+  ground: 'sand',
+  stands: [
+    { prim: 'cactus_saguaro', min: 'cactus', p: 0.6 },
+    { prim: 'cactus', min: 'cactus_barrel', p: 0.6 },
+    { prim: 'cactus_barrel', min: 'dry_scrub', p: 0.55 },
+  ],
+  mass: { shape: 'patchy', coreR: 0.2, poolFreq: 0.13, poolThreshold: 0.7, deepThreshold: 0.82, edgeTerrain: 'rock', deepTerrain: 'rock', treeP: 0.1, underP: 0.14 },
+  fringe: { tags: ['dry_scrub', 'dry_grass'], p: 0.4 },                 // sparse scrub on the open sand
+  poolFringe: { tags: ['brown_rocks', 'gray_rocks', 'dry_scrub'], p: 0.5 }, // boulders at the outcrop edges
+  poolDecor: { tags: ['brown_rocks', 'gray_rocks'], p: 0.12 },         // boulders ON the rock mesas
+  clusters: { core: ['bones', 'old_bones'], satellites: ['bones_halfburied', 'skull'], count: 2, satP: 0.5, band: [0.45, 0.7] },
+  camp: { trigger: /tent|fire|camp|hearth|oasis/ },
+  decor: { tags: ['dry_grass', 'dry_scrub', 'skull'], count: 5 },
+};
+const desertGen: ArchetypeGenerator = (cv, ctx) => composeBiome(cv, ctx, DESERT_SPEC);
+
+/**
+ * ARCTIC — the `radial` mass again, with a WINTER palette (proof radial isn't green-forest-specific). A snowy
+ * clearing → snow-drift fringe → a dense treeline of snowy/bare conifers, warped-Voronoi stands, ice-boulder
+ * deadfall, an ICE path threading in (the dense treeline walls off the edge, so — like the forest — it needs one).
+ */
+const ARCTIC_SPEC: BiomeSpec = {
+  ground: 'snow',
+  stands: [
+    { prim: 'pine_snowy', min: 'bare_pine', p: 0.85 },
+    { prim: 'pine_snowy_tall', min: 'pine_snowy', p: 0.85 },
+    { prim: 'bare_pine', min: 'blizzard_tree', p: 0.8 },
+    { prim: 'tree_pine', min: 'pine_snowy', p: 0.82 },
+  ],
+  mass: { shape: 'radial', coreR: 0.32, fringeBand: 0.15, ramp: 0.16, clusterBias: 0.34, floorFar: 0.86, floorMid: 0.66 },
+  trail: { tag: 'ice', width: 2 },
+  fringe: { tags: ['snow_drift', 'snow_puff', 'ice_crystal'], p: 0.5 },
+  accent: { tag: 'ice_boulder', p: 0.02, max: 6, band: 0.35 },
+  clusters: { core: ['ice_boulder', 'snow_drift'], satellites: ['ice_crystal', 'ice_spike'], count: 2, satP: 0.5, band: [0.5, 0.68] },
+  camp: { trigger: /tent|fire|camp|hearth|bonfire/, pad: 'snow' }, // a snow campsite, not a mud patch
+  decor: { tags: ['snow_puff', 'snow_drift', 'ice_crystal'], count: 6 },
+};
+const arcticGen: ArchetypeGenerator = (cv, ctx) => composeBiome(cv, ctx, ARCTIC_SPEC);
 
 const coastGen: ArchetypeGenerator = (cv, ctx) => {
   // PLACEHOLDER coast (P3 will replace with an fBm domain-warped shoreline + beach bands). For now: a
@@ -628,5 +674,7 @@ export const GENERATORS: Record<ArchetypeKind, ArchetypeGenerator> = {
   coast: coastGen,
   forest: forestGen,
   swamp: swampGen,
+  desert: desertGen,
+  arctic: arcticGen,
 };
 export const ARCHETYPE_KINDS = Object.keys(GENERATORS) as ArchetypeKind[];
