@@ -638,8 +638,21 @@ export function normalizeProgram(raw: unknown, brief: string, moodText: string =
   // geometry. Same lever as the town route; skipped for water-dominant briefs (a flooded wood keeps its
   // hand-authored water geometry).
   const openWild = kindHint ? kindHint === 'wild' : grammar === 'open-outdoor';
+  // SWAMP (checked before forest — more specific): a wetland is composed by the swamp generator (walkable
+  // mossy ground broken by water pools + mangrove/dead-tree stands + reed shores + lily pads).
+  // Same lever as forest, but NOT gated on dominantWater — a swamp IS water-heavy; the generator owns the
+  // pool composition, so we drop the LLM's water geometry rather than defer to it.
+  const swampish = /\b(swamps?|marsh|marshes|marshland|bogs?|mires?|fens?|fenland|wetlands?|quagmires?|morass|bayou|everglades?)\b/.test(lcb);
+  const routedSwamp = !routedTown && !hasArchetype && openWild && swampish;
+  if (routedSwamp) {
+    const contents = harvestTownContents(ops, lcb);
+    ops.length = 0;
+    ops.push({ op: 'archetype', kind: 'swamp', contents });
+    r.theme = 'swamp'; // a swamp is mossy/green-brown — never let an incidental word grey the floor
+    notes.push(`routed-swamp: LLM geometry dropped; swamp generator composes the wetland (${contents.npcs.length} npc(s) + ${contents.mobs.length} mob group(s) harvested)`);
+  }
   const forestish = /\b(forests?|woods?|woodland|grove|glade|thicket|copse|jungle|rainforest|greenwood|wildwood|the wilds?)\b/.test(lcb);
-  const routedForest = !routedTown && !hasArchetype && !dominantWater && openWild && forestish;
+  const routedForest = !routedTown && !routedSwamp && !hasArchetype && !dominantWater && openWild && forestish;
   if (routedForest) {
     const contents = harvestTownContents(ops, lcb);
     ops.length = 0;
@@ -648,7 +661,7 @@ export function normalizeProgram(raw: unknown, brief: string, moodText: string =
     notes.push(`routed-forest: LLM geometry dropped; forest generator composes the canopy (${contents.npcs.length} npc(s) + ${contents.mobs.length} mob group(s) harvested)`);
   }
   // The completeness nets below only matter for the loose-op path; the archetype op carries its own cast.
-  if (!routedTown && !routedForest && !hasArchetype) {
+  if (!routedTown && !routedForest && !routedSwamp && !hasArchetype) {
     // STRUCTURE-COMPLETENESS NET: an interior/dungeon/cave/maze brief MUST have a structural backbone —
     // if the LLM emitted none (e.g. a "dungeon" as flat fill + scattered monsters), inject the right one
     // so it can never come out a flat field. Inserted BEFORE the first object op (so terrain fills stay

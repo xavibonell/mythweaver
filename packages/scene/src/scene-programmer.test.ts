@@ -45,7 +45,7 @@ describe('LLM scene programmer (G1b) — normalize + compose', () => {
   it('infers actor kind from the id prefix when the model omits kind:actor (the missing-creatures bug)', () => {
     const p = normalizeProgram(
       { ops: [{ op: 'scatter', idBase: 'mob:croc', tags: ['frog'], region: 'all', count: 4 }, { op: 'place', id: 'npc:cultist', tag: 'wizard', at: 'center' }] },
-      'swamp',
+      'a hidden hollow', // a NON-routing brief: this asserts id-prefix kind inference, not wild-routing (a bare 'swamp' now routes to the swamp archetype, collapsing these loose ops)
     );
     const sc = p.ops.find((o) => o.op === 'scatter');
     const pl = p.ops.find((o) => o.op === 'place');
@@ -166,6 +166,30 @@ describe('LLM scene programmer (G1b) — normalize + compose', () => {
     const m = runProgram(p);
     expect(m.objects.filter((o) => o.role === 'mob').length).toBe(6); // all 6 placed (fell back onto the island)
     expect(validateSceneMap(m)).toEqual({ ok: true, violations: [] });
+  });
+
+  it('routes a WETLAND brief to ONE swamp archetype op (the biome-compositor seam generalizes past forest)', () => {
+    // twin of the town/forest routes: harvest the named cast, drop the LLM geometry, let the deterministic
+    // swamp generator compose the wetland. NOT gated on dominantWater — a swamp IS water-heavy.
+    const p = normalizeProgram(
+      { grammar: 'open-outdoor', outdoor: true, ops: [
+        { op: 'fill', region: 'all', tag: 'water' },
+        { op: 'scatter', idBase: 'mob:bog', tags: ['bogwyrm'], kind: 'actor', role: 'mob', region: 'all', count: 3 },
+        { op: 'place', id: 'npc:hermit', tag: 'druid', kind: 'actor', role: 'npc', at: 'center' },
+      ] },
+      'a fetid cypress swamp of black pools and hanging moss, a bog-witch on a hummock',
+    );
+    expect(p.ops.length).toBe(1);
+    const op = p.ops[0]!;
+    expect(op.op).toBe('archetype');
+    if (op.op === 'archetype') {
+      expect(op.kind).toBe('swamp'); // routed to the swamp generator, not left as flat water + scatter
+      expect(op.contents.mobs.length).toBeGreaterThanOrEqual(1); // cast harvested from the dropped ops
+    }
+    expect(p.theme).toBe('swamp'); // never let an incidental word grey the wetland floor
+    const m = runProgram(p);
+    expect(validateSceneMap(m)).toEqual({ ok: true, violations: [] }); // valid + reachable by construction
+    expect(m.objects.some((o) => o.role === 'npc')).toBe(true); // the hermit survived onto the dry clearing
   });
 
   it('is deterministic per brief (same brief → same seed → identical map)', () => {
