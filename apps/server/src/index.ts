@@ -234,7 +234,9 @@ app.post('/scene/story', async (req, reply) => {
     return await labBuildStory({ dm: llm, ...(dmModel ? { dmModel } : {}), scene: sceneLlm, ...(sceneModel ? { sceneModel } : {}), ...(assetRetriever ? { assetRetriever } : {}) }, premise);
   } catch (err) {
     app.log.error(err, 'scene story failed');
-    reply.code(502);
+    // A DM that narrated but never called setScene is a model-COOPERATION miss (retry-able), not an upstream
+    // gateway failure — surface it as 422 so the lab shows the hint, not a scary "502 Bad Gateway".
+    reply.code(/did not call setScene/.test((err as Error).message) ? 422 : 502);
     return { error: (err as Error).message };
   }
 });

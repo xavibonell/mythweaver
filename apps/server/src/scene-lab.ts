@@ -81,15 +81,19 @@ export async function labBuildStory(
   deps: { dm: LlmProvider; dmModel?: string; scene: LlmProvider; sceneModel?: string; assetRetriever?: AssetRetriever },
   premise: string,
 ): Promise<LabResult> {
-  // 1. The DM (NARRATOR) — opening narration + the scene declaration. Uses the DM model.
-  const res = await deps.dm.complete({
+  // 1. The DM (NARRATOR) — opening narration + the scene declaration. The story prompt asks for prose BEFORE
+  // the tool call, so a rich declaration can truncate before setScene fires (and some models are flaky on
+  // tool-calling). RETRY ONCE, with headroom (2200) for the narration + a full tool call, before failing.
+  const dmReq = {
     system: STORY_SYSTEM,
-    messages: [{ role: 'user', content: premise }],
+    messages: [{ role: 'user' as const, content: premise }],
     tools: [SET_SCENE_TOOL],
-    maxTokens: 1400,
+    maxTokens: 2200,
     ...(deps.dmModel ? { model: deps.dmModel } : {}),
-  });
-  const tc = res.toolCalls.find((t) => t.name === 'setScene');
+  };
+  let res = await deps.dm.complete(dmReq);
+  let tc = res.toolCalls.find((t) => t.name === 'setScene');
+  if (!tc) { res = await deps.dm.complete(dmReq); tc = res.toolCalls.find((t) => t.name === 'setScene'); }
   if (!tc) throw new Error('the DM did not call setScene for that premise — try a more concrete opening');
   const stub = { world: { currentLocationId: null, locations: {}, links: [] } } as unknown as GameState;
   const establish = parseEstablish(tc.input as Record<string, unknown>, stub);
