@@ -168,9 +168,9 @@ describe('LLM scene programmer (G1b) — normalize + compose', () => {
     expect(validateSceneMap(m)).toEqual({ ok: true, violations: [] });
   });
 
-  it('routes a WETLAND brief to ONE swamp archetype op (the biome-compositor seam generalizes past forest)', () => {
-    // twin of the town/forest routes: harvest the named cast, drop the LLM geometry, let the deterministic
-    // swamp generator compose the wetland. NOT gated on dominantWater — a swamp IS water-heavy.
+  it('routes a WETLAND brief to a swamp BACKDROP — every authored op KEPT (routing v2)', () => {
+    // the figure/ground split: the biome no longer replaces the program; it is appended as the LAST op and
+    // paints its mass around whatever the program authored. Nothing is harvested, nothing is dropped.
     const p = normalizeProgram(
       { grammar: 'open-outdoor', outdoor: true, ops: [
         { op: 'fill', region: 'all', tag: 'water' },
@@ -179,17 +179,79 @@ describe('LLM scene programmer (G1b) — normalize + compose', () => {
       ] },
       'a fetid cypress swamp of black pools and hanging moss, a bog-witch on a hummock',
     );
-    expect(p.ops.length).toBe(1);
-    const op = p.ops[0]!;
-    expect(op.op).toBe('archetype');
-    if (op.op === 'archetype') {
-      expect(op.kind).toBe('swamp'); // routed to the swamp generator, not left as flat water + scatter
-      expect(op.contents.mobs.length).toBeGreaterThanOrEqual(1); // cast harvested from the dropped ops
+    expect(p.ops.some((o) => o.op === 'fill' && o.tag === 'water')).toBe(true); // authored geometry KEPT
+    expect(p.ops.some((o) => o.op === 'scatter' && 'tags' in o && o.tags.includes('bogwyrm'))).toBe(true);
+    const last = p.ops[p.ops.length - 1]!;
+    expect(last.op).toBe('biome');
+    if (last.op === 'biome') {
+      expect(last.kind).toBe('swamp');
+      expect(last.figure).toBe(true); // dominant authored water = the figure; no default dry-core clearing
     }
     expect(p.theme).toBe('swamp'); // never let an incidental word grey the wetland floor
     const m = runProgram(p);
     expect(validateSceneMap(m)).toEqual({ ok: true, violations: [] }); // valid + reachable by construction
-    expect(m.objects.some((o) => o.role === 'npc')).toBe(true); // the hermit survived onto the dry clearing
+    expect(m.objects.some((o) => o.role === 'npc')).toBe(true); // the hermit survived
+  });
+
+  it('KEEPS an authored path + frozen pool and paints the biome AROUND them (the user\'s exact failure)', () => {
+    // "a straight path crosses west to east, a frozen pool at the centre" — the composition the old
+    // whole-scene routing silently discarded. Now: figure honored, arctic mass fills the leftover ground.
+    const p = normalizeProgram(
+      { grammar: 'open-outdoor', outdoor: true, cols: 40, rows: 26, ops: [
+        { op: 'path', from: 'west', to: 'east', tag: 'dirt' },
+        { op: 'fill', region: { x: 16, y: 4, w: 8, h: 5 }, tag: 'ice' },
+        { op: 'place', id: 'prop:sign', tag: 'signpost', kind: 'prop', at: 'center' },
+      ] },
+      'a glacial pine forest at dusk: deep snow, a straight path crosses the forest west to east, a frozen pool',
+    );
+    expect(p.ops.some((o) => o.op === 'path')).toBe(true); // authored geometry KEPT, not dropped
+    expect(p.ops.some((o) => o.op === 'fill' && o.tag === 'ice')).toBe(true);
+    const last = p.ops[p.ops.length - 1]!;
+    expect(last.op === 'biome' && last.kind === 'arctic' && last.figure === true).toBe(true);
+    const m = runProgram(p);
+    const mr = Math.floor(26 / 2);
+    // the path survives into the MAP: a west→east band of path-material tiles on its row (theme.path = dirt)
+    expect(m.tiles[mr]!.filter((t) => t.startsWith('dirt') || t.startsWith('trail')).length).toBeGreaterThan(25);
+    expect(m.tiles.flat().filter((t) => t.startsWith('ice')).length).toBeGreaterThan(15); // the frozen pool
+    expect(m.ambiance.length).toBeGreaterThan(250); // and the DENSE arctic mass around them
+    expect(validateSceneMap(m)).toEqual({ ok: true, violations: [] });
+  });
+
+  it('authored vegetation SURVIVES the routing (palms at the oasis are intent, not noise)', () => {
+    const p = normalizeProgram(
+      { grammar: 'open-outdoor', outdoor: true, ops: [
+        { op: 'fill', region: { x: 14, y: 9, w: 6, h: 5 }, tag: 'water' },
+        { op: 'scatter', idBase: 'prop:palm', tags: ['palm'], kind: 'prop', region: { x: 12, y: 7, w: 10, h: 9 }, count: 8 },
+      ] },
+      'a scorching desert, an oasis pool ringed by palms',
+    );
+    expect(p.ops.some((o) => o.op === 'scatter' && 'tags' in o && o.tags.includes('palm'))).toBe(true); // NOT stripped
+    const last = p.ops[p.ops.length - 1]!;
+    expect(last.op === 'biome' && last.kind === 'desert').toBe(true);
+    const m = runProgram(p);
+    expect(m.objects.filter((o) => o.tag === 'palm').length).toBeGreaterThanOrEqual(4); // the palms landed (id'd props)
+    expect(validateSceneMap(m)).toEqual({ ok: true, violations: [] });
+  });
+
+  it('a BARE wild brief still gets the default figure (glade + camp fallback) — regression', () => {
+    const p = normalizeProgram(
+      { grammar: 'open-outdoor', outdoor: true, ops: [
+        { op: 'scatter', idBase: 'prop:tree', tags: ['tree'], kind: 'prop', region: 'all', count: 10 },
+        { op: 'place', id: 'npc:hermit', tag: 'ranger', kind: 'actor', role: 'npc', at: 'center' },
+      ] },
+      'a dense oak forest, a hermit at his camp, a prowling wolf pack',
+    );
+    const last = p.ops[p.ops.length - 1]!;
+    expect(last.op === 'biome' && last.kind === 'forest' && last.figure === false).toBe(true); // no authored structure
+    const m = runProgram(p);
+    expect(m.ambiance.filter((a) => a.tag.startsWith('tree') || a.tag === 'birch').length).toBeGreaterThan(200); // the mass
+    // the default figure: an open walkable glade at the centre
+    const mc = Math.floor(m.grid.cols / 2), mr2 = Math.floor(m.grid.rows / 2);
+    let open = 0;
+    for (let dr = -3; dr <= 3; dr++) for (let dc = -3; dc <= 3; dc++) if (m.walkable[mr2 + dr]?.[mc + dc]) open++;
+    expect(open).toBeGreaterThan(20);
+    expect(m.objects.some((o) => o.tag === 'tent')).toBe(true); // camp fallback pitched at the hermit
+    expect(validateSceneMap(m)).toEqual({ ok: true, violations: [] });
   });
 
   it('is deterministic per brief (same brief → same seed → identical map)', () => {

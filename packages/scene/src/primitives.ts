@@ -382,13 +382,19 @@ export function clearing(cv: Canvas, region: Rect): void {
     if (!cv.isFree(c, r)) continue;
     const dx = (c - cx) / maxd, dy = (r - cy) / maxd;
     const dist = Math.sqrt(dx * dx + dy * dy); // 0 = centre, ~1 = edge
+    // AUTHORED EMPTINESS IS A CLAIM: the open centre + bushy fringe are composed negative space — a later
+    // backdrop mass (the `biome` op) must flow around them, and it can only see that through the claim grid
+    // (an untouched grass cell is otherwise indistinguishable from unauthored ground).
+    if (dist < 0.72) cv.stampClaim(c, r, CLAIM_STAGE);
     const prob = dist < 0.5 ? 0 : Math.min(0.9, (dist - 0.5) / 0.55); // open centre, dense toward the edge
     if (cv.rng() >= prob) continue;
     const pool = dist < 0.72 ? FRINGE : CORE; // bushy fringe between clearing and dense wood
     const tag = pool[Math.floor(cv.rng() * pool.length)]!;
     cv.reserve(c, r);
     if (tag.startsWith('tree')) cv.walkable[r]![c] = false; // trees block; bushes stay walkable
-    cv.ambiance.push({ tag, col: c, row: r });
+    // sub-cell jitter (clamped): the treeline reads as organic canopy, not a grid lattice
+    const j = () => (cv.rng() - 0.5) * 0.6;
+    cv.ambiance.push({ tag, col: Math.max(0, Math.min(cv.cols - 1, c + j())), row: Math.max(0, Math.min(cv.rows - 1, r + j())) });
   }
 }
 

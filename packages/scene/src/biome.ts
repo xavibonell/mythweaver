@@ -162,27 +162,101 @@ export function composeBiome(cv: Canvas, ctx: GenContext, spec: BiomeSpec): void
     for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) { const c = ent.c + dc, r = ent.r + dr; if (cv.inB(c, r)) { cv.set(c, r, g, true); cv.occ[r]![c] = true; } }
   }
 
+  const ground = spec.ground ?? ctx.theme.ground;
+  const px: PaintCtx = { figure: false, paintable: (c, r) => cv.tiles[r]![c] === ground && !cv.occ[r]![c] && !cv.claimed(c, r) };
   const standAt = makeStands(cv, B, spec.stands);
-  if (spec.mass.shape === 'patchy') paintPatchy(cv, B, rf, spec, spec.mass, standAt);
-  else paintRadial(cv, B, rf, spec, spec.mass, standAt);
+  if (spec.mass.shape === 'patchy') paintPatchy(cv, B, rf, spec, spec.mass, standAt, px);
+  else paintRadial(cv, B, rf, spec, spec.mass, standAt, px);
 
   if (spec.clusters) scatterClusters(cv, rf, spec.clusters);
   placeFocalCast(cv, ctx, spec, rf);
   entrance(cv, ent, ctx.locationId);
 }
 
+/**
+ * THE BACKDROP PASS — the biome as GROUND, never FIGURE (the authored-intent rule). Appended by the router
+ * as the program's LAST op: paints the biome's mass ONLY over cells the authored ops left free (still on the
+ * base ground, unoccupied, unclaimed, and outside a small breathing apron around actors), flowing around
+ * every path, pool, building, palm-ring and wolf the program placed. It authors NO space of its own — except
+ * the DEFAULT FIGURE (glade + trail + camp fallback + core decor), which applies only when `figure` is false,
+ * i.e. the program authored no spatial structure at all (the bare "a dense forest with a hermit camp" case).
+ */
+export function paintBiomeBackdrop(cv: Canvas, spec: BiomeSpec, o: { figure: boolean; locationId: string; ground?: string }): void {
+  const B: Rect = { x: 0, y: 0, w: cv.cols, h: cv.rows };
+  const base = o.ground ?? 'grass';
+  const ground = spec.ground ?? base;
+  // 1. RESKIN unauthored base ground to the biome's own floor (grass → moss/sand/snow). Terrain tag only —
+  //    walkability and every authored tile stay untouched.
+  if (ground !== base) for (let r = 0; r < cv.rows; r++) for (let c = 0; c < cv.cols; c++) if (cv.tiles[r]![c] === base) cv.tiles[r]![c] = ground;
+
+  const rf = radialField(cv, B, { coreR: spec.mass.coreR });
+
+  // 2. Arrival. An authored program brings its own entrances/paths; the default trail exists only for the
+  //    default figure (a dense radial mass needs a way in). Either way the map always ends with ≥1 entrance.
+  const ent = edgePt(B, 'south');
+  const addEntrance = cv.entrances.length === 0;
+  if (!o.figure && spec.trail) {
+    const want = spec.trail.tag ?? 'trail';
+    const tag = isTerrain(want) ? want : 'dirt';
+    if (!isTerrain(want)) cv.notes.push(`biome: trail tag '${want}' is not a terrain (a boardwalk/path must be a TERRAIN, not a prop) → fell back to 'dirt'`);
+    const trailTo = spec.mass.shape === 'patchy' ? rf.center : { c: Math.round(rf.cx + (ent.c - rf.cx) * 0.4), r: Math.round(rf.cy + (ent.r - rf.cy) * 0.4) };
+    carveTrail(cv, ent, trailTo, { ...spec.trail, tag });
+  } else if (addEntrance) {
+    // no default trail — just guarantee the arrival cell sits on solid ground (a pool may form on the edge)
+    for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) { const c = ent.c + dc, r = ent.r + dr; if (cv.inB(c, r)) { cv.set(c, r, ground, true); cv.occ[r]![c] = true; } }
+  }
+
+  // 3. THE MASS, flowing around everything. The paintable contract: still biome ground + unoccupied +
+  //    unclaimed + outside the actors' 4-neighbour apron (a wolf in the wood gets a pocket, not a cage).
+  const apron = new Set<number>();
+  for (const ob of cv.objects) if (ob.kind === 'actor') for (const [dc, dr] of [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]] as [number, number][]) { const c = ob.col + dc, r = ob.row + dr; if (cv.inB(c, r)) apron.add(r * cv.cols + c); }
+  const px: PaintCtx = { figure: o.figure, paintable: (c, r) => cv.tiles[r]![c] === ground && !cv.occ[r]![c] && !cv.claimed(c, r) && !apron.has(r * cv.cols + c) };
+  const standAt = makeStands(cv, B, spec.stands);
+  if (spec.mass.shape === 'patchy') paintPatchy(cv, B, rf, spec, spec.mass, standAt, px);
+  else paintRadial(cv, B, rf, spec, spec.mass, standAt, px);
+  if (spec.clusters) scatterClusters(cv, rf, spec.clusters);
+
+  // 4. Default-figure comforts only: a camp for a lone NPC (anchored at the PERSON, not the map centre) +
+  //    restrained decor in the open core. An authored program composes its own set-pieces.
+  if (!o.figure) {
+    if (spec.camp) {
+      const npc = cv.objects.find((ob) => ob.role === 'npc');
+      const hasCamp = cv.objects.some((ob) => spec.camp!.trigger.test(ob.tag));
+      if (npc && !hasCamp) {
+        place(cv, { id: 'prop:camp-tent', tag: spec.camp.tent ?? 'tent', kind: 'prop', at: { c: npc.col - 1, r: npc.row - 1 } });
+        place(cv, { id: 'prop:camp-fire', tag: spec.camp.fire ?? 'fire_small', kind: 'prop', at: { c: npc.col + 1, r: npc.row } });
+      }
+    }
+    if (spec.decor) for (let i = 0; i < spec.decor.count; i++) {
+      const c = rf.center.c + Math.round((cv.rng() - 0.5) * 7), r = rf.center.r + Math.round((cv.rng() - 0.5) * 5);
+      if (cv.inB(c, r) && !cv.occ[r]![c] && cv.walkable[r]![c] && rf.distOf(c, r) < rf.coreAt(c, r)) jitterPlant(cv, c, r, pick(cv, spec.decor.tags), { block: false });
+    }
+  }
+  if (addEntrance) entrance(cv, ent, o.locationId);
+}
+
+/** Where the mass may paint + whether the scene has an AUTHORED figure. `paintable` is the whole contract
+ *  between the mass and the rest of the scene: a cell is fair game only if nothing else authored it.
+ *  `figure: true` = the program authored its own structure → NO default glade/core; the mass runs dense
+ *  everywhere it is allowed, and the authored features ARE the negative space. */
+interface PaintCtx { paintable: (c: number, r: number) => boolean; figure: boolean }
+
 // RADIAL (forest): open glade → bushy fringe → a treeline ramping to a solid, never-sparse wall.
-function paintRadial(cv: Canvas, B: Rect, rf: RadialField, spec: BiomeSpec, m: RadialMass, standAt: (c: number, r: number) => Stand): void {
+// In figure mode the glade/fringe vanish (gr = -1 pushes the ramp past its cap) → deep-wood density with
+// organic noise dapples everywhere the paintable contract allows.
+function paintRadial(cv: Canvas, B: Rect, rf: RadialField, spec: BiomeSpec, m: RadialMass, standAt: (c: number, r: number) => Stand, px: PaintCtx): void {
   const fringeBand = m.fringeBand ?? 0.15, ramp = m.ramp ?? 0.16, bias = m.clusterBias ?? 0.34;
   const floorFar = m.floorFar ?? 0.86, floorMid = m.floorMid ?? 0.66;
   const densF = noiseField(cv.cols, cv.rows, 0.13, (cv.seed ^ 0x33cd) >>> 0);
   let accents = 0;
   for (let r = B.y; r < B.y + B.h; r++)
     for (let c = B.x; c < B.x + B.w; c++) {
-      if (cv.occ[r]![c]) continue; // trail
-      const d = rf.distOf(c, r), gr = rf.coreAt(c, r);
-      if (d < gr) continue; // open glade
-      if (d < gr + fringeBand) { if (spec.fringe && cv.rng() < spec.fringe.p) jitterPlant(cv, c, r, pick(cv, spec.fringe.tags), { block: false }); continue; }
+      if (!px.paintable(c, r)) continue; // authored cell (path/pool/building/actor apron) — flow around it
+      const d = rf.distOf(c, r), gr = px.figure ? -1 : rf.coreAt(c, r);
+      if (!px.figure) {
+        if (d < gr) continue; // open glade
+        if (d < gr + fringeBand) { if (spec.fringe && cv.rng() < spec.fringe.p) jitterPlant(cv, c, r, pick(cv, spec.fringe.tags), { block: false }); continue; }
+      }
       let prob = d > 0.9 ? 1 : Math.min(0.97, (d - gr - fringeBand) / ramp);
       prob *= 1 - bias / 2 + densF[r]![c]! * bias;
       prob = Math.max(prob, d > 0.95 ? floorFar : d > 0.7 ? floorMid : 0); // deep mass never sparse
@@ -196,15 +270,16 @@ function paintRadial(cv: Canvas, B: Rect, rf: RadialField, spec: BiomeSpec, m: R
 
 // PATCHY (swamp): a walkable mossy ground broken by noise-carved water pools; sparse stands + reed shores;
 // a central dry clearing (radial core) kept open for the camp. Base ground stays walkable → connected.
-function paintPatchy(cv: Canvas, B: Rect, rf: RadialField, spec: BiomeSpec, m: PatchyMass, standAt: (c: number, r: number) => Stand): void {
+// In figure mode the dry core vanishes — pools/stands run everywhere the paintable contract allows.
+function paintPatchy(cv: Canvas, B: Rect, rf: RadialField, spec: BiomeSpec, m: PatchyMass, standAt: (c: number, r: number) => Stand, px: PaintCtx): void {
   const poolT = m.poolThreshold ?? 0.58, deepT = m.deepThreshold ?? 0.72, treeP = m.treeP ?? 0.16, underP = m.underP ?? 0.14;
   const pf = noiseField(cv.cols, cv.rows, m.poolFreq ?? 0.16, (cv.seed ^ 0x51af) >>> 0);
   const at = (c: number, r: number) => (inRect(B, c, r) ? pf[r]![c]! : 0);
   for (let r = B.y; r < B.y + B.h; r++)
     for (let c = B.x; c < B.x + B.w; c++) {
-      if (cv.occ[r]![c]) continue; // boardwalk
+      if (!px.paintable(c, r)) continue; // authored cell (boardwalk/pool/hut/actor apron) — flow around it
       const d = rf.distOf(c, r), gr = rf.coreAt(c, r);
-      if (d < gr) continue; // central dry clearing — kept open for the cast
+      if (!px.figure && d < gr) continue; // central dry clearing — kept open for the cast
       const pv = at(c, r);
       if (pv > poolT) { // an impassable blob (a water pool, or a rock outcrop)
         cv.set(c, r, pv > deepT ? (m.deepTerrain ?? 'deep_water') : (m.edgeTerrain ?? 'shallow_water'), false);

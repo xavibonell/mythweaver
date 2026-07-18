@@ -11,7 +11,8 @@
 
 import type { LlmProvider } from '@mythweaver/llm';
 import { BIOMES, BUILDING_TYPES, LAYOUT_GRAMMARS, type BuildingType, type LayoutGrammar, type Lighting, type SceneKindHint, type SceneMap } from '@mythweaver/shared';
-import { ARCHETYPE_KINDS, GENERATORS, type ArchetypeKind, type Contents } from './archetypes.js';
+import { ARCHETYPE_KINDS, BIOME_SPECS, GENERATORS, type ArchetypeKind, type BiomeKind, type Contents } from './archetypes.js';
+import { paintBiomeBackdrop } from './biome.js';
 import { isCharacter, isProp, isTerrain } from './catalog.js';
 import { bridge, building, Canvas, bspRooms, cave, clearing, entrance, fill, finalize, island, maze, path, place, plaza, scatter, vignette, VIGNETTE_NAMES, wallRing, type Pt, type Rect } from './primitives.js';
 import { THEMES, themeNameFor, wallBaseOf, type Theme } from './themes.js';
@@ -37,7 +38,12 @@ export type SceneOp =
   | { op: 'entrance'; at: PtSpec }
   /** Run a whole ARCHETYPE GENERATOR over the canvas (the LLM picks the kind + semantic Contents; the
    *  deterministic generator owns the organic layout). Replaces LLM-placed building rects for these. */
-  | { op: 'archetype'; kind: ArchetypeKind; contents: Contents };
+  | { op: 'archetype'; kind: ArchetypeKind; contents: Contents }
+  /** The BIOME BACKDROP (routing v2, the figure/ground split): appended LAST by normalizeProgram for wild
+   *  biome briefs. Paints the biome's mass (stands + jitter + density) ONLY over ground the earlier ops
+   *  left free — every authored path/pool/building survives. `figure:false` = the program authored no
+   *  spatial structure → the biome supplies its default figure (glade + trail + camp). */
+  | { op: 'biome'; kind: BiomeKind; figure?: boolean };
 
 export interface SceneProgram {
   locationId: string;
@@ -99,6 +105,7 @@ function runOp(cv: Canvas, op: SceneOp, locationId: string, theme?: Theme): void
     case 'scatter': scatter(cv, { idBase: op.idBase, tags: op.tags, kind: op.kind, ...(op.role ? { role: op.role } : {}), region: resolveRegion(cv, op.region), count: op.count, ...(op.on ? { on: op.on } : {}) }); break;
     case 'entrance': entrance(cv, resolvePt(cv, op.at), locationId); break;
     case 'archetype': GENERATORS[op.kind](cv, { theme: theme ?? THEMES.village!, contents: op.contents, bounds: { x: 0, y: 0, w: cv.cols, h: cv.rows }, locationId }); break;
+    case 'biome': paintBiomeBackdrop(cv, BIOME_SPECS[op.kind], { figure: op.figure ?? false, locationId, ...(theme ? { ground: theme.ground } : {}) }); break;
   }
 }
 
@@ -468,6 +475,10 @@ function normalizeOp(raw: unknown, seen: Set<string>): SceneOp | null {
       const kind = typeof o.kind === 'string' && (ARCHETYPE_KINDS as string[]).includes(o.kind) ? (o.kind as ArchetypeKind) : 'town';
       return { op: 'archetype', kind, contents: normContents(o.contents) };
     }
+    case 'biome': {
+      const kind = typeof o.kind === 'string' && o.kind in BIOME_SPECS ? (o.kind as BiomeKind) : 'forest';
+      return { op: 'biome', kind, ...(typeof o.figure === 'boolean' ? { figure: o.figure } : {}) };
+    }
     default:
       return null;
   }
@@ -638,39 +649,33 @@ export function normalizeProgram(raw: unknown, brief: string, moodText: string =
   // geometry. Same lever as the town route; skipped for water-dominant briefs (a flooded wood keeps its
   // hand-authored water geometry).
   const openWild = kindHint ? kindHint === 'wild' : grammar === 'open-outdoor';
-  // WILD BIOME ROUTING — an open-outdoor brief that names a biome is composed by that biome's deterministic
-  // generator (figure-ground masses via the biome compositor, NOT LLM fill+scatter). Harvest the named cast,
-  // drop the geometry — the same lever as the town route. Checked MOST-SPECIFIC-FIRST (swamp/arctic/desert
-  // before the generic forest, so "snowy woods" is arctic not a green wood). Swamp is NOT water-gated (a swamp
-  // IS water — its generator owns the pools); the others defer to hand-authored water (a "frozen lake" keeps it).
-  const WILD_ROUTES: { kind: ArchetypeKind; theme: string; waterOK: boolean; re: RegExp }[] = [
-    { kind: 'swamp', theme: 'swamp', waterOK: true, re: /\b(swamps?|marsh|marshes|marshland|bogs?|mires?|fens?|fenland|wetlands?|quagmires?|morass|bayou|everglades?)\b/ },
-    { kind: 'arctic', theme: 'arctic', waterOK: false, re: /\b(arctic|tundra|glaciers?|glacial|snowfields?|snow[- ]?covered|snowy|frostfell|permafrost|taiga|polar|icefields?)\b/ },
-    { kind: 'desert', theme: 'desert', waterOK: false, re: /\b(deserts?|dunes?|badlands?|arid|mesas?|drylands?|scrublands?|sand ?seas?|sandy wastes?)\b/ },
-    { kind: 'forest', theme: 'forest', waterOK: false, re: /\b(forests?|woods?|woodland|grove|glade|thicket|copse|jungle|rainforest|greenwood|wildwood|the wilds?)\b/ },
+  // WILD BIOME ROUTING v2 — the FIGURE/GROUND split (the authored-intent rule). A biome word no longer
+  // routes to a whole-scene template that discards the program: EVERY authored op is KEPT (a path, a frozen
+  // pool, a hut ring, a palm scatter all survive verbatim), and ONE `biome` BACKDROP op is appended (after
+  // the nets, so it runs LAST) — it paints the biome's mass only over the ground the authored ops left free,
+  // flowing around everything. The default figure (glade + trail + camp) applies ONLY when the program
+  // authors no spatial structure of its own. Checked most-specific-first (swamp/arctic/desert before the
+  // generic forest, so "snowy woods" is arctic, not a green wood).
+  const WILD_ROUTES: { kind: BiomeKind; theme: string; re: RegExp }[] = [
+    { kind: 'swamp', theme: 'swamp', re: /\b(swamps?|marsh|marshes|marshland|bogs?|mires?|fens?|fenland|wetlands?|quagmires?|morass|bayou|everglades?)\b/ },
+    { kind: 'arctic', theme: 'arctic', re: /\b(arctic|tundra|glaciers?|glacial|snowfields?|snow[- ]?covered|snowy|frostfell|permafrost|taiga|polar|icefields?)\b/ },
+    { kind: 'desert', theme: 'desert', re: /\b(deserts?|dunes?|badlands?|arid|mesas?|drylands?|scrublands?|sand ?seas?|sandy wastes?)\b/ },
+    { kind: 'forest', theme: 'forest', re: /\b(forests?|woods?|woodland|grove|glade|thicket|copse|jungle|rainforest|greenwood|wildwood|the wilds?)\b/ },
   ];
-  let routedWild = false;
-  if (!routedTown && !hasArchetype && openWild) {
-    for (const route of WILD_ROUTES) {
-      if (!route.re.test(lcb) || (!route.waterOK && dominantWater)) continue;
-      const contents = harvestTownContents(ops, lcb);
-      ops.length = 0;
-      ops.push({ op: 'archetype', kind: route.kind, contents });
-      r.theme = route.theme; // pin the palette so an incidental "stone"/"shrine" word can't grey the biome floor
-      notes.push(`routed-${route.kind}: LLM geometry dropped; the ${route.kind} generator composes the scene (${contents.npcs.length} npc(s) + ${contents.mobs.length} mob group(s) harvested)`);
-      routedWild = true;
-      break;
-    }
-  }
-  // The completeness nets below only matter for the loose-op path; the archetype op carries its own cast.
-  if (!routedTown && !routedWild && !hasArchetype) {
+  const wildRoute = !routedTown && !hasArchetype && openWild ? WILD_ROUTES.find((w) => w.re.test(lcb)) : undefined;
+  if (wildRoute) r.theme = wildRoute.theme; // pin the palette so an incidental "stone"/"shrine" word can't grey the biome floor
+  // Completeness nets: run for every loose-op program INCLUDING wild-routed ones (the backdrop keeps the
+  // authored ops, so brief-named creature/landmark injections still apply). Only a whole-scene archetype
+  // (town, or LLM-emitted) carries its own cast. The interior structure-net is skipped for wild-routed
+  // briefs — a wild biome's structural backbone IS the backdrop, not injected rooms.
+  if (!routedTown && !hasArchetype) {
     // STRUCTURE-COMPLETENESS NET: an interior/dungeon/cave/maze brief MUST have a structural backbone —
     // if the LLM emitted none (e.g. a "dungeon" as flat fill + scattered monsters), inject the right one
     // so it can never come out a flat field. Inserted BEFORE the first object op (so terrain fills stay
     // the base and objects land in the carved structure). Deterministic, no extra LLM call.
     const STRUCT = new Set(['building', 'rooms', 'cave', 'maze']);
     const interiorish = kindHint ? kindHint === 'interior' : grammar === 'enclosed-interior' || /dungeon|crypt|cave|cavern|grotto|temple|vault|lair|tomb|catacomb|fortress|prison|sewer|\bmine\b|warren|labyrinth|maze/.test(lcb);
-    if (interiorish && !ops.some((o) => STRUCT.has(o.op))) {
+    if (!wildRoute && interiorish && !ops.some((o) => STRUCT.has(o.op))) {
       const inject: SceneOp = /labyrinth|maze/.test(lcb) ? { op: 'maze', region: 'all', wall: 'wall', floor: 'flagstone' }
         : /cave|cavern|grotto|\bmine\b|lair|warren|burrow/.test(lcb) ? { op: 'cave', region: 'all', wall: 'rock_wall', floor: 'stone' }
         : { op: 'rooms', region: 'all', count: 6, wall: 'wall', floor: 'flagstone' };
@@ -709,6 +714,15 @@ export function normalizeProgram(raw: unknown, brief: string, moodText: string =
         notes.push(`landmark-net: injected '${tag}' (named in the brief, missing from the program)`);
       }
     }
+  }
+  // The BACKDROP op is appended AFTER the nets so it runs last, over the finished figure. `figure` records
+  // whether the program authored spatial structure of its own — if so, the biome supplies no default glade:
+  // the authored features ARE the negative space and the mass runs dense around them.
+  if (wildRoute) {
+    const FIGURE_OPS = new Set(['path', 'building', 'plaza', 'maze', 'rooms', 'cave', 'island', 'bridge', 'wallRing', 'clearing']);
+    const figure = ops.some((op) => FIGURE_OPS.has(op.op) || (op.op === 'fill' && /water|lava/.test(op.tag)));
+    ops.push({ op: 'biome', kind: wildRoute.kind, figure });
+    notes.push(`routed-${wildRoute.kind}-backdrop: ${ops.length - 1} authored op(s) KEPT; the ${wildRoute.kind} mass fills the leftover ground${figure ? ' around the authored structure' : ' + the default figure (no authored structure)'}`);
   }
   return {
     locationId: 'loc:lab-program',

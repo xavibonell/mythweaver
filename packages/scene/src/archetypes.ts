@@ -650,6 +650,12 @@ const ARCTIC_SPEC: BiomeSpec = {
 };
 const arcticGen: ArchetypeGenerator = (cv, ctx) => composeBiome(cv, ctx, ARCTIC_SPEC);
 
+/** The wild-biome palette/texture specs, exposed for the `biome` BACKDROP op (scene-program routing v2):
+ *  the same data drives both the whole-scene archetype path (compat: LLM-emitted archetype ops, tests) and
+ *  the backdrop pass that flows around authored geometry. */
+export type BiomeKind = 'forest' | 'swamp' | 'desert' | 'arctic';
+export const BIOME_SPECS: Record<BiomeKind, BiomeSpec> = { forest: FOREST_SPEC, swamp: SWAMP_SPEC, desert: DESERT_SPEC, arctic: ARCTIC_SPEC };
+
 const coastGen: ArchetypeGenerator = (cv, ctx) => {
   // PLACEHOLDER coast (P3 will replace with an fBm domain-warped shoreline + beach bands). For now: a
   // water expanse with an organic land blob + a couple of huts, so the seam is complete and valid.
