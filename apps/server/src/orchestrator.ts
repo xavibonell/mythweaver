@@ -41,7 +41,7 @@ const ACTOR_LOOK_HINT = CHARACTERS.map((c) => c.tag).join(', ');
 import { NoopTracer, type Tracer } from './tracing.js';
 import { spatialIndex, distanceFt, whereIs, findPath, hasLineOfSight, travelTime, type SpatialIndex } from '@mythweaver/engine';
 import { deriveBuildings, buildingAsObject, zoneDigest, narrationBreaksScene, arrivalZoneNote } from './scene-graph.js';
-import { assessCommand, cardForToken, clampStanding, commandFact, forbiddenCommand, narrationDefiesCommand, personaForToken, resolveInteraction, resolveReactions, specForArchetype, standingOf, STANDING_ATTR, type CommandAction, type CommandTone, type CommandVerdict, type DisturbanceEvent, type Stimulus } from './interactions.js';
+import { advanceGoals, assessCommand, cardForToken, clampStanding, commandFact, forbiddenCommand, narrationDefiesCommand, personaForToken, resolveInteraction, resolveReactions, specForArchetype, standingOf, STANDING_ATTR, type CommandAction, type CommandTone, type CommandVerdict, type DisturbanceEvent, type Stimulus } from './interactions.js';
 export { classifyBuilding, deriveBuildings } from './scene-graph.js'; // re-exported for existing callers/tests
 import type { ExemplarRetriever } from './exemplar-corpus.js';
 import type { ExemplarMoveType } from './exemplar-ingest.js';
@@ -1978,7 +1978,17 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
         /* style retrieval must never break a turn */
       }
     }
+    // P4f: advance any in-flight multi-turn goals (an alerted keeper coming to the door, reinforcements
+    // running in from off-map) BEFORE assembling the turn — so the state the DM narrates has already
+    // moved and the arrivals ride THIS turn. Engine-owned world motion; runs even on 'ask' turns (it
+    // moves NPCs, never the PC's token). Deltas ride sceneDeltas; positions are captured by preTurnPos below.
+    let meanwhileFacts: string[] = [];
+    if (input.kind === 'message' && (REACTIONS !== 'off' || INTERACTIONS !== 'off')) {
+      try { const gm = currentMap(state); if (gm) meanwhileFacts = advanceGoals(engine, gm, state, sceneDeltas, reactedThisTurn); } catch { /* goals must never break a turn */ }
+    }
+    const meanwhileBlock = meanwhileFacts.length ? `=== MEANWHILE (since the last beat the engine moved these — weave them into your reply; do not move them again) ===\n${meanwhileFacts.map((f) => `- ${f}`).join('\n')}\n\n` : '';
     const turnText =
+      meanwhileBlock +
       gmBlock +
       canon +
       steering +

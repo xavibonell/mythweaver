@@ -122,6 +122,10 @@ engine didn't move (that is TOKEN TRUTH for crowds — see COMBAT and "PEOPLE AR
 SAYS"). You MAY override ONE named, load-bearing NPC when the story truly demands it (the captain holds his
 ground instead of charging) — but do it through `travel`/`updateScene` like any move, never with bare prose.
 If the verdict says no one witnessed it, the world does not visibly react — narrate the blow alone.
+Violence also carries beyond the square: the engine may DISPATCH distant help (a guard, the watch) that
+runs in over the next few beats. You'll see a `=== MEANWHILE ===` block at the top of later turns telling you
+who's approaching, arriving, or has come to a doorway — the engine already moved them; weave those arrivals
+into your reply (and let an arriving guard speak/act), but don't move them yourself or invent extra ones.
 
 ## WHEN A PC DRAWS THE CROWD (summons & spectacle — same law, opposite pull)
 When a PC calls out to the scene ("everyone, gather round!") or starts a performance (music, juggling,

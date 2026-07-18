@@ -16,9 +16,9 @@
 // resolve to "no reactions", never a broken turn. Gated behind MYTHWEAVER_REACTIONS (threat) and
 // MYTHWEAVER_INTERACTIONS (draw) in the orchestrator.
 
-import { distanceFt, hasLineOfSight, spatialIndex, whereIs, type Cell, type Engine, type MonsterSpec } from '@mythweaver/engine';
-import { appealTo, personaOf, reactTo, type Appeal, type LedgerState, type MapObject, type PerceptionGrade, type Persona, type PersonaArchetype, type ReactionIntent, type SceneDelta, type SceneMap } from '@mythweaver/shared';
-import { EARSHOT_FT, sceneGraph, type SceneGraph } from './scene-graph.js';
+import { deriveMoveCaps, distanceFt, findPath, hasLineOfSight, spatialIndex, whereIs, type Cell, type Engine, type MonsterSpec } from '@mythweaver/engine';
+import { appealTo, personaOf, reactTo, type Appeal, type GameState, type LedgerState, type MapObject, type PerceptionGrade, type Persona, type PersonaArchetype, type ReactionIntent, type SceneDelta, type SceneMap } from '@mythweaver/shared';
+import { deriveBuildings, EARSHOT_FT, sceneGraph, type SceneGraph } from './scene-graph.js';
 
 /** What happened, resolved to concrete map tokens by the caller (the orchestrator owns id resolution). */
 export interface DisturbanceEvent {
@@ -224,10 +224,15 @@ export function resolveReactions(engine: Engine, map: SceneMap, ev: DisturbanceE
         }
       }
       // Engine-owned reaction state (the DM's updateScene path strips rx:*; this is the trusted writer).
-      // NOTE (P4): rx:* has no reader yet and no cross-turn sweep — a stale flag is latent until P4 gives
-      // it a lifecycle + consumer. Stamp the HONEST outcome so it never claims a move that didn't happen.
-      const rs = engine.applySceneDeltas([{ op: 'setState', id: w.o.id, state: { 'rx:verb': w.intent.verb, 'rx:grade': w.grade, 'rx:moved': moved, ...(w.intent.goal ? { 'rx:goal': w.intent.goal } : {}) } }]);
+      const rs = engine.applySceneDeltas([{ op: 'setState', id: w.o.id, state: { 'rx:verb': w.intent.verb, 'rx:grade': w.grade, 'rx:moved': moved } }]);
       sceneDeltas.push(...rs.applied);
+      // P4f: an 'emerge' witness (walled off, only alerted) is given a WAYPOINT GOAL to its own doorway —
+      // advanceGoals walks it there next beat and it speaks on arrival. The consumer P3 was missing.
+      if (w.intent.verb === 'emerge') {
+        const zone = g.zoneOf.get(w.o.id) ?? whereIs(idx, { col: w.o.col, row: w.o.row }).buildingId ?? '';
+        const door = deriveBuildings(map, idx).find((b) => b.id === zone);
+        if (door) setGoal(engine, w.o.id, { kind: 'emerge', col: door.col, row: door.row, say: "What's all this, then?", ttl: 2, bornTurn: engine.getState().turnCount ?? 0 }, sceneDeltas);
+      }
     }
     facts.push(reactionFact(w.o, w, ev, moved));
     reacted.add(w.o.id);
@@ -236,6 +241,10 @@ export function resolveReactions(engine: Engine, map: SceneMap, ev: DisturbanceE
   if (overflow > 0) {
     // Disposition-neutral + no movement claim — the engine did NOT walk these tail onlookers.
     facts.push(`Around the edges of the scene, ${overflow} more ${overflow === 1 ? 'onlooker reacts' : 'onlookers react'} to the violence.`);
+  }
+  // P4f: a loud disturbance carries beyond earshot — distant authority is DISPATCHED (walks in over beats).
+  if (mode === 'on' && (ev.kind === 'attack' || ev.kind === 'menace')) {
+    facts.push(...dispatchReinforcements(engine, map, eventCell, ev.aggressor.id, ev.target?.id, ledger, sceneDeltas, reacted));
   }
   return { facts, reactors, overflow, witnesses: ws.length };
 }
@@ -516,4 +525,137 @@ export function narrationDefiesCommand(narration: string, targetName: string | u
   if (obeyed && hasRefuse && !hasObey) return { code: 'command-polarity', want: 'obeyed' };
   if (!obeyed && hasObey && !hasRefuse) return { code: 'command-polarity', want: 'refused' };
   return null;
+}
+
+// ── P4f: multi-turn goals — the world keeps moving between beats ─────────────────────────────────
+// Some reactions don't finish in one beat: a walled-off keeper must come to the door NEXT beat; the
+// distant knight must RUN in over several. Those carry an rx:goal — a DUMB WAYPOINT (invariant 11): a
+// destination cell + one line to say on arrival + a countdown. advanceGoals is a turn-top stateless
+// reducer that walks each goal-carrier ONE round toward its cell, emits an ETA fact, and on arrival
+// emits the line then CLEARS the goal. It never re-perceives, branches, or re-targets — the moment a
+// goal re-evaluates the world, it's a simulated mind, which the design rejects.
+
+const GOAL_KEY = 'rx:goal';
+const MAX_GOAL_AGE = 16; // wall-clock turns after which any goal is stale (the farthest reinforcer arrives in ~10)
+interface Goal { kind: 'emerge' | 'reinforce' | 'gather'; col: number; row: number; say?: string; ttl: number; bornTurn?: number }
+
+/** Stamp a dumb-waypoint goal on a token (engine-owned rx:* state; JSON-encoded since state is flat). */
+export function setGoal(engine: Engine, id: string, goal: Goal, sceneDeltas: SceneDelta[]): void {
+  const rs = engine.applySceneDeltas([{ op: 'setState', id, state: { [GOAL_KEY]: JSON.stringify(goal) } }]);
+  sceneDeltas.push(...rs.applied);
+}
+function readGoal(o: MapObject): Goal | undefined {
+  const g = o.state?.[GOAL_KEY];
+  if (typeof g !== 'string' || !g) return undefined;
+  try { const p = JSON.parse(g) as Goal; return typeof p?.col === 'number' && typeof p?.row === 'number' ? p : undefined; } catch { return undefined; }
+}
+
+/** One round of movement toward a cell, CAPPED by the actor's speed (so a far arrival takes several
+ *  beats, not one teleport). Returns {arrived, at} — arrived when within ~1 tile of the goal. */
+function stepToward(engine: Engine, state: GameState, map: SceneMap, o: MapObject, goal: Cell, sceneDeltas: SceneDelta[]): { arrived: boolean; moved: boolean; remainingFt: number } {
+  const idx = spatialIndex(map);
+  const from: Cell = { col: o.col, row: o.row };
+  const arriveFt = map.grid.feetPerTile * 1.5;
+  if (distanceFt(idx, from, goal) <= arriveFt) return { arrived: true, moved: false, remainingFt: 0 };
+  const caps = deriveMoveCaps(state, o.id);
+  const speedTiles = Math.max(3, Math.round((caps.speedFt || 30) / (map.grid.feetPerTile || 5)));
+  const path = findPath(idx, from, goal, caps);
+  let dest: Cell | undefined;
+  if (path.ok) dest = path.cells.length <= speedTiles + 1 ? goal : path.cells[speedTiles]; // arrive, or one round along
+  else if (path.frontier && (path.frontier.col !== from.col || path.frontier.row !== from.row)) dest = path.frontier;
+  if (!dest) return { arrived: false, moved: false, remainingFt: distanceFt(idx, from, goal) }; // boxed in / no route
+  const v = engine.travel({ actorId: o.id, to: { col: dest.col, row: dest.row }, mode: 'auto' });
+  let moved = false;
+  if (v.at && (v.at.col !== from.col || v.at.row !== from.row)) { sceneDeltas.push({ op: 'move', id: o.id, to: { col: v.at.col, row: v.at.row }, ...(v.pathCells?.length ? { via: v.pathCells } : {}) }); moved = true; }
+  const now = v.at ?? from;
+  return { arrived: distanceFt(idx, now, goal) <= arriveFt, moved, remainingFt: distanceFt(idx, now, goal) };
+}
+
+/**
+ * Turn-top: advance every in-flight goal one round. Runs BEFORE the DM narrates so the world it describes
+ * has already moved; the returned facts are injected as a "MEANWHILE" block. Deltas ride sceneDeltas.
+ * `reacted` (shared with the disturbance resolvers) stops a token that already reacted THIS turn from also
+ * being goal-advanced. Degrade-safe: any bad token is skipped, never a thrown turn.
+ */
+export function advanceGoals(engine: Engine, map: SceneMap, state: GameState, sceneDeltas: SceneDelta[], reacted: Set<string> = new Set()): string[] {
+  const facts: string[] = [];
+  let n = 0;
+  for (const o of map.objects) {
+    if (o.kind !== 'actor' || o.role === 'pc' || o.visible === false) continue;
+    if (reacted.has(o.id)) continue;
+    const goal = readGoal(o);
+    if (!goal) continue;
+    reacted.add(o.id); // ALWAYS claim a goal-carrier (even over the move cap) so a fresh reaction can't double-move it
+    if (n >= MAX_REACTORS) continue; // over the per-beat move budget — advance it next beat, not this one
+    try {
+      const name = displayName(o);
+      // Wall-clock staleness (a goal cannot outlive its scene). turnCount keeps incrementing while the party
+      // is at OTHER locations, but a departed map's goals aren't processed (ttl frozen) — so on RETURN a
+      // long-cold goal would resurrect (the knight walking to where a fight WAS). A present goal always
+      // clears via its ttl within ~10 beats; anything older than the absolute cap is a stale return → drop it.
+      if ((state.turnCount ?? 0) - (goal.bornTurn ?? (state.turnCount ?? 0)) > MAX_GOAL_AGE) { engine.applySceneDeltas([{ op: 'setState', id: o.id, state: { [GOAL_KEY]: '' } }]); n++; continue; }
+      const step = stepToward(engine, state, map, o, { col: goal.col, row: goal.row }, sceneDeltas);
+      const ttl = goal.ttl - 1;
+      if (step.arrived || ttl <= 0) {
+        // Reached (or ran out of patience) → deliver the one line, then the goal DIES.
+        engine.applySceneDeltas([{ op: 'setState', id: o.id, state: { [GOAL_KEY]: '' } }]);
+        if (step.arrived) {
+          // Soft arrival — no HARD engine-quoted line (a quote from an NPC the party's moved away from would
+          // trip the earshot gate); the say is offered as intent the DM voices only if they're close enough.
+          facts.push(goal.kind === 'emerge' ? `${name} comes to the doorway, drawn by the commotion${goal.say ? ` (wanting to ask something like "${goal.say}")` : ''}.`
+            : goal.kind === 'reinforce' ? `${name} reaches the scene and moves to take charge${goal.say ? ` (a stand-down: "${goal.say}")` : ''}.`
+            : `${name} arrives.`);
+        } // ttl-expired-without-arriving = they gave up; say nothing (silent stand-down)
+      } else if (step.moved) {
+        // Still en route AND actually moved — a distance-aware progress beat (never claim motion that didn't happen).
+        engine.applySceneDeltas([{ op: 'setState', id: o.id, state: { [GOAL_KEY]: JSON.stringify({ ...goal, ttl }) } }]);
+        const close = step.remainingFt <= map.grid.feetPerTile * 4;
+        facts.push(goal.kind === 'reinforce'
+          ? (close ? `${name} is nearly here, only a few strides out.` : `${name} is crossing the ground toward the disturbance, coming fast.`)
+          : `${name} moves toward the disturbance.`);
+      } else {
+        // Could not move (boxed in / no route) — stay honest: no progress claim, just let the goal age out.
+        engine.applySceneDeltas([{ op: 'setState', id: o.id, state: { [GOAL_KEY]: JSON.stringify({ ...goal, ttl }) } }]);
+      }
+      n++;
+    } catch { /* a goal must never break the turn */ }
+  }
+  return facts;
+}
+
+/**
+ * Reinforcement dispatch (P4f): a loud disturbance carries beyond earshot — distant AUTHORITY (a knight,
+ * the watch) turns and comes. Gives each nearest such NPC (within alarm range, not already reacting or
+ * goal-bound) a 'reinforce' goal toward the disturbance + a dispatch fact. They walk in over beats via
+ * advanceGoals; this is "the guard comes to help" the reaction layer was always reaching for.
+ */
+const ALARM_FT = 240; // a shout/scream + word-of-mouth carries this far to those who'd respond
+const MAX_REINFORCERS = 2;
+export function dispatchReinforcements(engine: Engine, map: SceneMap, eventCell: Cell, aggressorId: string, targetId: string | undefined, ledger: LedgerState | undefined, sceneDeltas: SceneDelta[], reacted: Set<string>): string[] {
+  const idx = spatialIndex(map);
+  const g = sceneGraph(map, idx);
+  const eventZone = whereIs(idx, eventCell).buildingId ?? 'outdoor';
+  const cands: { o: MapObject; d: number }[] = [];
+  for (const o of map.objects) {
+    if (o.kind !== 'actor' || o.visible === false || o.role === 'pc') continue;
+    if (o.id === aggressorId || o.id === targetId || reacted.has(o.id)) continue;
+    if (readGoal(o)) continue; // already on the way / busy
+    const persona = personaForToken(o, ledger);
+    if (persona.archetype !== 'authority') continue; // only those whose job is to respond
+    const d = distanceFt(idx, { col: o.col, row: o.row }, eventCell);
+    if (d <= EARSHOT_FT) continue; // in-earshot authority already reacted (confront) in resolveReactions
+    // Beyond earshot but within alarm range, AND not walled in the same room as nothing — they hear the alarm.
+    if (d <= ALARM_FT && (g.zoneOf.get(o.id) ?? 'outdoor') === 'outdoor') cands.push({ o, d });
+  }
+  cands.sort((a, b) => a.d - b.d);
+  const facts: string[] = [];
+  for (const { o, d } of cands.slice(0, MAX_REINFORCERS)) {
+    // ttl SCALES with distance (~30 ft/round of travel + 2 beats of slack) so a far reinforcer always has
+    // enough beats to actually ARRIVE — a fixed ttl would strand anyone past ~125 ft "closing" then vanishing.
+    const ttl = Math.ceil(d / 30) + 2;
+    setGoal(engine, o.id, { kind: 'reinforce', col: eventCell.col, row: eventCell.row, say: 'Hold! Stand down!', ttl, bornTurn: engine.getState().turnCount ?? 0 }, sceneDeltas);
+    reacted.add(o.id);
+    facts.push(`Across the way, ${displayName(o)} snaps toward the commotion and breaks into a run — help is coming.`);
+  }
+  return facts;
 }

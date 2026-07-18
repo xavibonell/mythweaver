@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { CharacterSheet, GameState, MapObject, SceneDelta, SceneMap } from '@mythweaver/shared';
 import { Engine, createInitialState } from '@mythweaver/engine';
-import { assessCommand, clampStanding, commandDC, commandFact, forbiddenCommand, narrationDefiesCommand, resolveInteraction, resolveReactions, specForArchetype, standingOf, type DisturbanceEvent, type Stimulus } from './interactions.js';
+import { advanceGoals, assessCommand, clampStanding, commandDC, commandFact, dispatchReinforcements, forbiddenCommand, narrationDefiesCommand, resolveInteraction, resolveReactions, setGoal, specForArchetype, standingOf, type DisturbanceEvent, type Stimulus } from './interactions.js';
 
 // A 20×20 grass village fixture. All ground/walkable, plus ONE roofed shed over cells (5-7)×(5-7) so the
 // zone-occlusion rule has a building to hide a witness behind (roof polygons are authored in 16px tiles:
@@ -392,3 +392,103 @@ describe('P4d standing — a mutable, ledger-owned scalar that feeds the command
     expect(clampStanding(1)).toBe(1);
   });
 });
+
+describe('P4f multi-turn goals — advanceGoals + reinforcement dispatch', () => {
+  const knightAt = (id: string, col: number, row: number): MapObject => ({ id, kind: 'actor', role: 'npc', tag: 'knight', name: id.replace('npc:', ''), col, row, footprint: { w: 1, h: 1 }, facing: 'down', visible: true } as MapObject);
+
+  it('walks a goal-carrier ONE capped round toward its cell and emits an en-route fact (not a teleport)', () => {
+    const far = knightAt('npc:warden', 28, 28);
+    const { engine, state, map } = makeEngine([far]);
+    const deltas: SceneDelta[] = [];
+    setGoal(engine, 'npc:warden', { kind: 'reinforce', col: 10, row: 10, say: 'Hold!', ttl: 4 }, deltas);
+    const d0 = Math.hypot(28 - 10, 28 - 10);
+    const facts = advanceGoals(engine, map, state, deltas, new Set());
+    const w = obj(map, 'npc:warden');
+    const d1 = Math.hypot(w.col - 10, w.row - 10);
+    expect(d1).toBeLessThan(d0); // moved closer
+    expect(d1).toBeGreaterThan(2); // but did NOT teleport all the way (one round, capped by speed)
+    expect(facts.join(' ')).toMatch(/crossing the ground|coming fast|closing|strides/); // a distance-aware ETA beat (far → "crossing the ground", not "a few strides out")
+    expect(w.state?.['rx:goal']).toBeTruthy(); // goal persists (ttl decremented)
+  });
+
+  it('delivers the line and CLEARS the goal on arrival (a dumb waypoint that dies)', () => {
+    const near = knightAt('npc:warden', 11, 10); // one tile from the goal
+    const { engine, state, map } = makeEngine([near]);
+    const deltas: SceneDelta[] = [];
+    setGoal(engine, 'npc:warden', { kind: 'reinforce', col: 10, row: 10, say: 'Stand down!', ttl: 4 }, deltas);
+    const facts = advanceGoals(engine, map, state, deltas, new Set());
+    expect(facts.join(' ')).toMatch(/reaches the scene.*Stand down!/);
+    expect(obj(map, 'npc:warden').state?.['rx:goal']).toBe(''); // goal cleared — it does not persist
+  });
+
+  it('expires a stuck goal after its ttl without inventing an arrival', () => {
+    const far = knightAt('npc:warden', 28, 28);
+    const { engine, state, map } = makeEngine([far]);
+    const deltas: SceneDelta[] = [];
+    setGoal(engine, 'npc:warden', { kind: 'reinforce', col: 10, row: 10, say: 'Hold!', ttl: 1 }, deltas); // last beat
+    const facts = advanceGoals(engine, map, state, deltas, new Set());
+    expect(obj(map, 'npc:warden').state?.['rx:goal']).toBe(''); // ttl hit 0 → cleared
+    expect(facts.join(' ')).not.toMatch(/Hold!/); // gave up en route → no false arrival line
+  });
+
+  it('a goal-advanced token is added to `reacted` so a fresh reaction can not re-move it', () => {
+    const far = knightAt('npc:warden', 28, 28);
+    const { engine, state, map } = makeEngine([far]);
+    const reacted = new Set<string>();
+    setGoal(engine, 'npc:warden', { kind: 'reinforce', col: 10, row: 10, ttl: 4 }, []);
+    advanceGoals(engine, map, state, [], reacted);
+    expect(reacted.has('npc:warden')).toBe(true);
+  });
+
+  it('dispatchReinforcements sends distant AUTHORITY (not commoners) toward the disturbance with a goal', () => {
+    const farKnight = knightAt('npc:warden', 27, 10); // ~85ft from event, beyond earshot, within alarm range
+    const farVillager: MapObject = { id: 'npc:farmer', kind: 'actor', role: 'npc', tag: 'villager', name: 'Cob', col: 27, row: 12, footprint: { w: 1, h: 1 }, facing: 'down', visible: true } as MapObject;
+    const { engine, map } = makeEngine([farKnight, farVillager]);
+    const deltas: SceneDelta[] = [];
+    const facts = dispatchReinforcements(engine, map, { col: 10, row: 11 }, 'pc:aldric', 'npc:bram', undefined, deltas, new Set());
+    expect(obj(map, 'npc:warden').state?.['rx:goal']).toBeTruthy(); // the knight was dispatched
+    expect(obj(map, 'npc:farmer').state?.['rx:goal']).toBeFalsy(); // a farmer is not the watch — not dispatched
+    expect(facts.join(' ')).toMatch(/warden.*(run|coming)/i);
+  });
+
+  it('does not re-dispatch an authority that already has a goal', () => {
+    const farKnight = knightAt('npc:warden', 27, 10);
+    const { engine, map } = makeEngine([farKnight]);
+    setGoal(engine, 'npc:warden', { kind: 'reinforce', col: 5, row: 5, ttl: 4 }, []);
+    const facts = dispatchReinforcements(engine, map, { col: 10, row: 11 }, 'pc:aldric', undefined, undefined, [], new Set());
+    expect(facts.length).toBe(0); // already on the way → not re-sent
+  });
+})
+
+describe('P4f review fixes — ttl scaling, move-honesty, staleness', () => {
+  const knightAt = (id: string, col: number, row: number): MapObject => ({ id, kind: 'actor', role: 'npc', tag: 'knight', name: id.replace('npc:', ''), col, row, footprint: { w: 1, h: 1 }, facing: 'down', visible: true } as MapObject);
+
+  it('reinforcement ttl SCALES with distance so a far responder has beats enough to arrive', () => {
+    const far = knightAt('npc:warden', 27, 10); // ~85ft from the event
+    const { engine, map } = makeEngine([far]);
+    dispatchReinforcements(engine, map, { col: 10, row: 11 }, 'pc:aldric', 'npc:bram', undefined, [], new Set());
+    const g = JSON.parse(obj(map, 'npc:warden').state!['rx:goal'] as string);
+    expect(g.ttl).toBeGreaterThan(4); // distance-scaled, not the old fixed 4
+  });
+
+  it('emits NO progress fact when the goal-carrier could not actually move (honesty: no phantom approach)', () => {
+    const stuck = knightAt('npc:warden', 15, 15);
+    const { engine, state, map } = makeEngine([stuck]);
+    for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) if (dr || dc) map.walkable![15 + dr]![15 + dc] = false; // wall it in
+    setGoal(engine, 'npc:warden', { kind: 'reinforce', col: 10, row: 10, ttl: 4, bornTurn: 0 }, []);
+    state.turnCount = 1;
+    const facts = advanceGoals(engine, map, state, [], new Set());
+    expect(obj(map, 'npc:warden')).toMatchObject({ col: 15, row: 15 }); // boxed in → did not move
+    expect(facts.join(' ')).not.toMatch(/closing|strides|crossing|moves toward/); // and did not CLAIM it moved
+  });
+
+  it('expires a stale goal on return (wall-clock age past the cap), silently', () => {
+    const far = knightAt('npc:warden', 27, 10);
+    const { engine, state, map } = makeEngine([far]);
+    setGoal(engine, 'npc:warden', { kind: 'reinforce', col: 10, row: 11, say: 'Hold!', ttl: 6, bornTurn: 0 }, []);
+    state.turnCount = 30; // the party wandered off and came back 30 turns later
+    const facts = advanceGoals(engine, map, state, [], new Set());
+    expect(obj(map, 'npc:warden').state?.['rx:goal']).toBe(''); // cold goal dropped, not resurrected
+    expect(facts.join(' ')).not.toMatch(/Hold!|reaches the scene/); // no shouting at empty air
+  });
+})
