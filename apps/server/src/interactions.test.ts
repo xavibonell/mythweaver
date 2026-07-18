@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { CharacterSheet, GameState, MapObject, SceneDelta, SceneMap } from '@mythweaver/shared';
 import { Engine, createInitialState } from '@mythweaver/engine';
-import { assessCommand, commandDC, commandFact, forbiddenCommand, narrationDefiesCommand, resolveInteraction, resolveReactions, specForArchetype, standingOf, type DisturbanceEvent, type Stimulus } from './interactions.js';
+import { assessCommand, clampStanding, commandDC, commandFact, forbiddenCommand, narrationDefiesCommand, resolveInteraction, resolveReactions, specForArchetype, standingOf, type DisturbanceEvent, type Stimulus } from './interactions.js';
 
 // A 20×20 grass village fixture. All ground/walkable, plus ONE roofed shed over cells (5-7)×(5-7) so the
 // zone-occlusion rule has a building to hide a witness behind (roof polygons are authored in 16px tiles:
@@ -352,5 +352,43 @@ describe('P4b command logic — assess / DC / forbidden / verdict / polarity', (
     // review-fix: bare demeanor on a feared-into-compliance verdict does NOT false-fire (she IS complying)
     expect(narrationDefiesCommand("Tessa moves off, though she won't take her eyes off you.", 'Tessa', 'feared-into-compliance')).toBeNull();
     expect(narrationDefiesCommand('Tessa complies, wary and defiant.', 'Tessa', 'feared-into-compliance')).toBeNull();
+  });
+});
+
+describe('P4d standing — a mutable, ledger-owned scalar that feeds the command DC', () => {
+  const P = (archetype: any, temper: any, extra: any = {}): any => ({ archetype, temper, ...extra });
+  const ledgerWith = (subject: string, value: string, superseded = false): any => ({
+    entities: {}, plants: {},
+    facts: [{ id: 'fact:1', subject, attribute: 'standing:party', value, turn: 1, source: 'dm', ...(superseded ? { supersededBy: 'fact:2' } : {}) }],
+  });
+
+  it('reads the live standing fact, clamped to the band', () => {
+    expect(standingOf(P('commoner', 'bold'), ledgerWith('npc:tessa', '2'), 'npc:tessa')).toBe(2);
+    expect(standingOf(P('commoner', 'bold'), ledgerWith('npc:tessa', '-9'), 'npc:tessa')).toBe(-3); // clamped
+  });
+
+  it('ignores a superseded fact and falls back to the allegiance seed', () => {
+    // the only fact is superseded → no live standing → seed from allegiance (none → 0)
+    expect(standingOf(P('commoner', 'bold'), ledgerWith('npc:tessa', '2', true), 'npc:tessa')).toBe(0);
+    // seed still honours authored allegiance when no fact applies
+    expect(standingOf(P('commoner', 'steady', { allegiance: 'the party' }), ledgerWith('npc:x', '1', true), 'npc:tessa')).toBe(2);
+  });
+
+  it('with no ledger/cardId, returns the pure allegiance seed (a bare token has no standing)', () => {
+    expect(standingOf(P('commoner', 'bold'))).toBe(0);
+    expect(standingOf(P('monster', 'feral'))).toBe(-2);
+  });
+
+  it('a raised standing lowers the command DC (relationships make people help more readily)', () => {
+    const p = P('commoner', 'bold');
+    const stranger = standingOf(p); // 0
+    const warmed = standingOf(p, ledgerWith('npc:tessa', '2'), 'npc:tessa'); // +2
+    expect(commandDC(p, warmed, { verb: 'operate', anchorId: 'x' }, 0)).toBeLessThan(commandDC(p, stranger, { verb: 'operate', anchorId: 'x' }, 0));
+  });
+
+  it('clampStanding bounds to [-3, 3]', () => {
+    expect(clampStanding(5)).toBe(3);
+    expect(clampStanding(-5)).toBe(-3);
+    expect(clampStanding(1)).toBe(1);
   });
 });

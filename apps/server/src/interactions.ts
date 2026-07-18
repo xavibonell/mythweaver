@@ -90,10 +90,16 @@ function findCard(ledger: LedgerState, o: MapObject): LedgerState['entities'][st
   return undefined;
 }
 
+/** Join a map token to its ledger card (by name) — the stable key for persona seed + standing. Public
+ *  so the command lane can key standing mutations/reads by the card id (a bare token has no standing). */
+export function cardForToken(o: MapObject, ledger: LedgerState | undefined): LedgerState['entities'][string] | undefined {
+  return ledger ? findCard(ledger, o) : undefined;
+}
+
 /** Resolve a map token's persona — join to its ledger card by name for any AUTHORED allegiance/stake
  *  (so standing seeds from it), else derive from role/tag/id. The stable key is the card id when joined. */
 export function personaForToken(o: MapObject, ledger: LedgerState | undefined): Persona {
-  const card = ledger ? findCard(ledger, o) : undefined;
+  const card = cardForToken(o, ledger);
   return personaOf({ id: card?.id ?? o.id, name: o.name, tag: o.tag, role: o.role }, card?.persona);
 }
 
@@ -380,16 +386,37 @@ const TEMPER_MOD: Record<Persona['temper'], number> = { timid: -2, steady: 0, bo
 
 const clampDC = (n: number) => Math.max(5, Math.min(25, Math.round(n)));
 
-/**
- * Seeded standing (P4b is immutable — mutation is P4d): derived from the authored allegiance. A stranger
- * sits at 0; someone sworn to the party bends easily; a hostile archetype resists. −3..+3.
- */
-export function standingOf(persona: Persona): number {
+/** Standing lives on a ledger fact (subject = card id, attribute STANDING_ATTR) so it MUTATES (P4d) yet
+ *  stays engine-owned + audited. Bounded −3..+3. Absent → seeded from the authored allegiance (P4b). */
+export const STANDING_ATTR = 'standing:party';
+export const STANDING_MIN = -3, STANDING_MAX = 3;
+
+/** The seed a fresh NPC starts at, from authored allegiance (a stranger = 0). Used when no fact exists yet. */
+function seedStanding(persona: Persona): number {
   const a = (persona.allegiance ?? '').toLowerCase();
   if (/\b(party|the pcs?|adventurers?)\b/.test(a)) return 2;
   if (persona.archetype === 'monster') return -2;
   if (a) return 1; // some allegiance (the town, a guild) reads as mildly cooperative
   return 0;
+}
+
+/** Read the current standing toward the party: the live standing fact if one has been recorded, else the
+ *  allegiance seed. `cardId` is the ledger-card id (the stable key; a bare map token has no standing). */
+export function standingOf(persona: Persona, ledger?: LedgerState, cardId?: string): number {
+  if (ledger && cardId) {
+    for (const f of ledger.facts) {
+      if (!f.supersededBy && f.subject === cardId && f.attribute === STANDING_ATTR) {
+        const n = Number(f.value);
+        if (Number.isFinite(n)) return Math.max(STANDING_MIN, Math.min(STANDING_MAX, n));
+      }
+    }
+  }
+  return seedStanding(persona);
+}
+
+/** Clamp a proposed new standing to the legal band (the caller records it via engine.recordFact). */
+export function clampStanding(n: number): number {
+  return Math.max(STANDING_MIN, Math.min(STANDING_MAX, Math.round(n)));
 }
 
 /** The passive DC the PC's social check must beat. Pure; clamped to a rollable band. */

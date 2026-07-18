@@ -41,7 +41,7 @@ const ACTOR_LOOK_HINT = CHARACTERS.map((c) => c.tag).join(', ');
 import { NoopTracer, type Tracer } from './tracing.js';
 import { spatialIndex, distanceFt, whereIs, findPath, hasLineOfSight, travelTime, type SpatialIndex } from '@mythweaver/engine';
 import { deriveBuildings, buildingAsObject, zoneDigest, narrationBreaksScene, arrivalZoneNote } from './scene-graph.js';
-import { assessCommand, commandFact, forbiddenCommand, narrationDefiesCommand, personaForToken, resolveInteraction, resolveReactions, specForArchetype, standingOf, type CommandAction, type CommandTone, type CommandVerdict, type DisturbanceEvent, type Stimulus } from './interactions.js';
+import { assessCommand, cardForToken, clampStanding, commandFact, forbiddenCommand, narrationDefiesCommand, personaForToken, resolveInteraction, resolveReactions, specForArchetype, standingOf, STANDING_ATTR, type CommandAction, type CommandTone, type CommandVerdict, type DisturbanceEvent, type Stimulus } from './interactions.js';
 export { classifyBuilding, deriveBuildings } from './scene-graph.js'; // re-exported for existing callers/tests
 import type { ExemplarRetriever } from './exemplar-corpus.js';
 import type { ExemplarMoveType } from './exemplar-ingest.js';
@@ -880,6 +880,21 @@ export function buildToolDefs(retrieval: boolean, scene: boolean): ToolDef[] {
           additionalProperties: false,
         },
       });
+      tools.push({
+        name: 'regardNpc',
+        description:
+          "Call this when a PC does a purely SOCIAL gesture toward a named NPC that has no task attached — thanking them, flattering them, insulting them, or a warm greeting. The engine adjusts how that NPC feels about the party (their standing) and hands you back how they take it. Narrate the returned reaction; the shift is real and will colour how readily they help later. Use directNpc for actual orders; use this for the feeling.",
+        inputSchema: {
+          type: 'object',
+          properties: {
+            sourceId: { type: 'string', description: 'the PC (id or name)' },
+            targetId: { type: 'string', description: 'the NPC (id or name)' },
+            manner: { type: 'string', enum: ['thank', 'flatter', 'greet', 'insult'], description: 'thank/flatter/greet warm them; insult cools them' },
+          },
+          required: ['sourceId', 'targetId', 'manner'],
+          additionalProperties: false,
+        },
+      });
     }
   }
   return tools;
@@ -1402,6 +1417,13 @@ function serializeStateForModel(state: GameState): string {
  * promises), and any free fact being discussed. Capped ~550 tokens. $0, no LLM. This is how a returning
  * NPC keeps its voice and the silver key stays remembered past the 12-line window.
  */
+/** Map a standing scalar (−3..+3) to a narratable word (P4d) — never expose the raw number to the DM. */
+function standingWord(n: number): string {
+  if (!Number.isFinite(n) || n === 0) return '';
+  if (n <= -3) return 'hostile'; if (n === -2) return 'cold'; if (n === -1) return 'wary';
+  if (n >= 3) return 'sworn to you'; if (n === 2) return 'warm'; return 'friendly';
+}
+
 export function canonBlock(state: GameState, context: string): string {
   const L = state.ledger;
   if (!L || (!Object.keys(L.entities).length && !L.facts.length)) return '';
@@ -1423,10 +1445,14 @@ export function canonBlock(state: GameState, context: string): string {
     // Authored persona colour (living-world reactivity, P2) — only when a card carries it, so scenes
     // without authored persona render byte-identically. archetype/temper derive from the id.
     const per = e.persona ? personaLine(personaOf({ id: e.id, name: e.name }, e.persona)) : '';
-    const tail = [voice, per].filter(Boolean).join('; ') || e.notes || '';
+    // P4d: living standing toward the party, rendered as a WORD (never the raw scalar), so the DM
+    // narrates warmth/coldness that persists across turns. Absent → omitted (no default noise).
+    const stFact = e.kind === 'npc' ? live.find((f) => f.subject === e.id && f.attribute === STANDING_ATTR) : undefined;
+    const st = stFact ? standingWord(Number(stFact.value)) : '';
+    const tail = [voice, per, st && `toward you: ${st}`].filter(Boolean).join('; ') || e.notes || '';
     const push = (s: string) => { if (s && budget - s.length > 0) { lines.push(s); budget -= s.length + 1; } };
     push(`- ${e.name} [${e.id}] (${e.status ?? 'active'})${tail ? ` — ${tail}` : ''}`);
-    for (const f of factsFor(e.id)) push(`    · ${f.attribute}: ${f.value}`);
+    for (const f of factsFor(e.id)) if (f.attribute !== STANDING_ATTR) push(`    · ${f.attribute}: ${f.value}`); // standing shown as a word above
   };
 
   // Party block first — the DM should always know who the characters are and weave their backstories.
@@ -1791,6 +1817,10 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
     }
     // P4b: a suspended COMMAND resolves ENGINE-SIDE before the LLM resumes — a passed social check walks
     // the target to the deed (obeyed), a failed one records a refusal. The verdict binds the prose below.
+    // P4d: restore a command verdict resolved on the ORIGINAL turn (a directNpc obey/refuse alongside a
+    // different suspending tool) so the polarity gate below still guards this resume's narration. A
+    // commandContinuation resume (below) overwrites it with its own verdict.
+    if (pending.commandOutcome) commandOutcome = { targetName: pending.commandOutcome.targetName, verdict: pending.commandOutcome.verdict as CommandVerdict };
     let commandFacts: string[] = [];
     if (pending.commandContinuation && result.accepted) {
       const ccn = pending.commandContinuation;
@@ -1809,6 +1839,12 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
               if (v.at && (v.at.col !== from.col || v.at.row !== from.row)) { sceneDeltas.push({ op: 'move', id: target.id, to: { col: v.at.col, row: v.at.row }, ...(v.pathCells?.length ? { via: v.pathCells } : {}) }); moved = true; }
             }
             const verdict: CommandVerdict = ccn.feared ? 'feared-into-compliance' : 'obeyed';
+            // P4d: a threat that lands is fear, not love — set the fears flag + cool their standing by one.
+            if (ccn.feared) {
+              engine.applySceneDeltas([{ op: 'setState', id: target.id, state: { 'rx:fears': true } }]);
+              const card = cardForToken(target, state.ledger);
+              if (card) engine.recordFact({ subject: card.id, attribute: STANDING_ATTR, value: String(clampStanding(standingOf(persona, state.ledger, card.id) - 1)) });
+            }
             commandFacts = [commandFact(target, persona, action, ccn.tone as CommandTone, verdict, moved, ccn.anchorName)];
             commandOutcome = { targetName: ccn.targetName, verdict };
           } else {
@@ -1819,10 +1855,26 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
         }
       } catch { /* command resume must never break the turn */ }
     }
+    // P4c: a suspended PERFORMANCE resolves on the roll — a pass draws the crowd (resolveInteraction),
+    // a fail falls flat (no draw). The Performance check's verdict binds whether the square comes over.
+    let performFacts: string[] | undefined;
+    if (pending.performContinuation && result.accepted) {
+      const pcn = pending.performContinuation;
+      try {
+        const map = currentMap(state);
+        const source = map?.objects.find((o) => o.id === pcn.sourceId);
+        if (source && result.success === true) {
+          const out = resolveInteraction(engine, map!, { kind: 'perform', source, locus: { col: pcn.locusCol, row: pcn.locusRow } }, sceneDeltas, state.ledger, 'on', reactedThisTurn);
+          performFacts = out.facts.length ? out.facts : ['The performance is well-received, but no one is near enough to gather.'];
+        } else {
+          performFacts = ['The performance falls flat — a few glance over, then look away; no one is drawn in.'];
+        }
+      } catch { /* perform resume must never break the turn */ }
+    }
     messages = (pending.history as LlmMessage[]).slice();
     const toolResults: LlmContentBlock[] = [
       ...pending.resolvedToolResults.map((r) => ({ type: 'tool_result' as const, toolUseId: r.toolUseId, content: r.content })),
-      { type: 'tool_result', toolUseId: pending.rollToolUseId, content: JSON.stringify({ ...result, ...(travelFacts.length ? { travel: travelFacts } : {}), ...(commandFacts.length ? { command: commandFacts, note: 'The engine ruled this command AND already enacted it (moving them if they complied) — narrate it exactly; do NOT call travel/updateScene to move them again, and never reverse the verdict.' } : {}) }) },
+      { type: 'tool_result', toolUseId: pending.rollToolUseId, content: JSON.stringify({ ...result, ...(travelFacts.length ? { travel: travelFacts } : {}), ...(commandFacts.length ? { command: commandFacts, note: 'The engine ruled this command AND already enacted it (moving them if they complied) — narrate it exactly; do NOT call travel/updateScene to move them again, and never reverse the verdict.' } : {}), ...(performFacts ? { reactions: performFacts, note: 'Narrate ONLY these — the engine moved (or held) the crowd per the performance check.' } : {}) }) },
     ];
     messages.push({ role: 'user', content: toolResults });
     state.pendingTurn = undefined;
@@ -2040,6 +2092,7 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
     let roll: { toolUseId: string; id: string; expr: string; reason: string; dc?: number } | undefined;
     let travelGate: { actorId: string; toId: string } | undefined; // SPATIAL R2: a travel suspended on a swim gate
     let commandGate: PendingTurn['commandContinuation']; // P4b: a directNpc command that suspended on a social check
+    let performGate: PendingTurn['performContinuation']; // P4c: a performance that suspended on a Performance check
     for (const tc of res.toolCalls) {
       toolCallLog.push(tc.name);
       span.event(`tool:${tc.name}`);
@@ -2708,12 +2761,27 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
             } else {
               const kind = (tc.input.kind === 'perform' ? 'perform' : 'summon') as Stimulus['kind'];
               const key = `affect:${kind}:${source.id}`;
+              // The locus is where the crowd gathers: a named spot if given, else the caller themselves.
+              const locusObj = tc.input.locusId ? resolveMapObject(engine, map, tc.input.locusId, { col: source.col, row: source.row }) : undefined;
+              const locus = locusObj ? { col: locusObj.col, row: locusObj.row } : { col: source.col, row: source.row };
               if (disturbedThisTurn.has(key)) {
                 resolved.push({ toolUseId: tc.id, content: JSON.stringify({ note: 'this call was already resolved this turn — narrate the reactions you were already given; do not re-declare.' }) });
+              } else if (kind === 'perform' && INTERACTIONS === 'on') {
+                // P4c: a performance's QUALITY is a Performance check — suspend; a pass draws the crowd, a
+                // fail falls flat (the draw happens on the resume, so the roll's verdict binds it). If a roll
+                // is ALREADY pending this turn we CANNOT suspend — defer rather than draw ungated (that would
+                // skip the check entirely). Leave the key unset so it's retryable next turn.
+                if (!roll) {
+                  let expr = '1d20';
+                  try { const m = engine.checkModifier({ combatantId: source.id, ability: 'cha', skill: 'performance' as Skill }); expr = `1d20${m >= 0 ? '+' : ''}${m}`; } catch { /* no sheet → flat d20 */ }
+                  const rr = engine.requestRoll({ expr, reason: `${source.name ?? 'the performer'}'s performance draws the square [performance check]`, dc: 12 });
+                  roll = { toolUseId: tc.id, id: rr.id, expr: rr.expr, reason: rr.reason, dc: 12 };
+                  performGate = { sourceId: source.id, locusCol: locus.col, locusRow: locus.row };
+                  disturbedThisTurn.add(key);
+                } else {
+                  resolved.push({ toolUseId: tc.id, content: JSON.stringify({ note: 'Another action this turn already needs a roll — a performance needs its own Performance check; play it out once the pending roll settles.' }) });
+                }
               } else {
-                // The locus is where the crowd gathers: a named spot if given, else the caller themselves.
-                const locusObj = tc.input.locusId ? resolveMapObject(engine, map, tc.input.locusId, { col: source.col, row: source.row }) : undefined;
-                const locus = locusObj ? { col: locusObj.col, row: locusObj.row } : { col: source.col, row: source.row };
                 const outcome = resolveInteraction(engine, map, { kind, source, locus }, sceneDeltas, state.ledger, INTERACTIONS === 'dry' ? 'dry' : 'on', reactedThisTurn);
                 disturbedThisTurn.add(key); // consumed only AFTER it resolved (a throw leaves it retryable)
                 resolved.push({
@@ -2757,6 +2825,7 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
             } else {
               const action: CommandAction = { verb: verb as CommandAction['verb'], ...(anchor ? { anchorId: anchor.id } : {}) };
               const tone = (['order', 'request', 'plea', 'threat'].includes(String(tc.input.tone)) ? tc.input.tone : 'order') as CommandTone;
+              const card = cardForToken(target, state.ledger); // the stable key for standing (carded cast only)
               const persona = personaForToken(target, state.ledger);
               const anchorName = anchor?.name ?? anchor?.tag;
               const sig = `${verb}:${anchor?.id ?? ''}:${tone}`; // ask-signature — invariant 12: refusal sticks per scene
@@ -2771,10 +2840,10 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
                 commandOutcome = { targetName: target.name ?? target.id, verdict: 'refused' };
                 resolved.push({ toolUseId: tc.id, content: JSON.stringify({ verdict: 'refused', command: [commandFact(target, persona, action, tone, 'refused', false, anchorName)], note: 'They already refused this same ask this scene — narrate that they hold to it. Only a materially different approach (a new task, a bribe, a real threat) earns a fresh attempt.' }) });
               } else {
-                const standing = standingOf(persona);
-                const a = assessCommand(persona, standing, action, tone); // authorityBonus (faction) is P4d
+                const standing = standingOf(persona, state.ledger, card?.id); // P4d: reads the MUTATED scalar, not just the seed
+                const a = assessCommand(persona, standing, action, tone); // authorityBonus (faction) is P4d-2
                 if (a.band === 'obey' || a.band === 'refuse') {
-                  const verdict: CommandVerdict = a.band === 'obey' ? 'obeyed' : 'refused';
+                  let verdict: CommandVerdict = a.band === 'obey' ? 'obeyed' : 'refused';
                   let moved = false;
                   if (verdict === 'obeyed' && action.verb !== 'hold' && anchor) {
                     // Travel to the anchor's CELL (a building is a synthetic id absent from map.objects; its
@@ -2783,9 +2852,16 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
                     const v = engine.travel({ actorId: target.id, to: { col: anchor.col, row: anchor.row }, mode: 'auto' });
                     if (v.at && (v.at.col !== from.col || v.at.row !== from.row)) { sceneDeltas.push({ op: 'move', id: target.id, to: { col: v.at.col, row: v.at.row }, ...(v.pathCells?.length ? { via: v.pathCells } : {}) }); moved = true; }
                   }
+                  // P4d mutation: a THREAT that lands is fear, not love — mark it feared, set the fears flag, and
+                  // cool their standing toward the party by one. A refusal sticks (invariant 12).
+                  if (verdict === 'obeyed' && tone === 'threat') {
+                    verdict = 'feared-into-compliance';
+                    engine.applySceneDeltas([{ op: 'setState', id: target.id, state: { 'rx:fears': true } }]);
+                    if (card) engine.recordFact({ subject: card.id, attribute: STANDING_ATTR, value: String(clampStanding(standing - 1)) });
+                  }
                   if (verdict === 'refused') engine.applySceneDeltas([{ op: 'setState', id: target.id, state: { [`cmd-refused:${sig}`]: true } }]); // sticky refusal (invariant 12)
                   commandOutcome = { targetName: target.name ?? target.id, verdict };
-                  resolved.push({ toolUseId: tc.id, content: JSON.stringify({ verdict, command: [commandFact(target, persona, action, tone, verdict, moved, anchorName)], note: verdict === 'obeyed' ? 'The engine ruled this AND already moved them to the deed — narrate it; do NOT call travel/updateScene to move them again, and never reverse the verdict.' : 'The engine ruled this — narrate the refusal; do not have them comply anyway.' }) });
+                  resolved.push({ toolUseId: tc.id, content: JSON.stringify({ verdict, command: [commandFact(target, persona, action, tone, verdict, moved, anchorName)], note: verdict === 'refused' ? 'The engine ruled this — narrate the refusal; do not have them comply anyway.' : 'The engine ruled this AND already moved them to the deed — narrate it; do NOT call travel/updateScene to move them again, and never reverse the verdict.' }) });
                 } else if (!roll) {
                   // The middle band: the PC must pass a social check. Suspend on the same roll machinery.
                   let expr = '1d20';
@@ -2800,6 +2876,45 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
                   resolved.push({ toolUseId: tc.id, content: JSON.stringify({ note: 'Another action this turn already needs a roll — resolve one command at a time; ask again once the pending roll settles.' }) });
                 }
               }
+            }
+          }
+        } catch (e) {
+          resolved.push({ toolUseId: tc.id, content: JSON.stringify({ error: (e as Error).message }) });
+        }
+      } else if (tc.name === 'regardNpc') {
+        // Interaction layer P4d: a social gesture shifts an NPC's standing toward the party (engine-owned).
+        try {
+          const map = currentMap(state);
+          const manner = String(tc.input.manner ?? '');
+          if (!map || INTERACTIONS === 'off') {
+            resolved.push({ toolUseId: tc.id, content: JSON.stringify({ error: 'no scene established' }) });
+          } else if (!['thank', 'flatter', 'greet', 'insult'].includes(manner)) {
+            resolved.push({ toolUseId: tc.id, content: JSON.stringify({ error: 'manner must be thank/flatter/greet/insult' }) });
+          } else {
+            const target = resolveMapObject(engine, map, tc.input.targetId);
+            const card = target ? cardForToken(target, state.ledger) : undefined;
+            if (!target || target.role === 'pc') {
+              resolved.push({ toolUseId: tc.id, content: JSON.stringify({ error: 'name a present NPC (not a PC)' }) });
+            } else if (!card) {
+              // No stable card → no standing to move; a nameless extra takes the gesture without lasting effect.
+              const who = target.name ?? `the ${String(target.tag || 'villager').replace(/_/g, ' ')}`;
+              resolved.push({ toolUseId: tc.id, content: JSON.stringify({ note: `${who} acknowledges it in passing — a nameless bystander forms no lasting bond.` }) });
+            } else {
+              const persona = personaForToken(target, state.ledger);
+              const cur = standingOf(persona, state.ledger, card.id);
+              // Words alone can warm a stranger to friendly (+1) or thanks-for-a-deed to +2, cool anyone toward
+              // −3. A cap is a CEILING a warm gesture stops AT — it must never pull an already-warmer NPC DOWN.
+              const next = manner === 'insult' ? clampStanding(cur - 1)
+                : manner === 'thank' ? (cur >= 2 ? cur : clampStanding(cur + 1))
+                : manner === 'flatter' ? (cur >= 1 ? cur : clampStanding(cur + 1))
+                : cur; // greet: courteous, no shift
+              if (next !== cur) engine.recordFact({ subject: card.id, attribute: STANDING_ATTR, value: String(next) });
+              const nm = target.name ?? card.name;
+              const react = manner === 'insult' ? `${nm} bristles — colder toward you now`
+                : next > cur ? `${nm} warms to you a little`
+                : manner === 'greet' ? `${nm} returns the greeting evenly`
+                : `${nm} takes the words politely, though nothing really shifts`;
+              resolved.push({ toolUseId: tc.id, content: JSON.stringify({ standing: next, command: [`${react}.`], note: 'The engine moved their standing — narrate this feeling; it will colour how readily they help later.' }) });
             }
           }
         } catch (e) {
@@ -2820,6 +2935,8 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
         ...(roll.dc !== undefined ? { rollDc: roll.dc } : {}),
         ...(travelGate ? { travelContinuation: { actorId: travelGate.actorId, toId: travelGate.toId } } : {}),
         ...(commandGate ? { commandContinuation: commandGate } : {}),
+        ...(performGate ? { performContinuation: performGate } : {}),
+        ...(commandOutcome ? { commandOutcome } : {}), // P4d: carry a same-turn command verdict so the resume's polarity gate still fires
         resolvedToolResults: resolved,
         history: stripImages(messages), // a suspended turn persists into GameState — never serialize a ~1MB
         // base64 view into the session (and a PRE-roll snapshot would be stale on resume anyway).

@@ -331,6 +331,13 @@ export interface PendingTurn {
    *  engine either walks the target to the deed (pass → obeyed) or records a refusal (fail), BEFORE the
    *  LLM resumes. Additive; dies with the pendingTurn. `verb`/`anchorId` are the closed DesiredAction. */
   commandContinuation?: { targetId: string; targetName: string; verb: string; anchorId?: string; anchorCol?: number; anchorRow?: number; anchorName?: string; tone: string; sig?: string; feared?: boolean };
+  /** Interaction layer P4c: a PERFORMANCE that suspended on a Performance check — on submitRoll a pass
+   *  draws the crowd (resolveInteraction), a fail falls flat, BEFORE the LLM resumes. Dies with the pendingTurn. */
+  performContinuation?: { sourceId: string; locusCol: number; locusRow: number };
+  /** P4d: a command verdict resolved THIS turn while a DIFFERENT tool suspended — carried so the resume's
+   *  polarity gate still checks the narration against it. `verdict` is a CommandVerdict (string here to keep
+   *  the shared package free of the apps/server enum). */
+  commandOutcome?: { targetName: string; verdict: string };
 }
 
 /** Authored adventure context fed to the DM so it runs the written scenario (GM-facing, not read aloud). */
