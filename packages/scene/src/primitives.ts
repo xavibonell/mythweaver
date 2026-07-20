@@ -200,22 +200,30 @@ export function plaza(cv: Canvas, region: Rect, tag = 'stone'): void {
  * EVERY corridor cell is reachable from every other (no isolated pockets — connectivity by
  * construction, not by post-hoc carve). `wall` is non-walkable; `floor` is walkable.
  */
-export function maze(cv: Canvas, region: Rect, wall = 'wall', floor = 'grass'): void {
+/** A maze BARRIER material: a terrain tag (masonry, hedge, rock) OR a planted MASS (dense trees/cacti —
+ *  the ground stays ground, the cell blocks, a jittered sprite renders). STENCIL ≠ PAINT: the spanning-tree
+ *  carve decides corridor-vs-barrier; the material only decides how barrier cells look — so "a labyrinth
+ *  where only the paths between the TREES are walkable" is the same stencil as a stone maze. */
+export type MazeWall = string | { mass: string[] };
+
+export function maze(cv: Canvas, region: Rect, wall: MazeWall = 'wall', floor = 'grass'): void {
   const R = clampRect(cv, region);
-  for (const { c, r } of cellsOf(R)) cv.set(c, r, wall, false);
+  // PASS 1 — the STENCIL: carve the spanning tree into a boolean grid (true = barrier). Carving before
+  // painting means a mass barrier never plants a sprite on a cell that later becomes corridor.
+  const isWall = Array.from({ length: R.h }, () => Array.from({ length: R.w }, () => true));
   const gw = Math.floor((R.w - 1) / 2); // # of cell-columns
   const gh = Math.floor((R.h - 1) / 2);
   if (gw < 1 || gh < 1) {
     fill(cv, R, floor, true); // too small to maze — just open it
     return;
   }
+  const open = (c: number, r: number) => { isWall[r - R.y]![c - R.x] = false; };
   const cellX = (i: number) => R.x + 1 + 2 * i;
   const cellY = (j: number) => R.y + 1 + 2 * j;
   const seen = Array.from({ length: gh }, () => Array.from({ length: gw }, () => false));
-  const carveCell = (i: number, j: number) => cv.set(cellX(i), cellY(j), floor, true);
   const stack: { i: number; j: number }[] = [{ i: 0, j: 0 }];
   seen[0]![0] = true;
-  carveCell(0, 0);
+  open(cellX(0), cellY(0));
   const DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1]] as const;
   while (stack.length) {
     const cur = stack[stack.length - 1]!;
@@ -229,10 +237,66 @@ export function maze(cv: Canvas, region: Rect, wall = 'wall', floor = 'grass'): 
     const n = nbrs[0]!;
     seen[n.j]![n.i] = true;
     // knock out the wall BETWEEN cur and n, and carve n itself
-    cv.set(cellX(cur.i) + n.di, cellY(cur.j) + n.dj, floor, true);
-    carveCell(n.i, n.j);
+    open(cellX(cur.i) + n.di, cellY(cur.j) + n.dj);
+    open(cellX(n.i), cellY(n.j));
     stack.push({ i: n.i, j: n.j });
   }
+  // PASS 2 — the PAINT. Corridors: floor + a CIRCULATION claim (authored emptiness — a later backdrop mass
+  // must not plant into the carved ways). Barriers: terrain material sets the tile; a MASS material keeps
+  // the ground tile, blocks the cell, and plants a jittered sprite (dominant first species + minority mix).
+  for (const { c, r } of cellsOf(R)) {
+    if (!isWall[r - R.y]![c - R.x]) {
+      cv.set(c, r, floor, true);
+      cv.stampClaim(c, r, CLAIM_CIRCULATION);
+      continue;
+    }
+    if (typeof wall === 'string') {
+      cv.set(c, r, wall, false);
+    } else {
+      cv.set(c, r, floor, false);
+      cv.reserve(c, r);
+      const tags = wall.mass.length ? wall.mass : ['tree'];
+      const tag = cv.rng() < 0.65 ? tags[0]! : tags[Math.floor(cv.rng() * tags.length)]!;
+      const j = () => (cv.rng() - 0.5) * 0.6;
+      cv.ambiance.push({ tag, col: Math.max(0, Math.min(cv.cols - 1, c + j())), row: Math.max(0, Math.min(cv.rows - 1, r + j())) });
+    }
+  }
+}
+
+/**
+ * A PORTAL — a THRESHOLD as a first-class feature (the missing category behind "the entrance of a cave"
+ * rendering as a lone stairs arrow). Composes the whole idea: for a cave/mine, a small ROCK FACE with a
+ * dark MOUTH prop set into it; for a gate/stairs, the fixture alone; always a walkable APPROACH in front
+ * and a real map Entrance there (it leads somewhere). Rock + mouth are claimed STAGE, the approach
+ * APPROACH — a later backdrop mass flows around the whole composition.
+ */
+export function portal(cv: Canvas, at: Pt, opts: { kind?: 'cave' | 'mine' | 'gate' | 'stairs'; id: string; locationId: string; name?: string }): void {
+  const kind = opts.kind ?? 'cave';
+  // clamp so the rock face + approach fit in-bounds
+  const c = Math.max(2, Math.min(cv.cols - 3, at.c));
+  const r = Math.max(kind === 'cave' || kind === 'mine' ? 2 : 1, Math.min(cv.rows - 3, at.r));
+  if (kind === 'cave' || kind === 'mine') {
+    // the rock face: a knuckle of hillside the mouth is set into
+    const rock: [number, number][] = [
+      [c - 2, r - 1], [c - 1, r - 1], [c, r - 1], [c + 1, r - 1], [c + 2, r - 1],
+      [c - 1, r - 2], [c, r - 2], [c + 1, r - 2],
+      [c - 1, r], [c + 1, r],
+    ];
+    for (const [rc, rr] of rock) if (cv.inB(rc, rr)) { cv.set(rc, rr, 'rock', false); cv.stampClaim(rc, rr, CLAIM_STAGE); }
+  }
+  // the MOUTH cell: clean ground so the fixture sits true, then the threshold prop itself
+  cv.set(c, r, cv.tileAt(c, r + 1) && terrainWalkable(cv.tileAt(c, r + 1)!) ? cv.tileAt(c, r + 1)! : 'dirt', true);
+  cv.occ[r]![c] = false;
+  cv.stampClaim(c, r, CLAIM_STAGE);
+  const tag = kind === 'gate' ? 'gate_wood' : kind === 'stairs' ? 'stairs_stone' : 'mine_entrance';
+  place(cv, { id: opts.id, tag, kind: 'prop', at: { c, r }, ...(opts.name ? { name: opts.name } : {}) });
+  // the APPROACH: guaranteed walkable ground in front + the real Entrance (the threshold LEADS somewhere)
+  for (const [ac, ar] of [[c, r + 1], [c, r + 2]] as [number, number][]) {
+    if (!cv.inB(ac, ar)) continue;
+    if (!cv.isWalk(ac, ar)) cv.set(ac, ar, 'dirt', true);
+    cv.stampClaim(ac, ar, CLAIM_APPROACH);
+  }
+  if (cv.inB(c, r + 1)) entrance(cv, { c, r: r + 1 }, opts.locationId);
 }
 
 /**

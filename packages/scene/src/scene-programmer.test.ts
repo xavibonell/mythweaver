@@ -233,6 +233,49 @@ describe('LLM scene programmer (G1b) — normalize + compose', () => {
     expect(validateSceneMap(m)).toEqual({ ok: true, violations: [] });
   });
 
+  it('a FOREST maze renders walls of TREES, not masonry (stencil ≠ paint)', () => {
+    // "only the paths between the trees are walkable" — the brief class that used to render furnished
+    // building walls: the maze STENCIL is material-free; a wild theme paints its barrier as tree mass.
+    const m = runProgram({
+      locationId: 'loc:t-maze', cols: 41, rows: 27, seed: 5, biome: 'forest', lighting: 'day',
+      grammar: 'open-outdoor', outdoor: true, theme: 'forest',
+      ops: [{ op: 'maze', region: 'all' }, { op: 'path', from: 'west', to: 'center', tag: 'dirt' }, { op: 'entrance', at: 'west' }],
+    });
+    expect(m.tiles.flat().some((t) => t.startsWith('wall'))).toBe(false); // NO masonry anywhere
+    const trees = m.ambiance.filter((a) => ['tree_pine', 'tree_dark', 'tree_oak'].includes(a.tag)).length;
+    expect(trees).toBeGreaterThan(150); // the maze walls ARE dense trees
+    expect(validateSceneMap(m)).toEqual({ ok: true, violations: [] }); // corridors stay connected
+  });
+
+  it('an INTERIOR maze keeps masonry walls (the material split does not regress dungeons)', () => {
+    const m = runProgram({
+      locationId: 'loc:t-dmaze', cols: 41, rows: 27, seed: 5, biome: 'dungeon', lighting: 'night',
+      grammar: 'enclosed-interior', outdoor: false, theme: 'dungeon',
+      ops: [{ op: 'maze', region: 'all' }, { op: 'path', from: 'west', to: 'center', tag: 'flagstone' }, { op: 'entrance', at: 'west' }],
+    });
+    expect(m.tiles.flat().some((t) => t.startsWith('wall'))).toBe(true); // masonry, as before
+    expect(validateSceneMap(m)).toEqual({ ok: true, violations: [] });
+  });
+
+  it('a PORTAL composes the whole threshold: rock face + mouth + approach + a real entrance', () => {
+    const m = runProgram({
+      locationId: 'loc:t-portal', cols: 40, rows: 26, seed: 3, biome: 'forest', lighting: 'day',
+      grammar: 'open-outdoor', outdoor: true, theme: 'forest',
+      ops: [{ op: 'portal', at: { c: 20, r: 6 }, kind: 'cave', id: 'prop:cave-mouth' }, { op: 'entrance', at: 'south' }],
+    });
+    expect(m.objects.some((o) => o.tag === 'mine_entrance')).toBe(true); // the mouth fixture, not a stairs pun
+    expect(m.tiles.flat().filter((t) => t.startsWith('rock')).length).toBeGreaterThanOrEqual(6); // set in a rock face
+    expect(m.entrances.length).toBeGreaterThanOrEqual(2); // the threshold LEADS somewhere (its own entrance + south)
+    expect(validateSceneMap(m)).toEqual({ ok: true, violations: [] });
+  });
+
+  it('portal net: a brief naming a cave entrance gets a threshold even when the model composed none', () => {
+    const p = normalizeProgram({ grammar: 'open-outdoor', outdoor: true, ops: [] }, 'a path through the forest leads to the entrance of a cave');
+    expect(p.ops.some((o) => o.op === 'portal')).toBe(true);
+    expect((p.notes ?? []).some((n) => n.startsWith('portal-net'))).toBe(true);
+    expect(validateSceneMap(runProgram(p))).toEqual({ ok: true, violations: [] });
+  });
+
   it('a BARE wild brief still gets the default figure (glade + camp fallback) — regression', () => {
     const p = normalizeProgram(
       { grammar: 'open-outdoor', outdoor: true, ops: [

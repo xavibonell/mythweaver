@@ -14,7 +14,7 @@ import { BIOMES, BUILDING_TYPES, LAYOUT_GRAMMARS, type BuildingType, type Layout
 import { ARCHETYPE_KINDS, BIOME_SPECS, GENERATORS, type ArchetypeKind, type BiomeKind, type Contents } from './archetypes.js';
 import { paintBiomeBackdrop } from './biome.js';
 import { isCharacter, isProp, isTerrain } from './catalog.js';
-import { bridge, building, Canvas, bspRooms, cave, clearing, entrance, fill, finalize, island, maze, path, place, plaza, scatter, vignette, VIGNETTE_NAMES, wallRing, type Pt, type Rect } from './primitives.js';
+import { bridge, building, Canvas, bspRooms, cave, clearing, entrance, fill, finalize, island, maze, path, place, plaza, portal, scatter, vignette, VIGNETTE_NAMES, wallRing, type MazeWall, type Pt, type Rect } from './primitives.js';
 import { THEMES, themeNameFor, wallBaseOf, type Theme } from './themes.js';
 
 type RegionSpec = 'all' | Rect;
@@ -39,6 +39,9 @@ export type SceneOp =
   /** Run a whole ARCHETYPE GENERATOR over the canvas (the LLM picks the kind + semantic Contents; the
    *  deterministic generator owns the organic layout). Replaces LLM-placed building rects for these. */
   | { op: 'archetype'; kind: ArchetypeKind; contents: Contents }
+  /** A THRESHOLD feature — a cave/mine MOUTH set in a rock face, a gate, or stairs, with a walkable
+   *  approach + a real map Entrance. The missing category behind "the entrance of a cave" puns. */
+  | { op: 'portal'; at: PtSpec; kind?: 'cave' | 'mine' | 'gate' | 'stairs'; id: string; name?: string }
   /** The BIOME BACKDROP (routing v2, the figure/ground split): appended LAST by normalizeProgram for wild
    *  biome briefs. Paints the biome's mass (stands + jitter + density) ONLY over ground the earlier ops
    *  left free — every authored path/pool/building survives. `figure:false` = the program authored no
@@ -80,9 +83,28 @@ const resolvePt = (cv: Canvas, spec: PtSpec): Pt => {
   }
 };
 
+/** A WILD theme's maze barrier is that biome's blocking MASS (dense trees/cacti — "a labyrinth where only
+ *  the paths between the trees are walkable"), a village's is a HEDGE, an interior's stays masonry.
+ *  STENCIL ≠ PAINT: same carve, different material — this is what stops "forest maze" briefs rendering as
+ *  furnished building walls. */
+const MAZE_MASS: Record<string, string[]> = {
+  forest: ['tree_pine', 'tree_dark', 'tree_oak'],
+  jungle: ['tree_oak', 'mangrove', 'tree'],
+  swamp: ['mangrove', 'tree_dead'],
+  arctic: ['pine_snowy', 'bare_pine', 'pine_snowy_tall'],
+  desert: ['cactus_saguaro', 'cactus', 'brown_rocks'],
+};
+const mazeWallFor = (themeName: string | undefined, theme: Theme | undefined, explicit?: string): MazeWall => {
+  if (!theme) return explicit ?? 'wall'; // unthemed (gold programs): the op's own material
+  const mass = themeName ? MAZE_MASS[themeName] : undefined;
+  if (mass) return { mass };
+  if (themeName === 'village') return 'hedge'; // a garden maze
+  return wallBaseOf(theme.wallMat); // interiors: masonry, as before
+};
+
 /** Run one op against the canvas. When `theme` is set, OPEN-GROUND ops draw their material from it
  *  (hazards water/lava/sand keep their own tag) — the per-scene material-consistency guarantee. */
-function runOp(cv: Canvas, op: SceneOp, locationId: string, theme?: Theme): void {
+function runOp(cv: Canvas, op: SceneOp, locationId: string, theme?: Theme, themeName?: string): void {
   // Tags a themed scene KEEPS verbatim: hazards + explicit biome features (a bog pool, an ice pond,
   // a farm field, a corruption patch) — everything else draws from the theme palette.
   const KEEP_TAGS = new Set(['water', 'water_deep', 'lava', 'sand', 'rock', 'swamp', 'ice', 'mud', 'snow', 'blight', 'farmland']);
@@ -94,7 +116,7 @@ function runOp(cv: Canvas, op: SceneOp, locationId: string, theme?: Theme): void
     case 'bridge': bridge(cv, resolvePt(cv, op.from), resolvePt(cv, op.to), op.tag); break;
     case 'path': path(cv, resolvePt(cv, op.from), resolvePt(cv, op.to), theme ? theme.path : op.tag); break;
     case 'plaza': plaza(cv, resolveRegion(cv, op.region), theme ? theme.plaza : op.tag); break;
-    case 'maze': maze(cv, resolveRegion(cv, op.region), theme ? wmat() : op.wall, theme ? theme.ground : op.floor); break;
+    case 'maze': maze(cv, resolveRegion(cv, op.region), mazeWallFor(themeName, theme, op.wall), theme ? theme.ground : op.floor); break;
     case 'cave': cave(cv, resolveRegion(cv, op.region), theme ? wmat() : op.wall, theme ? theme.plaza : op.floor); break;
     case 'clearing': clearing(cv, resolveRegion(cv, op.region)); break;
     case 'rooms': bspRooms(cv, resolveRegion(cv, op.region), op.count, theme ? wmat() : op.wall, theme ? theme.plaza : op.floor); break;
@@ -105,6 +127,7 @@ function runOp(cv: Canvas, op: SceneOp, locationId: string, theme?: Theme): void
     case 'scatter': scatter(cv, { idBase: op.idBase, tags: op.tags, kind: op.kind, ...(op.role ? { role: op.role } : {}), region: resolveRegion(cv, op.region), count: op.count, ...(op.on ? { on: op.on } : {}) }); break;
     case 'entrance': entrance(cv, resolvePt(cv, op.at), locationId); break;
     case 'archetype': GENERATORS[op.kind](cv, { theme: theme ?? THEMES.village!, contents: op.contents, bounds: { x: 0, y: 0, w: cv.cols, h: cv.rows }, locationId }); break;
+    case 'portal': portal(cv, resolvePt(cv, op.at), { ...(op.kind ? { kind: op.kind } : {}), id: op.id, locationId, ...(op.name ? { name: op.name } : {}) }); break;
     case 'biome': paintBiomeBackdrop(cv, BIOME_SPECS[op.kind], { figure: op.figure ?? false, locationId, ...(theme ? { ground: theme.ground } : {}) }); break;
   }
 }
@@ -113,7 +136,7 @@ function runOp(cv: Canvas, op: SceneOp, locationId: string, theme?: Theme): void
 export function runProgram(prog: SceneProgram): SceneMap {
   const theme = prog.theme ? THEMES[prog.theme] : undefined;
   const cv = new Canvas(Math.max(1, prog.cols), Math.max(1, prog.rows), prog.seed, theme ? theme.ground : prog.base ?? 'grass');
-  for (const op of prog.ops) runOp(cv, op, prog.locationId, theme);
+  for (const op of prog.ops) runOp(cv, op, prog.locationId, theme, prog.theme);
   if (cv.notes.length) (prog.notes ??= []).push(...cv.notes); // generator honesty joins the provenance
   return finalize(cv, { locationId: prog.locationId, biome: prog.biome, lighting: prog.lighting, ...(prog.weather ? { weather: prog.weather } : {}), grammar: prog.grammar, outdoor: prog.outdoor });
 }
@@ -253,7 +276,8 @@ OPS (compose 4-12; later ops draw OVER earlier ones):
 - {"op":"bridge","from":P,"to":P} — a walkable plank span (link islands, cross water/a chasm).
 - {"op":"path","from":P,"to":P,"tag":"dirt"} — a walkable road/trail.
 - {"op":"plaza","region":R,"tag":"stone"} — a paved open square.
-- {"op":"maze","region":R,"wall":"wall","floor":"grass"} — a connected MAZE of twisting corridors.
+- {"op":"maze","region":R} — a connected MAZE/LABYRINTH of twisting corridors. The walls take the THEME's material automatically: in a WILD theme (forest/swamp/arctic/desert) the walls are DENSE TREES/cacti — USE THIS for "a thick forest where only the paths between the trees are walkable"; in a village theme a HEDGE maze; in interiors masonry.
+- {"op":"portal","at":P,"kind":"cave"|"mine"|"gate"|"stairs","id":"prop:cave-mouth"} — a THRESHOLD: a cave/mine MOUTH set in a small rock face (or a gate / stairs down), with a walkable approach + a map entrance. USE THIS whenever the brief mentions "the entrance of a cave/mine", a tunnel mouth, a gate — NEVER a lone stairs prop.
 - {"op":"cave","region":R} — an ORGANIC cavern with irregular rock walls + open floor (cellular-automata). USE THIS for caves / caverns / grottos / mines / underground lairs instead of rooms — it gives natural rocky shapes, not rectangles.
 - {"op":"clearing","region":R} — a FOREST CLEARING: a dense feathered treeline ringing an OPEN centre (with a bushy fringe). USE THIS for forest clearings / glades / groves / camps in the woods — then put the bonfire/landmark + party in the open centre (NOT a uniform tree scatter). Pair with a "vignette":"camp" at the centre for a campfire.
 - {"op":"rooms","region":R,"count":6,"wall":"wall","floor":"stone"} — connected ROOMS + corridors (a dungeon / building interior).
@@ -478,6 +502,10 @@ function normalizeOp(raw: unknown, seen: Set<string>): SceneOp | null {
     case 'biome': {
       const kind = typeof o.kind === 'string' && o.kind in BIOME_SPECS ? (o.kind as BiomeKind) : 'forest';
       return { op: 'biome', kind, ...(typeof o.figure === 'boolean' ? { figure: o.figure } : {}) };
+    }
+    case 'portal': {
+      const kind = typeof o.kind === 'string' && ['cave', 'mine', 'gate', 'stairs'].includes(o.kind) ? (o.kind as 'cave' | 'mine' | 'gate' | 'stairs') : 'cave';
+      return { op: 'portal', at: normPt(o.at), kind, id: uniqueId(typeof o.id === 'string' && o.id ? o.id : `prop:${kind}-mouth`, seen), ...(typeof o.name === 'string' ? { name: o.name.slice(0, 60) } : {}) };
     }
     default:
       return null;
@@ -714,12 +742,21 @@ export function normalizeProgram(raw: unknown, brief: string, moodText: string =
         notes.push(`landmark-net: injected '${tag}' (named in the brief, missing from the program)`);
       }
     }
+    // PORTAL NET: a brief that names a cave/mine ENTRANCE gets a real THRESHOLD (rock face + mouth +
+    // approach), never a lone stairs-prop pun. Outdoor scenes only (inside a cave there is no mouth to see).
+    if (grammar !== 'enclosed-interior'
+      && /(cave|mine|tunnel)\s+(entrance|mouth)|entrance\s+(of|to|into)\s+(a\s+|the\s+)?(cave|mine|tunnel)|cave\s?mouth/.test(lcb)
+      && !ops.some((o) => o.op === 'portal')) {
+      const kind = /mine|tunnel/.test(lcb) ? 'mine' as const : 'cave' as const;
+      ops.push({ op: 'portal', at: 'north', kind, id: uniqueId(`prop:${kind}-mouth`, seen) });
+      notes.push(`portal-net: injected a ${kind} mouth (the brief names one; the program composed none)`);
+    }
   }
   // The BACKDROP op is appended AFTER the nets so it runs last, over the finished figure. `figure` records
   // whether the program authored spatial structure of its own — if so, the biome supplies no default glade:
   // the authored features ARE the negative space and the mass runs dense around them.
   if (wildRoute) {
-    const FIGURE_OPS = new Set(['path', 'building', 'plaza', 'maze', 'rooms', 'cave', 'island', 'bridge', 'wallRing', 'clearing']);
+    const FIGURE_OPS = new Set(['path', 'building', 'plaza', 'maze', 'rooms', 'cave', 'island', 'bridge', 'wallRing', 'clearing', 'portal']);
     const figure = ops.some((op) => FIGURE_OPS.has(op.op) || (op.op === 'fill' && /water|lava/.test(op.tag)));
     ops.push({ op: 'biome', kind: wildRoute.kind, figure });
     notes.push(`routed-${wildRoute.kind}-backdrop: ${ops.length - 1} authored op(s) KEPT; the ${wildRoute.kind} mass fills the leftover ground${figure ? ' around the authored structure' : ' + the default figure (no authored structure)'}`);
