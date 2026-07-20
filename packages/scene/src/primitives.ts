@@ -65,7 +65,18 @@ export class Canvas {
   readonly entrances: Entrance[] = [];
   readonly buildings: BuildingFootprint[] = []; // footprints for the ROOF pass (finalize)
   readonly notes: string[] = []; // generator honesty channel — joins program.notes after the run
+  /** ANCHOR REGISTRY (Layer 3 — relations): a named region a later op can place INTO or NEAR. Topology
+   *  ops (clearing, portal, plaza) register their open cells here under an id, so a `place at:{in:"glade1"}`
+   *  resolves to a real cell of that feature — this is what makes "the merchant leads into the clearing"
+   *  a resolvable relation instead of two independent coordinates that only line up by luck. */
+  readonly anchors = new Map<string, Pt[]>();
   readonly rng: () => number;
+
+  /** Register a named anchor region (dedupes, clamps to bounds). */
+  anchor(id: string, cells: Pt[]): void {
+    const inb = cells.filter((p) => this.inB(p.c, p.r));
+    if (inb.length) this.anchors.set(id, inb);
+  }
 
   constructor(readonly cols: number, readonly rows: number, readonly seed: number, base = 'grass') {
     this.tiles = Array.from({ length: rows }, () => Array.from({ length: cols }, () => base));
@@ -291,12 +302,15 @@ export function portal(cv: Canvas, at: Pt, opts: { kind?: 'cave' | 'mine' | 'gat
   const tag = kind === 'gate' ? 'gate_wood' : kind === 'stairs' ? 'stairs_stone' : 'mine_entrance';
   place(cv, { id: opts.id, tag, kind: 'prop', at: { c, r }, ...(opts.name ? { name: opts.name } : {}) });
   // the APPROACH: guaranteed walkable ground in front + the real Entrance (the threshold LEADS somewhere)
+  const approach: Pt[] = [];
   for (const [ac, ar] of [[c, r + 1], [c, r + 2]] as [number, number][]) {
     if (!cv.inB(ac, ar)) continue;
     if (!cv.isWalk(ac, ar)) cv.set(ac, ar, 'dirt', true);
     cv.stampClaim(ac, ar, CLAIM_APPROACH);
+    approach.push({ c: ac, r: ar });
   }
   if (cv.inB(c, r + 1)) entrance(cv, { c, r: r + 1 }, opts.locationId);
+  if (opts.id) cv.anchor(opts.id, approach.length ? approach : [{ c, r }]); // "the guide waits AT the cave mouth"
 }
 
 /**
@@ -436,16 +450,18 @@ export function cave(cv: Canvas, region: Rect, wall = 'rock_wall', floor = 'ston
  * centre (the clearing), with a bushy fringe. Trees block; bushes are walkable decor. This is the
  * "open glade ringed by woods" read (vs a uniform tree sprinkle). Trees are pushed as ambiance.
  */
-export function clearing(cv: Canvas, region: Rect): void {
+export function clearing(cv: Canvas, region: Rect, id?: string): void {
   const R = clampRect(cv, region);
   const cx = R.x + (R.w - 1) / 2, cy = R.y + (R.h - 1) / 2;
   const maxd = Math.max(1, Math.min(R.w, R.h) / 2);
   const CORE = ['tree', 'tree', 'tree_pine', 'tree_autumn'] as const;
   const FRINGE = ['bush', 'bush', 'tree'] as const;
+  const open: Pt[] = []; // the walkable heart — the anchor a "camp IN the clearing" relation resolves to
   for (const { c, r } of cellsOf(R)) {
     if (!cv.isFree(c, r)) continue;
     const dx = (c - cx) / maxd, dy = (r - cy) / maxd;
     const dist = Math.sqrt(dx * dx + dy * dy); // 0 = centre, ~1 = edge
+    if (dist < 0.5) open.push({ c, r });
     // AUTHORED EMPTINESS IS A CLAIM: the open centre + bushy fringe are composed negative space — a later
     // backdrop mass (the `biome` op) must flow around them, and it can only see that through the claim grid
     // (an untouched grass cell is otherwise indistinguishable from unauthored ground).
@@ -460,6 +476,7 @@ export function clearing(cv: Canvas, region: Rect): void {
     const j = () => (cv.rng() - 0.5) * 0.6;
     cv.ambiance.push({ tag, col: Math.max(0, Math.min(cv.cols - 1, c + j())), row: Math.max(0, Math.min(cv.rows - 1, r + j())) });
   }
+  if (id) cv.anchor(id, open); // the open heart is an addressable region ("camp IN the glade")
 }
 
 /** An outer wall ring with one walkable gate per side (+ an Entrance on each gate). */

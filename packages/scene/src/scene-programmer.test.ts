@@ -308,6 +308,48 @@ describe('LLM scene programmer (G1b) — normalize + compose', () => {
     expect(validateSceneMap(runProgram(p))).toEqual({ ok: true, violations: [] });
   });
 
+  it('a RELATIONAL point places a prop INTO a registered clearing anchor (leads-into-a-clearing)', () => {
+    const m = runProgram({
+      locationId: 'loc:t-rel', cols: 40, rows: 26, seed: 7, biome: 'forest', lighting: 'day',
+      grammar: 'open-outdoor', outdoor: true, theme: 'forest',
+      ops: [
+        { op: 'clearing', region: { x: 10, y: 8, w: 12, h: 10 }, id: 'glade1' },
+        { op: 'place', id: 'npc:merchant', tag: 'villager', kind: 'actor', role: 'npc', at: { in: 'glade1' } },
+        { op: 'place', id: 'prop:fire', tag: 'fire_small', kind: 'prop', at: { in: 'glade1' } },
+        { op: 'entrance', at: 'south' },
+      ],
+    });
+    const merchant = m.objects.find((o) => o.id === 'npc:merchant')!;
+    // the clearing's open heart sits around (15,12); the merchant lands INSIDE it, not out in the woods
+    expect(merchant.col).toBeGreaterThanOrEqual(11);
+    expect(merchant.col).toBeLessThanOrEqual(19);
+    expect(merchant.row).toBeGreaterThanOrEqual(8);
+    expect(merchant.row).toBeLessThanOrEqual(16);
+    expect(m.objects.some((o) => o.tag === 'fire_small')).toBe(true);
+    expect(validateSceneMap(m)).toEqual({ ok: true, violations: [] });
+  });
+
+  it('relation net snaps a stray camp vignette INTO the clearing (the model placed it in the corner)', () => {
+    const p = normalizeProgram({
+      grammar: 'open-outdoor', outdoor: true, cols: 40, rows: 26,
+      ops: [
+        { op: 'clearing', region: { x: 12, y: 8, w: 14, h: 12 } }, // no id, not anchored
+        { op: 'vignette', type: 'camp', at: { c: 2, r: 2 } },       // the camp dumped in the far corner
+      ],
+    }, 'a forest clearing with a hermit camp');
+    const cl = p.ops.find((o) => o.op === 'clearing') as { id?: string };
+    expect(cl.id).toBeTruthy(); // the net named the clearing
+    const vig = p.ops.find((o) => o.op === 'vignette')! as { at: unknown };
+    expect(typeof vig.at === 'object' && vig.at !== null && 'in' in vig.at).toBe(true); // re-anchored INTO it
+    expect(p.ops.indexOf(cl as never)).toBeLessThan(p.ops.indexOf(vig as never)); // clearing hoisted before the ref
+    const m = runProgram(p);
+    const tent = m.objects.find((o) => o.tag === 'tent')!;
+    expect(tent).toBeTruthy();
+    expect(tent.col).toBeGreaterThan(6); // in the clearing (~19,14), NOT the (2,2) corner
+    expect(tent.row).toBeGreaterThan(6);
+    expect(validateSceneMap(m)).toEqual({ ok: true, violations: [] });
+  });
+
   it('a BARE wild brief still gets the default figure (glade + camp fallback) — regression', () => {
     const p = normalizeProgram(
       { grammar: 'open-outdoor', outdoor: true, ops: [

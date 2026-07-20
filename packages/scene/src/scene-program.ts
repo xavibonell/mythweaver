@@ -18,7 +18,12 @@ import { bridge, building, Canvas, bspRooms, cave, clearing, entrance, fill, fin
 import { THEMES, themeNameFor, wallBaseOf, type Theme } from './themes.js';
 
 type RegionSpec = 'all' | Rect;
-type PtSpec = Pt | 'center' | 'north' | 'south' | 'east' | 'west';
+/** A RELATIONAL point: place INTO or NEAR a named anchor region (a clearing, a cave mouth) another op
+ *  registered — resolved against the canvas anchor registry at run time. This is the op-level relation
+ *  ("the merchant IN the glade") that makes "leads into a clearing" a resolvable request, not luck. */
+type RelPt = { in: string } | { near: string };
+type PtSpec = Pt | 'center' | 'north' | 'south' | 'east' | 'west' | RelPt;
+const isRelPt = (p: PtSpec): p is RelPt => typeof p === 'object' && p !== null && !('c' in p) && ('in' in p || 'near' in p);
 
 export type SceneOp =
   | { op: 'fill'; region: RegionSpec; tag: string; walkable?: boolean }
@@ -28,7 +33,7 @@ export type SceneOp =
   | { op: 'plaza'; region: RegionSpec; tag?: string }
   | { op: 'maze'; region: RegionSpec; wall?: string; floor?: string }
   | { op: 'cave'; region: RegionSpec; wall?: string; floor?: string }
-  | { op: 'clearing'; region: RegionSpec }
+  | { op: 'clearing'; region: RegionSpec; id?: string }
   | { op: 'rooms'; region: RegionSpec; count?: number; wall?: string; floor?: string }
   | { op: 'wallRing'; mat?: 'wood' | 'stone' }
   | { op: 'building'; type: BuildingType; region: RegionSpec; door?: 'north' | 'south' | 'east' | 'west'; name?: string; id: string }
@@ -71,9 +76,33 @@ export interface SceneProgram {
 
 const resolveRegion = (cv: Canvas, spec: RegionSpec): Rect => (spec === 'all' ? { x: 0, y: 0, w: cv.cols, h: cv.rows } : spec);
 const resolvePt = (cv: Canvas, spec: PtSpec): Pt => {
-  if (typeof spec !== 'string') return spec;
   const mc = Math.floor(cv.cols / 2);
   const mr = Math.floor(cv.rows / 2);
+  if (isRelPt(spec)) {
+    // RELATION resolution against the anchor registry. IN → the anchor cell nearest its centroid that is
+    // still free (a vignette's spread then fits inside the region). NEAR → a walkable cell just outside
+    // the region. Missing anchor (op-order / never registered) → the map centre (never throws).
+    const id = 'in' in spec ? spec.in : spec.near;
+    const cells = cv.anchors.get(id);
+    if (cells && cells.length) {
+      const cx = cells.reduce((s, p) => s + p.c, 0) / cells.length, cy = cells.reduce((s, p) => s + p.r, 0) / cells.length;
+      if ('in' in spec) {
+        const byCentre = [...cells].sort((a, b) => ((a.c - cx) ** 2 + (a.r - cy) ** 2) - ((b.c - cx) ** 2 + (b.r - cy) ** 2));
+        return byCentre.find((p) => cv.isFree(p.c, p.r)) ?? byCentre.find((p) => cv.isWalk(p.c, p.r)) ?? byCentre[0]!;
+      }
+      // NEAR: the 4-neighbour ring around the region, walkable, not inside it — nearest the centroid.
+      const inside = new Set(cells.map((p) => p.r * cv.cols + p.c));
+      const ring: Pt[] = [];
+      for (const p of cells) for (const [dc, dr] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as [number, number][]) {
+        const c = p.c + dc, r = p.r + dr, k = r * cv.cols + c;
+        if (cv.inB(c, r) && !inside.has(k) && cv.isWalk(c, r)) ring.push({ c, r });
+      }
+      ring.sort((a, b) => ((a.c - cx) ** 2 + (a.r - cy) ** 2) - ((b.c - cx) ** 2 + (b.r - cy) ** 2));
+      return ring.find((p) => cv.isFree(p.c, p.r)) ?? ring[0] ?? cells[0]!;
+    }
+    return { c: mc, r: mr };
+  }
+  if (typeof spec !== 'string') return spec;
   switch (spec) {
     case 'center': return { c: mc, r: mr };
     case 'north': return { c: mc, r: 0 };
@@ -118,7 +147,7 @@ function runOp(cv: Canvas, op: SceneOp, locationId: string, theme?: Theme, theme
     case 'plaza': plaza(cv, resolveRegion(cv, op.region), theme ? theme.plaza : op.tag); break;
     case 'maze': maze(cv, resolveRegion(cv, op.region), mazeWallFor(themeName, theme, op.wall), theme ? theme.ground : op.floor); break;
     case 'cave': cave(cv, resolveRegion(cv, op.region), theme ? wmat() : op.wall, theme ? theme.plaza : op.floor); break;
-    case 'clearing': clearing(cv, resolveRegion(cv, op.region)); break;
+    case 'clearing': clearing(cv, resolveRegion(cv, op.region), op.id); break;
     case 'rooms': bspRooms(cv, resolveRegion(cv, op.region), op.count, theme ? wmat() : op.wall, theme ? theme.plaza : op.floor); break;
     case 'wallRing': wallRing(cv, op.mat, locationId); break;
     case 'building': building(cv, resolveRegion(cv, op.region), op.type, { ...(op.door ? { door: op.door } : {}), locationId, ...(op.name ? { name: op.name } : {}), id: op.id }); break;
@@ -279,12 +308,13 @@ OPS (compose 4-12; later ops draw OVER earlier ones):
 - {"op":"maze","region":R} — a connected MAZE/LABYRINTH of twisting corridors. The walls take the THEME's material automatically: in a WILD theme (forest/swamp/arctic/desert) the walls are DENSE TREES/cacti — USE THIS for "a thick forest where only the paths between the trees are walkable"; in a village theme a HEDGE maze; in interiors masonry.
 - {"op":"portal","at":P,"kind":"cave"|"mine"|"gate"|"stairs","id":"prop:cave-mouth"} — a THRESHOLD: a cave/mine MOUTH set in a small rock face (or a gate / stairs down), with a walkable approach + a map entrance. USE THIS whenever the brief mentions "the entrance of a cave/mine", a tunnel mouth, a gate — NEVER a lone stairs prop.
 - {"op":"cave","region":R} — an ORGANIC cavern with irregular rock walls + open floor (cellular-automata). USE THIS for caves / caverns / grottos / mines / underground lairs instead of rooms — it gives natural rocky shapes, not rectangles.
-- {"op":"clearing","region":R} — a FOREST CLEARING: a dense feathered treeline ringing an OPEN centre (with a bushy fringe). USE THIS for forest clearings / glades / groves / camps in the woods — then put the bonfire/landmark + party in the open centre (NOT a uniform tree scatter). Pair with a "vignette":"camp" at the centre for a campfire.
+- {"op":"clearing","region":R,"id":"glade1"} — a FOREST CLEARING: a dense feathered treeline ringing an OPEN centre. USE THIS for forest clearings / glades / groves / camps in the woods. Give it an "id", then place the camp/merchant/party INTO it with a RELATIONAL point — {"op":"vignette","type":"camp","at":{"in":"glade1"}} and {"op":"place",...,"at":{"in":"glade1"}}. That is how "a path LEADS INTO a clearing with a fire and a tent" is expressed (NOT a uniform tree scatter).
 - {"op":"rooms","region":R,"count":6,"wall":"wall","floor":"stone"} — connected ROOMS + corridors (a dungeon / building interior).
 - {"op":"building","type":"tavern","region":{"x":,"y":,"w":,"h":},"door":"south"} — a FURNISHED walled building. type is one of: house, shop, tavern, inn, temple, cathedral, smithy, workshop, general_store, library, courthouse, jail, keep, barracks, armory, guildhall, manor, vault, tomb, curio, goblin_warren. The engine fills each with its DEFINING furniture (altar/forge/bar/bookshelves/cells/throne/racks…) + a keeper. USE THIS for ANY structure, home, shop, temple, forge, or distinct furnished chamber — give it a rect region (min ~6x6). Use the EXACT type for every establishment the brief names (church/chapel→temple, blacksmith→smithy, town hall→courthouse, castle/fort→keep) — NEVER substitute a generic house/shop for a named establishment.
 - {"op":"vignette","type":"market","at":P} — an authored SET-PIECE cluster (type: market | forge | camp | shrine | well | graveyard): the engine drops a coherent mini-scene (market = stalls+crates+barrels+a vendor; forge = fire+workbench+weapon-rack+smith; camp = fire+bedrolls+supplies; shrine = altar+candles+statues; well = well+bench; graveyard = tombstones+bones). Use these for open-area focal points — do NOT hand-scatter loose props to fake them.
 - {"op":"wallRing","mat":"stone"} — an outer defensive wall with gates (a walled town/fort).
 - {"op":"place","id":"prop:NAME","tag":TAG,"kind":"prop","at":P,"name":"..."} — ONE landmark/object (or kind "actor","role":"npc"|"mob" for one creature).
+- A point P is "center" | "north"|"south"|"east"|"west" | {"c":col,"r":row} | a RELATION {"in":"<id>"} (inside a clearing/region you gave that id) or {"near":"<id>"} (just outside it — e.g. a guard {"near":"cave-mouth"}). Prefer relations over raw coordinates: they make "the merchant IN the clearing", "a sentry NEAR the cave mouth" hold by construction.
 - {"op":"scatter","idBase":"mob:NAME","tags":[TAG,...],"kind":"actor","role":"mob","region":R,"count":8} — MANY of something (monsters, trees, rubble, crowds).
 - {"op":"entrance","at":P} — a walkable entrance/exit at the brief's stated edge.
 
@@ -410,10 +440,15 @@ function normRegion(v: unknown): RegionSpec {
   if (['x', 'y', 'w', 'h'].every((k) => typeof r[k] === 'number')) return { x: num(r.x, 0), y: num(r.y, 0), w: Math.max(1, num(r.w, 1)), h: Math.max(1, num(r.h, 1)) };
   return 'all';
 }
+const relRef = (v: unknown): string | undefined => (typeof v === 'string' && v.trim() ? v.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || undefined : undefined);
 function normPt(v: unknown): PtSpec {
   if (typeof v === 'string' && EDGE_PTS.includes(v)) return v as PtSpec;
   const r = asRec(v);
   if (typeof r.c === 'number' && typeof r.r === 'number') return { c: num(r.c, 0), r: num(r.r, 0) };
+  // RELATIONAL anchor: {in|near: "<region id>"} — resolved against the anchor registry at run time.
+  const inRef = relRef(r.in), nearRef = relRef(r.near);
+  if (inRef) return { in: inRef };
+  if (nearRef) return { near: nearRef };
   return 'center';
 }
 function fixId(raw: unknown, kind: string, role?: string): string {
@@ -466,7 +501,7 @@ function normalizeOp(raw: unknown, seen: Set<string>): SceneOp | null {
     case 'cave':
       return { op: 'cave', region: normRegion(o.region), wall: terrainOr(o.wall, 'wall'), floor: terrainOr(o.floor, 'stone') };
     case 'clearing':
-      return { op: 'clearing', region: normRegion(o.region) };
+      return { op: 'clearing', region: normRegion(o.region), ...(relRef(o.id) ? { id: relRef(o.id) } : {}) };
     case 'rooms':
       return { op: 'rooms', region: normRegion(o.region), count: Math.max(1, Math.min(12, num(o.count, 5))), wall: terrainOr(o.wall, 'wall'), floor: terrainOr(o.floor, 'stone') };
     case 'wallRing':
@@ -782,6 +817,31 @@ export function normalizeProgram(raw: unknown, brief: string, moodText: string =
       const kind = /mine|tunnel/.test(lcb) ? 'mine' as const : 'cave' as const;
       ops.push({ op: 'portal', at: 'north', kind, id: uniqueId(`prop:${kind}-mouth`, seen) });
       notes.push(`portal-net: injected a ${kind} mouth (the brief names one; the program composed none)`);
+    }
+    // RELATION NET (Layer 3): "one path LEADS INTO a clearing with a fire/tent/merchant" — a camp the
+    // model placed at independent coordinates while ALSO authoring a clearing is the "leads into" failure.
+    // Snap the camp INTO the clearing's registered heart. ONE clearing = unambiguous; the model can anchor
+    // explicitly with at:{in:<id>} for more. This is the general relation mechanism applied deterministically.
+    const clearings = ops.filter((o): o is Extract<SceneOp, { op: 'clearing' }> => o.op === 'clearing');
+    if (clearings.length === 1) {
+      const cl = clearings[0]!;
+      if (!cl.id) cl.id = uniqueId('region:glade', seen);
+      const gid = cl.id;
+      const anchoredIn = (p: PtSpec) => typeof p === 'object' && p !== null && !('c' in p) && 'in' in p;
+      const CAMP = new Set(['tent', 'fire_small', 'campfire', 'brazier', 'bonfire']);
+      let anchored = 0;
+      for (const o of ops) {
+        if (o.op === 'vignette' && o.type === 'camp' && !anchoredIn(o.at)) { o.at = { in: gid }; anchored++; }
+        else if (o.op === 'place' && o.kind === 'prop' && CAMP.has(o.tag) && !anchoredIn(o.at)) { o.at = { in: gid }; anchored++; }
+      }
+      if (anchored) {
+        // the clearing must REGISTER its anchor before the camp resolves — hoist it ahead of the first ref.
+        const refs = (o: SceneOp) => (o.op === 'vignette' || o.op === 'place') && anchoredIn(o.at) && (o.at as { in: string }).in === gid;
+        const firstRef = ops.findIndex(refs);
+        const clIdx = ops.indexOf(cl);
+        if (firstRef >= 0 && clIdx > firstRef) { ops.splice(clIdx, 1); ops.splice(firstRef, 0, cl); }
+        notes.push(`relation-net: anchored ${anchored} camp op(s) INTO the clearing '${gid}' (leads-into-a-clearing)`);
+      }
     }
   }
   // The BACKDROP op is appended AFTER the nets so it runs last, over the finished figure. `figure` records
