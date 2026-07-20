@@ -24,12 +24,15 @@ export interface AssertionResult {
 
 export interface CaseResult {
   id: string;
-  scores: Scores;
+  /** Judge scores, or null if the judge could not be parsed after retries (the case still ran + asserted). */
+  scores: Scores | null;
   narration: string;
   /** Every tool the case called, accumulated across all its turns (incl. roll resumes). */
   toolCalls: string[];
   /** Deterministic rules-correctness check (spec §10 component 1). */
   assertions: AssertionResult;
+  /** Set when the fuzzy judge failed for this case — the deterministic assertions still hold. */
+  judgeError?: string;
 }
 
 export interface EvalReport {
@@ -38,6 +41,10 @@ export interface EvalReport {
   runs: number;
   /** "<caseId>: <reason>" for every failed tool-use assertion across the report. */
   assertionFailures: string[];
+  /** How many case-runs produced a parseable judge score (means are averaged over these only). */
+  judgedCases: number;
+  /** "<caseId>: <reason>" for each case whose judge could not be parsed (does NOT block the gate). */
+  judgeErrors: string[];
 }
 
 /** Deterministic tool-use check — independent of the fuzzy LLM judge. */
@@ -114,15 +121,24 @@ async function runCase(
   }
   if (!last) throw new Error(`Eval case ${c.id} produced no turn`);
 
+  // The DETERMINISTIC rules-correctness check needs no judge — compute it first so a fuzzy-judge
+  // hiccup can never cost us the tool-use gate (the part that actually protects the engine contract).
+  const assertions = checkToolExpectation(c.expectTools, allToolCalls);
   // Judge with a model that matches the configured provider (override with MYTHWEAVER_JUDGE_MODEL).
   const judgeModel = process.env.MYTHWEAVER_JUDGE_MODEL || process.env.MYTHWEAVER_DM_MODEL || 'gpt-4o';
-  const scores = await judgeNarration(llm, {
-    playerInput: lastMessageText,
-    narration: last.narration,
-    toolCalls: allToolCalls, // the full sequence, so the judge sees rolls requested on earlier steps
-    sceneSummary: adventure.scenes[state.currentSceneId]?.summary,
-  }, judgeModel);
-  return { id: c.id, scores, narration: last.narration, toolCalls: allToolCalls, assertions: checkToolExpectation(c.expectTools, allToolCalls) };
+  try {
+    const scores = await judgeNarration(llm, {
+      playerInput: lastMessageText,
+      narration: last.narration,
+      toolCalls: allToolCalls, // the full sequence, so the judge sees rolls requested on earlier steps
+      sceneSummary: adventure.scenes[state.currentSceneId]?.summary,
+    }, judgeModel);
+    return { id: c.id, scores, narration: last.narration, toolCalls: allToolCalls, assertions };
+  } catch (err) {
+    // Best-effort: a case whose judge can't be parsed (even after retries) is dropped from the fuzzy
+    // means but keeps its deterministic verdict — one bad judge reply never aborts a whole paid run.
+    return { id: c.id, scores: null, narration: last.narration, toolCalls: allToolCalls, assertions, judgeError: err instanceof Error ? err.message : String(err) };
+  }
 }
 
 export async function runEvals(opts: { runs?: number } = {}): Promise<EvalReport> {
@@ -142,10 +158,13 @@ export async function runEvals(opts: { runs?: number } = {}): Promise<EvalReport
     }
   }
 
+  // Means are averaged over the case-runs that produced a parseable judge score (best-effort judge).
+  const judged = perCase.filter((x): x is CaseResult & { scores: Scores } => x.scores !== null);
   const means = {} as Scores;
   for (const d of RUBRIC_DIMENSIONS) {
-    means[d.key] = perCase.reduce((sum, x) => sum + x.scores[d.key], 0) / perCase.length;
+    means[d.key] = judged.length ? judged.reduce((sum, x) => sum + x.scores[d.key], 0) / judged.length : 0;
   }
   const assertionFailures = perCase.flatMap((x) => x.assertions.failures.map((f) => `${x.id}: ${f}`));
-  return { perCase, means, runs, assertionFailures };
+  const judgeErrors = perCase.filter((x) => x.scores === null).map((x) => `${x.id}: ${x.judgeError ?? 'judge unavailable'}`);
+  return { perCase, means, runs, assertionFailures, judgedCases: judged.length, judgeErrors };
 }

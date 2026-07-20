@@ -96,4 +96,46 @@ export const EVAL_CASES: EvalCase[] = [
     note: 'A FEASIBILITY QUESTION, not a declared move — must ANSWER (not silently walk/swim the party there). The engine has no business moving a token off a question.',
     expectTools: { forbidden: ['travel'] },
   },
+  // ── The Interaction Layer (P4). A PC acting ON the world/an NPC must route through the ENGINE,
+  //    which owns who reacts and how — the DM narrates the verdict, it never free-narrates compliance.
+  {
+    id: 'interaction-command',
+    scenario: 'the-sunken-bell',
+    turns: [
+      { speakerId: 'Aldric', text: 'We arrive on the Mistmoor green at dusk, and Edda the bellkeeper comes out to meet us.' },
+      { speakerId: 'Aldric', text: 'Aldric turns to Edda and orders her firmly: "Go and bar the door of your house, then wait inside until we call for you."' },
+    ],
+    note: 'A directed order to a present NPC must route through directNpc (the engine decides from Edda\'s disposition whether she obeys) — never a free-narrated "Edda nods and hurries off".',
+    expectTools: { required: ['directNpc'] },
+  },
+  {
+    id: 'interaction-summon',
+    scenario: 'the-sunken-bell',
+    turns: [
+      { speakerId: 'Brakka', text: 'We reach the Mistmoor green at dusk; a handful of villagers are about their evening business.' },
+      { speakerId: 'Brakka', text: 'Brakka climbs onto the well-head and bellows for every villager on the green to gather round at once — there is something they all must hear.' },
+    ],
+    note: 'A broadcast call to the crowd must route through affectScene (the engine decides who drifts over) — the DM does not hand-pick who gathers.',
+    expectTools: { required: ['affectScene'] },
+  },
+  {
+    id: 'interaction-transgress',
+    scenario: 'the-sunken-bell',
+    turns: [
+      { speakerId: 'Pip', text: 'We arrive on the Mistmoor green at dusk; Edda and a few villagers look on.' },
+      { speakerId: 'Pip', text: 'In full view of Edda and the villagers, Pip strides to the little offering-shrine beside the well and scoops the heap of silver coins off it into his coat.' },
+    ],
+    note: 'A crime witnessed by bystanders must route through declareDisturbance so the engine resolves the crowd\'s reaction (scandal + the watch) — never a free-narrated outrage the DM invents.',
+    expectTools: { required: ['declareDisturbance'] },
+  },
+  {
+    id: 'interaction-idle-mention',
+    scenario: 'the-sunken-bell',
+    turns: [
+      { speakerId: 'Brakka', text: 'We stand on the Mistmoor green with Edda nearby.' },
+      { speakerId: 'Brakka', text: 'Brakka just watches Edda quietly for a moment, taking the measure of her, and says nothing.' },
+    ],
+    note: 'A passive observation that names an NPC but issues NO directive/summons/crime must fire NO interaction — no directNpc, affectScene, or declareDisturbance off a mere look.',
+    expectTools: { forbidden: ['directNpc', 'affectScene', 'declareDisturbance'] },
+  },
 ];

@@ -57,25 +57,48 @@ Respond with ONLY a JSON object (no prose, no code fence):
 ${shape}`;
 }
 
+const clampScore = (v: number): number => Math.max(0, Math.min(5, Math.round(v)));
+
 export function parseJudgeScores(text: string): Scores {
-  const match = text.match(/\{[\s\S]*\}/);
-  if (!match) throw new Error('Judge returned no JSON object');
-  const obj = JSON.parse(match[0]) as Record<string, unknown>;
   const scores = {} as Scores;
+  // Preferred path: a well-formed JSON object.
+  const match = text.match(/\{[\s\S]*\}/);
+  if (match) {
+    try {
+      const obj = JSON.parse(match[0]) as Record<string, unknown>;
+      if (RUBRIC_DIMENSIONS.every((d) => typeof obj[d.key] === 'number' && !Number.isNaN(obj[d.key]))) {
+        for (const d of RUBRIC_DIMENSIONS) scores[d.key] = clampScore(obj[d.key] as number);
+        return scores;
+      }
+    } catch { /* malformed/truncated JSON — fall through to lenient key extraction */ }
+  }
+  // Lenient fallback: pull each score by key. Recovers a reply truncated at maxTokens inside the
+  // trailing (unused) "rationale" — the six numbers arrive before it, so the object need not close.
   for (const d of RUBRIC_DIMENSIONS) {
-    const v = obj[d.key];
-    if (typeof v !== 'number' || Number.isNaN(v)) throw new Error(`Judge missing/invalid score for ${d.key}`);
-    scores[d.key] = Math.max(0, Math.min(5, Math.round(v)));
+    const m = text.match(new RegExp(`"${d.key}"\\s*:\\s*(-?\\d+(?:\\.\\d+)?)`));
+    if (!m) throw new Error(`Judge missing/invalid score for ${d.key}`);
+    scores[d.key] = clampScore(Number(m[1]));
   }
   return scores;
 }
 
 /** Default to the strongest model for judging. */
-export async function judgeNarration(llm: LlmProvider, input: JudgeInput, model = 'claude-opus-4-8'): Promise<Scores> {
-  const res = await llm.complete({
-    model,
-    maxTokens: 400,
-    messages: [{ role: 'user', content: buildJudgePrompt(input) }],
-  });
-  return parseJudgeScores(res.text);
+export async function judgeNarration(llm: LlmProvider, input: JudgeInput, model = 'claude-opus-4-8', attempts = 3): Promise<Scores> {
+  const base = buildJudgePrompt(input);
+  let lastErr: unknown;
+  let lastText = '';
+  for (let attempt = 0; attempt < Math.max(1, attempts); attempt++) {
+    // A judge that once returned prose/empty/reasoning gets a firmer, shorter re-ask — the model
+    // occasionally wraps or omits the object, and one bad response must NOT abort a whole paid run.
+    const content = attempt === 0 ? base : `${base}\n\nYour previous reply could not be parsed. Reply with ONLY the raw JSON object on a single line — no prose, no code fence, no preamble.`;
+    try {
+      // eslint-disable-next-line no-await-in-loop
+      const res = await llm.complete({ model, maxTokens: 700, messages: [{ role: 'user', content }] });
+      lastText = res.text;
+      return parseJudgeScores(res.text);
+    } catch (err) {
+      lastErr = err;
+    }
+  }
+  throw new Error(`Judge failed after ${attempts} attempt(s): ${lastErr instanceof Error ? lastErr.message : String(lastErr)} (last reply: ${JSON.stringify((lastText || '').slice(0, 120))})`);
 }

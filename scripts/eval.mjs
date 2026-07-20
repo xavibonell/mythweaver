@@ -32,8 +32,14 @@ for (const c of report.perCase) {
   console.log(`  ${status.padEnd(5)} ${c.id.padEnd(16)} [${c.toolCalls.join(', ') || '—'}]`);
   for (const f of c.assertions.failures) console.log(`        ↳ ${f}`);
 }
-console.log('\nMean scores (0–5):');
+console.log(`\nMean scores (0–5), over ${report.judgedCases} judged case-run(s):`);
 for (const d of RUBRIC_DIMENSIONS) console.log(`  ${d.key.padEnd(20)} ${report.means[d.key].toFixed(2)}`);
+// A judge that couldn't be parsed (even after retries) drops that case from the means but does NOT
+// block the gate — the deterministic tool-use assertions above are the real rules-correctness bar.
+if (report.judgeErrors?.length) {
+  console.log(`\nℹ ${report.judgeErrors.length} case(s) had no parseable judge score (excluded from means, gate not blocked):`);
+  for (const e of report.judgeErrors) console.log(`  · ${e}`);
+}
 
 // Deterministic rules-correctness checks (spec §10 component 1) — a failure blocks release.
 const assertionFailures = report.assertionFailures ?? [];
