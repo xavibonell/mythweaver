@@ -1269,7 +1269,9 @@ interface VignettePiece { dx: number; dy: number; tag: string; kind?: 'prop' | '
 export const VIGNETTES: Record<string, VignettePiece[]> = {
   market: [{ dx: 0, dy: 0, tag: 'market_stall' }, { dx: 2, dy: 0, tag: 'market_stall' }, { dx: 0, dy: 1, tag: 'crate' }, { dx: 1, dy: 1, tag: 'barrel' }, { dx: 2, dy: 1, tag: 'sack' }, { dx: 1, dy: 0, tag: 'villager', kind: 'actor', role: 'npc' }],
   forge: [{ dx: 0, dy: 0, tag: 'brazier' }, { dx: 1, dy: 0, tag: 'table' }, { dx: -1, dy: 0, tag: 'barrel' }, { dx: 0, dy: 1, tag: 'weapon_rack' }, { dx: 1, dy: 1, tag: 'crate' }, { dx: -1, dy: 1, tag: 'dwarf', kind: 'actor', role: 'npc' }],
-  camp: [{ dx: 0, dy: 0, tag: 'brazier' }, { dx: -2, dy: -1, tag: 'crate' }, { dx: 2, dy: -1, tag: 'barrel' }, { dx: -2, dy: 1, tag: 'bed' }, { dx: 2, dy: 1, tag: 'bed' }, { dx: 0, dy: 2, tag: 'woodpile' }],
+  // an OUTDOOR traveller's camp: a real tent + campfire (beds and braziers are roof-furniture — the old
+  // row predated the tent/fire_small sprites and put two beds in the woods).
+  camp: [{ dx: 0, dy: 0, tag: 'fire_small' }, { dx: -2, dy: -1, tag: 'tent' }, { dx: 2, dy: -1, tag: 'barrel' }, { dx: -2, dy: 1, tag: 'crate' }, { dx: 2, dy: 1, tag: 'log_fallen' }, { dx: 0, dy: 2, tag: 'woodpile' }],
   shrine: [{ dx: 0, dy: 0, tag: 'altar' }, { dx: -1, dy: 0, tag: 'candelabra' }, { dx: 1, dy: 0, tag: 'candelabra' }, { dx: 0, dy: 1, tag: 'rug' }, { dx: -2, dy: 0, tag: 'statue' }, { dx: 2, dy: 0, tag: 'statue' }],
   well: [{ dx: 0, dy: 0, tag: 'fountain' }, { dx: 3, dy: 0, tag: 'barrel' }, { dx: -2, dy: 0, tag: 'stone_bench' }, { dx: 0, dy: 2, tag: 'pot' }],
   graveyard: [{ dx: 0, dy: 0, tag: 'gravestone' }, { dx: 2, dy: 0, tag: 'tombstone' }, { dx: -2, dy: 0, tag: 'tombstone' }, { dx: 0, dy: 2, tag: 'sarcophagus' }, { dx: 1, dy: 1, tag: 'bones' }, { dx: -1, dy: 1, tag: 'skull' }],

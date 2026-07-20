@@ -565,10 +565,23 @@ const BRIEF_PROPS: [RegExp, string][] = [
   [/fountain|\bwell\b|cistern/, 'fountain'],
   [/statue|\bidol\b/, 'statue'],
   [/chest|treasure|\bloot\b|hoard|coffer/, 'chest'],
-  [/bonfire|campfire|fire-?pit|brazier|\bpyre\b/, 'brazier'],
+  [/\btents?\b/, 'tent'],
+  [/bonfire|campfire|camp ?fire|fire-?pit/, 'fire_small'],
+  [/brazier|\bpyre\b/, 'brazier'],
   [/sign-?post|\bsignpost\b/, 'signpost'],
   [/gravestone|tombstone|headstone/, 'gravestone'],
 ];
+
+/** PROP CONTEXT CONTRACT (single choke point): furniture that only makes sense under a roof must never
+ *  land on outdoor open ground — the model (and the retrieval palette) sometimes puns "a merchant rest
+ *  stop" into beds and candelabras in a forest. Outdoor programs REMAP to the honest camp-gear
+ *  equivalent (a traveller's bed IS a tent; a candelabra IS a lantern) or DROP what has none. Interiors
+ *  are untouched, and building interiors furnish through their own pathway. */
+const INTERIOR_ONLY: Record<string, string | null> = {
+  bed: 'tent', bed_a: 'tent', bed_b: 'tent', bed_blue: 'tent', bed_down: 'tent', bed_right: 'tent',
+  candelabra: 'brass_lantern', candelabra_large: 'brass_lantern', candelabrum: 'brass_lantern', ornate_candelabra: 'brass_lantern',
+  bookshelf: null, bookshelf_full: null, desk: null, rug: null, rug_ornate: null,
+};
 
 /** Harvest the SEMANTIC CAST from a settlement program — building types/names, npcs, mobs, landmark
  *  hints, wall + entrance — discarding all geometry. This is the LLM-as-contents-picker step: the town
@@ -651,6 +664,24 @@ export function normalizeProgram(raw: unknown, brief: string, moodText: string =
   const seen = new Set<string>();
   const ops = (Array.isArray(r.ops) ? r.ops : []).map((o) => normalizeOp(o, seen)).filter((o): o is SceneOp => o !== null).slice(0, 24);
   if (!ops.length) ops.push({ op: 'scatter', idBase: 'prop:rock', tags: ['bush', 'tree'], kind: 'prop', region: 'all', count: 8 });
+  // PROP CONTEXT CONTRACT — an outdoor program gets no roof-only furniture on open ground: remap to the
+  // honest camp-gear equivalent (bed→tent, candelabra→lantern) or drop what has none. ONE choke point —
+  // it catches the model's puns, the nets, and palette-induced picks alike. Interiors are untouched.
+  if (grammar !== 'enclosed-interior') {
+    for (let i = ops.length - 1; i >= 0; i--) {
+      const o = ops[i]!;
+      if (o.op === 'place' && o.kind !== 'actor' && o.tag in INTERIOR_ONLY) {
+        const to = INTERIOR_ONLY[o.tag] ?? null;
+        if (to === null) { ops.splice(i, 1); notes.push(`context: dropped interior-only '${o.tag}' (outdoor open ground)`); }
+        else { notes.push(`context: '${o.tag}' → '${to}' (roof-only furniture on outdoor ground → camp gear)`); o.tag = to; }
+      } else if (o.op === 'scatter' && o.kind === 'prop' && o.tags.some((t) => t in INTERIOR_ONLY)) {
+        const mapped = [...new Set(o.tags.map((t) => (t in INTERIOR_ONLY ? INTERIOR_ONLY[t] : t)))].filter((t): t is string => typeof t === 'string');
+        notes.push(`context: scatter [${o.tags.join(', ')}] → [${mapped.join(', ') || 'dropped'}] (roof-only furniture outdoors)`);
+        if (!mapped.length) ops.splice(i, 1);
+        else o.tags = mapped;
+      }
+    }
+  }
   // STRUCTURE-COMPLETENESS NET: an interior/dungeon/cave/maze brief MUST have a structural backbone —
   // if the LLM emitted none (e.g. a "dungeon" as flat fill + scattered monsters), inject the right one
   // so it can never come out a flat field. Inserted BEFORE the first object op (so terrain fills stay
@@ -732,12 +763,13 @@ export function normalizeProgram(raw: unknown, brief: string, moodText: string =
     for (const o of ops) {
       if (o.op === 'place' && o.kind !== 'actor') propTags.add(o.tag);
       if (o.op === 'building') propTags.add('__building__'); // a building furnishes itself — don't also drop a loose altar/throne
+      if (o.op === 'vignette' && o.type === 'camp') { propTags.add('tent'); propTags.add('fire_small'); } // a camp vignette already pitches both
     }
     const hasBuilding = propTags.has('__building__');
     for (const [re, tag] of BRIEF_PROPS) {
       if (ops.length >= 28) break;
       if (re.test(lcb) && !propTags.has(tag) && !(hasBuilding && (tag === 'altar' || tag === 'throne'))) {
-        ops.push({ op: 'place', id: uniqueId(`prop:${tag}`, seen), tag, kind: 'prop', at: 'center' });
+        ops.push({ op: 'place', id: uniqueId(`prop:${tag.replace(/_/g, '-')}`, seen), tag, kind: 'prop', at: 'center' });
         propTags.add(tag);
         notes.push(`landmark-net: injected '${tag}' (named in the brief, missing from the program)`);
       }

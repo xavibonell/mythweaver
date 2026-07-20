@@ -276,6 +276,38 @@ describe('LLM scene programmer (G1b) — normalize + compose', () => {
     expect(validateSceneMap(runProgram(p))).toEqual({ ok: true, violations: [] });
   });
 
+  it('PROP CONTEXT CONTRACT: roof-only furniture never lands on outdoor open ground', () => {
+    const p = normalizeProgram(
+      { grammar: 'open-outdoor', outdoor: true, ops: [
+        { op: 'place', id: 'prop:bed', tag: 'bed', kind: 'prop', at: 'center' },
+        { op: 'place', id: 'prop:light', tag: 'candelabra_large', kind: 'prop', at: { c: 10, r: 8 } },
+        { op: 'scatter', idBase: 'prop:stuff', tags: ['bookshelf', 'crate'], kind: 'prop', region: 'all', count: 4 },
+      ] },
+      'an open meadow rest stop',
+    );
+    const tags = p.ops.filter((o) => o.op === 'place').map((o) => (o as { tag: string }).tag);
+    expect(tags).toContain('tent'); // bed → the honest outdoor equivalent
+    expect(tags).toContain('brass_lantern'); // candelabra → lantern
+    expect(tags).not.toContain('bed');
+    const sc = p.ops.find((o) => o.op === 'scatter' && 'tags' in o && o.tags.includes('crate'));
+    expect(sc && 'tags' in sc ? sc.tags : []).not.toContain('bookshelf'); // no outdoor equivalent → dropped
+    expect((p.notes ?? []).some((n) => n.startsWith('context:'))).toBe(true);
+    // …and an INTERIOR keeps its furniture untouched.
+    const pi = normalizeProgram(
+      { grammar: 'enclosed-interior', outdoor: false, ops: [{ op: 'place', id: 'prop:bed', tag: 'bed', kind: 'prop', at: 'center' }] },
+      'a dusty study',
+    );
+    expect(pi.ops.some((o) => o.op === 'place' && (o as { tag: string }).tag === 'bed')).toBe(true);
+  });
+
+  it('camp net: a brief naming a tent + campfire gets BOTH injected when the model composed neither', () => {
+    const p = normalizeProgram({ grammar: 'open-outdoor', outdoor: true, ops: [] }, 'a forest glade with a tent and a campfire');
+    const tags = p.ops.filter((o) => o.op === 'place').map((o) => (o as { tag: string }).tag);
+    expect(tags).toContain('tent');
+    expect(tags).toContain('fire_small');
+    expect(validateSceneMap(runProgram(p))).toEqual({ ok: true, violations: [] });
+  });
+
   it('a BARE wild brief still gets the default figure (glade + camp fallback) — regression', () => {
     const p = normalizeProgram(
       { grammar: 'open-outdoor', outdoor: true, ops: [
