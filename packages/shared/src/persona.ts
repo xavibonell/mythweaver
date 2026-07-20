@@ -148,15 +148,34 @@ export interface ReactionIntent {
   goal?: 'investigate' | 'guard' | 'raise-alarm';
 }
 
+/** What KIND of disturbance a witness is reacting to — the same perception, different dispositions:
+ *  a threat frightens (flee/confront), an outrage (theft/desecration) SCANDALISES (glare/disapprove,
+ *  authority apprehends), a hazard (fire/collapse) endangers everyone (all recoil, none charge it). */
+export type ReactionValence = 'threat' | 'outrage' | 'hazard';
+
 /**
- * Map (persona, perception grade) → a reaction intent. Deterministic and side-effect-free. An
+ * Map (persona, perception grade, valence) → a reaction intent. Deterministic and side-effect-free. An
  * 'alerted' witness (walled off, only heard a loud event) never acts this beat — it emerges at its
  * door to investigate next beat. 'oblivious' does nothing.
  */
-export function reactTo(p: Persona, grade: PerceptionGrade): ReactionIntent {
+export function reactTo(p: Persona, grade: PerceptionGrade, valence: ReactionValence = 'threat'): ReactionIntent {
   if (grade === 'oblivious') return { verb: 'none', toward: 'none' };
   if (grade === 'alerted') return { verb: 'emerge', toward: 'door', goal: 'investigate' };
   const saw = grade === 'saw';
+  // HAZARD (fire, collapse): nobody charges it — even authority pulls back and helps; the timid bolt.
+  if (valence === 'hazard') {
+    if (p.archetype === 'beast' || p.temper === 'timid' || p.temper === 'feral') return { verb: 'flee', toward: 'exit' };
+    if (p.archetype === 'cleric') return { verb: 'shield-others', toward: 'victim' }; // pull others clear
+    return { verb: 'back-away', toward: 'none' };
+  }
+  // OUTRAGE (theft, desecration, trespass): scandal, not danger — the law moves to apprehend, the rest
+  // recoil/glare; nobody flees a pickpocket, and beasts/hostiles don't care.
+  if (valence === 'outrage') {
+    if (p.archetype === 'authority' || p.temper === 'brave') return { verb: 'confront', toward: 'attacker', goal: 'guard' };
+    if (p.archetype === 'beast' || p.archetype === 'monster') return { verb: 'none', toward: 'none' };
+    if (p.archetype === 'keeper') return { verb: 'brace', toward: 'none' }; // stands over their goods, glaring
+    return saw ? { verb: 'gawk', toward: 'none' } : { verb: 'back-away', toward: 'none' }; // scandalised stare / edge off
+  }
   switch (p.archetype) {
     case 'authority':
       return { verb: 'confront', toward: 'attacker', goal: 'guard' };

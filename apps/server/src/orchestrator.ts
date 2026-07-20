@@ -827,13 +827,15 @@ export function buildToolDefs(retrieval: boolean, scene: boolean): ToolDef[] {
       tools.push({
         name: 'declareDisturbance',
         description:
-          "Call this the MOMENT a PC attacks, strikes, or openly threatens someone — BEFORE you narrate how anyone else reacts. The engine reads every bystander's disposition and how clearly they saw it, MOVES them on the real map (some flee, some close in to help, some freeze), and hands you back a REACTION VERDICT. You then narrate ONLY those returned reactions — you do NOT decide who runs or who charges. Give the aggressor (the PC) and, if there is one, the specific target they struck/menaced.",
+          "Call this the MOMENT the scene is disturbed — a PC attacks/threatens someone (attack/menace/threaten), commits a CRIME the public would condemn (transgress: theft, desecration, trespass, vandalism), or a DANGER breaks out (hazard: a fire, a collapse) — BEFORE you narrate how anyone reacts. The engine reads every bystander's disposition and how clearly they saw it, MOVES them (flee, close in, glare, recoil), drops the party's standing with witnesses to a crime, sends the watch for violence or theft, and hands you back a REACTION VERDICT. Narrate ONLY those returned reactions. Give the aggressor (the acting PC), the specific target if there is one, and set `covert: true` if the act was sneaky (a pickpocket, a quiet theft) so only close onlookers notice.",
         inputSchema: {
           type: 'object',
           properties: {
-            aggressorId: { type: 'string', description: 'the PC who attacked/threatened (id or name)' },
-            targetId: { type: 'string', description: 'who they struck or menaced (id or name); omit for a general threat to the room' },
-            kind: { type: 'string', enum: ['attack', 'menace', 'threaten'], description: 'attack = a blow landed/swung; menace = weapon drawn on someone; threaten = a shouted threat' },
+            aggressorId: { type: 'string', description: 'the acting PC (id or name); for a pure hazard with no actor, the nearest PC' },
+            targetId: { type: 'string', description: 'who/what they struck, robbed, or desecrated (id or name); omit for a general threat or a hazard' },
+            kind: { type: 'string', enum: ['attack', 'menace', 'threaten', 'transgress', 'hazard'], description: 'attack/menace/threaten = violence; transgress = a witnessed crime (theft/desecration/trespass); hazard = an environmental danger (fire/collapse)' },
+            locusId: { type: 'string', description: 'for a hazard: WHERE the danger is (a prop/spot id) so onlookers flee the right place; optional' },
+            covert: { type: 'boolean', description: 'true = a sneaky, quiet act (pickpocket) — only close onlookers with a clear view notice' },
           },
           required: ['aggressorId', 'kind'],
           additionalProperties: false,
@@ -2736,11 +2738,15 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
               if (disturbedThisTurn.has(key)) {
                 resolved.push({ toolUseId: tc.id, content: JSON.stringify({ note: 'this disturbance was already resolved this turn — narrate the reactions you were already given; do not re-declare.' }) });
               } else {
-                const kind = (['attack', 'menace', 'threaten'].includes(String(tc.input.kind)) ? tc.input.kind : 'attack') as DisturbanceEvent['kind'];
+                const kind = (['attack', 'menace', 'threaten', 'transgress', 'hazard'].includes(String(tc.input.kind)) ? tc.input.kind : 'attack') as DisturbanceEvent['kind'];
+                const covert = tc.input.covert === true;
+                // For a hazard, the danger LOCUS is where onlookers flee from (a fire, a collapse) — resolve it.
+                const locus = kind === 'hazard' && tc.input.locusId ? resolveMapObject(engine, map, tc.input.locusId, { col: aggressor.col, row: aggressor.row }) : undefined;
+                const at = locus ? { col: locus.col, row: locus.row } : undefined;
                 // The crowd reacts through real pathfinding; the reacted set stops a second disturbance this
                 // turn from re-moving anyone. (Promoting a struck NPC to a damageable combatant is done in the
                 // applyDamage handler, out-of-combat only — not here — so a mere menace leaves no lingering mob.)
-                const outcome = resolveReactions(engine, map, { aggressor, target, kind }, sceneDeltas, state.ledger, REACTIONS === 'dry' ? 'dry' : 'on', reactedThisTurn);
+                const outcome = resolveReactions(engine, map, { aggressor, target, kind, covert, ...(at ? { at } : {}) }, sceneDeltas, state.ledger, REACTIONS === 'dry' ? 'dry' : 'on', reactedThisTurn);
                 disturbedThisTurn.add(key); // mark consumed only AFTER it resolved (a throw above leaves it retryable)
                 resolved.push({
                   toolUseId: tc.id,

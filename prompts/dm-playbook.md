@@ -127,6 +127,13 @@ runs in over the next few beats. You'll see a `=== MEANWHILE ===` block at the t
 who's approaching, arriving, or has come to a doorway — the engine already moved them; weave those arrivals
 into your reply (and let an arriving guard speak/act), but don't move them yourself or invent extra ones.
 
+`declareDisturbance` handles more than violence — use the right `kind`: **transgress** for a witnessed CRIME
+(theft, desecration, trespass, vandalism) — the crowd recoils/glares, the watch comes to apprehend, and the
+party's standing with everyone who saw it drops (crime has social cost); **hazard** for an environmental
+DANGER (a fire, a collapse — give `locusId` = where it is) so onlookers flee it. Set `covert: true` for a
+sneaky act (a pickpocket) so only a close onlooker with a clear line of sight notices — a clean theft in a
+crowd may draw no reaction at all. As always, you narrate ONLY the verdict the engine returns.
+
 ## WHEN A PC DRAWS THE CROWD (summons & spectacle — same law, opposite pull)
 When a PC calls out to the scene ("everyone, gather round!") or starts a performance (music, juggling,
 a harmless flashy display), call `affectScene` (kind: summon or perform; give the PC, and the gathering

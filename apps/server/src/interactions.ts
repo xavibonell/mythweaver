@@ -17,16 +17,28 @@
 // MYTHWEAVER_INTERACTIONS (draw) in the orchestrator.
 
 import { deriveMoveCaps, distanceFt, findPath, hasLineOfSight, spatialIndex, whereIs, type Cell, type Engine, type MonsterSpec } from '@mythweaver/engine';
-import { appealTo, personaOf, reactTo, type Appeal, type GameState, type LedgerState, type MapObject, type PerceptionGrade, type Persona, type PersonaArchetype, type ReactionIntent, type SceneDelta, type SceneMap } from '@mythweaver/shared';
+import { appealTo, personaOf, reactTo, type Appeal, type GameState, type LedgerState, type MapObject, type PerceptionGrade, type Persona, type PersonaArchetype, type ReactionIntent, type ReactionValence, type SceneDelta, type SceneMap } from '@mythweaver/shared';
 import { deriveBuildings, EARSHOT_FT, sceneGraph, type SceneGraph } from './scene-graph.js';
 
 /** What happened, resolved to concrete map tokens by the caller (the orchestrator owns id resolution). */
 export interface DisturbanceEvent {
-  /** The acting actor (usually the PC who struck/threatened). Excluded from the reacting crowd. */
+  /** The acting actor (the PC who struck/stole/etc). Excluded from the reacting crowd. For a pure
+   *  environmental hazard (fire) there is no actor — pass the source of the hazard, or the acting PC. */
   aggressor: MapObject;
-  /** The struck/menaced NPC, if any. Excluded from the crowd (the DM narrates the victim directly). */
+  /** The struck/menaced/robbed NPC or the desecrated thing, if any. Excluded from the crowd. */
   target?: MapObject;
-  kind: 'attack' | 'menace' | 'threaten';
+  /** attack/menace/threaten = THREAT (scatter); transgress = OUTRAGE (theft/desecration/trespass →
+   *  scandal + the law); hazard = ENVIRONMENTAL danger (fire/collapse → everyone recoils). */
+  kind: 'attack' | 'menace' | 'threaten' | 'transgress' | 'hazard';
+  /** P4g: a COVERT act (pickpocket, sneak) — only close, clear-line-of-sight onlookers notice it. */
+  covert?: boolean;
+  /** Where the disturbance is (a hazard cell, a desecrated altar); defaults to target, else aggressor. */
+  at?: Cell;
+}
+
+/** The reaction valence a disturbance kind carries (drives reactTo + the fact prose). */
+function valenceOf(kind: DisturbanceEvent['kind']): ReactionValence {
+  return kind === 'transgress' ? 'outrage' : kind === 'hazard' ? 'hazard' : 'threat';
 }
 
 export interface ReactionOutcome {
@@ -56,9 +68,19 @@ const BACK_AWAY_TILES = 2;
  * saw vs heard. All P3 disturbances are "loud" (a fight/shout), so a walled-off witness is alerted, not
  * oblivious, within earshot.
  */
-function gradeOf(idx: ReturnType<typeof spatialIndex>, g: SceneGraph, eventCell: Cell, eventZone: string, o: MapObject): PerceptionGrade {
+/** How near a covert act must be seen to register — a pickpocket/sneak makes no noise, so only a close,
+ *  clear line of sight catches it (P4g stealth pre-filter). Everyone else is oblivious. */
+const COVERT_SIGHT_FT = 25;
+function gradeOf(idx: ReturnType<typeof spatialIndex>, g: SceneGraph, eventCell: Cell, eventZone: string, o: MapObject, covert = false): PerceptionGrade {
   const oc: Cell = { col: o.col, row: o.row };
-  if (distanceFt(idx, oc, eventCell) > EARSHOT_FT) return 'oblivious';
+  const d = distanceFt(idx, oc, eventCell);
+  if (covert) {
+    // A quiet, hidden act: no earshot, no through-wall alarm — only a close witness with a clear view.
+    const witnessZone = g.zoneOf.get(o.id) ?? whereIs(idx, oc).buildingId ?? 'outdoor';
+    if (witnessZone === eventZone && d <= COVERT_SIGHT_FT && hasLineOfSight(idx, oc, eventCell).clear) return 'saw';
+    return 'oblivious';
+  }
+  if (d > EARSHOT_FT) return 'oblivious';
   const witnessZone = g.zoneOf.get(o.id) ?? whereIs(idx, oc).buildingId ?? 'outdoor';
   if (witnessZone !== eventZone) return 'alerted'; // a wall between them (zone occlusion, P0) — never "saw"
   return hasLineOfSight(idx, oc, eventCell).clear ? 'saw' : 'heard';
@@ -139,23 +161,30 @@ function personaColour(p: Persona): string {
  *  recoiling in place, never "bolts away", so narration matches the token that did not move. */
 function reactionFact(o: MapObject, w: { grade: PerceptionGrade; persona: Persona; intent: ReactionIntent }, ev: DisturbanceEvent, moved: boolean): string {
   const name = displayName(o) + personaColour(w.persona);
-  const aggName = ev.aggressor.name ?? 'the attacker';
+  const aggName = ev.aggressor.name ?? 'the offender';
+  const valence = valenceOf(ev.kind);
+  const outrage = valence === 'outrage', hazard = valence === 'hazard';
+  const danger = ev.kind === 'hazard' ? 'the danger' : 'the violence';
   switch (w.intent.verb) {
     case 'confront':
+      if (outrage) return moved ? `${name} moves to stop ${aggName}, calling them out.` : `${name} rounds on ${aggName} but can't reach them, glaring.`;
       return moved ? `${name} closes on ${aggName}, moving to challenge the attack.` : `${name} squares up to ${aggName} but can't get through, holding their ground.`;
     case 'shield-others':
-      // Only name a victim the disturbance actually has — a targetless menace has none to interpose for.
+      if (hazard) return moved ? `${name} moves to pull people clear of ${danger}.` : `${name} reaches to pull others back from ${danger}.`;
       return ev.target
         ? (moved ? `${name} moves to put themselves between the attacker and ${ev.target.name ?? 'the one under attack'}.` : `${name} braces to shield ${ev.target.name ?? 'the one under attack'} but is blocked from reaching them.`)
         : `${name} steps forward, ready to shield whoever the attacker turns on.`;
     case 'flee':
-      return moved ? `${name} breaks and bolts away from the violence.` : `${name} recoils to run but is hemmed in, unable to get clear.`;
+      if (hazard) return moved ? `${name} bolts away from ${danger}.` : `${name} scrambles to flee ${danger} but is hemmed in.`;
+      return moved ? `${name} breaks and bolts away from ${danger}.` : `${name} recoils to run but is hemmed in, unable to get clear.`;
     case 'back-away':
+      if (outrage) return moved ? `${name} edges off, muttering in disapproval and keeping an eye on ${aggName}.` : `${name} stiffens with disapproval, nowhere to give ground.`;
+      if (hazard) return moved ? `${name} backs away from ${danger}, wary.` : `${name} shrinks from ${danger}, hemmed in.`;
       return moved ? `${name} edges back a step, keeping their distance and watching.` : `${name} flinches back, watching warily, with nowhere to give ground.`;
     case 'brace':
-      return `${name} plants their feet at their post — wary, holding, not backing down.`;
+      return outrage ? `${name} plants themselves over their goods, glaring at ${aggName}.` : `${name} plants their feet at their post — wary, holding, not backing down.`;
     case 'gawk':
-      return `${name} freezes and stares, startled still.`;
+      return outrage ? `${name} stares, scandalised by what they just saw.` : `${name} freezes and stares, startled still.`;
     case 'cower':
       return `${name} shrinks down where they stand.`;
     case 'emerge':
@@ -176,31 +205,38 @@ const MOVING_VERBS = new Set<ReactionIntent['verb']>(['confront', 'flee', 'shiel
 export function resolveReactions(engine: Engine, map: SceneMap, ev: DisturbanceEvent, sceneDeltas: SceneDelta[], ledger: LedgerState | undefined, mode: 'on' | 'dry', reacted: Set<string> = new Set()): ReactionOutcome {
   const idx = spatialIndex(map);
   const g = sceneGraph(map, idx);
-  // Perception is judged from the EVENT locus (the victim, or the aggressor for a targetless menace)…
-  const eventCell: Cell = ev.target ? { col: ev.target.col, row: ev.target.row } : { col: ev.aggressor.col, row: ev.aggressor.row };
+  const valence = valenceOf(ev.kind);
+  // Perception is judged from the EVENT locus (an explicit `at`, else the target, else the actor)…
+  const eventCell: Cell = ev.at ?? (ev.target ? { col: ev.target.col, row: ev.target.row } : { col: ev.aggressor.col, row: ev.aggressor.row });
   const eventZone = whereIs(idx, eventCell).buildingId ?? 'outdoor';
-  // …but flight is AWAY FROM THE THREAT (the wielder), which differs from the victim on a ranged strike.
-  const threatCell: Cell = { col: ev.aggressor.col, row: ev.aggressor.row };
+  // …but retreat is AWAY FROM THE THREAT: the wielder for an attack/theft (differs from the victim on a
+  // ranged strike), the hazard itself for a fire/collapse (there is no wielder to flee).
+  const threatCell: Cell = valence === 'hazard' ? eventCell : { col: ev.aggressor.col, row: ev.aggressor.row };
 
-  type W = { o: MapObject; grade: PerceptionGrade; persona: Persona; intent: ReactionIntent; d: number };
+  type W = { o: MapObject; grade: PerceptionGrade; persona: Persona; intent: ReactionIntent; card?: LedgerState['entities'][string]; d: number };
   const ws: W[] = [];
   for (const o of map.objects) {
     if (o.kind !== 'actor' || o.visible === false || o.role === 'pc') continue; // PCs aren't the crowd
     if (o.id === ev.aggressor.id || o.id === ev.target?.id) continue; // attacker + victim handled directly
     if (reacted.has(o.id)) continue; // already reacted to an earlier disturbance THIS turn — don't re-move them
-    const grade = gradeOf(idx, g, eventCell, eventZone, o);
+    const grade = gradeOf(idx, g, eventCell, eventZone, o, ev.covert);
     if (grade === 'oblivious') continue;
     const card = ledger ? findCard(ledger, o) : undefined;
     // Derive from the CARD id when one exists (stable across the token↔card split), else the token id.
     const persona = personaOf({ id: card?.id ?? o.id, name: o.name, tag: o.tag, role: o.role }, card?.persona);
-    const intent = reactTo(persona, grade);
+    const intent = reactTo(persona, grade, valence);
     if (intent.verb === 'none') continue;
-    ws.push({ o, grade, persona, intent, d: distanceFt(idx, { col: o.col, row: o.row }, eventCell) });
+    ws.push({ o, grade, persona, intent, card, d: distanceFt(idx, { col: o.col, row: o.row }, eventCell) });
   }
   ws.sort((a, b) => a.d - b.d); // nearest onlookers react individually; the far tail aggregates
 
   const facts: string[] = [];
   let reactors = 0, overflow = 0;
+  // A single crime docks a ledger IDENTITY once — even if several visible tokens share that card's name
+  // (two "Town Guard" tokens → one card). findCard is many-to-one by name, and recordFact mutates the
+  // live ledger that standingOf re-reads, so without this a lone theft would compound the same card's
+  // standing (−1, then −2…). Keyed by CARD id (the `reacted` guard is token-keyed and can't catch this).
+  const dockedCards = new Set<string>();
   for (const w of ws) {
     if (reactors >= MAX_REACTORS) { overflow++; reacted.add(w.o.id); continue; }
     let moved = false;
@@ -226,6 +262,12 @@ export function resolveReactions(engine: Engine, map: SceneMap, ev: DisturbanceE
       // Engine-owned reaction state (the DM's updateScene path strips rx:*; this is the trusted writer).
       const rs = engine.applySceneDeltas([{ op: 'setState', id: w.o.id, state: { 'rx:verb': w.intent.verb, 'rx:grade': w.grade, 'rx:moved': moved } }]);
       sceneDeltas.push(...rs.applied);
+      // P4e: a WITNESSED transgression (theft/desecration) costs the party standing with everyone who saw it —
+      // but only ONCE per ledger identity per crime (dockedCards guards against name-aliased tokens).
+      if (valence === 'outrage' && w.card && !dockedCards.has(w.card.id)) {
+        engine.recordFact({ subject: w.card.id, attribute: STANDING_ATTR, value: String(clampStanding(standingOf(w.persona, ledger, w.card.id) - 1)) });
+        dockedCards.add(w.card.id);
+      }
       // P4f: an 'emerge' witness (walled off, only alerted) is given a WAYPOINT GOAL to its own doorway —
       // advanceGoals walks it there next beat and it speaks on arrival. The consumer P3 was missing.
       if (w.intent.verb === 'emerge') {
@@ -240,10 +282,11 @@ export function resolveReactions(engine: Engine, map: SceneMap, ev: DisturbanceE
   }
   if (overflow > 0) {
     // Disposition-neutral + no movement claim — the engine did NOT walk these tail onlookers.
-    facts.push(`Around the edges of the scene, ${overflow} more ${overflow === 1 ? 'onlooker reacts' : 'onlookers react'} to the violence.`);
+    facts.push(`Around the edges of the scene, ${overflow} more ${overflow === 1 ? 'onlooker reacts' : 'onlookers react'}.`);
   }
-  // P4f: a loud disturbance carries beyond earshot — distant authority is DISPATCHED (walks in over beats).
-  if (mode === 'on' && (ev.kind === 'attack' || ev.kind === 'menace')) {
+  // P4f: a disturbance carries beyond earshot — distant authority is DISPATCHED (walks in over beats). A
+  // hazard summons no lawman to "apprehend" anyone (there's no offender), so only violence/crime dispatches.
+  if (mode === 'on' && (ev.kind === 'attack' || ev.kind === 'menace' || ev.kind === 'transgress') && !ev.covert) {
     facts.push(...dispatchReinforcements(engine, map, eventCell, ev.aggressor.id, ev.target?.id, ledger, sceneDeltas, reacted));
   }
   return { facts, reactors, overflow, witnesses: ws.length };

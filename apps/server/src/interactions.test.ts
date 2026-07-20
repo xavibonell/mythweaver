@@ -492,3 +492,113 @@ describe('P4f review fixes — ttl scaling, move-honesty, staleness', () => {
     expect(facts.join(' ')).not.toMatch(/Hold!|reaches the scene/); // no shouting at empty air
   });
 })
+
+describe('P4e transgress — a witnessed CRIME is outrage, not fear (theft/desecration)', () => {
+  const theft = (map: SceneMap): DisturbanceEvent => ({ aggressor: obj(map, 'pc:aldric'), target: obj(map, 'npc:bram'), kind: 'transgress' });
+
+  it('the crowd is SCANDALISED, not frightened: authority moves to apprehend, none flee', () => {
+    const { engine, map } = makeEngine();
+    const out = resolveReactions(engine, map, theft(map), [], undefined, 'on');
+    const joined = out.facts.join(' | ');
+    expect(joined).toMatch(/Ser Kael.*(moves to stop|calling them out|glaring)/); // authority apprehends
+    expect(joined).toMatch(/Hobb.*(over their goods|glaring)/); // keeper stands over their goods
+    expect(joined).toMatch(/scandalised|disapproval|glaring/); // outrage vocabulary
+    expect(joined).not.toMatch(/bolts away|breaks and bolts|flee the danger/); // nobody FLEES a pickpocket
+  });
+
+  it('drops the party standing with every witness who has a ledger card', () => {
+    const { engine, state, map } = makeEngine();
+    engine.upsertEntity({ id: 'npc:kael', kind: 'npc', name: 'Ser Kael' }); // the town knight, now a card
+    expect(standingOf({ archetype: 'authority', temper: 'brave' } as any, state.ledger, 'npc:kael')).toBe(0); // stranger, pre-crime
+    resolveReactions(engine, map, theft(map), [], state.ledger, 'on');
+    expect(standingOf({ archetype: 'authority', temper: 'brave' } as any, engine.getState().ledger, 'npc:kael')).toBe(-1); // saw the theft → −1
+  });
+
+  it('still sends the watch (a crime summons the law to apprehend)', () => {
+    const farKnight: MapObject = { id: 'npc:warden', kind: 'actor', role: 'npc', tag: 'knight', name: 'Warden', col: 27, row: 10, footprint: { w: 1, h: 1 }, facing: 'down', visible: true } as MapObject;
+    const { engine, map } = makeEngine([farKnight]);
+    resolveReactions(engine, map, theft(map), [], undefined, 'on');
+    expect(obj(map, 'npc:warden').state?.['rx:goal']).toBeTruthy(); // dispatched to apprehend
+  });
+
+  it('docks a shared ledger identity ONCE, even when two same-named tokens both witness it (no double-drop)', () => {
+    // Two visible "Town Guard" tokens (distinct ids) both join to the ONE ledger card by name.
+    const g1: MapObject = { id: 'npc:guard-a', kind: 'actor', role: 'npc', tag: 'knight', name: 'Town Guard', col: 12, row: 12, footprint: { w: 1, h: 1 }, facing: 'down', visible: true } as MapObject;
+    const g2: MapObject = { id: 'npc:guard-b', kind: 'actor', role: 'npc', tag: 'knight', name: 'Town Guard', col: 13, row: 12, footprint: { w: 1, h: 1 }, facing: 'down', visible: true } as MapObject;
+    const { engine, state, map } = makeEngine([g1, g2]);
+    engine.upsertEntity({ id: 'npc:guard', kind: 'npc', name: 'Town Guard' }); // the one card both tokens resolve to
+    resolveReactions(engine, map, theft(map), [], state.ledger, 'on');
+    expect(standingOf({ archetype: 'authority', temper: 'brave' } as any, engine.getState().ledger, 'npc:guard')).toBe(-1); // −1, not −2
+    // exactly one live standing fact for that identity
+    const live = (engine.getState().ledger?.facts ?? []).filter((f: any) => f.subject === 'npc:guard' && f.attribute === 'standing:party' && !f.supersededBy);
+    expect(live.length).toBe(1);
+  });
+});
+
+describe('P4e hazard — an environmental danger: everyone recoils, nobody charges it', () => {
+  // A fire at (10,12). The acting PC is only the nominal "aggressor" (nearest PC); the crowd flees the LOCUS.
+  const fire = (map: SceneMap): DisturbanceEvent => ({ aggressor: obj(map, 'pc:aldric'), kind: 'hazard', at: { col: 10, row: 12 } });
+
+  it('even an authority backs away from a hazard (it does not confront a fire)', () => {
+    const { engine, map } = makeEngine();
+    resolveReactions(engine, map, fire(map), [], undefined, 'on');
+    expect(obj(map, 'npc:town-knight').state?.['rx:verb']).toBe('back-away'); // NOT 'confront'
+    expect(obj(map, 'npc:bystander-1').state?.['rx:verb']).toBe('flee'); // the timid bolt
+  });
+
+  it('summons no watch — there is no offender to apprehend', () => {
+    const farKnight: MapObject = { id: 'npc:warden', kind: 'actor', role: 'npc', tag: 'knight', name: 'Warden', col: 27, row: 10, footprint: { w: 1, h: 1 }, facing: 'down', visible: true } as MapObject;
+    const { engine, map } = makeEngine([farKnight]);
+    resolveReactions(engine, map, fire(map), [], undefined, 'on');
+    expect(obj(map, 'npc:warden').state?.['rx:goal']).toBeFalsy(); // no dispatch for a fire
+  });
+
+  it('bystanders flee AWAY FROM THE LOCUS, not from the PC', () => {
+    const between: MapObject = { id: 'npc:tween', kind: 'actor', role: 'npc', tag: 'villager', col: 15, row: 10, footprint: { w: 1, h: 1 }, facing: 'down', visible: true } as MapObject;
+    const { engine, map } = makeEngine([between]);
+    map.objects = map.objects.filter((o) => ['pc:aldric', 'npc:tween'].includes(o.id));
+    obj(map, 'pc:aldric').col = 5; obj(map, 'pc:aldric').row = 10; // PC on the LEFT
+    resolveReactions(engine, map, { aggressor: obj(map, 'pc:aldric'), kind: 'hazard', at: { col: 20, row: 10 } }, [], undefined, 'on'); // fire on the RIGHT
+    expect(obj(map, 'npc:tween').col).toBeLessThan(15); // fled left, away from the fire — toward the PC, not away from it
+  });
+});
+
+describe('P4g covert — a quiet, hidden act: only a close, clear-view onlooker notices', () => {
+  // A pickpocket (covert transgress). Distances: a witness 1 tile away (~5ft) vs one 9 tiles away (~45ft).
+  function twoWitnesses(): ReturnType<typeof makeEngine> {
+    const near: MapObject = { id: 'npc:near', kind: 'actor', role: 'npc', tag: 'villager', name: 'Nan', col: 11, row: 11, footprint: { w: 1, h: 1 }, facing: 'down', visible: true } as MapObject;
+    const far: MapObject = { id: 'npc:far', kind: 'actor', role: 'npc', tag: 'villager', name: 'Far', col: 10, row: 20, footprint: { w: 1, h: 1 }, facing: 'down', visible: true } as MapObject;
+    const made = makeEngine([near, far]);
+    made.map.objects = made.map.objects.filter((o) => ['pc:aldric', 'npc:bram', 'npc:near', 'npc:far'].includes(o.id));
+    return made;
+  }
+  const pick = (map: SceneMap, covert: boolean): DisturbanceEvent => ({ aggressor: obj(map, 'pc:aldric'), target: obj(map, 'npc:bram'), kind: 'transgress', covert });
+
+  it('covert: the close onlooker reacts; the one 45ft off (in earshot) stays OBLIVIOUS', () => {
+    const { engine, map } = twoWitnesses();
+    const out = resolveReactions(engine, map, pick(map, true), [], undefined, 'on');
+    expect(out.facts.some((f) => f.startsWith('Nan'))).toBe(true); // close + clear view → noticed
+    expect(out.facts.some((f) => f.startsWith('Far'))).toBe(false); // 45ft: heard nothing (quiet), saw nothing → oblivious
+  });
+
+  it('the SAME act, done openly, would reach the far witness (covert is what silences them)', () => {
+    const { engine, map } = twoWitnesses();
+    const out = resolveReactions(engine, map, pick(map, false), [], undefined, 'on'); // not covert
+    expect(out.facts.some((f) => f.startsWith('Far'))).toBe(true); // 45ft < 60ft earshot → alerted/reacts
+  });
+
+  it('a clean covert theft in an empty sightline draws NO reaction at all', () => {
+    const { engine, map } = twoWitnesses();
+    map.objects = map.objects.filter((o) => ['pc:aldric', 'npc:bram', 'npc:far'].includes(o.id)); // only the far one remains
+    const out = resolveReactions(engine, map, pick(map, true), [], undefined, 'on');
+    expect(out.facts).toEqual([]);
+    expect(out.witnesses).toBe(0);
+  });
+
+  it('covert never dispatches the watch (nobody raised the alarm)', () => {
+    const farKnight: MapObject = { id: 'npc:warden', kind: 'actor', role: 'npc', tag: 'knight', name: 'Warden', col: 27, row: 10, footprint: { w: 1, h: 1 }, facing: 'down', visible: true } as MapObject;
+    const { engine, map } = makeEngine([farKnight]);
+    resolveReactions(engine, map, { aggressor: obj(map, 'pc:aldric'), target: obj(map, 'npc:bram'), kind: 'transgress', covert: true }, [], undefined, 'on');
+    expect(obj(map, 'npc:warden').state?.['rx:goal']).toBeFalsy(); // sneaky theft → no watch called
+  });
+});
