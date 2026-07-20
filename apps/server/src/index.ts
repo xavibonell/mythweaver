@@ -25,7 +25,7 @@ import { buildRetriever } from './corpus.js';
 import { buildExemplarRetriever } from './exemplar-corpus.js';
 import { buildTracer } from './tracing.js';
 import { runTurn, type TurnInput } from './orchestrator.js';
-import { buildModernRealizer, establishFromBeat, labBuildCity, labBuildComponent, labBuildProgram, labBuildScene, labBuildSpike, labBuildStory, labComposeScene, modernRealizeInputs } from './scene-lab.js';
+import { buildModernRealizer, establishFromBeat, type VisionGate, labBuildCity, labBuildComponent, labBuildProgram, labBuildScene, labBuildSpike, labBuildStory, labComposeScene, modernRealizeInputs } from './scene-lab.js';
 import { saveSceneCapture } from './scene-eval/capture.js';
 import { runDmLab, createDmLabSession, dmLabSubmit, arcView, characterSheets, autoRollTotal, DM_LAB_TRANSCRIPTS, type LabTurn, type DmLabSession } from './dm-lab.js';
 import { renderDmView } from './dm-view.js';
@@ -86,6 +86,15 @@ const sceneLlm = sceneReuseDm ? llm : createProvider(progName, progModel ? { mod
 const sceneModel = sceneReuseDm ? dmModel : progModel;
 app.log.info(`Scene programmer: ${sceneReuseDm ? `${dmProvider} (REUSING DM — set MYTHWEAVER_SCENE_PROGRAMMER=gemini for a dedicated spatial model)` : `${progName}${progModel ? ` (${progModel})` : ''}`}`);
 
+// Scene VISION GATE (Weave fidelity flywheel): render the composed scene, ask the (vision-capable) scene
+// provider whether the brief's key features are PRESENT, and re-compose ONCE on a semantic miss. The only
+// check that judges MEANING (catches the "pun" class every deterministic validator passes). Adds a render +
+// a vision call per scene (+ a re-compose on a miss). Default ON; MYTHWEAVER_SCENE_VISION_GATE=off disables.
+const sceneAssetsRoot = new URL('../../web/public', import.meta.url).pathname;
+const visionGateOn = (process.env.MYTHWEAVER_SCENE_VISION_GATE ?? 'on').toLowerCase() !== 'off';
+const visionGate: VisionGate = { llm: sceneLlm, ...(sceneModel ? { model: sceneModel } : {}), assetsRoot: sceneAssetsRoot, enabled: visionGateOn };
+app.log.info(`Scene vision gate: ${visionGateOn ? `on (judge=${sceneReuseDm ? dmProvider : progName})` : 'off'}`);
+
 // LIVE-PLAY scene engine (wire-in part 3): settlements realize via the MODERN story path (G1 programmer
 // -> archetypes, the audited extraction pipeline) with the classic Composer as decline/failure fallback.
 // Kill-switch: MYTHWEAVER_SCENE_ENGINE=classic.
@@ -101,7 +110,7 @@ const assetRetriever =
 app.log.info(
   `Asset retrieval: ${assetRetriever ? `on (${assetVectors!.rows.length} vectors, ${assetVectors!.model})` : `off (${!assetVectors ? 'no vectors — run npm run assets:embed' : !assetEmbedder ? 'no embedding key' : `model mismatch: vectors=${assetVectors.model} embedder=${assetEmbedder.model} — re-run npm run assets:embed`})`}`,
 );
-const realizeScene = sceneEngineMode === 'classic' ? undefined : buildModernRealizer({ llm: sceneLlm, ...(sceneModel ? { model: sceneModel } : {}), ...(assetRetriever ? { assetRetriever } : {}) });
+const realizeScene = sceneEngineMode === 'classic' ? undefined : buildModernRealizer({ llm: sceneLlm, ...(sceneModel ? { model: sceneModel } : {}), ...(assetRetriever ? { assetRetriever } : {}), visionGate });
 app.log.info(`Scene engine: ${realizeScene ? 'modern (all kinds: settlement/interior/wild) + classic fallback' : 'classic'}`);
 
 // Game Director / arc planner (Phase D / D2) — MYTHWEAVER_ARC_PLANNER = llm (default) | fake | off.
@@ -231,7 +240,7 @@ app.post('/scene/story', async (req, reply) => {
   if (!premise) return badRequest(reply, 'premise is required');
   if (premise.length > 1000) return badRequest(reply, 'premise too long (max 1000 chars)');
   try {
-    return await labBuildStory({ dm: llm, ...(dmModel ? { dmModel } : {}), scene: sceneLlm, ...(sceneModel ? { sceneModel } : {}), ...(assetRetriever ? { assetRetriever } : {}) }, premise);
+    return await labBuildStory({ dm: llm, ...(dmModel ? { dmModel } : {}), scene: sceneLlm, ...(sceneModel ? { sceneModel } : {}), ...(assetRetriever ? { assetRetriever } : {}), visionGate }, premise);
   } catch (err) {
     app.log.error(err, 'scene story failed');
     // A DM that narrated but never called setScene is a model-COOPERATION miss (retry-able), not an upstream
@@ -739,7 +748,7 @@ app.post('/dm/lab/scene-preview', async (req, reply) => {
   const r = resolvePreviewBeat(req.body);
   if ('error' in r) return badRequest(reply, r.error);
   try {
-    const res = await buildModernRealizer({ llm: sceneLlm, ...(sceneModel ? { model: sceneModel } : {}), ...(assetRetriever ? { assetRetriever } : {}) })(r.establish, [], r.ctx);
+    const res = await buildModernRealizer({ llm: sceneLlm, ...(sceneModel ? { model: sceneModel } : {}), ...(assetRetriever ? { assetRetriever } : {}), visionGate })(r.establish, [], r.ctx);
     if (!res) return badRequest(reply, 'the realizer declined');
     const png = renderSceneMapToPng(res.sceneMap, { assetsRoot: new URL('../../web/public', import.meta.url).pathname });
     // The addressable objects, so relation satisfaction is CHECKABLE from the preview (not just eyeballed).

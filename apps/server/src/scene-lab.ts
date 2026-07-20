@@ -13,6 +13,39 @@ import type { LlmProvider } from '@mythweaver/llm';
 import { applySpecPlacement, buildCityScene, buildComponentSheet, buildSceneMap, buildSpikeScene, compileSpec, GOLD_PROGRAMS, LlmCityPlanner, LlmSceneProgrammer, lookToSprite, paletteBlock, runProgram, unresolvedSpecConcepts, type AssetRetriever, type CityDistrictSpec, type CityRequest, type SceneComposer, type SceneProgram, type SpecBindings } from '@mythweaver/scene';
 import type { EstablishScene, GameState, Lighting, PartyMemberRef, RealizeSceneResult, SceneComposition, SceneKindHint, SceneMap, ScenePlan, SceneProvenance, SceneRealizeContext, SceneSpec } from '@mythweaver/shared';
 import { buildToolDefs, parseEstablish, seedFor } from './orchestrator.js';
+import { critiqueScene, critiqueToGuidance } from './scene-vision.js';
+
+/** The vision semantic gate's deps (Layer 4). A VISION-capable provider (Gemini) + the asset root to
+ *  render against. Disabled → realizeStoryScene runs exactly once, as before. */
+export interface VisionGate { llm: LlmProvider; model?: string; assetsRoot: string; enabled: boolean }
+
+/** realizeStoryScene + the vision fidelity flywheel: compose → render → critique; on a semantic MISS,
+ *  re-compose ONCE with the critique and keep whichever render scored higher. Degrade-proof (a null
+ *  critique ships the first attempt). Every verdict joins the provenance notes. */
+async function realizeGated(
+  deps: { llm: LlmProvider; model?: string; assetRetriever?: AssetRetriever },
+  establish: EstablishScene,
+  premise: string,
+  party: PartyMemberRef[],
+  opts: Parameters<typeof realizeStoryScene>[4],
+  gate?: VisionGate,
+): ReturnType<typeof realizeStoryScene> {
+  let r = await realizeStoryScene(deps, establish, premise, party, opts);
+  if (!gate?.enabled) return r;
+  const c1 = await critiqueScene(gate.llm, gate.model, r.sceneMap, premise, gate.assetsRoot);
+  if (c1 && !c1.faithful && c1.missing.length) {
+    const r2 = await realizeStoryScene(deps, establish, premise, party, { ...opts, critiqueExtra: critiqueToGuidance(c1) });
+    const c2 = await critiqueScene(gate.llm, gate.model, r2.sceneMap, premise, gate.assetsRoot);
+    const keep2 = (c2?.score ?? 0) >= c1.score;
+    r = keep2 ? r2 : r;
+    (r.program.notes ??= []).push(`vision-gate: attempt1 ${c1.score.toFixed(2)} missing[${c1.missing.join(', ')}] → attempt2 ${c2 ? c2.score.toFixed(2) : '—'}${c2 && c2.missing.length ? ` missing[${c2.missing.join(', ')}]` : ''} → kept #${keep2 ? 2 : 1}`);
+  } else if (c1) {
+    (r.program.notes ??= []).push(`vision-gate: faithful ${c1.score.toFixed(2)}${c1.present.length ? ` [${c1.present.join(', ')}]` : ''}`);
+  } else {
+    (r.program.notes ??= []).push('vision-gate: critique unavailable — shipped as composed');
+  }
+  return r;
+}
 
 const SET_SCENE_TOOL = buildToolDefs(false, true).find((t) => t.name === 'setScene')!;
 
@@ -78,7 +111,7 @@ const STORY_SYSTEM = LAB_SYSTEM.replace(
  * routing that later flips the live setScene path — proven here first, visibly.
  */
 export async function labBuildStory(
-  deps: { dm: LlmProvider; dmModel?: string; scene: LlmProvider; sceneModel?: string; assetRetriever?: AssetRetriever },
+  deps: { dm: LlmProvider; dmModel?: string; scene: LlmProvider; sceneModel?: string; assetRetriever?: AssetRetriever; visionGate?: VisionGate },
   premise: string,
 ): Promise<LabResult> {
   // 1. The DM (NARRATOR) — opening narration + the scene declaration. The story prompt asks for prose BEFORE
@@ -97,11 +130,15 @@ export async function labBuildStory(
   if (!tc) throw new Error('the DM did not call setScene for that premise — try a more concrete opening');
   const stub = { world: { currentLocationId: null, locations: {}, links: [] } } as unknown as GameState;
   const establish = parseEstablish(tc.input as Record<string, unknown>, stub);
-  // 2. The scene PROGRAMMER — a SEPARATE specialized provider (spatial ops JSON is not the DM's job).
-  const { sceneMap, program } = await realizeStoryScene(
+  // 2. The scene PROGRAMMER — a SEPARATE specialized provider (spatial ops JSON is not the DM's job) —
+  //    behind the vision fidelity gate (render → critique → re-compose on a semantic miss).
+  const { sceneMap, program } = await realizeGated(
     { llm: deps.scene, ...(deps.sceneModel ? { model: deps.sceneModel } : {}), ...(deps.assetRetriever ? { assetRetriever: deps.assetRetriever } : {}) },
     establish,
     premise,
+    [],
+    {},
+    deps.visionGate,
   );
   return { brief: premise, establish, program, sceneMap, narration: res.text ?? '', model: res.model };
 }
@@ -168,6 +205,9 @@ export async function realizeStoryScene(
     /** The beat's FUNCTIONAL contract (S1) — compiled deterministically over the base topology (S2):
      *  contents replace the prose harvest, in-water features scatter on water, entry stages the party. */
     spec?: SceneSpec;
+    /** Vision-gate RETRY guidance (Layer 4): a critique of a previous render's shortfalls, appended to the
+     *  programmer's model-only channel so the re-composition adds the missing features. */
+    critiqueExtra?: string;
   } = {},
 ): Promise<{ sceneMap: SceneMap; program: SceneProgram; provenance: Pick<SceneProvenance, 'enrichedBrief' | 'moodText' | 'lightingReason' | 'program'> }> {
   const enriched = enrichedBriefFor(establish, premise);
@@ -178,7 +218,8 @@ export async function realizeStoryScene(
   // brief, which normalizeProgram regex-harvests as fiction (a palette line offering 'wolf_winter'
   // must not conjure a wolf pack). Failure degrades silently; provenance records the exact menu.
   const { paletteExtra, paletteNote } = await retrieveAssetPalette(deps.assetRetriever, `${premise}. ${moodText}`);
-  const program = await new LlmSceneProgrammer(deps.llm, deps.model).compose(enriched, moodText, opts.kind, paletteExtra);
+  const promptExtra = [paletteExtra, opts.critiqueExtra].filter(Boolean).join('\n\n') || undefined;
+  const program = await new LlmSceneProgrammer(deps.llm, deps.model).compose(enriched, moodText, opts.kind, promptExtra);
   if (paletteNote) (program.notes ??= []).push(paletteNote);
   program.locationId = establish.locationId; // stamp the DM's id — the frozen map must know its own name
   // LIGHTING PRECEDENCE: an explicitly DECLARED time of day beats the mood-regex (which beats 'day').
@@ -390,15 +431,15 @@ export function establishFromBeat(
   };
 }
 
-export function buildModernRealizer(deps: { llm: LlmProvider; model?: string; assetRetriever?: AssetRetriever }): (est: EstablishScene, party: PartyMemberRef[], ctx?: SceneRealizeContext) => Promise<RealizeSceneResult | null> {
+export function buildModernRealizer(deps: { llm: LlmProvider; model?: string; assetRetriever?: AssetRetriever; visionGate?: VisionGate }): (est: EstablishScene, party: PartyMemberRef[], ctx?: SceneRealizeContext) => Promise<RealizeSceneResult | null> {
   return async (est, party, ctx) => {
     const inputs = modernRealizeInputs(est, ctx);
-    const { sceneMap, provenance } = await realizeStoryScene(deps, est, inputs.premise, party, {
+    const { sceneMap, provenance } = await realizeGated(deps, est, inputs.premise, party, {
       moodText: inputs.moodText,
       ...(inputs.kind ? { kind: inputs.kind } : {}),
       ...(inputs.lightingDeclared ? { lightingDeclared: inputs.lightingDeclared } : {}),
       ...(ctx?.scenePlan?.spec ? { spec: ctx.scenePlan.spec } : {}),
-    });
+    }, deps.visionGate);
     return {
       sceneMap,
       provenance: {
