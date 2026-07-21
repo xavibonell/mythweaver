@@ -39,10 +39,21 @@ mkdirSync(outDir, { recursive: true });
 const files = readdirSync(resolve(dir)).filter((f) => f.endsWith('.txt'));
 let all = [];
 for (const f of files) {
-  const epMatch = f.match(/Episode_(\d+)/);
-  const source = `CR3 E${epMatch ? epMatch[1] : f.slice(0, 12)}`;
+  // Robust source label: campaign + episode when present, else a filename slug (never a blind 12-char cut).
+  const epMatch = f.match(/Episode_(\d+)/i);
+  const campMatch = f.match(/Campaign_(\d+)/i);
+  const camp = campMatch ? campMatch[1] : '3';
+  const source = epMatch ? `CR${camp} E${epMatch[1]}` : `CR${camp} ${f.replace(/\.txt$/i, '').replace(/_/g, ' ').slice(0, 40)}`;
   const turns = parseTranscript(readFileSync(join(resolve(dir), f), 'utf8'));
-  all = all.concat(buildCandidates(turns, source));
+  // SET-PREFIX the id so two sets never collide in the merged vectors Map (loadExemplars globs every
+  // *.jsonl and keys vectors by id — a cross-set collision would silently serve one vector to two rows).
+  all = all.concat(buildCandidates(turns, source).map((c) => ({ ...c, id: `${setName}:${c.id}` })));
+}
+// Guard: ids must be unique within this set (a dup would corrupt the vectors Map exactly like a cross-set one).
+const seenIds = new Set();
+for (const c of all) {
+  if (seenIds.has(c.id)) throw new Error(`duplicate candidate id ${c.id} — id scheme is not unique`);
+  seenIds.add(c.id);
 }
 const sampled = sampleCandidates(all);
 const counts = {};
@@ -57,8 +68,12 @@ if (dryRun) {
   process.exit(0);
 }
 
-// 3. Paid curation pass (batched; haiku-class model).
-const llm = createProvider('anthropic', { model: process.env.MYTHWEAVER_INGEST_MODEL || 'claude-haiku-4-5-20251001' });
+// 3. Paid curation pass (batched). Provider is configurable so the ingest can run on whichever account
+//    has balance — MYTHWEAVER_INGEST_PROVIDER=openai uses the OpenAI key instead of Anthropic.
+const ingestProvider = (process.env.MYTHWEAVER_INGEST_PROVIDER || 'anthropic').toLowerCase();
+const ingestModel = process.env.MYTHWEAVER_INGEST_MODEL || (ingestProvider === 'anthropic' ? 'claude-haiku-4-5-20251001' : undefined);
+const llm = createProvider(ingestProvider, ingestModel ? { model: ingestModel } : {});
+console.log(`curating with ${ingestProvider}${ingestModel ? ` (${ingestModel})` : ' (default model)'}`);
 const toCurate = sampled.slice(0, limit);
 const BATCH = 12;
 const CONCURRENCY = 6;
@@ -99,6 +114,12 @@ for (let i = 0; i < batches.length; i += CONCURRENCY) {
   await Promise.all(batches.slice(i, i + CONCURRENCY).map(curateBatch));
 }
 console.log('');
+
+// Abort loudly rather than overwrite a good corpus with nothing — e.g. every batch 400'd on billing.
+if (kept.length === 0) {
+  console.error(`\n✗ curation kept 0 exemplars (every batch failed — check the API key / credit balance above).\n  NOT writing an empty ${setName}.jsonl. Candidates are cached at ${join(outDir, `${setName}.candidates.jsonl`)}; fix the key and re-run.`);
+  process.exit(1);
+}
 
 const jsonlPath = join(outDir, `${setName}.jsonl`);
 writeFileSync(jsonlPath, kept.map((r) => JSON.stringify(r)).join('\n') + '\n');
