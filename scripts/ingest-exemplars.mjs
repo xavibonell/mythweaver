@@ -77,6 +77,14 @@ console.log(`curating with ${ingestProvider}${ingestModel ? ` (${ingestModel})` 
 const toCurate = sampled.slice(0, limit);
 const BATCH = 12;
 const CONCURRENCY = 6;
+// Curators sometimes decorate the moveType ("confirm — short-answer"); pin it to a canonical value
+// (recover an embedded type, else fall back to the deterministic heuristic tag on the candidate).
+const CANON_MOVES = ['general', 'npc-voice', 'short-answer', 'roll-call', 'combat-beat', 'scene-set', 'roll-verdict'];
+const canonMove = (mt, fallback) => {
+  if (CANON_MOVES.includes(mt)) return mt;
+  if (typeof mt === 'string') { for (const c of CANON_MOVES) if (mt.includes(c)) return c; }
+  return fallback;
+};
 const kept = [];
 let cost = 0;
 let done = 0;
@@ -99,7 +107,7 @@ async function curateBatch(batch) {
     for (const r of rows) {
       const src = batch[r.i];
       if (!src || r.keep !== true || typeof r.text !== 'string' || r.text.length < 40) continue;
-      kept.push({ id: src.id, source: src.source, moveType: r.moveType ?? src.moveType, tone: r.tone ?? '', cue: String(r.cue ?? '').slice(0, 200), text: r.text.slice(0, 1200) });
+      kept.push({ id: src.id, source: src.source, moveType: canonMove(r.moveType, src.moveType), tone: r.tone ?? '', cue: String(r.cue ?? '').slice(0, 200), text: r.text.slice(0, 1200) });
     }
   } catch (e) {
     console.warn(`  batch failed (skipped): ${e.message}`);
