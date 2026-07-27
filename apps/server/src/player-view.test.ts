@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { GameState, SceneDelta, SceneMap } from '@mythweaver/shared';
-import { maskItem, playerArcView, playerCharacters, playerSceneMap, playerTurn, projectDeltas } from './player-view.js';
+import { maskItem, playerArcView, playerBook, playerCharacters, playerSceneMap, playerTurn, projectDeltas } from './player-view.js';
 
 /**
  * THE SECRET SCAN — the permanent guard behind the Player Interface (docs/PLAYER-INTERFACE.md P1).
@@ -172,5 +172,64 @@ describe('maskItem / playerCharacters — one masking rule, no true names', () =
   it('leaves identified gear untouched', () => {
     const out = playerCharacters([{ name: 'Aldric', items: [{ name: 'Longsword', category: 'weapon', identified: true }] }]);
     expect(JSON.stringify(out)).toContain('Longsword');
+  });
+});
+
+describe('playerBook — the Book, folded from what the table witnessed (P3)', () => {
+  const st = (over: Partial<GameState> = {}): GameState => ({
+    currentSceneId: 'scene:b2',
+    adventure: { pitch: 'x', scenes: { 'scene:b1': { title: 'The Green' }, 'scene:b2': { title: 'The Storehouse' } } },
+    flags: {},
+    ledger: { entities: { 'npc:tessa': { id: 'npc:tessa', name: 'Tessa Reed', kind: 'npc', voice: { want: MARKERS.want, fear: MARKERS.fear } } }, facts: [], plants: {} },
+    journal: [],
+    ...over,
+  } as unknown as GameState);
+  const ev = (o: Partial<any>): any => ({ seq: 1, turn: 1, beatId: 'scene:b2', kind: 'verdict', subjects: [], text: '', ...o });
+
+  it('groups events into chapters in the order the party lived them, titled from the adventure', () => {
+    const b = playerBook(st({ journal: [ev({ seq: 1, beatId: 'scene:b1', text: 'a villager bolts' }), ev({ seq: 2, beatId: 'scene:b2', text: 'the lock is scarred' })] } as any));
+    expect(b.chapters.map((c) => c.title)).toEqual(['The Green', 'The Storehouse']);
+    expect(b.chapters[1]!.current).toBe(true);
+  });
+
+  it('carries each chapter its OWN goal snapshot (the live brief is overwritten on replan)', () => {
+    const b = playerBook(st({ journal: [
+      ev({ seq: 1, beatId: 'scene:b1', kind: 'goal', text: 'Find the missing grain.' }),
+      ev({ seq: 2, beatId: 'scene:b2', kind: 'goal', text: 'Get inside the storehouse.' }),
+    ] } as any));
+    expect(b.chapters.find((c) => c.beatId === 'scene:b1')!.goal).toBe('Find the missing grain.');
+    expect(b.chapters.find((c) => c.beatId === 'scene:b2')!.goal).toBe('Get inside the storehouse.');
+  });
+
+  it('BIRTHS a dossier from the first event naming a card — and never from the ledger alone', () => {
+    // Tessa is in the ledger from the start (the composer authored her); with no events she is unmet.
+    expect(playerBook(st()).people).toEqual([]);
+    const b = playerBook(st({ journal: [ev({ seq: 3, turn: 4, subjects: ['npc:tessa'], text: 'Tessa Reed freezes and stares.' })] } as any));
+    expect(b.people).toHaveLength(1);
+    expect(b.people[0]).toMatchObject({ name: 'Tessa Reed', firstSeen: { turn: 4 }, regard: 0 });
+    expect(b.people[0]!.deeds[0]!.text).toBe('Tessa Reed freezes and stares.');
+  });
+
+  it('accumulates regard from WITNESSED shifts only, starting at zero (never the authored seed)', () => {
+    const b = playerBook(st({ journal: [
+      ev({ seq: 1, subjects: ['npc:tessa'], kind: 'disposition', text: 'Tessa looks at you more coldly.', data: { dir: -1 } }),
+      ev({ seq: 2, subjects: ['npc:tessa'], kind: 'disposition', text: 'Tessa looks at you more coldly.', data: { dir: -1 } }),
+    ] } as any));
+    expect(b.people[0]!.regard).toBe(-2);
+  });
+
+  it('never leaks an NPC’s authored want/fear into their dossier', () => {
+    const b = playerBook(st({ journal: [ev({ subjects: ['npc:tessa'], text: 'Tessa Reed steps back.' })] } as any));
+    expect(scan(b)).toEqual([]);
+  });
+
+  it('collects findings and loot, and leaves people out of them', () => {
+    const b = playerBook(st({ journal: [
+      ev({ seq: 1, kind: 'finding', subjects: ['poi:pot'], text: 'Found: a cracked clay pot' }),
+      ev({ seq: 2, kind: 'loot', subjects: ['poi:pot'], text: 'Pip takes 3 gp.' }),
+      ev({ seq: 3, subjects: ['npc:tessa'], text: 'Tessa watches.' }),
+    ] } as any));
+    expect(b.findings.map((f) => f.kind)).toEqual(['finding', 'loot']);
+    expect(b.people.map((p) => p.id)).toEqual(['npc:tessa']); // a POI id is not a person
   });
 });

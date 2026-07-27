@@ -1,3 +1,4 @@
+import type { JournalEvent } from './journal.js';
 import type { PersonaSeed } from './persona.js';
 import type { ScenePlan, WorldState } from './world.js';
 
@@ -619,4 +620,9 @@ export interface GameState {
   /** Points of interest / interactables (hidden chests, secret doors) — engine-owned, DM-secret. Optional/
    *  additive; keyed by POI id. The players never see this; a `visible` render-shadow lives on the map. */
   pois?: Record<string, Poi>;
+  /** THE JOURNAL (docs/PLAYER-INTERFACE.md) — the append-only record of what the PLAYERS witnessed, from
+   *  which the Book is projected and the future inter-chapter diary distills. Additive and optional: it
+   *  rides both persistence paths (dev-session freeze, play-API blob) for free, and an old save without
+   *  it simply hydrates with no Book. Written only through Engine.journal(). */
+  journal?: JournalEvent[];
 }

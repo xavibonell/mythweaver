@@ -21,7 +21,7 @@ import {
   saveDirectorComposer,
   loadSceneArchitect,
 } from './prompts.js';
-import { playerArcView, playerCharacters, playerSceneMap, playerTurn, projectDeltas } from './player-view.js';
+import { playerArcView, playerBook, playerCharacters, playerSceneMap, playerTurn, projectDeltas } from './player-view.js';
 import { buildRetriever } from './corpus.js';
 import { buildExemplarRetriever } from './exemplar-corpus.js';
 import { buildTracer } from './tracing.js';
@@ -1048,7 +1048,7 @@ app.get('/dm/lab/session/:id/rev', async (req, reply) => {
     reply.code(404);
     return { error: 'session not found' };
   }
-  return { turnIndex: session.turnIndex, rev: session.sceneRev, pendingRoll: session.pendingRoll ? true : false };
+  return { turnIndex: session.turnIndex, rev: session.sceneRev, journalLen: session.engine.getState().journal?.length ?? 0, pendingRoll: session.pendingRoll ? true : false };
 });
 
 /**
@@ -1106,6 +1106,7 @@ app.get('/dm/lab/session/:id/player-view', async (req, reply) => {
     arc: playerArcView(st),
     characters: playerCharacters(characterSheets(session) as unknown as Record<string, unknown>[]),
     scene: { ...(map ? { map: playerSceneMap(map) } : {}), rev: session.sceneRev },
+    book: playerBook(st), // the Book: chapters, people met, things found
   };
 });
 

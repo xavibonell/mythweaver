@@ -1765,6 +1765,26 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
   // R4 reach gate: the attacker declared by this turn's declareDisturbance. A RollRequest carries no
   // attacker/target, so this is how applyDamage learns WHO is swinging (see docs/SPATIAL-TRUTH.md R4).
   let lastAggressorId: string | undefined;
+  /**
+   * THE BOOK'S RICHEST SOURCE (docs/PLAYER-INTERFACE.md P3). Engine verdict facts — "a villager breaks
+   * and bolts away from the violence", "Tessa Reed warms to you a little", "the knight breaks into a run
+   * — help is coming" — are the only strings in the system that already read like a chronicle. A P0 probe
+   * confirmed they existed ONLY inside tool results and died every turn, while the surviving engine log
+   * was unreadable machinery. So they are journaled here, at the moment the table is told about them.
+   *
+   * Subjects are resolved by matching the fact against known cast NAMES (the facts are composed as
+   * "<display name> <did something>"), which is also what grows a dossier. No match ⇒ the line still
+   * enters the Book; it just doesn't claim to be about anyone.
+   */
+  const journalVerdicts = (facts: string[]) => {
+    const cards = Object.values(state.ledger?.entities ?? {});
+    for (const raw of facts) {
+      const text = String(raw ?? '').trim();
+      if (!text) continue;
+      const subjects = cards.filter((c) => c.name && text.toLowerCase().includes(c.name.toLowerCase())).map((c) => c.id);
+      engine.journal({ kind: 'verdict', subjects, text });
+    }
+  };
   const reactedThisTurn = new Set<string>(); // bystanders already moved by a disturbance this turn — never re-move (P3)
   let beatTransition: TurnResult['beat']; // an advanceScene landed this turn (title card client-side)
   let firedExemplars: TurnResult['exemplars']; // style exemplars injected this turn (Technique B)
@@ -1905,6 +1925,7 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
       ...pending.resolvedToolResults.map((r) => ({ type: 'tool_result' as const, toolUseId: r.toolUseId, content: r.content })),
       { type: 'tool_result', toolUseId: pending.rollToolUseId, content: JSON.stringify({ ...result, ...(travelFacts.length ? { travel: travelFacts } : {}), ...(commandFacts.length ? { command: commandFacts, note: 'The engine ruled this command AND already enacted it (moving them if they complied) — narrate it exactly; do NOT call travel/updateScene to move them again, and never reverse the verdict.' } : {}), ...(performFacts ? { reactions: performFacts, note: 'Narrate ONLY these — the engine moved (or held) the crowd per the performance check.' } : {}), ...(rollMeanwhile.length ? { meanwhile: rollMeanwhile, meanwhileNote: 'The engine moved these while the dice were in the air — weave them in; do not move them again.' } : {}) }) },
     ];
+    journalVerdicts([...commandFacts, ...(performFacts ?? []), ...rollMeanwhile]);
     messages.push({ role: 'user', content: toolResults });
     resumedActingPcName = pending.actingPcName; // S4: the gate has no speakerId on a resume — carry it
     state.pendingTurn = undefined;
@@ -2016,6 +2037,7 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
     if (input.kind === 'message' && (REACTIONS !== 'off' || INTERACTIONS !== 'off')) {
       try { const gm = currentMap(state); if (gm) meanwhileFacts = advanceGoals(engine, gm, state, sceneDeltas, reactedThisTurn); } catch { /* goals must never break a turn */ }
     }
+    journalVerdicts(meanwhileFacts);
     const meanwhileBlock = meanwhileFacts.length ? `=== MEANWHILE (since the last beat the engine moved these — weave them into your reply; do not move them again) ===\n${meanwhileFacts.map((f) => `- ${f}`).join('\n')}\n\n` : '';
     const turnText =
       meanwhileBlock +
@@ -2833,6 +2855,7 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
                 // applyDamage handler, out-of-combat only — not here — so a mere menace leaves no lingering mob.)
                 const outcome = resolveReactions(engine, map, { aggressor, target, kind, covert, ...(at ? { at } : {}) }, sceneDeltas, state.ledger, REACTIONS === 'dry' ? 'dry' : 'on', reactedThisTurn);
                 disturbedThisTurn.add(key); // mark consumed only AFTER it resolved (a throw above leaves it retryable)
+                journalVerdicts(outcome.facts);
                 resolved.push({
                   toolUseId: tc.id,
                   content: JSON.stringify({
@@ -2940,6 +2963,7 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
                 // Invariant 12: they already refused this EXACT ask this scene — no re-roll until the
                 // approach materially changes (a different verb/anchor/tone forms a fresh signature).
                 commandOutcome = { targetName: target.name ?? target.id, verdict: 'refused' };
+                journalVerdicts([commandFact(target, persona, action, tone, 'refused', false, anchorName)]);
                 resolved.push({ toolUseId: tc.id, content: JSON.stringify({ verdict: 'refused', command: [commandFact(target, persona, action, tone, 'refused', false, anchorName)], note: 'They already refused this same ask this scene — narrate that they hold to it. Only a materially different approach (a new task, a bribe, a real threat) earns a fresh attempt.' }) });
               } else {
                 const standing = standingOf(persona, state.ledger, card?.id); // P4d: reads the MUTATED scalar, not just the seed
@@ -2963,6 +2987,7 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
                   }
                   if (verdict === 'refused') engine.applySceneDeltas([{ op: 'setState', id: target.id, state: { [`cmd-refused:${sig}`]: true } }]); // sticky refusal (invariant 12)
                   commandOutcome = { targetName: target.name ?? target.id, verdict };
+                  journalVerdicts([commandFact(target, persona, action, tone, verdict, moved, anchorName)]);
                   resolved.push({ toolUseId: tc.id, content: JSON.stringify({ verdict, command: [commandFact(target, persona, action, tone, verdict, moved, anchorName)], note: verdict === 'refused' ? 'The engine ruled this — narrate the refusal; do not have them comply anyway.' : 'The engine ruled this AND already moved them to the deed — narrate it; do NOT call travel/updateScene to move them again, and never reverse the verdict.' }) });
                 } else if (!roll) {
                   // The middle band: the PC must pass a social check. Suspend on the same roll machinery.

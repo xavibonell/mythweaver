@@ -42,7 +42,7 @@ import { generateStatBlock, type MonsterSpec } from './monster-gen.js';
 import { bumpSpatialVersion, spatialIndex } from './spatial/oracle.js';
 import { deriveMoveCaps, runTravel, swimGateFailure, type TravelIntent, type TravelVerdict } from './spatial/travel.js';
 import { classifyReach, reachRequiredFt, type AttackMode, type ReachReason, type ReachVerdict } from './spatial/reach.js';
-import type { SceneMap } from '@mythweaver/shared';
+import type { SceneMap, JournalEvent} from '@mythweaver/shared';
 import { statBlockToCombatant } from './state.js';
 import { abilityMod, deriveAbilityCheckModifier, deriveArmorClass, derivePassive, deriveProficiencyBonus, deriveSaveModifier, deriveSkillModifier, deriveSpellsPreparedMax } from './derive.js';
 import { ASI_LEVELS, XP_THRESHOLDS, hitDieAvg, hitDieForClass, levelForXp } from './progression.js';
@@ -113,6 +113,31 @@ export class Engine implements EngineTools {
   /** Append a transcript/audit entry (spec §4.1 / §13). Not part of the tool surface. */
   record(kind: LogEntry['kind'], text: string, data?: Record<string, unknown>): void {
     this.state.log.push({ seq: this.state.log.length + 1, kind, text, ...(data ? { data } : {}) });
+  }
+
+  /**
+   * THE JOURNAL (docs/PLAYER-INTERFACE.md §2) — the ONE door into the players' world-model.
+   *
+   * Distinct from `record()`, which is a DM-grade audit trail carrying DCs, arc flags and staging
+   * chatter. Everything written here is composed PLAYER-SAFE at the call site, from what the table just
+   * witnessed, so the stream ships to a player screen verbatim and never needs read-time redaction.
+   * Never throws: a Book entry must not be able to break a turn.
+   */
+  journal(e: { kind: JournalEvent['kind']; subjects?: string[]; text: string; data?: JournalEvent['data'] }): void {
+    try {
+      const j = (this.state.journal ??= []);
+      const world = this.state.world;
+      j.push({
+        seq: j.length + 1, // NOT the turn: a roll-resume shares its originating turn's number
+        turn: this.state.turnCount ?? 0,
+        beatId: this.state.currentSceneId,
+        ...(world?.currentLocationId ? { locationId: world.currentLocationId } : {}),
+        kind: e.kind,
+        subjects: e.subjects ?? [],
+        text: e.text.length > 240 ? `${e.text.slice(0, 237)}…` : e.text,
+        ...(e.data ? { data: e.data } : {}),
+      });
+    } catch { /* the Book is never worth a turn */ }
   }
 
   // --- P3e: checks + saves (the engine owns the +N on every d20) ------------
@@ -633,6 +658,10 @@ export class Engine implements EngineTools {
     this.state.flags[`beat:${from}`] = outcome ?? 'done';
     this.state.currentSceneId = toSceneId;
     this.record('engine', `Scene advanced: ${from} -> ${toSceneId} (${outcome ?? 'done'})`, { from, to: toSceneId, outcome: outcome ?? 'done' });
+    // The Book's chapter boundary. Emitted here rather than in the tool handler so EVERY caller
+    // chapters the journal, including a table that is only watching the poll.
+    const title = this.state.adventure?.scenes[toSceneId]?.title ?? toSceneId;
+    this.journal({ kind: 'chapter', subjects: [toSceneId], text: title, data: { from, to: toSceneId, outcome: outcome ?? 'done', opened: true } });
     return { scene: toSceneId, from };
   }
 
@@ -1265,6 +1294,7 @@ export class Engine implements EngineTools {
     p.hidden = false;
     this.record('engine', `POI discovered: ${p.id} (${p.look})${args.by ? ` — ${args.by}` : ''}`, { poiId: p.id, by: args.by });
     this.recordFact({ subject: p.id, attribute: 'discovered', value: p.look, source: 'dm' });
+    this.journal({ kind: 'finding', subjects: [p.id, ...(p.fixtureId ? [p.fixtureId] : [])], text: `Found: ${p.look}`, data: { status: 'spotted' } });
     return { id: p.id, revealed: true };
   }
 
@@ -1296,6 +1326,15 @@ export class Engine implements EngineTools {
     const has = !!p.contents && ((p.contents.items?.length ?? 0) > 0 || (p.contents.gold ?? 0) > 0);
     const empty = p.looted || !has;
     this.record('engine', `POI searched: ${p.id}${empty ? ' — empty' : ''}`, { poiId: p.id, empty });
+    const seen = empty ? [] : [
+      ...(p.contents?.items ?? []).map((it) => {
+        const def = this.state.itemCatalog?.[it.itemDefId];
+        const masked = def?.magic ? `an unidentified ${def.category ?? 'item'}` : def?.name ?? it.itemDefId;
+        return `${it.qty && it.qty > 1 ? `${it.qty}× ` : ''}${masked}`;
+      }),
+      ...((p.contents?.gold ?? 0) > 0 ? [`${p.contents!.gold} gp`] : []),
+    ];
+    this.journal({ kind: 'finding', subjects: [p.id], text: empty ? `${p.look} — nothing inside.` : `${p.look} — ${seen.join(', ')}.`, data: { status: 'searched', empty } });
     return { id: p.id, contents: p.looted || !has ? null : p.contents!, empty };
   }
 
@@ -1325,6 +1364,7 @@ export class Engine implements EngineTools {
     const name = this.state.combatants[cid]?.name ?? cid;
     this.record('engine', `${name} loots ${p.id} — ${items.join(', ') || 'no items'}${gold ? ` + ${gold} gp` : ''}`, { poiId: p.id, combatantId: cid, items, gold });
     this.recordFact({ subject: p.id, attribute: 'status', value: 'looted', source: 'dm' });
+    this.journal({ kind: 'loot', subjects: [p.id], text: `${name} takes ${items.join(', ') || 'nothing'}${gold ? ` and ${gold} gp` : ''}.`, data: { gold, by: name } });
     return { id: p.id, items, gold, alreadyLooted: false };
   }
 }

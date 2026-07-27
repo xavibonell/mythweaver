@@ -1,6 +1,7 @@
 export * from './domain.js';
 export * from './engine-contract.js';
 export * from './persona.js';
+export * from './journal.js';
 export * from './io.js';
 export * from './scene.js';
 export * from './scene-spec.js';

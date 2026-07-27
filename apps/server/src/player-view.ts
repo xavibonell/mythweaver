@@ -14,7 +14,7 @@
  * secret-scan in player-view.test.ts.
  */
 
-import type { CharacterSheet, GameState, ItemDef, MapObject, SceneDelta, SceneMap } from '@mythweaver/shared';
+import type { Chapter, CharacterSheet, Dossier, GameState, ItemDef, JournalEvent, MapObject, SceneDelta, SceneMap } from '@mythweaver/shared';
 import { spatialIndex, whereIs } from '@mythweaver/engine';
 
 /** Engine-owned map state that must never reach a player (reaction/goal bookkeeping, sticky refusals). */
@@ -160,3 +160,66 @@ export function playerCharacters(characters: Record<string, unknown>[]): Record<
 
 /** Party sheets ALSO need the table to see a dying PC — additive, never reshaping the pinned contract. */
 export type PlayerSheet = CharacterSheet & { downed?: boolean; deathSaves?: { successes: number; failures: number } };
+
+/**
+ * THE BOOK — a pure fold over the journal (docs/PLAYER-INTERFACE.md §2). No filtering happens here:
+ * every event was already composed player-safe at write time, which is exactly what lets this ship
+ * verbatim. This function only ORGANISES: events into chapters, and the people/things they name into
+ * dossiers that grow.
+ */
+export function playerBook(state: GameState): { chapters: Chapter[]; people: Dossier[]; findings: JournalEvent[] } {
+  const events = state.journal ?? [];
+  const titles = state.adventure?.scenes ?? {};
+
+  // CHAPTERS, in the order the party lived them. A beat only appears once it has events, so an
+  // unvisited beat cannot leak here even if the adventure defines it.
+  const order: string[] = [];
+  const byBeat = new Map<string, JournalEvent[]>();
+  for (const ev of events) {
+    if (!byBeat.has(ev.beatId)) { byBeat.set(ev.beatId, []); order.push(ev.beatId); }
+    byBeat.get(ev.beatId)!.push(ev);
+  }
+  if (!order.includes(state.currentSceneId)) order.push(state.currentSceneId); // the beat we're in, even if quiet
+  const chapters: Chapter[] = order.map((beatId) => {
+    const evs = byBeat.get(beatId) ?? [];
+    // The goal as it stood DURING this chapter — the live brief is overwritten on every replan, so the
+    // snapshot is the only way a closed chapter remembers what the party was trying to do.
+    const goal = [...evs].reverse().find((e) => e.kind === 'goal')?.text;
+    const closed = evs.find((e) => e.kind === 'chapter' && e.data?.from === beatId);
+    return {
+      beatId,
+      title: (titles[beatId]?.title as string | undefined) ?? beatId,
+      ...(goal ? { goal } : {}),
+      ...(closed?.data?.outcome ? { outcome: String(closed.data.outcome) } : {}),
+      current: beatId === state.currentSceneId,
+      events: evs,
+    };
+  });
+
+  // DOSSIERS. An entry is BORN from the first event that names a card — never from the ledger, which
+  // holds cast the composer authored long before the party could meet them (a P0 probe also killed the
+  // idea of birthing from narration `mentions`: in a real run those came back PC-only).
+  const cards = state.ledger?.entities ?? {};
+  const people = new Map<string, Dossier>();
+  for (const ev of events) {
+    for (const id of ev.subjects) {
+      const card = cards[id];
+      if (!card) continue; // POIs and map ids are findings, not people
+      let d = people.get(id);
+      if (!d) {
+        d = { id, name: card.name, firstSeen: { turn: ev.turn, beatId: ev.beatId }, lastSeen: { turn: ev.turn, beatId: ev.beatId }, regard: 0, deeds: [] };
+        people.set(id, d);
+      }
+      d.lastSeen = { turn: ev.turn, beatId: ev.beatId };
+      if (ev.kind === 'disposition') d.regard += Number(ev.data?.dir ?? 0); // witnessed shifts only, from 0
+      if (ev.kind === 'verdict') d.deeds.unshift({ seq: ev.seq, turn: ev.turn, text: ev.text });
+    }
+  }
+  for (const d of people.values()) d.deeds = d.deeds.slice(0, 12); // newest few; the chapter holds the rest
+
+  return {
+    chapters,
+    people: [...people.values()],
+    findings: events.filter((e) => e.kind === 'finding' || e.kind === 'loot'),
+  };
+}

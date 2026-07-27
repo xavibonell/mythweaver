@@ -250,6 +250,11 @@ export function resolveReactions(engine: Engine, map: SceneMap, ev: DisturbanceE
     if (!amount || dockedCards.has(cardId)) return;
     engine.recordFact({ subject: cardId, attribute: STANDING_ATTR, value: String(clampStanding(standingOf(persona, ledger, cardId) - amount)) });
     dockedCards.add(cardId);
+    // The Book records the SHIFT the table witnessed, never the absolute standing: the engine's scalar
+    // is seeded from authored allegiance, so printing a level would put a disguised villain's true
+    // feelings on the players' screen before they had any way to learn them.
+    const name = ledger?.entities[cardId]?.name ?? 'They';
+    engine.journal({ kind: 'disposition', subjects: [cardId], text: `${name} looks at you more coldly after that.`, data: { dir: -1 } });
   };
   for (const w of ws) {
     if (reactors >= MAX_REACTORS) { overflow++; reacted.add(w.o.id); continue; }
