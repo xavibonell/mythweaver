@@ -1,13 +1,15 @@
 'use client';
 
 /**
- * The LIVE TABLE — the DM Lab's animated play surface. Joins a running :6984 DM-Lab session
- * (in-memory; started from the lab's Generate tab) and renders it with the real Phaser canvas:
- * scenes appear on setScene, tokens TWEEN when the DM moves the world (updateScene / combat sync),
- * rolls resolve inline. A workbench, not a game UI: tools, state Δ, scene Δ and cost stay visible.
+ * The LIVE TABLE — the PLAYERS' screen. Joins a running :6984 DM-Lab session (in-memory; started from
+ * the lab's Generate tab) and renders it with the real Phaser canvas: scenes appear on setScene, tokens
+ * TWEEN when the world moves, rolls resolve inline.
  *
- * The :6984/dm/lab page remains the authoring surface (Generate / Arc / Playbook / Distill) and the
- * low-fi fallback Run view; this page is purely additive on the same session API (CORS-open).
+ * IT IS NOT A WORKBENCH (docs/PLAYER-INTERFACE.md P1). It fetches ONLY the player-safe projection
+ * (/player-view, /player-turn) — never the DM-grade /view, which carries the campaign's intended ending,
+ * NPC wants/fears, unfired plants and hidden tokens. Client-side hiding is not hiding: if it reaches this
+ * page it has reached the players, so the filtering happens on the server and this page cannot even ask
+ * for the secrets. Tool traces, state diffs and cost live on the :6984/dm/lab Run view instead.
  */
 
 import { useEffect, useRef, useState } from 'react';
@@ -30,11 +32,12 @@ const S = {
   btn: { background: '#c9a227', color: '#141414', border: 'none', borderRadius: 6, padding: '7px 14px', fontWeight: 600, cursor: 'pointer' } as React.CSSProperties,
 };
 
-/** The arc's beat stepper — where the story IS: ✓ done · ● here · → reachable. Clocks = pressure. */
+/** The chapter breadcrumb — where the story HAS BEEN: ✓ closed · ● here. Only VISITED chapters exist
+ *  in the player payload; unvisited titles are spoilers and never leave the server. */
 function BeatStrip({ arc }: { arc: any }) {
-  const beats = arc?.beats ?? [];
+  const beats = arc?.chapters ?? [];
   if (!beats.length) return null;
-  const clocks = arc?.brief?.clocks ?? [];
+  const clocks: string[] = [];
   return (
     <div style={{ position: 'absolute', top: 34, left: 10, right: 10, display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center', pointerEvents: 'none' }}>
       {beats.map((b: any) => (
@@ -43,13 +46,13 @@ function BeatStrip({ arc }: { arc: any }) {
           title={b.title}
           style={{
             fontSize: 11, padding: '2px 9px', borderRadius: 10, pointerEvents: 'auto',
-            background: b.current ? '#c9a227' : b.done ? '#1d2a1f' : '#14161c',
-            color: b.current ? '#141414' : b.done ? '#7fb389' : b.reachable ? '#8fb8e0' : '#565b66',
-            border: `1px solid ${b.current ? '#c9a227' : b.done ? '#2a4630' : b.reachable ? '#2b3542' : '#1d2027'}`,
+            background: b.current ? '#c9a227' : '#1d2a1f',
+            color: b.current ? '#141414' : '#7fb389',
+            border: `1px solid ${b.current ? '#c9a227' : '#2a4630'}`,
             fontWeight: b.current ? 700 : 400,
           }}
         >
-          {b.done ? '✓ ' : b.current ? '● ' : b.reachable ? '→ ' : ''}{b.title}
+          {b.current ? '● ' : '✓ '}{b.title}
         </span>
       ))}
       {clocks.map((c: string, i: number) => (
@@ -122,7 +125,6 @@ export default function DmLiveTable() {
   const [pings, setPings] = useState<string[] | null>(null); // story pings: narration-mentioned map ids
   const [pingNonce, setPingNonce] = useState(0);
   const [prologue, setPrologue] = useState<any>(null); // {premise, goal} — the WHY, shown once on join
-  const [cost, setCost] = useState(0);
   const [busy, setBusy] = useState(false);
   const sceneRev = useRef(0);
   const logRef = useRef<HTMLDivElement>(null);
@@ -153,7 +155,7 @@ export default function DmLiveTable() {
         if (!r.ok) return;
         const s = await r.json();
         if (s.turnIndex === view.turnIndex && s.rev === sceneRev.current) return; // nothing moved
-        const v = await (await fetch(`${SERVER}/dm/lab/session/${id}/view`)).json();
+        const v = await (await fetch(`${SERVER}/dm/lab/session/${id}/player-view`)).json();
         if (!stop) hydrate(v);
       } catch { /* a dropped poll must never break the table */ }
     };
@@ -164,7 +166,7 @@ export default function DmLiveTable() {
   }, [view?.sessionId, view?.turnIndex, busy]);
 
   async function join(id: string) {
-    const res = await fetch(`${SERVER}/dm/lab/session/${id}/view`);
+    const res = await fetch(`${SERVER}/dm/lab/session/${id}/player-view`);
     if (!res.ok) {
       // Stale ?session= links are common after a server restart (sessions are in-memory only).
       history.replaceState(null, '', window.location.pathname);
@@ -186,7 +188,6 @@ export default function DmLiveTable() {
     setCharacters(v.characters ?? []);
     setArc(v.arc ?? null);
     setPendingRoll(v.pendingRoll ?? null);
-    setCost(v.totalCostUsd ?? 0);
     sceneRev.current = v.scene?.rev ?? 0;
     if (v.scene?.map) setSceneData(v.scene.map);
     // Rebuild the transcript from the session's rolling recent lines.
@@ -196,9 +197,9 @@ export default function DmLiveTable() {
       return { who, text: m?.[2] ?? line, dm: who === 'Dungeon Master' };
     }));
     // THE WHY: on a fresh table (turn 0), show the campaign's purpose once — players should never
-    // wonder "why are we here". Premise from the blueprint; goal from the active beat's intent.
-    if (opts.fresh && (v.turnIndex ?? 0) === 0 && (v.arc?.blueprint?.premise || v.arc?.brief?.activeBeatIntent)) {
-      setPrologue({ premise: v.arc?.blueprint?.premise ?? '', goal: v.arc?.brief?.activeBeatIntent ?? '' });
+    // wonder "why are we here". Both fields come player-safe from the projection (no Director steering).
+    if (opts.fresh && (v.turnIndex ?? 0) === 0 && (v.arc?.premise || v.arc?.goal)) {
+      setPrologue({ premise: v.arc?.premise ?? '', goal: v.arc?.goal ?? '' });
     }
   }
 
@@ -209,7 +210,7 @@ export default function DmLiveTable() {
     } else if (scene.deltas?.length) {
       if (scene.rev !== sceneRev.current + 1 && sceneRev.current !== 0 && scene.rev !== sceneRev.current) {
         // Revision gap (we missed something) → re-hydrate the full map instead of tweening a stale scene.
-        fetch(`${SERVER}/dm/lab/session/${view.sessionId}/view`).then((r) => r.json()).then((v) => v.scene?.map && setSceneData(v.scene.map)).catch(() => {});
+        fetch(`${SERVER}/dm/lab/session/${view.sessionId}/player-view`).then((r) => r.json()).then((v) => v.scene?.map && setSceneData(v.scene.map)).catch(() => {});
       } else {
         setDeltas(scene.deltas);
         setDeltaNonce((n) => n + 1);
@@ -223,7 +224,7 @@ export default function DmLiveTable() {
     if (echo) setLog((l) => [...l, echo]);
     setBusy(true);
     try {
-      const res = await fetch(`${SERVER}/dm/lab/session/${view.sessionId}/turn`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload) });
+      const res = await fetch(`${SERVER}/dm/lab/session/${view.sessionId}/player-turn`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload) });
       const d = await res.json();
       if (!res.ok) { setLog((l) => [...l, { who: 'System', text: d.error ?? 'turn failed' }]); return; }
       const t = d.turn;
@@ -232,7 +233,6 @@ export default function DmLiveTable() {
       setPendingRoll(d.pendingRoll ?? null);
       setCharacters(d.characters ?? []);
       if (d.arc) setArc(d.arc);
-      setCost(d.totalCostUsd ?? 0);
       if (t.beat) {
         // A beat transition landed: title card over the canvas while the new scene fades in.
         setTitleCard({ title: t.beat.title ?? t.beat.to, outcome: t.beat.outcome });
@@ -270,7 +270,7 @@ export default function DmLiveTable() {
         ) : (
           sessions.map((s) => (
             <button key={s.sessionId} style={S.btn} onClick={() => join(s.sessionId)}>
-              {s.scenarioId} · turn {s.turnIndex} · {s.party?.map((p: any) => p.name).join(', ')} · {s.sceneEngine}
+              {s.scenarioId} · turn {s.turnIndex} · {s.party?.map((p: any) => p.name).join(', ')}
             </button>
           ))
         )}
@@ -289,7 +289,6 @@ export default function DmLiveTable() {
         <SceneCanvas data={sceneData} playerView showRoofs={showRoofs} deltas={deltas} deltaNonce={deltaNonce} pings={pings} pingNonce={pingNonce} />
         <div style={{ position: 'absolute', top: 8, left: 10, display: 'flex', gap: 10, alignItems: 'center', fontSize: 12 }}>
           <span style={{ color: '#c9a227', fontFamily: 'ui-serif, Georgia, serif' }}>MythWeaver — live table</span>
-          <span style={{ background: view.sceneEngine === 'modern' ? '#3fa34d' : '#6b7080', color: '#0b0c10', borderRadius: 3, padding: '1px 6px', fontWeight: 600 }}>{view.sceneEngine}</span>
         </div>
         <div style={{ position: 'absolute', top: 8, right: 10, display: 'flex', gap: 8, fontSize: 12 }}>
           <label style={{ color: '#9a8f7d', cursor: 'pointer' }}>
@@ -329,7 +328,6 @@ export default function DmLiveTable() {
       <div style={S.rail}>
         <div style={{ padding: '8px 12px', borderBottom: '1px solid #23262f', display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#9a8f7d' }}>
           <span>{view.scenarioId} · turn {view.turnIndex}</span>
-          <span style={{ fontFamily: 'ui-monospace, monospace' }}>${cost.toFixed(3)}</span>
         </div>
         {/* party HP rows */}
         <div style={{ padding: '6px 12px', borderBottom: '1px solid #23262f', display: 'flex', flexWrap: 'wrap', gap: 8 }}>
@@ -346,8 +344,6 @@ export default function DmLiveTable() {
             <div key={i} style={{ marginBottom: 10 }}>
               <div style={{ fontSize: 11, color: m.dm ? '#c9a227' : '#7a8494', marginBottom: 2 }}>{m.who}</div>
               <div style={{ fontSize: 13, lineHeight: 1.45, color: m.dm ? '#d9d2c3' : '#aab0bd', whiteSpace: 'pre-wrap' }}>{m.text}</div>
-              {m.turn && <DeltaChips deltas={m.turn.deltas ?? []} />}
-              {m.turn && <TurnDetails turn={m.turn} />}
             </div>
           ))}
           {busy && <div style={{ color: '#6b7080', fontSize: 12 }}>DM thinking…</div>}

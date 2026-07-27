@@ -288,6 +288,10 @@ function buildResultIndex(exchanges: { request: LlmRequest }[]): Map<string, str
  */
 export interface DmLabSession {
   scenarioId: string;
+  /** Per-session DM key (P1). The sessionId is the PLAYERS' join credential, so it cannot also be the
+   *  thing that unlocks DM-grade payloads — this is minted at create and returned only to the creating
+   *  DM Lab page. A screen-content boundary for a LAN table, not authentication. */
+  dmKey?: string;
   engine: Engine;
   recorder: RecordingProvider;
   composer: SceneComposer;

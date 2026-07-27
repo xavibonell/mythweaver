@@ -21,6 +21,7 @@ import {
   saveDirectorComposer,
   loadSceneArchitect,
 } from './prompts.js';
+import { playerArcView, playerCharacters, playerSceneMap, playerTurn, projectDeltas } from './player-view.js';
 import { buildRetriever } from './corpus.js';
 import { buildExemplarRetriever } from './exemplar-corpus.js';
 import { buildTracer } from './tracing.js';
@@ -1052,6 +1053,79 @@ app.get('/dm/lab/session/:id/rev', async (req, reply) => {
     return { error: 'session not found' };
   }
   return { turnIndex: session.turnIndex, rev: session.sceneRev, pendingRoll: session.pendingRoll ? true : false };
+});
+
+/**
+ * THE PLAYER ROUTES (docs/PLAYER-INTERFACE.md P1). Deliberately SEPARATE endpoints rather than a
+ * `?role=player` flag on the DM ones: a forgotten or stripped param fails OPEN to the full DM payload,
+ * whereas a distinct route fails CLOSED and makes the projection a single auditable unit.
+ */
+app.get('/dm/lab/session/:id/player-view', async (req, reply) => {
+  const session = dmLabSessions.get((req.params as { id: string }).id);
+  if (!session) {
+    reply.code(404);
+    return { error: 'session not found — start a new one' };
+  }
+  const st = session.engine.getState();
+  const world = st.world;
+  const map = world?.currentLocationId ? world.locations[world.currentLocationId] : undefined;
+  return {
+    sessionId: (req.params as { id: string }).id,
+    scenarioId: session.scenarioId,
+    party: session.party,
+    turnIndex: session.turnIndex,
+    recent: session.recent,
+    pendingRoll: session.pendingRoll ?? null, // {id,expr,reason} — already DC-free
+    arc: playerArcView(st),
+    characters: playerCharacters(characterSheets(session) as unknown as Record<string, unknown>[]),
+    scene: { ...(map ? { map: playerSceneMap(map) } : {}), rev: session.sceneRev },
+  };
+});
+
+app.post('/dm/lab/session/:id/player-turn', async (req, reply) => {
+  const session = dmLabSessions.get((req.params as { id: string }).id);
+  if (!session) {
+    reply.code(404);
+    return { error: 'session not found — start a new one' };
+  }
+  const body = (req.body ?? {}) as { say?: unknown; as?: unknown; roll?: unknown; auto?: unknown };
+  // Same intake discipline as the DM route (no `open` — the opening is the DM's to trigger).
+  let input: { say: string; as?: string } | { roll: number; auto?: boolean };
+  if (body.auto === true) {
+    if (!session.pendingRoll) return badRequest(reply, 'no roll is pending to auto-roll');
+    input = { roll: autoRollTotal(session.pendingRoll.expr), auto: true };
+  } else if (body.roll !== undefined && body.roll !== null && body.roll !== '') {
+    const n = Number(body.roll);
+    if (!Number.isFinite(n)) return badRequest(reply, 'roll must be a number');
+    if (!session.pendingRoll) return badRequest(reply, 'no roll is pending — submit a player line');
+    input = { roll: n };
+  } else {
+    const say = typeof body.say === 'string' ? body.say.trim() : '';
+    if (!say) return badRequest(reply, 'say (a player line) is required');
+    if (say.length > 2000) return badRequest(reply, 'turn too long (max 2000 chars)');
+    input = { say, ...(typeof body.as === 'string' && body.as.trim() ? { as: body.as.trim().slice(0, 40) } : {}) };
+  }
+  try {
+    const turn = await dmLabSubmit(session, input);
+    const st = session.engine.getState();
+    const map = st.world?.currentLocationId ? st.world.locations[st.world.currentLocationId] : undefined;
+    return {
+      turn: playerTurn(turn as unknown as Record<string, unknown>, map),
+      scene: {
+        changed: !!turn.sceneChanged,
+        ...(turn.sceneChanged && map ? { map: playerSceneMap(map) } : {}),
+        deltas: projectDeltas(turn.deltas ?? [], map),
+        rev: session.sceneRev,
+      },
+      pendingRoll: session.pendingRoll ?? null,
+      arc: playerArcView(st),
+      characters: playerCharacters(characterSheets(session) as unknown as Record<string, unknown>[]),
+    };
+  } catch (err) {
+    app.log.error(err, 'player turn failed');
+    reply.code(502);
+    return { error: (err as Error).message };
+  }
 });
 
 app.get('/dm/lab/session/:id/view', async (req, reply) => {

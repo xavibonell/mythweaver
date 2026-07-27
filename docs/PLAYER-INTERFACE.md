@@ -158,11 +158,34 @@ surfaces archivist facts, so past-campaign knowledge auto-appears in future sess
 script folds a finished session's journal into *proposed* archivist rows ($0, no LLM) — if that pass needs
 data the events lack, fix the schema while it's cheap.
 
+## P0 RESULT (2026-07-27) — **GO**, with three corrections it proved empirically
+The freezes were too thin to judge (1 turn, 0 facts), so P0 drove a real 6-turn session (greet → command →
+examine → search → thank → assault, ~$0.3) and rendered the would-be Book from deterministic artifacts.
+
+1. **The surviving engine log alone produces an EMPTY book.** All 22 engine rows are mechanical noise
+   (`scene: setState npc:…`, `Roll requested: 1d20-1`, `reach: too-far-to-close (55 ft vs 5 ft)`,
+   `travel: Elara covers 40 ft`). Zero rows classified as book-worthy. **This kills the log-classifier
+   variant outright — empirically, not just on principle.**
+2. **Every readable line is exactly what evaporates today.** The 9 verdict strings living only in tool
+   results are the book: *"Tessa Reed warms to you a little."* · *"a villager breaks and bolts away from the
+   violence."* · *"Across the way, a knight snaps toward the commotion and breaks into a run — help is
+   coming."* → **the design's core bet is confirmed: instrument the verdict-fact sites and the Book writes
+   itself.** That is where P3's effort goes.
+3. **Standing facts survive and are perfect dossier fuel** — the run produced `tessa +1 → 0`, `mara −1`,
+   `hobb −2` (S7's assault cost, visible as a witnessed arc).
+
+**Corrections to the design:**
+- **Dossier birth must NOT key on `mentions`.** In the live run `extractMentions` returned only *PC* ids;
+  Tessa/Hobb/Mara — the scene's actual cast — never appeared. Birth instead on **being the subject of a
+  journal event** (verdict fact naming them, standing change, or an in-play `upsertNpc`), with mentions as
+  a supplementary `lastSeen` signal only.
+- **Findings depend on POI tools the DM doesn't reach for.** "Search the pot" produced an Investigation
+  roll, not `placePoi`/`searchPoi` — zero POIs existed. v1 must either nudge the playbook toward POIs for
+  searchable props, or additionally journal search-check outcomes. Flagged for P4.
+- Chronicler stays optional/last: the deterministic verdict lines already read like prose.
+
 ## Phasing (each slice falsifiable; secret-scan test runs on every one, permanently)
-- **P0 — the product bet, half a day, $0:** scratch script over the dev-session freezes rendering the
-  would-be Book from deterministic artifacts alone. GO: it reads like "what happened", with growing NPC
-  entries. NO-GO: re-scope toward more verdict instrumentation or an earlier chronicler — decided *before*
-  any UI exists.
+- **P0 — DONE (see result above): GO.**
 - **P1 — leak-stopper + security:** `player-view.ts` + dedicated routes + dmKey gating + token-exemption
   narrowing + play-API projection + page repoint + de-workbench. **Secret-scan kill test:** fixture with
   planted markers (intendedEnding string, want/fear, plant, discoverDc, hidden lurker+stalker move, DC text,
