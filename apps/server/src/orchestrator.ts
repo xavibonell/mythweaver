@@ -374,13 +374,15 @@ export function buildToolDefs(retrieval: boolean, scene: boolean): ToolDef[] {
     {
       name: 'applyDamage',
       description:
-        'Apply damage to a combatant after a hit. Pass the ROLLED damage total (from a requestRoll), never an invented number. The engine reduces HP and reports whether the target is downed.',
+        'Apply damage to a combatant after a hit. Pass the ROLLED damage total (from a requestRoll), never an invented number. The engine reduces HP and reports whether the target is downed. It ALSO checks REACH: name the attacker and whether the blow is melee or ranged, and the engine decides whether it can physically land — it may close the distance for the attacker (narrate the approach it reports), or REFUSE the blow as out of reach (then narrate that nothing landed and let the player choose).',
       inputSchema: {
         type: 'object',
         properties: {
           targetId: { type: 'string', description: 'Combatant id, e.g. "npc:goblin-1" or "pc:aldric".' },
           amount: { type: 'number', description: 'The rolled damage total.' },
           type: { type: 'string', description: 'Damage type, e.g. "slashing", "piercing", "fire".' },
+          attackerId: { type: 'string', description: 'WHO is striking (id or name) — the engine checks their reach/range to the target. Omit only if the attacker is not on the map.' },
+          attack: { type: 'string', enum: ['melee', 'ranged', 'spell'], description: 'melee = must be within weapon reach (the engine may close the gap); ranged = within range; spell = not range-checked yet. Default melee.' },
         },
         required: ['targetId', 'amount', 'type'],
         additionalProperties: false,
@@ -1746,6 +1748,9 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
   let sceneProvenance: SceneProvenance | undefined; // how the scene came to be (response-only)
   const sceneDeltas: SceneDelta[] = []; // APPLIED updateScene/combat-sync ops this turn (normalized tiles)
   const disturbedThisTurn = new Set<string>(); // idempotency: one reaction resolution per aggressor→target/turn (P3)
+  // R4 reach gate: the attacker declared by this turn's declareDisturbance. A RollRequest carries no
+  // attacker/target, so this is how applyDamage learns WHO is swinging (see docs/SPATIAL-TRUTH.md R4).
+  let lastAggressorId: string | undefined;
   const reactedThisTurn = new Set<string>(); // bystanders already moved by a disturbance this turn — never re-move (P3)
   let beatTransition: TurnResult['beat']; // an advanceScene landed this turn (title card client-side)
   let firedExemplars: TurnResult['exemplars']; // style exemplars injected this turn (Technique B)
@@ -2312,6 +2317,24 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
           const amount = Number(tc.input.amount);
           const raw = String(tc.input.targetId ?? '');
           let targetId = engine.findCombatantId(raw) ?? raw;
+          // SPATIAL R4 — THE REACH GATE. Before any HP is lost (and before the promotion lane below can
+          // manufacture a combatant for it), ask the engine whether this blow can physically land. An
+          // attack roll carries no attacker/target, so the swinger comes from this turn's
+          // declareDisturbance. Out of reach but closable ⇒ the engine walks them in and we push the move
+          // delta so the token visibly crosses the ground. Genuinely out of reach ⇒ REFUSED, no damage.
+          const attackerId = String(tc.input.attackerId ?? '') || lastAggressorId;
+          let reachNote: string | undefined;
+          if (SPATIAL_ON && attackerId) {
+            const reach = engine.attackReach({ attackerId, targetId: raw, mode: (['melee', 'ranged', 'spell'].includes(String(tc.input.attack)) ? tc.input.attack : 'melee') as 'melee' | 'ranged' | 'spell' });
+            if (reach.approach) {
+              sceneDeltas.push({ op: 'move', id: reach.approach.actorId ?? attackerId, to: { col: reach.approach.at.col, row: reach.approach.at.row }, ...(reach.approach.pathCells?.length ? { via: reach.approach.pathCells } : {}) });
+            }
+            if (!reach.ok) {
+              resolved.push({ toolUseId: tc.id, content: JSON.stringify({ applied: false, blocked: 'out-of-reach', distanceFt: reach.distanceFt, requiredFt: reach.requiredFt, note: reach.corrective }) });
+              continue; // no damage, no promotion — the geometry says the blow never landed
+            }
+            if (reach.facts.length) reachNote = reach.facts.join(' ');
+          }
           // Living-world (P3): if the target is a map-only NPC token (not yet a combatant) and we are NOT in
           // combat, promote it so the blow lands on real HP. Guarded to out-of-combat — mid-fight promotion
           // needs a formal initiative slot (P4); promoting off-order here would wedge maybeEndCombat.
@@ -2325,7 +2348,8 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
             }
           }
           const r = engine.applyDamage({ targetId, amount: Number.isFinite(amount) ? amount : 0, type: String(tc.input.type ?? 'bludgeoning') as DamageType });
-          resolved.push({ toolUseId: tc.id, content: JSON.stringify(r) });
+          // The approach line is ENGINE-AUTHORED: the DM must narrate the closing it did not order.
+          resolved.push({ toolUseId: tc.id, content: JSON.stringify(reachNote ? { ...r, approach: reachNote } : r) });
         } catch (e) {
           resolved.push({ toolUseId: tc.id, content: JSON.stringify({ error: (e as Error).message }) });
         }
@@ -2734,6 +2758,7 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
             if (!aggressor) {
               resolved.push({ toolUseId: tc.id, content: JSON.stringify({ error: 'aggressor not found on the map — name a character who is present' }) });
             } else {
+              lastAggressorId = aggressor.id; // R4: who is swinging, for the applyDamage reach gate
               const key = `${aggressor.id}>${target?.id ?? '*'}`;
               if (disturbedThisTurn.has(key)) {
                 resolved.push({ toolUseId: tc.id, content: JSON.stringify({ note: 'this disturbance was already resolved this turn — narrate the reactions you were already given; do not re-declare.' }) });

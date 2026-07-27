@@ -40,7 +40,8 @@ import {
 import { rollDice, validateDeclaredRoll, type Rng } from './dice.js';
 import { generateStatBlock, type MonsterSpec } from './monster-gen.js';
 import { bumpSpatialVersion, spatialIndex } from './spatial/oracle.js';
-import { runTravel, swimGateFailure, type TravelIntent, type TravelVerdict } from './spatial/travel.js';
+import { deriveMoveCaps, runTravel, swimGateFailure, type TravelIntent, type TravelVerdict } from './spatial/travel.js';
+import { classifyReach, reachRequiredFt, type AttackMode, type ReachReason, type ReachVerdict } from './spatial/reach.js';
 import type { SceneMap } from '@mythweaver/shared';
 import { statBlockToCombatant } from './state.js';
 import { abilityMod, deriveAbilityCheckModifier, deriveArmorClass, derivePassive, deriveProficiencyBonus, deriveSaveModifier, deriveSkillModifier, deriveSpellsPreparedMax } from './derive.js';
@@ -518,6 +519,56 @@ export class Engine implements EngineTools {
     if (!map) return { moved: false, ft: 0, rounds: 0, legs: [], facts: [], rejected: 'no scene established' };
     const verdict = runTravel({ state: this.state, map, applyMove: (actorId, to) => this.travelApplyMove(map, actorId, to) }, intent);
     if (verdict.facts.length) this.record('engine', `travel: ${verdict.facts[0]}`, { travel: { actorId: intent.actorId, ...verdict } });
+    return verdict;
+  }
+
+  /**
+   * SPATIAL R4 (slice 1): the ATTACK legality gate — can this blow reach that target at all?
+   * Callers must not apply damage when `ok` is false. Out of reach but closable in one move ⇒ the
+   * engine WALKS the attacker in through `travel()` (so the single movement gate still owns every
+   * step) and returns the approach for the client tween. Degrades OPEN — no scene, no map token, or
+   * an unresolvable id yields ok:true, so a mapless session behaves exactly as before.
+   */
+  attackReach(intent: { attackerId: string; targetId: string; mode?: AttackMode }): ReachVerdict {
+    const mode: AttackMode = intent.mode ?? 'melee';
+    const allow = (reason: ReachReason, facts: string[] = []): ReachVerdict => ({ ok: true, distanceFt: 0, requiredFt: 0, reason, facts });
+    const world = this.state.world;
+    const map = world?.currentLocationId ? world.locations[world.currentLocationId] : undefined;
+    if (!map) return allow('unpositioned');
+
+    const find = (id: string) => {
+      const direct = map.objects.find((o) => o.id === id);
+      if (direct) return direct;
+      const cid = this.findCombatantId(id);
+      const name = cid ? this.state.combatants[cid]?.name : undefined;
+      return (cid ? map.objects.find((o) => o.id === cid) : undefined)
+        ?? (name ? map.objects.find((o) => (o.name ?? '').toLowerCase() === name.toLowerCase()) : undefined);
+    };
+    const attacker = find(intent.attackerId);
+    const target = find(intent.targetId);
+    if (!attacker || !target) return allow('unpositioned'); // can't judge geometry we don't have
+
+    const idx = spatialIndex(map);
+    const verdict = classifyReach({
+      idx,
+      attacker: { col: attacker.col, row: attacker.row },
+      target: { col: target.col, row: target.row },
+      attackerName: attacker.name ?? attacker.id,
+      targetName: target.name ?? target.id,
+      mode,
+      req: reachRequiredFt(this.state, this.findCombatantId(intent.attackerId) ?? intent.attackerId, mode),
+      caps: deriveMoveCaps(this.state, this.findCombatantId(intent.attackerId) ?? intent.attackerId),
+    });
+
+    // The ONLY side effect: close the distance through the single movement gate.
+    if (verdict.ok && verdict.reason === 'closed-to-reach' && verdict.approach) {
+      const t = this.travel({ actorId: attacker.id, to: { col: verdict.approach.at.col, row: verdict.approach.at.row }, mode: 'auto' });
+      if (!t.moved || !t.at) {
+        return { ...verdict, ok: false, reason: 'no-route', approach: undefined, facts: [], corrective: `${attacker.name ?? attacker.id} could not close on ${target.name ?? target.id} (${t.rejected ?? 'the way is blocked'}). The blow does NOT land.` };
+      }
+      verdict.approach = { ft: verdict.approach.ft, at: t.at, actorId: attacker.id, ...(t.pathCells?.length ? { pathCells: t.pathCells } : {}) };
+    }
+    this.record('engine', `reach: ${verdict.reason} (${verdict.distanceFt} ft vs ${verdict.requiredFt} ft)`, { reach: { ...verdict, attackerId: attacker.id, targetId: target.id } });
     return verdict;
   }
 

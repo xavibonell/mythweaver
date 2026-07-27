@@ -481,6 +481,12 @@ export interface ItemDef {
   acDexCap?: number;
   /** Shield / wondrous flat AC bonus. */
   acBonus?: number;
+  /** Weapon geometry — READ BY THE REACH GATE (spatial/reach.ts), unlike the older informational
+   *  `AttackAction.reachOrRangeFt`. Melee reach in feet (omit = PHB 5; a pike/whip sets 10). */
+  reachFt?: number;
+  /** Ranged: normal band in feet (beyond it, up to longRangeFt, the shot is at disadvantage). */
+  rangeFt?: number;
+  longRangeFt?: number;
   /** True if the item is magical (its effects/attunement stay gated until identified). */
   magic?: boolean;
   requiresAttunement?: boolean;

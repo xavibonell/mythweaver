@@ -1,20 +1,164 @@
 [
-  { "id": "dagger", "name": "Dagger", "category": "weapon", "slot": "mainHand", "weightLb": 1, "costGp": 2 },
-  { "id": "longsword", "name": "Longsword", "category": "weapon", "slot": "mainHand", "weightLb": 3, "costGp": 15 },
-  { "id": "greataxe", "name": "Greataxe", "category": "weapon", "slot": "mainHand", "weightLb": 7, "costGp": 30 },
-  { "id": "shortbow", "name": "Shortbow", "category": "weapon", "slot": "ranged", "weightLb": 2, "costGp": 25 },
-  { "id": "leather-armor", "name": "Leather Armor", "category": "armor", "slot": "armor", "weightLb": 10, "costGp": 10, "acBase": 11 },
-  { "id": "chain-shirt", "name": "Chain Shirt", "category": "armor", "slot": "armor", "weightLb": 20, "costGp": 50, "acBase": 13, "acDexCap": 2 },
-  { "id": "plate-armor", "name": "Plate Armor", "category": "armor", "slot": "armor", "weightLb": 65, "costGp": 1500, "acBase": 18, "acDexCap": 0 },
-  { "id": "shield", "name": "Shield", "category": "shield", "slot": "shield", "weightLb": 6, "costGp": 10, "acBonus": 2 },
-  { "id": "rope-hempen", "name": "Hempen Rope (50 ft)", "category": "gear", "weightLb": 10, "costGp": 1 },
-  { "id": "torch", "name": "Torch", "category": "gear", "weightLb": 1, "costGp": 0.01 },
-  { "id": "rations", "name": "Rations (1 day)", "category": "gear", "weightLb": 2, "costGp": 0.5 },
-  { "id": "thieves-tools", "name": "Thieves' Tools", "category": "gear", "weightLb": 1, "costGp": 25 },
-  { "id": "healers-kit", "name": "Healer's Kit", "category": "gear", "weightLb": 3, "costGp": 5, "charges": { "max": 10, "recharge": "dawn" } },
-  { "id": "potion-healing", "name": "Potion of Healing", "category": "potion", "weightLb": 0.5, "costGp": 50 },
-  { "id": "ring-protection", "name": "Ring of Protection", "category": "ring", "weightLb": 0, "magic": true, "requiresAttunement": true, "acBonus": 1 },
-  { "id": "cloak-elvenkind", "name": "Cloak of Elvenkind", "category": "wondrous", "weightLb": 1, "magic": true, "requiresAttunement": true, "grants": { "skill": "stealth" } },
-  { "id": "boots-striding", "name": "Boots of Striding and Springing", "category": "wondrous", "weightLb": 1, "magic": true, "requiresAttunement": true },
-  { "id": "wand-magic-missiles", "name": "Wand of Magic Missiles", "category": "wondrous", "weightLb": 1, "magic": true, "charges": { "max": 7, "recharge": "dawn" } }
+  {
+    "id": "dagger",
+    "name": "Dagger",
+    "category": "weapon",
+    "slot": "mainHand",
+    "weightLb": 1,
+    "costGp": 2,
+    "reachFt": 5,
+    "rangeFt": 20,
+    "longRangeFt": 60
+  },
+  {
+    "id": "longsword",
+    "name": "Longsword",
+    "category": "weapon",
+    "slot": "mainHand",
+    "weightLb": 3,
+    "costGp": 15,
+    "reachFt": 5
+  },
+  {
+    "id": "greataxe",
+    "name": "Greataxe",
+    "category": "weapon",
+    "slot": "mainHand",
+    "weightLb": 7,
+    "costGp": 30,
+    "reachFt": 5
+  },
+  {
+    "id": "shortbow",
+    "name": "Shortbow",
+    "category": "weapon",
+    "slot": "ranged",
+    "weightLb": 2,
+    "costGp": 25,
+    "rangeFt": 80,
+    "longRangeFt": 320
+  },
+  {
+    "id": "leather-armor",
+    "name": "Leather Armor",
+    "category": "armor",
+    "slot": "armor",
+    "weightLb": 10,
+    "costGp": 10,
+    "acBase": 11
+  },
+  {
+    "id": "chain-shirt",
+    "name": "Chain Shirt",
+    "category": "armor",
+    "slot": "armor",
+    "weightLb": 20,
+    "costGp": 50,
+    "acBase": 13,
+    "acDexCap": 2
+  },
+  {
+    "id": "plate-armor",
+    "name": "Plate Armor",
+    "category": "armor",
+    "slot": "armor",
+    "weightLb": 65,
+    "costGp": 1500,
+    "acBase": 18,
+    "acDexCap": 0
+  },
+  {
+    "id": "shield",
+    "name": "Shield",
+    "category": "shield",
+    "slot": "shield",
+    "weightLb": 6,
+    "costGp": 10,
+    "acBonus": 2
+  },
+  {
+    "id": "rope-hempen",
+    "name": "Hempen Rope (50 ft)",
+    "category": "gear",
+    "weightLb": 10,
+    "costGp": 1
+  },
+  {
+    "id": "torch",
+    "name": "Torch",
+    "category": "gear",
+    "weightLb": 1,
+    "costGp": 0.01
+  },
+  {
+    "id": "rations",
+    "name": "Rations (1 day)",
+    "category": "gear",
+    "weightLb": 2,
+    "costGp": 0.5
+  },
+  {
+    "id": "thieves-tools",
+    "name": "Thieves' Tools",
+    "category": "gear",
+    "weightLb": 1,
+    "costGp": 25
+  },
+  {
+    "id": "healers-kit",
+    "name": "Healer's Kit",
+    "category": "gear",
+    "weightLb": 3,
+    "costGp": 5,
+    "charges": {
+      "max": 10,
+      "recharge": "dawn"
+    }
+  },
+  {
+    "id": "potion-healing",
+    "name": "Potion of Healing",
+    "category": "potion",
+    "weightLb": 0.5,
+    "costGp": 50
+  },
+  {
+    "id": "ring-protection",
+    "name": "Ring of Protection",
+    "category": "ring",
+    "weightLb": 0,
+    "magic": true,
+    "requiresAttunement": true,
+    "acBonus": 1
+  },
+  {
+    "id": "cloak-elvenkind",
+    "name": "Cloak of Elvenkind",
+    "category": "wondrous",
+    "weightLb": 1,
+    "magic": true,
+    "requiresAttunement": true,
+    "grants": {
+      "skill": "stealth"
+    }
+  },
+  {
+    "id": "boots-striding",
+    "name": "Boots of Striding and Springing",
+    "category": "wondrous",
+    "weightLb": 1,
+    "magic": true,
+    "requiresAttunement": true
+  },
+  {
+    "id": "wand-magic-missiles",
+    "name": "Wand of Magic Missiles",
+    "category": "wondrous",
+    "weightLb": 1,
+    "magic": true,
+    "charges": {
+      "max": 7,
+      "recharge": "dawn"
+    }
+  }
 ]

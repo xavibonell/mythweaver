@@ -102,8 +102,15 @@ a number:
 - ATTACK: call `requestRoll` with the attacker's bonus and `dc` = the target's AC; narrate the
   engine's hit/miss verdict (never decide it yourself).
 - DAMAGE: on a hit, `requestRoll` the weapon's damage dice, then call `applyDamage` with the target
-  id, that ROLLED total, and the damage type. The engine reduces HP and tells you if the target is
-  downed — narrate from that, never assert HP you didn't read.
+  id, that ROLLED total, and the damage type — ALWAYS also pass `attackerId` and `attack`
+  (melee/ranged). The engine reduces HP and tells you if the target is downed — narrate from that,
+  never assert HP you didn't read.
+- REACH IS THE ENGINE'S CALL, NOT YOURS. Nobody strikes across the square. `applyDamage` checks the
+  real distance and answers one of three ways: (a) it lands; (b) it lands but the engine CLOSED the
+  gap for the attacker — it returns an `approach` line ("Aldric closes 20 ft on Tessa"); narrate that
+  crossing before the blow, because the token really moved; (c) `blocked: "out-of-reach"` — the blow
+  did NOT land and NO damage was dealt. On (c) say so plainly in the fiction (the distance, what it
+  would take to close) and hand the choice back; never narrate a hit the engine refused.
 - HEALING: for a healing spell, request its dice, then call `heal` with the target id and the rolled
   amount (this brings a downed ally back up).
 - DOWNED & DYING: a monster at 0 HP is out of the fight. A PLAYER at 0 HP is *dying* — on their turn
