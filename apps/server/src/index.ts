@@ -670,8 +670,8 @@ app.get('/dm/lab/dev-sessions', async () => ({ devSessions: listDevSessions() })
 // Freeze the CURRENT live session (its scene is already rendered in state.world) → a reusable dev-session
 // fixture. The one-time-paid capture that bootstraps instant $0 iteration for everyone downstream.
 app.post('/dm/lab/session/:id/freeze', async (req, reply) => {
-  const session = dmLabSessions.get((req.params as { id: string }).id);
-  if (!session) return badRequest(reply, 'unknown session');
+  const session = dmSession(req, reply);
+  if (!session) return reply;
   const raw = (req.body ?? {}) as { slug?: unknown; title?: unknown };
   const slug = typeof raw.slug === 'string' ? raw.slug.trim() : '';
   if (!/^[a-z0-9-]+$/.test(slug)) return badRequest(reply, 'slug must be lowercase kebab-case (a-z0-9-)');
@@ -850,8 +850,8 @@ app.get('/dm/lab/session/:id/scene.png', async (req, reply) => {
 // each turn (name plaques, party rings, building labels). Look at what the DM looks at. `?as=<PC name>`
 // adds the acting-character double ring.
 app.get('/dm/lab/session/:id/dm-view.png', async (req, reply) => {
-  const session = dmLabSessions.get((req.params as { id: string }).id);
-  if (!session) return reply.code(404).send({ error: 'unknown session' });
+  const session = dmSession(req, reply);
+  if (!session) return reply;
   const world = session.engine.getState().world;
   const map = world?.currentLocationId ? world.locations[world.currentLocationId] : undefined;
   if (!map) return reply.code(404).send({ error: 'no scene established yet' });
@@ -965,17 +965,16 @@ app.post('/dm/lab/session', async (req, reply) => {
     }
   }
   const sessionId = randomUUID();
+  // The DM key travels ONLY in this response — the DM Lab page keeps it and sends it on DM-grade calls.
+  // The sessionId alone (which is in the live-table link players use) unlocks nothing but /player-view.
+  session.dmKey = randomUUID();
   dmLabSessions.set(sessionId, session);
-  return { sessionId, scenarioId: session.scenarioId, scene: session.scene, party: session.party, sceneEngine: session.sceneEngine, arc: arcView(session), characters: characterSheets(session) };
+  return { sessionId, dmKey: session.dmKey, scenarioId: session.scenarioId, scene: session.scene, party: session.party, sceneEngine: session.sceneEngine, arc: arcView(session), characters: characterSheets(session) };
 });
 
 app.post('/dm/lab/session/:id/turn', async (req, reply) => {
-  const { id } = req.params as { id: string };
-  const session = dmLabSessions.get(id);
-  if (!session) {
-    reply.code(404);
-    return { error: 'session not found — start a new one' };
-  }
+  const session = dmSession(req, reply);
+  if (!session) return reply;
   const body = (req.body ?? {}) as { say?: unknown; as?: unknown; roll?: unknown; auto?: unknown; open?: unknown };
   let input: { say: string; as?: string } | { roll: number; auto?: boolean } | { open: true };
   if (body.open === true) {
@@ -1018,11 +1017,8 @@ app.post('/dm/lab/session/:id/turn', async (req, reply) => {
 
 // Fresh per-PC character sheets for the Run-view sheet modal (on open / manual refresh).
 app.get('/dm/lab/session/:id/characters', async (req, reply) => {
-  const session = dmLabSessions.get((req.params as { id: string }).id);
-  if (!session) {
-    reply.code(404);
-    return { error: 'session not found — start a new one' };
-  }
+  const session = dmSession(req, reply);
+  if (!session) return reply;
   return { characters: characterSheets(session) };
 });
 
@@ -1054,6 +1050,37 @@ app.get('/dm/lab/session/:id/rev', async (req, reply) => {
   }
   return { turnIndex: session.turnIndex, rev: session.sceneRev, pendingRoll: session.pendingRoll ? true : false };
 });
+
+/**
+ * THE DM-KEY GATE (docs/PLAYER-INTERFACE.md P1). The sessionId is the PLAYERS' join credential — it is in
+ * the live-table URL and gets passed around a table — so it cannot also be the thing that unlocks the
+ * DM-grade payload. Every session mints a `dmKey` at create, returned only in that create response (which
+ * only the DM Lab page sees). DM-grade session routes require it; the player routes and /rev never do.
+ *
+ * Honest scope: a screen-content boundary for a self-hosted LAN table, NOT authentication. It stops a
+ * player who has the session link from reading the campaign's secrets; it is not a defence against an
+ * attacker on the network. (`MYTHWEAVER_API_TOKEN` remains the transport-level control.)
+ */
+function dmKeyOk(req: { params?: unknown; headers: Record<string, unknown>; query?: unknown }, session: { dmKey?: string }): boolean {
+  if (!session.dmKey) return true; // sessions created before the gate existed stay usable
+  const supplied = (req.headers['x-dm-key'] as string | undefined) ?? (req.query as { key?: string } | undefined)?.key;
+  return supplied === session.dmKey;
+}
+/** Resolve a session AND authorize DM-grade access in one step; returns null once it has replied. */
+function dmSession(req: { params: unknown; headers: Record<string, unknown>; query?: unknown }, reply: FastifyReply) {
+  const session = dmLabSessions.get((req.params as { id: string }).id);
+  if (!session) {
+    reply.code(404);
+    reply.send({ error: 'session not found — start a new one' });
+    return null;
+  }
+  if (!dmKeyOk(req, session)) {
+    reply.code(403);
+    reply.send({ error: 'this is DM-only data — the player view is /player-view' });
+    return null;
+  }
+  return session;
+}
 
 /**
  * THE PLAYER ROUTES (docs/PLAYER-INTERFACE.md P1). Deliberately SEPARATE endpoints rather than a
@@ -1129,11 +1156,8 @@ app.post('/dm/lab/session/:id/player-turn', async (req, reply) => {
 });
 
 app.get('/dm/lab/session/:id/view', async (req, reply) => {
-  const session = dmLabSessions.get((req.params as { id: string }).id);
-  if (!session) {
-    reply.code(404);
-    return { error: 'session not found — start a new one' };
-  }
+  const session = dmSession(req, reply);
+  if (!session) return reply;
   const world = session.engine.getState().world;
   const map = world?.currentLocationId ? world.locations[world.currentLocationId] : undefined;
   return {

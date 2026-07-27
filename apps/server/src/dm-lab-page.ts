@@ -498,6 +498,7 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>, liveTabl
 
   // --- interactive session (turn by turn, accumulating context) ---
   var sessionId = null;
+  var dmKey = null; // DM-grade credential from session create — the sessionId alone only opens /player-view
   var pendingRoll = null;
   function convo() { return $('convo'); }
   function scrollConvo() { var c = $('convo'); c.scrollTop = c.scrollHeight; }
@@ -674,8 +675,15 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>, liveTabl
   var partyNames = []; // party of the live session (for arc-aware suggestions)
 
   // Shared success handler for a session start (campaigns now always start from the Generate tab).
+  /** DM-grade fetch: same as fetch() but carries the session's DM key (see the dmKeyOk gate). */
+  function dmFetch(url, opts) {
+    opts = opts || {};
+    opts.headers = Object.assign({}, opts.headers || {}, dmKey ? { 'x-dm-key': dmKey } : {});
+    return fetch(url, opts);
+  }
+
   function sessionStarted(b) {
-    sessionId = b.sessionId; pendingRoll = null;
+    sessionId = b.sessionId; dmKey = b.dmKey || null; pendingRoll = null;
     partyNames = (b.party || []).map(function (p) { return p.name; });
     convo().innerHTML = '';
     addSys('Session started · scene "' + b.scene + '" · party: ' + partyNames.join(', '));
@@ -750,7 +758,7 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>, liveTabl
   function openSheet(id) {
     openSheetId = id; renderSheet(id); $('sheet-modal').classList.add('open');
     // Refresh from the server in the background so an opened sheet reflects the very latest state.
-    if (sessionId) fetch('/dm/lab/session/' + sessionId + '/characters').then(function (r) { return r.json(); })
+    if (sessionId) dmFetch('/dm/lab/session/' + sessionId + '/characters').then(function (r) { return r.json(); })
       .then(function (b) { if (b && b.characters) { latestCharacters = b.characters; renderCharacterSheets(); if (openSheetId) renderSheet(openSheetId); } }).catch(function () {});
   }
   function closeSheet() { openSheetId = null; $('sheet-modal').classList.remove('open'); }
@@ -868,7 +876,7 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>, liveTabl
     if (!sessionId) return Promise.resolve();
     setBusy(true);
     $('status').innerHTML = '<span class="spin"></span>DM is setting the scene…';
-    return fetch('/dm/lab/session/' + sessionId + '/turn', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ open: true }) })
+    return dmFetch('/dm/lab/session/' + sessionId + '/turn', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ open: true }) })
       .then(function (r) { return r.json().then(function (b) { return { ok: r.ok, body: b }; }); })
       .then(function (x) {
         if (!x.ok) { addSys('(opening narration skipped: ' + (x.body.error || 'failed') + ')'); setBusy(false); $('status').textContent = 'session live — what do you do?'; return; }
@@ -911,7 +919,7 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>, liveTabl
     if (!sessionId) return Promise.resolve();
     setBusy(true);
     $('status').innerHTML = '<span class="spin"></span>DM thinking…';
-    return fetch('/dm/lab/session/' + sessionId + '/turn', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload) })
+    return dmFetch('/dm/lab/session/' + sessionId + '/turn', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload) })
       .then(function (r) { return r.json().then(function (b) { return { ok: r.ok, body: b }; }); })
       .then(function (x) {
         if (!x.ok) { addSys('error: ' + (x.body.error || 'failed')); setBusy(false); $('status').textContent = ''; return; }
@@ -1169,7 +1177,7 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>, liveTabl
     var slug = (window.prompt('Freeze this session as a prerendered dev session.\\nSlug (lowercase kebab-case):', 'the-drowned-bell') || '').trim();
     if (!slug) return;
     $('status').innerHTML = '<span class="spin"></span>freezing…';
-    fetch('/dm/lab/session/' + sessionId + '/freeze', {
+    dmFetch('/dm/lab/session/' + sessionId + '/freeze', {
       method: 'POST', headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ slug: slug }),
     }).then(function (r) { return r.json().then(function (b) { return { ok: r.ok, body: b }; }); }).then(function (x) {
