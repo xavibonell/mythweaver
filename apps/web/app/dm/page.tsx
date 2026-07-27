@@ -162,6 +162,9 @@ export default function DmLiveTable() {
     setCharacters(v.characters ?? []);
     setArc(v.arc ?? null);
     setBook(v.book ?? null);
+    // The prologue is generated fire-and-forget at create — if it lands while the YOUR STORY card is
+    // still on screen showing the premise fallback, upgrade the card to the real opening page.
+    if (v.book?.prologue) setPrologue((prev: any) => (prev && prev.premise !== v.book.prologue ? { ...prev, premise: v.book.prologue } : prev));
     journalLenRef.current = (v.book?.chapters ?? []).reduce((n: number, c: any) => n + (c.events?.length ?? 0), 0);
     setPendingRoll(v.pendingRoll ?? null);
     sceneRev.current = v.scene?.rev ?? 0;
@@ -174,8 +177,8 @@ export default function DmLiveTable() {
     }));
     // THE WHY: on a fresh table (turn 0), show the campaign's purpose once — players should never
     // wonder "why are we here". Both fields come player-safe from the projection (no Director steering).
-    if (opts.fresh && (v.turnIndex ?? 0) === 0 && (v.arc?.premise || v.arc?.goal)) {
-      setPrologue({ premise: v.arc?.premise ?? '', goal: v.arc?.goal ?? '' });
+    if (opts.fresh && (v.turnIndex ?? 0) === 0 && (v.book?.prologue || v.arc?.premise || v.arc?.goal)) {
+      setPrologue({ premise: v.book?.prologue ?? v.arc?.premise ?? '', goal: v.arc?.goal ?? '' });
     }
   }
 

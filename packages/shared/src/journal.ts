@@ -20,6 +20,7 @@
  *  roll bar, the transcript and the character sheet already own them, and duplicating them turns the
  *  Book into a debug feed (the failure mode the design red-team flagged as fatal to the whole idea). */
 export type JournalKind =
+  | 'prologue' // the once-per-session opening: who you are, how you came to be here — in the DM's voice
   | 'chapter' // a beat opened or closed — the Book's chapter boundary
   | 'goal' // what the party is trying to do (snapshotted, because the brief is overwritten in place)
   | 'place' // the party entered somewhere

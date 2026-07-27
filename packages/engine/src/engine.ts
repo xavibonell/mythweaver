@@ -134,7 +134,8 @@ export class Engine implements EngineTools {
         ...(world?.currentLocationId ? { locationId: world.currentLocationId } : {}),
         kind: e.kind,
         subjects: e.subjects ?? [],
-        text: e.text.length > 240 ? `${e.text.slice(0, 237)}…` : e.text,
+        // Event rows are one-liners; the prologue is the one PROSE entry and gets room to breathe.
+        text: ((cap) => (e.text.length > cap ? `${e.text.slice(0, cap - 3)}…` : e.text))(e.kind === 'prologue' ? 1400 : 240),
         ...(e.data ? { data: e.data } : {}),
       });
     } catch { /* the Book is never worth a turn */ }

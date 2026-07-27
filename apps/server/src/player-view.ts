@@ -167,8 +167,11 @@ export type PlayerSheet = CharacterSheet & { downed?: boolean; deathSaves?: { su
  * verbatim. This function only ORGANISES: events into chapters, and the people/things they name into
  * dossiers that grow.
  */
-export function playerBook(state: GameState): { chapters: Chapter[]; people: Dossier[]; findings: JournalEvent[] } {
-  const events = state.journal ?? [];
+export function playerBook(state: GameState): { prologue: string | null; chapters: Chapter[]; people: Dossier[]; findings: JournalEvent[] } {
+  const all = state.journal ?? [];
+  // The prologue is the Book's opening PAGE, not a row in a chapter — pull it out before grouping.
+  const prologue = all.find((e) => e.kind === 'prologue')?.text ?? null;
+  const events = all.filter((e) => e.kind !== 'prologue');
   const titles = state.adventure?.scenes ?? {};
 
   // CHAPTERS, in the order the party lived them. A beat only appears once it has events, so an
@@ -218,6 +221,7 @@ export function playerBook(state: GameState): { chapters: Chapter[]; people: Dos
   for (const d of people.values()) d.deeds = d.deeds.slice(0, 12); // newest few; the chapter holds the rest
 
   return {
+    prologue,
     chapters,
     people: [...people.values()],
     findings: events.filter((e) => e.kind === 'finding' || e.kind === 'loot'),

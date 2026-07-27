@@ -233,3 +233,28 @@ describe('playerBook — the Book, folded from what the table witnessed (P3)', (
     expect(b.people.map((p) => p.id)).toEqual(['npc:tessa']); // a POI id is not a person
   });
 });
+
+describe('playerBook — the prologue is the opening PAGE, not a chapter row (P4.1)', () => {
+  const base = (): GameState => ({
+    currentSceneId: 'scene:b1',
+    adventure: { pitch: 'x', scenes: { 'scene:b1': { title: 'The Green' } } },
+    flags: {}, ledger: { entities: {}, facts: [], plants: {} },
+    journal: [
+      { seq: 1, turn: 0, beatId: 'scene:b1', kind: 'prologue', subjects: [], text: 'You come together on the King’s Road…' },
+      { seq: 2, turn: 1, beatId: 'scene:b1', kind: 'verdict', subjects: [], text: 'a villager bolts' },
+    ],
+  } as unknown as GameState);
+
+  it('extracts the prologue and keeps it OUT of the chapter event rows', () => {
+    const b = playerBook(base());
+    expect(b.prologue).toContain('King’s Road');
+    const rows = b.chapters.flatMap((c) => c.events);
+    expect(rows.map((e) => e.kind)).toEqual(['verdict']); // the page is not a row
+  });
+
+  it('is null when no prologue has landed (keyless setups fall back to the premise in the UI)', () => {
+    const st = base();
+    (st.journal as unknown as { kind: string }[]).shift();
+    expect(playerBook(st).prologue).toBeNull();
+  });
+});

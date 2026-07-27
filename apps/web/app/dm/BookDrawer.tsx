@@ -3,9 +3,11 @@
 /**
  * THE BOOK (docs/PLAYER-INTERFACE.md P4) — what the party knows, on the table.
  *
- * A bookmark spine on the left edge; clicking one slides a panel out OVER the canvas. Deliberately
- * NON-MODAL and closed only by an explicit click: at a real table one player reads while another acts,
- * so a click-outside-to-close drawer would slam shut every time someone else touched the map.
+ * ONE floating bookmark on the left edge opens the whole Book; Journal / People / Findings are TABS
+ * inside it (three separate floating icons read as three separate features — they aren't; they're pages
+ * of the same book). Deliberately NON-MODAL and closed only by an explicit click: at a real table one
+ * player reads while another acts, so click-outside-to-close would slam shut every time someone else
+ * touched the map.
  *
  * Everything here renders the journal the engine wrote (P3) — the events are already player-safe, so
  * this file does no filtering, only arrangement. The Book is an INDEX of what mattered, not a retelling:
@@ -89,20 +91,14 @@ export default function BookDrawer({ book, arc, selected, onSelect }: { book: an
   return (
     <>
       <div style={C.spine}>
-        {TABS.map((t) => {
-          const on = openTab === t.key;
-          return (
-            <button
-              key={t.key}
-              title={t.label}
-              onClick={() => { if (on) { setTab(null); onSelect(null); } else { setTab(t.key); if (t.key !== 'people') onSelect(null); } }}
-              style={C.tab(on)}
-            >
-              <span>{t.mark}</span>
-              <span style={C.count(on)}>{counts[t.key] || ''}</span>
-            </button>
-          );
-        })}
+        <button
+          title="The Book"
+          onClick={() => { if (openTab) { setTab(null); onSelect(null); } else setTab('journal'); }}
+          style={C.tab(!!openTab)}
+        >
+          <span>📖</span>
+          <span style={C.count(!!openTab)}>{counts.journal + counts.people + counts.findings || ''}</span>
+        </button>
       </div>
 
       {openTab && (
@@ -110,7 +106,7 @@ export default function BookDrawer({ book, arc, selected, onSelect }: { book: an
         <div style={C.drawer} onClick={(e) => e.stopPropagation()} onWheel={(e) => e.stopPropagation()}>
           <div style={C.head}>
             <span style={{ fontFamily: 'ui-serif, Georgia, serif', color: '#c9a227', fontSize: 14 }}>
-              {dossier ? dossier.name : TABS.find((t) => t.key === openTab)!.label}
+              {dossier ? dossier.name : 'The Book'}
             </span>
             <button
               onClick={() => (dossier ? onSelect(null) : (setTab(null), onSelect(null)))}
@@ -119,10 +115,36 @@ export default function BookDrawer({ book, arc, selected, onSelect }: { book: an
               {dossier ? '‹ back' : '✕'}
             </button>
           </div>
+          {!dossier && (
+            <div style={{ display: 'flex', borderBottom: '1px solid #1d2027' }}>
+              {TABS.map((t) => {
+                const on = openTab === t.key;
+                return (
+                  <button
+                    key={t.key}
+                    onClick={() => { setTab(t.key); if (t.key !== 'people') onSelect(null); }}
+                    style={{
+                      flex: 1, padding: '8px 0', cursor: 'pointer', background: 'transparent', border: 'none',
+                      borderBottom: on ? '2px solid #c9a227' : '2px solid transparent',
+                      color: on ? '#c9a227' : '#8a90a0', fontSize: 12, fontWeight: on ? 700 : 400,
+                    }}
+                  >
+                    {t.mark} {t.label}{counts[t.key] ? ` · ${counts[t.key]}` : ''}
+                  </button>
+                );
+              })}
+            </div>
+          )}
 
           {/* All three panels stay mounted; only display toggles (see the header note). */}
           <div style={{ ...C.body, display: openTab === 'journal' ? 'block' : 'none' }}>
-            {arc?.premise && <div style={{ fontSize: 12, lineHeight: 1.6, color: '#c3c8d4', paddingBottom: 8, borderBottom: '1px solid #1d2027' }}>{arc.premise}</div>}
+            {(book?.prologue || arc?.premise) && (
+              <div style={{ fontFamily: 'ui-serif, Georgia, serif', fontSize: 13, lineHeight: 1.7, color: '#cfd3dc', paddingBottom: 10, borderBottom: '1px solid #1d2027' }}>
+                {(book?.prologue ?? arc.premise).split(/\n\n+/).map((para: string, i: number) => (
+                  <p key={i} style={{ margin: i ? '10px 0 0' : 0 }}>{para}</p>
+                ))}
+              </div>
+            )}
             {arc?.goal && <div style={{ ...C.row, color: '#c9a227', marginTop: 8 }}><span>🎯</span><span>{arc.goal}</span></div>}
             {!counts.journal && <div style={{ ...C.empty, marginTop: 12 }}>Nothing recorded yet — what you discover, decide and survive lands here.</div>}
             {chapters.map((c) => (

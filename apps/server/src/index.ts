@@ -22,6 +22,7 @@ import {
   loadSceneArchitect,
 } from './prompts.js';
 import { playerArcView, playerBook, playerCharacters, playerSceneMap, playerTurn, projectDeltas } from './player-view.js';
+import { generatePrologue } from './prologue.js';
 import { buildRetriever } from './corpus.js';
 import { buildExemplarRetriever } from './exemplar-corpus.js';
 import { buildTracer } from './tracing.js';
@@ -969,6 +970,24 @@ app.post('/dm/lab/session', async (req, reply) => {
   // The sessionId alone (which is in the live-table link players use) unlocks nothing but /player-view.
   session.dmKey = randomUUID();
   dmLabSessions.set(sessionId, session);
+  // THE PLAYER PROLOGUE (P4.1) — fire-and-forget so create stays fast. It lands as a journal event a
+  // few seconds later; the table's poll notices journalLen move and the Book gains its opening page.
+  // A reloaded freeze that already carries one is left alone. Failure = silence, never a broken create.
+  {
+    const st = session.engine.getState();
+    if (!st.journal?.some((e) => e.kind === 'prologue')) {
+      const sheets = characterSheets(session) as unknown as { name: string; className?: string; ancestry?: string; backstory?: string }[];
+      void generatePrologue(llm, exemplars, {
+        ...(st.arc?.blueprint?.premise ? { premise: st.arc.blueprint.premise } : {}),
+        ...(st.arc?.blueprint?.opening ? { opening: st.arc.blueprint.opening } : {}),
+        ...(st.adventure?.scenes[st.currentSceneId]?.title ? { sceneTitle: st.adventure.scenes[st.currentSceneId]!.title } : {}),
+        party: sheets.map((c) => ({ name: c.name, ...(c.className ? { className: c.className } : {}), ...(c.ancestry ? { ancestry: c.ancestry } : {}), ...(c.backstory ? { backstory: c.backstory } : {}) })),
+        ...(session.temperature !== undefined ? { temperature: session.temperature } : {}),
+      }).then((text) => {
+        if (text && dmLabSessions.get(sessionId) === session) session.engine.journal({ kind: 'prologue', text });
+      });
+    }
+  }
   return { sessionId, dmKey: session.dmKey, scenarioId: session.scenarioId, scene: session.scene, party: session.party, sceneEngine: session.sceneEngine, arc: arcView(session), characters: characterSheets(session) };
 });
 
@@ -1148,6 +1167,7 @@ app.post('/dm/lab/session/:id/player-turn', async (req, reply) => {
       pendingRoll: session.pendingRoll ?? null,
       arc: playerArcView(st),
       characters: playerCharacters(characterSheets(session) as unknown as Record<string, unknown>[]),
+      book: playerBook(st),
     };
   } catch (err) {
     app.log.error(err, 'player turn failed');
