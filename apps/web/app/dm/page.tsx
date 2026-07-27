@@ -14,6 +14,8 @@
 
 import { useEffect, useRef, useState } from 'react';
 import SceneCanvas from '../play/SceneCanvas';
+import SheetModal from './SheetModal';
+import PartyDock from './PartyDock';
 
 const SERVER = process.env.NEXT_PUBLIC_SERVER_URL ?? 'http://localhost:6984';
 
@@ -62,51 +64,6 @@ function BeatStrip({ arc }: { arc: any }) {
   );
 }
 
-function DeltaChips({ deltas }: { deltas: any[] }) {
-  if (!deltas?.length) return null;
-  return (
-    <div style={{ margin: '3px 0' }}>
-      {deltas.map((d, i) => (
-        <span key={i} style={S.chip}>
-          Δ {d.op === 'move' ? `${d.id} → ${d.to.col},${d.to.row}` : d.op === 'spawn' ? `+ ${d.name || d.id}${d.at ? ` @ ${d.at.col},${d.at.row}` : ''}` : d.op === 'despawn' ? `− ${d.id}` : `${d.op} ${d.id}`}
-        </span>
-      ))}
-    </div>
-  );
-}
-
-function TurnDetails({ turn }: { turn: any }) {
-  const tools = turn?.tools ?? [];
-  const diff = turn?.diff ?? [];
-  const p = turn?.sceneProvenance;
-  if (!tools.length && !diff.length && !p) return null;
-  return (
-    <details style={{ marginTop: 4 }}>
-      <summary style={{ cursor: 'pointer', color: '#6b7080', fontSize: 11 }}>
-        {tools.length} tool(s) · {diff.length} state Δ{p ? ` · scene: ${p.engine}` : ''}
-      </summary>
-      <div style={{ fontSize: 11, color: '#9aa0b0', marginTop: 4 }}>
-        {tools.map((t: any, i: number) => (
-          <div key={i} style={{ margin: '2px 0', wordBreak: 'break-word' }}>
-            <span style={{ color: '#c9a227' }}>{t.name}</span>
-            <span style={{ color: '#565b66' }}>({JSON.stringify(t.input).slice(0, 220)})</span>
-            {t.result ? <span style={{ color: '#7a8494' }}> → {String(t.result).slice(0, 200)}</span> : null}
-          </div>
-        ))}
-        {diff.length > 0 && <div style={{ marginTop: 3, color: '#8fb8e0' }}>state Δ: {diff.join(' | ')}</div>}
-        {p?.enrichedBrief && (
-          <div style={{ marginTop: 3 }}>
-            <b style={{ color: '#c9a227' }}>brief → generator:</b>
-            <pre style={{ whiteSpace: 'pre-wrap', background: '#0b0c10', padding: 6, borderRadius: 4, maxHeight: 120, overflow: 'auto' }}>{p.enrichedBrief}</pre>
-            {p.moodText ? <div>mood: “{p.moodText.slice(0, 120)}” → <b>{p.program?.lighting}</b> ({p.lightingReason})</div> : null}
-            {p.program?.notes?.length ? <div>interventions: {p.program.notes.join(' · ')}</div> : null}
-          </div>
-        )}
-      </div>
-    </details>
-  );
-}
-
 export default function DmLiveTable() {
   const [sessions, setSessions] = useState<any[]>([]);
   const [view, setView] = useState<any>(null); // the joined session's hydration payload
@@ -126,6 +83,7 @@ export default function DmLiveTable() {
   const [pingNonce, setPingNonce] = useState(0);
   const [prologue, setPrologue] = useState<any>(null); // {premise, goal} — the WHY, shown once on join
   const [busy, setBusy] = useState(false);
+  const [sheetId, setSheetId] = useState<string | null>(null); // which PC's sheet is open (P2)
   const sceneRev = useRef(0);
   const logRef = useRef<HTMLDivElement>(null);
 
@@ -137,7 +95,17 @@ export default function DmLiveTable() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  useEffect(() => { logRef.current?.scrollTo(0, logRef.current.scrollHeight); }, [log]);
+  // Follow the conversation only when the reader is already AT it. The 2s poll rebuilds this list on
+  // every observed turn, so an unconditional scroll-to-bottom yanks anyone reading back through the log.
+  const stickRef = useRef(true);
+  useEffect(() => {
+    const el = logRef.current;
+    if (el && stickRef.current) el.scrollTo(0, el.scrollHeight);
+  }, [log]);
+  const onLogScroll = () => {
+    const el = logRef.current;
+    if (el) stickRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+  };
 
   // LIVE SYNC. The table is a SEPARATE page from the DM Lab, so a turn played in the lab used to reach
   // it never — it sat frozen at join time while the world moved on ("nothing moved" on screen even
@@ -290,6 +258,8 @@ export default function DmLiveTable() {
         <div style={{ position: 'absolute', top: 8, left: 10, display: 'flex', gap: 10, alignItems: 'center', fontSize: 12 }}>
           <span style={{ color: '#c9a227', fontFamily: 'ui-serif, Georgia, serif' }}>MythWeaver — live table</span>
         </div>
+        {/* The party, ambient over the map — click a chip for the full sheet (P2). */}
+        <PartyDock party={characters} onOpen={(id) => setSheetId(id)} />
         <div style={{ position: 'absolute', top: 8, right: 10, display: 'flex', gap: 8, fontSize: 12 }}>
           <label style={{ color: '#9a8f7d', cursor: 'pointer' }}>
             <input type="checkbox" checked={showRoofs} onChange={(e) => setShowRoofs(e.target.checked)} /> roofs
@@ -329,17 +299,8 @@ export default function DmLiveTable() {
         <div style={{ padding: '8px 12px', borderBottom: '1px solid #23262f', display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#9a8f7d' }}>
           <span>{view.scenarioId} · turn {view.turnIndex}</span>
         </div>
-        {/* party HP rows */}
-        <div style={{ padding: '6px 12px', borderBottom: '1px solid #23262f', display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-          {characters.map((c: any) => (
-            <span key={c.id ?? c.name} style={{ fontSize: 12, color: '#9aa0b0' }}>
-              <b style={{ color: '#e8e2d6' }}>{c.name}</b>{' '}
-              <span style={{ color: (c.hp?.cur ?? 1) <= (c.hp?.max ?? 1) / 3 ? '#b3542d' : '#3fa34d' }}>{c.hp?.cur}/{c.hp?.max}</span>
-            </span>
-          ))}
-        </div>
         {/* transcript */}
-        <div ref={logRef} style={{ flex: 1, overflowY: 'auto', padding: 12 }}>
+        <div ref={logRef} onScroll={onLogScroll} style={{ flex: 1, overflowY: 'auto', padding: 12 }}>
           {log.map((m, i) => (
             <div key={i} style={{ marginBottom: 10 }}>
               <div style={{ fontSize: 11, color: m.dm ? '#c9a227' : '#7a8494', marginBottom: 2 }}>{m.who}</div>
@@ -375,6 +336,8 @@ export default function DmLiveTable() {
           <button style={S.btn} onClick={send} disabled={busy || !!pendingRoll || !input.trim()}>Say</button>
         </div>
       </div>
+      {/* The full character sheet, opened from a PartyDock chip (P2). Play continues behind it. */}
+      {sheetId && <SheetModal pc={characters.find((c: any) => (c.id ?? c.name) === sheetId)} onClose={() => setSheetId(null)} />}
     </main>
   );
 }
