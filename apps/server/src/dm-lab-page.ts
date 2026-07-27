@@ -280,8 +280,8 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>, liveTabl
       <div class="hint" id="status" style="margin-top:10px">Generate a campaign to begin.</div>
     </div>
     <div class="right-wrap">
-      <details id="scene-panel" style="display:none;margin-bottom:8px;border:1px solid #23262f;border-radius:8px;background:#0f1116" open>
-        <summary style="cursor:pointer;padding:7px 10px;color:#c9a227;font-size:13px">Scene — the story made real <span style="color:#6b7080">(re-renders as the DM sets scenes)</span></summary>
+      <details id="scene-panel" style="display:none;margin-bottom:8px;border:1px solid #23262f;border-radius:8px;background:#0f1116">
+        <summary style="cursor:pointer;padding:7px 10px;color:#c9a227;font-size:13px">Scene — the story made real <span style="color:#6b7080">(click to expand · re-renders as the DM sets scenes)</span></summary>
         <div style="padding:8px"><img id="scene-img" alt="current scene" style="width:100%;image-rendering:pixelated;border-radius:4px;display:block" /></div>
       </details>
       <div id="beatstrip" style="display:none;flex-wrap:wrap;gap:4px;margin-bottom:6px"></div>
@@ -890,7 +890,20 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>, liveTabl
   function refreshScene() {
     if (!sessionId) return;
     var probe = new Image();
-    probe.onload = function () { $('scene-img').src = probe.src; $('scene-panel').style.display = ''; };
+    probe.onload = function () {
+      $('scene-img').src = probe.src;
+      var p = $('scene-panel');
+      p.style.display = '';
+      // Collapsed by DEFAULT (the transcript is the working surface; the render is a spot-check), but
+      // remember the choice — once you open it, it stays open across turns and reloads.
+      if (!p.dataset.wired) {
+        p.dataset.wired = '1';
+        try { p.open = localStorage.getItem('mw-scene-open') === '1'; } catch (e) { /* private mode */ }
+        p.addEventListener('toggle', function () {
+          try { localStorage.setItem('mw-scene-open', p.open ? '1' : '0'); } catch (e) { /* ignore */ }
+        });
+      }
+    };
     probe.src = '/dm/lab/session/' + sessionId + '/scene.png?v=' + Date.now();
   }
 
