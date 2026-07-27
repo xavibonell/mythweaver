@@ -24,7 +24,7 @@ import { useState } from 'react';
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 const ICON: Record<string, string> = {
-  chapter: '📕', goal: '🎯', place: '📍', verdict: '›', disposition: '💬', finding: '🔍', loot: '🎒', decision: '◆',
+  chapter: '📕', goal: '🎯', place: '📍', met: '◇', verdict: '›', disposition: '💬', finding: '🔍', loot: '🎒', clue: '◈', decision: '◆',
 };
 
 const TABS = [
@@ -55,13 +55,25 @@ const C = {
   chapTitle: { fontFamily: 'ui-serif, Georgia, serif', color: '#c9a227', fontSize: 14, marginTop: 12 } as React.CSSProperties,
 };
 
-function EventRow({ e }: { e: any }) {
+function EventRow({ e, pingId, onPing }: { e: any; pingId?: string | null; onPing?: (id: string) => void }) {
   return (
     <div style={C.row}>
       <span style={{ flex: '0 0 auto', width: 15 }}>{ICON[e.kind] ?? '·'}</span>
       <span style={{ flex: 1 }}>{e.text}</span>
+      {pingId && onPing && <PingBtn onClick={() => onPing(pingId)} />}
       <span style={{ ...C.sub, flex: '0 0 auto' }}>t{e.turn}</span>
     </div>
+  );
+}
+
+/** Book→map (P5): pulse the thing this line is about, over on the canvas. */
+function PingBtn({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      title="show on map"
+      onClick={(ev) => { ev.stopPropagation(); onClick(); }}
+      style={{ flex: '0 0 auto', background: 'transparent', border: '1px solid #2b3542', color: '#c9a227', borderRadius: 4, padding: '0 5px', cursor: 'pointer', fontSize: 11, lineHeight: '16px' }}
+    >⌖</button>
   );
 }
 
@@ -74,11 +86,28 @@ function regardWord(n: number): { word: string; color: string } {
   return { word: 'devoted', color: '#3fa34d' };
 }
 
-export default function BookDrawer({ book, arc, selected, onSelect }: { book: any; arc: any; selected: string | null; onSelect: (id: string | null) => void }) {
+export default function BookDrawer({ book, arc, selected, onSelect, mapObjects = [], onPing }: { book: any; arc: any; selected: string | null; onSelect: (id: string | null) => void; mapObjects?: any[]; onPing?: (id: string) => void }) {
   const [tab, setTab] = useState<TabKey | null>(null);
   const chapters: any[] = book?.chapters ?? [];
   const people: any[] = book?.people ?? [];
   const findings: any[] = book?.findings ?? [];
+  // Book→map resolution mirrors click-to-inspect's, in reverse: token id first, DM-given name second.
+  // The name bridge is LOAD-BEARING for people rows — journal subjects are ledger CARD ids while map
+  // tokens carry their own ids (card 'npc:tessa-reed' vs token 'npc:loc-…-villager-5'); the two id
+  // spaces only meet through the name. Only what is on the CURRENT, player-safe map is pingable — the
+  // projection already dropped the rest.
+  const pingFor = (d: { id?: string; name?: string }): string | null =>
+    mapObjects.find((o) => o.visible !== false && (o.id === d.id || (o.name && o.name === d.name)))?.id ?? null;
+  const pingForSubjects = (subjects?: string[]): string | null => {
+    for (const s of subjects ?? []) {
+      const direct = mapObjects.find((o) => o.visible !== false && o.id === s);
+      if (direct) return direct.id;
+      const person = people.find((p) => p.id === s);
+      const byName = person && pingFor(person);
+      if (byName) return byName;
+    }
+    return null;
+  };
   const counts: Record<TabKey, number> = {
     journal: chapters.reduce((n, c) => n + (c.events?.length ?? 0), 0),
     people: people.length,
@@ -151,7 +180,13 @@ export default function BookDrawer({ book, arc, selected, onSelect }: { book: an
               <div key={c.beatId}>
                 <div style={C.chapTitle}>{c.current ? '● ' : '✓ '}{c.title}{c.outcome ? <span style={C.sub}> — {c.outcome}</span> : null}</div>
                 {c.goal && <div style={{ ...C.sub, fontStyle: 'italic', marginBottom: 3 }}>Goal: {c.goal}</div>}
-                {(c.events ?? []).map((e: any) => <EventRow key={e.seq} e={e} />)}
+                {/* The chronicler's prose over a closed chapter — the bullets stay underneath as the record. */}
+                {c.summary && (
+                  <div style={{ fontFamily: 'ui-serif, Georgia, serif', fontSize: 12.5, lineHeight: 1.65, color: '#b9bec9', fontStyle: 'italic', margin: '4px 0 6px', paddingLeft: 8, borderLeft: '2px solid #2b3542' }}>
+                    {c.summary}
+                  </div>
+                )}
+                {(c.events ?? []).map((e: any) => <EventRow key={e.seq} e={e} pingId={pingForSubjects(e.subjects)} onPing={onPing} />)}
               </div>
             ))}
           </div>
@@ -159,9 +194,18 @@ export default function BookDrawer({ book, arc, selected, onSelect }: { book: an
           <div style={{ ...C.body, display: openTab === 'people' ? 'block' : 'none' }}>
             {dossier ? (
               <div>
-                <div style={C.sub}>
-                  First met turn {dossier.firstSeen?.turn} · last seen turn {dossier.lastSeen?.turn}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ ...C.sub, flex: 1 }}>
+                    First met turn {dossier.firstSeen?.turn} · last seen turn {dossier.lastSeen?.turn}
+                  </span>
+                  {onPing && pingFor(dossier) && <PingBtn onClick={() => onPing(pingFor(dossier)!)} />}
                 </div>
+                {/* The sentence that introduced them — the DM's own words, kept as the first impression. */}
+                {dossier.intro && (
+                  <div style={{ fontFamily: 'ui-serif, Georgia, serif', fontStyle: 'italic', fontSize: 12.5, lineHeight: 1.6, color: '#b9bec9', marginTop: 8 }}>
+                    &ldquo;{dossier.intro}&rdquo;
+                  </div>
+                )}
                 <div style={{ marginTop: 8, fontSize: 13 }}>
                   Seems <b style={{ color: regardWord(dossier.regard).color }}>{regardWord(dossier.regard).word}</b>
                 </div>
@@ -185,7 +229,7 @@ export default function BookDrawer({ book, arc, selected, onSelect }: { book: an
 
           <div style={{ ...C.body, display: openTab === 'findings' ? 'block' : 'none' }}>
             {findings.length
-              ? findings.map((f: any) => <EventRow key={f.seq} e={f} />)
+              ? findings.map((f: any) => <EventRow key={f.seq} e={f} pingId={pingForSubjects(f.subjects)} onPing={onPing} />)
               : <div style={C.empty}>Nothing found yet. Search the world — look inside things, and what you turn up is written here.</div>}
           </div>
         </div>

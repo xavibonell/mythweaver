@@ -320,6 +320,10 @@ export interface PendingTurn {
   rollReason: string;
   /** The DC/AC the roll is checked against, if any (so success survives resume — spec §4.2). */
   rollDc?: number;
+  /** P5: facts the DM recorded in the SUSPENDED half of this turn. The clue lane corroborates against
+   *  the FINAL narration, which for the record-then-roll shape only exists on resume — without this
+   *  carry, the canonical recordFact+requestRoll turn could never produce a clue. Dies with the turn. */
+  dmFacts?: { subject: string; attribute: string; value: string }[];
   /** Tool results already resolved this turn (e.g. getState), sent with the roll result. */
   resolvedToolResults: { toolUseId: string; content: string }[];
   /** Opaque LLM message history for the in-flight turn. */
@@ -625,4 +629,8 @@ export interface GameState {
    *  rides both persistence paths (dev-session freeze, play-API blob) for free, and an old save without
    *  it simply hydrates with no Book. Written only through Engine.journal(). */
   journal?: JournalEvent[];
+  /** Salt for the clue lane's shipped dedup keys (P5). Random per session, persisted so freeze/reload
+   *  keeps deduping; lives at the state ROOT, which no player projection ships — without it, the hashed
+   *  factKey is a deterministic guess-confirmation oracle over the DM's filing vocabulary. */
+  journalSalt?: string;
 }

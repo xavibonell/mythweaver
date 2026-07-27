@@ -123,19 +123,20 @@ export class Engine implements EngineTools {
    * witnessed, so the stream ships to a player screen verbatim and never needs read-time redaction.
    * Never throws: a Book entry must not be able to break a turn.
    */
-  journal(e: { kind: JournalEvent['kind']; subjects?: string[]; text: string; data?: JournalEvent['data'] }): void {
+  journal(e: { kind: JournalEvent['kind']; subjects?: string[]; text: string; data?: JournalEvent['data']; beatId?: string }): void {
     try {
       const j = (this.state.journal ??= []);
       const world = this.state.world;
       j.push({
         seq: j.length + 1, // NOT the turn: a roll-resume shares its originating turn's number
         turn: this.state.turnCount ?? 0,
-        beatId: this.state.currentSceneId,
+        // A chronicle lands AFTER play moved on — it must file under the chapter it summarizes.
+        beatId: e.beatId ?? this.state.currentSceneId,
         ...(world?.currentLocationId ? { locationId: world.currentLocationId } : {}),
         kind: e.kind,
         subjects: e.subjects ?? [],
-        // Event rows are one-liners; the prologue is the one PROSE entry and gets room to breathe.
-        text: ((cap) => (e.text.length > cap ? `${e.text.slice(0, cap - 3)}…` : e.text))(e.kind === 'prologue' ? 1400 : 240),
+        // Event rows are one-liners; the prologue and chronicle are PROSE and get room to breathe.
+        text: ((cap) => (e.text.length > cap ? `${e.text.slice(0, cap - 3)}…` : e.text))(e.kind === 'prologue' ? 1400 : e.kind === 'chronicle' ? 700 : 240),
         ...(e.data ? { data: e.data } : {}),
       });
     } catch { /* the Book is never worth a turn */ }

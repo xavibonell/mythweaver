@@ -43,6 +43,7 @@ import { spatialIndex, distanceFt, whereIs, findPath, hasLineOfSight, travelTime
 import { deriveBuildings, buildingAsObject, zoneDigest, narrationBreaksScene, arrivalZoneNote } from './scene-graph.js';
 import { advanceGoals, assessCommand, cardForToken, clampStanding, commandFact, forbiddenCommand, narrationDefiesCommand, personaForToken, resolveInteraction, resolveReactions, specForArchetype, standingOf, STANDING_ATTR, type CommandAction, type CommandTone, type CommandVerdict, type DisturbanceEvent, type Stimulus } from './interactions.js';
 export { classifyBuilding, deriveBuildings } from './scene-graph.js'; // re-exported for existing callers/tests
+import { corroboratedClues, narratedMeets, type DmFact } from './journal-hooks.js';
 import type { ExemplarRetriever } from './exemplar-corpus.js';
 import type { ExemplarMoveType } from './exemplar-ingest.js';
 
@@ -1785,6 +1786,9 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
       engine.journal({ kind: 'verdict', subjects, text });
     }
   };
+  // P5: facts the DM recorded THIS turn via the tool — candidates for the clue lane, decided only
+  // once the narration is final (corroboration = the value was actually said aloud; see finish()).
+  const dmFactsThisTurn: DmFact[] = [];
   const reactedThisTurn = new Set<string>(); // bystanders already moved by a disturbance this turn — never re-move (P3)
   let beatTransition: TurnResult['beat']; // an advanceScene landed this turn (title card client-side)
   let firedExemplars: TurnResult['exemplars']; // style exemplars injected this turn (Technique B)
@@ -1796,6 +1800,18 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
   });
   const finish = (result: TurnResult): TurnResult => {
     if (firedExemplars && !result.exemplars) result.exemplars = firedExemplars;
+    // P5: the narration is FINAL here — the only lawful moment to compose journal events from it.
+    // met before clue: a clue may attach to a card the same narration just introduced.
+    try {
+      if (result.narration) {
+        for (const m of narratedMeets(result.narration, state)) {
+          engine.journal({ kind: 'met', subjects: [m.cardId], text: m.text, data: { via: 'narration' } });
+        }
+        for (const c of corroboratedClues(result.narration, dmFactsThisTurn, state)) {
+          engine.journal({ kind: 'clue', subjects: c.subjects, text: c.text, data: { factKey: c.factKey } });
+        }
+      }
+    } catch { /* the Book is never worth a turn */ }
     span.end({
       narration: result.narration,
       costUsd: result.costUsd,
@@ -1818,6 +1834,9 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
   if (input.kind === 'roll') {
     const pending = state.pendingTurn as PendingTurn | undefined;
     if (!pending) throw new Error('No pending roll to resolve for this session.');
+    // P5: facts recorded in the suspended half corroborate against THIS resume's narration — the
+    // canonical record-then-roll turn only narrates the value after the die lands.
+    if (pending.dmFacts?.length) dmFactsThisTurn.push(...pending.dmFacts);
     // Rehydrate the roll request (the engine's pending map is in-memory; this turn
     // may resume on a fresh Engine after save/resume — spec §4.3).
     engine.registerRoll({
@@ -2499,6 +2518,7 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
       } else if (tc.name === 'recordFact') {
         try {
           const f = engine.recordFact({ subject: String(tc.input.subject ?? ''), attribute: String(tc.input.attribute ?? ''), value: String(tc.input.value ?? '') });
+          dmFactsThisTurn.push({ subject: String(tc.input.subject ?? ''), attribute: String(tc.input.attribute ?? ''), value: String(tc.input.value ?? '') });
           resolved.push({ toolUseId: tc.id, content: JSON.stringify({ ok: true, id: f.id }) });
         } catch (e) {
           resolved.push({ toolUseId: tc.id, content: JSON.stringify({ error: (e as Error).message }) });
@@ -3065,6 +3085,7 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
         ...(performGate ? { performContinuation: performGate } : {}),
         ...(commandOutcome ? { commandOutcome } : {}), // P4d: carry a same-turn command verdict so the resume's polarity gate still fires
         ...(input.kind === 'message' ? { actingPcName: input.speakerId } : state.pendingTurn?.actingPcName ? { actingPcName: state.pendingTurn.actingPcName } : {}), // S4: keep the coherence gate armed across the roll
+        ...(dmFactsThisTurn.length ? { dmFacts: [...dmFactsThisTurn] } : {}), // P5: the clue lane corroborates on RESUME for the record-then-roll shape
         resolvedToolResults: resolved,
         history: stripImages(messages), // a suspended turn persists into GameState — never serialize a ~1MB
         // base64 view into the session (and a PRE-roll snapshot would be stale on resume anyway).

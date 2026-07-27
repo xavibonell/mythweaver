@@ -310,6 +310,8 @@ export interface DmLabSession {
   sceneRev: number;
   totalCostUsd: number;
   totalLatencyMs: number;
+  /** Chapters with a chronicle call in flight (P5) — a slow LLM must not double-write on the next turn. */
+  chronicling?: Set<string>;
   /** Set when the last turn asked for a roll (the next submit should declare it). */
   pendingRoll?: TurnRollRequest;
   /** Scene the party started in + the party roster (for the UI header). */

@@ -165,7 +165,9 @@ export default function DmLiveTable() {
     // The prologue is generated fire-and-forget at create — if it lands while the YOUR STORY card is
     // still on screen showing the premise fallback, upgrade the card to the real opening page.
     if (v.book?.prologue) setPrologue((prev: any) => (prev && prev.premise !== v.book.prologue ? { ...prev, premise: v.book.prologue } : prev));
-    journalLenRef.current = (v.book?.chapters ?? []).reduce((n: number, c: any) => n + (c.events?.length ?? 0), 0);
+    // Store the SERVER's stamp, never a recount of Book rows — prologue/chronicle events render as
+    // prose, not rows, so a recount undercounts forever and the poll re-hydrates every 2s for nothing.
+    journalLenRef.current = v.journalLen ?? (v.book?.chapters ?? []).reduce((n: number, c: any) => n + (c.events?.length ?? 0), 0);
     setPendingRoll(v.pendingRoll ?? null);
     sceneRev.current = v.scene?.rev ?? 0;
     if (v.scene?.map) setSceneData(v.scene.map);
@@ -216,7 +218,7 @@ export default function DmLiveTable() {
       // landing right after a submit would duplicate the turn's events.
       if (d.book) {
         setBook(d.book);
-        journalLenRef.current = (d.book.chapters ?? []).reduce((n: number, c: any) => n + (c.events?.length ?? 0), 0);
+        journalLenRef.current = d.journalLen ?? (d.book.chapters ?? []).reduce((n: number, c: any) => n + (c.events?.length ?? 0), 0);
       }
       if (t.beat) {
         // A beat transition landed: title card over the canvas while the new scene fades in.
@@ -225,9 +227,10 @@ export default function DmLiveTable() {
       }
       applyScene(d.scene);
       if (t.mentions?.length) {
-        // STORY PINGS after the map settles: pulse+label what the narration talked about.
-        setPings(t.mentions);
-        setTimeout(() => setPingNonce((n) => n + 1), t.deltas?.length ? 900 : 150);
+        // STORY PINGS after the map settles: pulse+label what the narration talked about. Array and
+        // nonce are set TOGETHER inside the timeout — staged apart, a Book ⌖ click landing in the
+        // 900ms window replaced the array and the turn's mentions were never pulsed at all.
+        setTimeout(() => { setPings(t.mentions); setPingNonce((n) => n + 1); }, t.deltas?.length ? 900 : 150);
       }
     } finally {
       setBusy(false);
@@ -286,7 +289,12 @@ export default function DmLiveTable() {
         {/* The party, ambient over the map — click a chip for the full sheet (P2). */}
         <PartyDock party={characters} onOpen={(id) => setSheetId(id)} />
         {/* THE BOOK (P4): what the party knows — chapters, people met, things found. */}
-        <BookDrawer book={book} arc={arc} selected={dossierId} onSelect={setDossierId} />
+        <BookDrawer
+          book={book} arc={arc} selected={dossierId} onSelect={setDossierId}
+          // Book→map pings (P5): rides the SAME story-ping machinery narration mentions use.
+          mapObjects={sceneData?.objects ?? []}
+          onPing={(id: string) => { setPings([id]); setPingNonce((n) => n + 1); }}
+        />
         <div style={{ position: 'absolute', top: 8, right: 10, display: 'flex', gap: 8, fontSize: 12 }}>
           <label style={{ color: '#9a8f7d', cursor: 'pointer' }}>
             <input type="checkbox" checked={showRoofs} onChange={(e) => setShowRoofs(e.target.checked)} /> roofs

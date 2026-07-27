@@ -169,9 +169,10 @@ export type PlayerSheet = CharacterSheet & { downed?: boolean; deathSaves?: { su
  */
 export function playerBook(state: GameState): { prologue: string | null; chapters: Chapter[]; people: Dossier[]; findings: JournalEvent[] } {
   const all = state.journal ?? [];
-  // The prologue is the Book's opening PAGE, not a row in a chapter — pull it out before grouping.
+  // The prologue is the Book's opening PAGE and a chronicle is a chapter's PROSE — neither is a row.
   const prologue = all.find((e) => e.kind === 'prologue')?.text ?? null;
-  const events = all.filter((e) => e.kind !== 'prologue');
+  const chronicles = new Map(all.filter((e) => e.kind === 'chronicle').map((e) => [e.beatId, e.text]));
+  const events = all.filter((e) => e.kind !== 'prologue' && e.kind !== 'chronicle');
   const titles = state.adventure?.scenes ?? {};
 
   // CHAPTERS, in the order the party lived them. A beat only appears once it has events, so an
@@ -188,12 +189,16 @@ export function playerBook(state: GameState): { prologue: string | null; chapter
     // The goal as it stood DURING this chapter — the live brief is overwritten on every replan, so the
     // snapshot is the only way a closed chapter remembers what the party was trying to do.
     const goal = [...evs].reverse().find((e) => e.kind === 'goal')?.text;
-    const closed = evs.find((e) => e.kind === 'chapter' && e.data?.from === beatId);
+    // The closing marker is journaled AFTER currentSceneId flips, so it lives in the NEXT beat's
+    // group — search the whole stream for it, not this chapter's own rows.
+    const closed = events.find((e) => e.kind === 'chapter' && e.data?.from === beatId);
+    const summary = chronicles.get(beatId);
     return {
       beatId,
       title: (titles[beatId]?.title as string | undefined) ?? beatId,
       ...(goal ? { goal } : {}),
       ...(closed?.data?.outcome ? { outcome: String(closed.data.outcome) } : {}),
+      ...(summary ? { summary } : {}),
       current: beatId === state.currentSceneId,
       events: evs,
     };
@@ -215,7 +220,8 @@ export function playerBook(state: GameState): { prologue: string | null; chapter
       }
       d.lastSeen = { turn: ev.turn, beatId: ev.beatId };
       if (ev.kind === 'disposition') d.regard += Number(ev.data?.dir ?? 0); // witnessed shifts only, from 0
-      if (ev.kind === 'verdict') d.deeds.unshift({ seq: ev.seq, turn: ev.turn, text: ev.text });
+      if (ev.kind === 'met' && !d.intro) d.intro = ev.text; // the DM's own introducing sentence
+      if (ev.kind === 'verdict' || ev.kind === 'clue') d.deeds.unshift({ seq: ev.seq, turn: ev.turn, text: ev.text });
     }
   }
   for (const d of people.values()) d.deeds = d.deeds.slice(0, 12); // newest few; the chapter holds the rest
@@ -224,6 +230,7 @@ export function playerBook(state: GameState): { prologue: string | null; chapter
     prologue,
     chapters,
     people: [...people.values()],
-    findings: events.filter((e) => e.kind === 'finding' || e.kind === 'loot'),
+    // Clues sit with findings: both are "what the party now knows", whatever tab a reader checks first.
+    findings: events.filter((e) => e.kind === 'finding' || e.kind === 'loot' || e.kind === 'clue'),
   };
 }

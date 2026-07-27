@@ -22,12 +22,15 @@
 export type JournalKind =
   | 'prologue' // the once-per-session opening: who you are, how you came to be here — in the DM's voice
   | 'chapter' // a beat opened or closed — the Book's chapter boundary
+  | 'chronicle' // 2-4 sentences of prose over a CLOSED chapter — rendered above its rows, never as one
   | 'goal' // what the party is trying to do (snapshotted, because the brief is overwritten in place)
   | 'place' // the party entered somewhere
+  | 'met' // a carded person was named aloud in narration for the first time (narrated ⇒ revealed)
   | 'verdict' // the world answered: a crowd scattered, an NPC obeyed or refused, help arrived
   | 'disposition' // someone's regard for the party visibly shifted
   | 'finding' // a point of interest was discovered or searched
   | 'loot' // something was actually taken
+  | 'clue' // a recorded fact the DM ALSO said aloud — value-verbatim corroboration, never bookkeeping
   | 'decision'; // a choice the party made, recorded as canon
 
 export interface JournalEvent {
@@ -58,6 +61,8 @@ export interface Dossier {
    *  is seeded from authored allegiance — printing that would put a disguised villain's true feelings
    *  on the players' screen before they earned the knowledge. */
   regard: number;
+  /** The sentence that introduced them — the DM's own words, captured by the `met` event. */
+  intro?: string;
   /** What this person was seen to do, newest first. */
   deeds: { seq: number; turn: number; text: string }[];
 }
@@ -69,6 +74,8 @@ export interface Chapter {
   /** The goal as it stood during THIS chapter (the live brief is overwritten on every replan). */
   goal?: string;
   outcome?: string;
+  /** The chronicler's prose over a closed chapter — shown above the rows, composed from them alone. */
+  summary?: string;
   current: boolean;
   events: JournalEvent[];
 }

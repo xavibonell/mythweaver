@@ -23,6 +23,7 @@ import {
 } from './prompts.js';
 import { playerArcView, playerBook, playerCharacters, playerSceneMap, playerTurn, projectDeltas } from './player-view.js';
 import { generatePrologue } from './prologue.js';
+import { generateChronicle } from './chronicler.js';
 import { buildRetriever } from './corpus.js';
 import { buildExemplarRetriever } from './exemplar-corpus.js';
 import { buildTracer } from './tracing.js';
@@ -991,6 +992,39 @@ app.post('/dm/lab/session', async (req, reply) => {
   return { sessionId, dmKey: session.dmKey, scenarioId: session.scenarioId, scene: session.scene, party: session.party, sceneEngine: session.sceneEngine, arc: arcView(session), characters: characterSheets(session) };
 });
 
+/**
+ * THE CHRONICLER (P5). After any turn, chapters that closed and have no prose yet get one
+ * fire-and-forget LLM call whose input is EXCLUSIVELY their player-safe journal rows — it cannot leak
+ * what it never sees. The result lands as a `chronicle` event filed under the CLOSED beat; the table's
+ * poll picks it up via journalLen. MYTHWEAVER_CHRONICLER=off ⇒ $0, byte-identical behavior.
+ */
+const CHRONICLE_ROW_KINDS = new Set(['goal', 'place', 'met', 'verdict', 'disposition', 'finding', 'loot', 'clue', 'decision']);
+function maybeChronicle(sessionId: string, session: DmLabSession): void {
+  if ((process.env.MYTHWEAVER_CHRONICLER ?? 'on') === 'off') return;
+  try {
+    const st = session.engine.getState();
+    const j = st.journal ?? [];
+    for (const c of j.filter((e) => e.kind === 'chapter' && e.data?.from)) {
+      const beat = String(c.data!.from);
+      if (j.some((e) => e.kind === 'chronicle' && e.beatId === beat)) continue;
+      const inflight = (session.chronicling ??= new Set<string>());
+      if (inflight.has(beat)) continue;
+      const rows = j.filter((e) => e.beatId === beat && CHRONICLE_ROW_KINDS.has(e.kind)).map((e) => e.text);
+      if (rows.length < 2) continue; // one lone row is not a story — prose over it would be invention
+      inflight.add(beat);
+      const goal = [...j].reverse().find((e) => e.kind === 'goal' && e.beatId === beat)?.text;
+      void generateChronicle(llm, {
+        title: st.adventure?.scenes[beat]?.title ?? beat,
+        ...(goal ? { goal } : {}),
+        ...(c.data?.outcome ? { outcome: String(c.data.outcome) } : {}),
+        events: rows,
+      }).then((text) => {
+        if (text && dmLabSessions.get(sessionId) === session) session.engine.journal({ kind: 'chronicle', beatId: beat, text });
+      }).finally(() => inflight.delete(beat));
+    }
+  } catch { /* the Book is never worth a turn */ }
+}
+
 app.post('/dm/lab/session/:id/turn', async (req, reply) => {
   const session = dmSession(req, reply);
   if (!session) return reply;
@@ -1026,6 +1060,7 @@ app.post('/dm/lab/session/:id/turn', async (req, reply) => {
       deltas: turn.deltas ?? [],
       rev: session.sceneRev,
     };
+    maybeChronicle((req.params as { id: string }).id, session);
     return { turn, scene, totalCostUsd: session.totalCostUsd, totalLatencyMs: session.totalLatencyMs, pendingRoll: session.pendingRoll ?? null, arc: arcView(session), characters: characterSheets(session) };
   } catch (err) {
     app.log.error(err, 'dm lab session turn failed');
@@ -1126,6 +1161,10 @@ app.get('/dm/lab/session/:id/player-view', async (req, reply) => {
     characters: playerCharacters(characterSheets(session) as unknown as Record<string, unknown>[]),
     scene: { ...(map ? { map: playerSceneMap(map) } : {}), rev: session.sceneRev },
     book: playerBook(st), // the Book: chapters, people met, things found
+    // The poll's change-stamp, echoed here so the client stores the SAME number /rev reports. It must
+    // never be recomputed from Book rows — prologue and chronicle are journal events that render as
+    // prose, not rows, and a recount that missed them re-hydrated the table every 2s, forever.
+    journalLen: st.journal?.length ?? 0,
   };
 });
 
@@ -1154,6 +1193,7 @@ app.post('/dm/lab/session/:id/player-turn', async (req, reply) => {
   }
   try {
     const turn = await dmLabSubmit(session, input);
+    maybeChronicle((req.params as { id: string }).id, session);
     const st = session.engine.getState();
     const map = st.world?.currentLocationId ? st.world.locations[st.world.currentLocationId] : undefined;
     return {
@@ -1168,6 +1208,7 @@ app.post('/dm/lab/session/:id/player-turn', async (req, reply) => {
       arc: playerArcView(st),
       characters: playerCharacters(characterSheets(session) as unknown as Record<string, unknown>[]),
       book: playerBook(st),
+      journalLen: st.journal?.length ?? 0, // same stamp /rev reports — never recount from Book rows
     };
   } catch (err) {
     app.log.error(err, 'player turn failed');

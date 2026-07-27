@@ -258,3 +258,35 @@ describe('playerBook — the prologue is the opening PAGE, not a chapter row (P4
     expect(playerBook(st).prologue).toBeNull();
   });
 });
+
+describe('playerBook — P5 kinds land in their places, never as debug rows', () => {
+  const base = (): GameState => ({
+    currentSceneId: 'scene:b2',
+    adventure: { pitch: 'x', scenes: { 'scene:b1': { title: 'The Green' }, 'scene:b2': { title: 'The Mill' } } },
+    flags: {},
+    ledger: { entities: { 'npc:tessa': { id: 'npc:tessa', kind: 'npc', name: 'Tessa Reed' } }, facts: [], plants: {} },
+    journal: [
+      { seq: 1, turn: 1, beatId: 'scene:b1', kind: 'met', subjects: ['npc:tessa'], text: 'Tessa Reed waves you over.' },
+      { seq: 2, turn: 2, beatId: 'scene:b1', kind: 'clue', subjects: ['npc:tessa'], text: 'Learned: she was seen by the bell tower after dark', data: { factKey: 'k' } },
+      // The closing marker lives in the NEXT beat's group (journaled after currentSceneId flips).
+      { seq: 3, turn: 3, beatId: 'scene:b2', kind: 'chapter', subjects: ['scene:b2'], text: 'The Mill', data: { from: 'scene:b1', to: 'scene:b2', outcome: 'resolved', opened: true } },
+      { seq: 4, turn: 3, beatId: 'scene:b1', kind: 'chronicle', subjects: [], text: 'You met Tessa on the green and learned where she walks at night.' },
+    ],
+  } as unknown as GameState);
+
+  it('chronicle becomes the closed chapter prose, never a row; the outcome is found across groups', () => {
+    const b = playerBook(base());
+    const green = b.chapters.find((c) => c.beatId === 'scene:b1')!;
+    expect(green.summary).toContain('You met Tessa');
+    expect(green.outcome).toBe('resolved'); // marker lives in scene:b2's group — found anyway
+    expect(green.events.map((e) => e.kind)).toEqual(['met', 'clue']); // no chronicle row
+  });
+
+  it('met births the dossier with the DM\'s introducing sentence; the clue joins the deeds and Findings', () => {
+    const b = playerBook(base());
+    const tessa = b.people.find((p) => p.id === 'npc:tessa')!;
+    expect(tessa.intro).toBe('Tessa Reed waves you over.');
+    expect(tessa.deeds[0]!.text).toContain('bell tower');
+    expect(b.findings.map((e) => e.kind)).toEqual(['clue']);
+  });
+});
