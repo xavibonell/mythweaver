@@ -16,6 +16,7 @@ import { useEffect, useRef, useState } from 'react';
 import SceneCanvas from '../play/SceneCanvas';
 import SheetModal from './SheetModal';
 import PartyDock from './PartyDock';
+import BookDrawer from './BookDrawer';
 
 const SERVER = process.env.NEXT_PUBLIC_SERVER_URL ?? 'http://localhost:6984';
 
@@ -84,7 +85,10 @@ export default function DmLiveTable() {
   const [prologue, setPrologue] = useState<any>(null); // {premise, goal} — the WHY, shown once on join
   const [busy, setBusy] = useState(false);
   const [sheetId, setSheetId] = useState<string | null>(null); // which PC's sheet is open (P2)
+  const [book, setBook] = useState<any>(null); // the Book: chapters, people met, findings (P3/P4)
+  const [dossierId, setDossierId] = useState<string | null>(null); // an open NPC entry
   const sceneRev = useRef(0);
+  const journalLenRef = useRef(0);
   const logRef = useRef<HTMLDivElement>(null);
 
   // Session list + ?session= deep link.
@@ -122,7 +126,9 @@ export default function DmLiveTable() {
         const r = await fetch(`${SERVER}/dm/lab/session/${id}/rev`);
         if (!r.ok) return;
         const s = await r.json();
-        if (s.turnIndex === view.turnIndex && s.rev === sceneRev.current) return; // nothing moved
+        // journalLen matters: a chapter close or goal snapshot changes the Book without touching the
+        // turn index or the scene revision, so those two alone would miss it.
+        if (s.turnIndex === view.turnIndex && s.rev === sceneRev.current && (s.journalLen ?? 0) === journalLenRef.current) return;
         const v = await (await fetch(`${SERVER}/dm/lab/session/${id}/player-view`)).json();
         if (!stop) hydrate(v);
       } catch { /* a dropped poll must never break the table */ }
@@ -155,6 +161,8 @@ export default function DmLiveTable() {
     if (opts.fresh) setSpeaker(v.party?.[0]?.name ?? 'player');
     setCharacters(v.characters ?? []);
     setArc(v.arc ?? null);
+    setBook(v.book ?? null);
+    journalLenRef.current = (v.book?.chapters ?? []).reduce((n: number, c: any) => n + (c.events?.length ?? 0), 0);
     setPendingRoll(v.pendingRoll ?? null);
     sceneRev.current = v.scene?.rev ?? 0;
     if (v.scene?.map) setSceneData(v.scene.map);
@@ -201,6 +209,12 @@ export default function DmLiveTable() {
       setPendingRoll(d.pendingRoll ?? null);
       setCharacters(d.characters ?? []);
       if (d.arc) setArc(d.arc);
+      // The Book is always REPLACED by the authoritative array, never appended to — otherwise a poll
+      // landing right after a submit would duplicate the turn's events.
+      if (d.book) {
+        setBook(d.book);
+        journalLenRef.current = (d.book.chapters ?? []).reduce((n: number, c: any) => n + (c.events?.length ?? 0), 0);
+      }
       if (t.beat) {
         // A beat transition landed: title card over the canvas while the new scene fades in.
         setTitleCard({ title: t.beat.title ?? t.beat.to, outcome: t.beat.outcome });
@@ -254,12 +268,22 @@ export default function DmLiveTable() {
         {/* PLAYER VIEW: camera locked close on the party (no pan / no zoom-out — real players never
             see the whole map), PC colour-rings + hover name-tags. The old freeCamera/fit inspector
             stays available on /play for the scene track. */}
-        <SceneCanvas data={sceneData} playerView showRoofs={showRoofs} deltas={deltas} deltaNonce={deltaNonce} pings={pings} pingNonce={pingNonce} />
+        <SceneCanvas
+          data={sceneData} playerView showRoofs={showRoofs} deltas={deltas} deltaNonce={deltaNonce} pings={pings} pingNonce={pingNonce}
+          // Click a token: a PC opens their sheet, anyone the Book knows opens their entry.
+          onInspect={(id: string) => {
+            if (characters.some((c: any) => (c.id ?? c.name) === id)) { setSheetId(id); return; }
+            const person = (book?.people ?? []).find((p: any) => p.id === id || p.name === (sceneData?.objects ?? []).find((o: any) => o.id === id)?.name);
+            if (person) setDossierId(person.id);
+          }}
+        />
         <div style={{ position: 'absolute', top: 8, left: 10, display: 'flex', gap: 10, alignItems: 'center', fontSize: 12 }}>
           <span style={{ color: '#c9a227', fontFamily: 'ui-serif, Georgia, serif' }}>MythWeaver — live table</span>
         </div>
         {/* The party, ambient over the map — click a chip for the full sheet (P2). */}
         <PartyDock party={characters} onOpen={(id) => setSheetId(id)} />
+        {/* THE BOOK (P4): what the party knows — chapters, people met, things found. */}
+        <BookDrawer book={book} arc={arc} selected={dossierId} onSelect={setDossierId} />
         <div style={{ position: 'absolute', top: 8, right: 10, display: 'flex', gap: 8, fontSize: 12 }}>
           <label style={{ color: '#9a8f7d', cursor: 'pointer' }}>
             <input type="checkbox" checked={showRoofs} onChange={(e) => setShowRoofs(e.target.checked)} /> roofs

@@ -228,6 +228,11 @@ the party finds them, and your state block lists every one with its DC + content
 - USE: `searchPoi` describes what's inside; `lootPoi` hands the contents to a character (they land on the
   sheet — idempotent, a looted chest is empty).
 - Never invent loot or a hidden door on the fly — `placePoi` it first, THEN let the players discover it.
+- WHEN A PLAYER SEARCHES SOMETHING CONCRETE ("I look inside the pot", "I go through the desk"), route it
+  through a POI even if you never planted one: `placePoi` it now (a plain `look`, whatever `contents` the
+  fiction justifies — often nothing), then `discoverPoi` + `searchPoi`. A bare Investigation check tells
+  the player a number; a POI puts the pot AND what was in it into the party's records permanently. Reach
+  for the POI tools whenever the answer to "what's in it?" should still be true an hour from now.
 
 ## NARRATE FROM TRUTH
 - Every number in your narration must trace to engine state or an engine result. If you haven't read

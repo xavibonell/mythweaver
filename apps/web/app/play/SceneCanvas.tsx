@@ -277,6 +277,11 @@ function createActor(scene: any, a: any, tint: number | null): void {
     sprite.setInteractive({ useHandCursor: true });
     sprite.on('pointerover', () => { if (!coveredByShownRoof(scene, container.x, container.y)) showNameTag(scene, container.x, container.y - sprite.displayHeight * (sd.anchorY ?? 1), label, accent); });
     sprite.on('pointerout', () => hideNameTag(scene));
+    // CLICK-TO-INSPECT (P4): opens this character's Book entry (an NPC's dossier, a PC's sheet).
+    // Guarded exactly like hover — a token under a closed roof is not there to be clicked.
+    sprite.on('pointerup', () => {
+      if (scene.onInspect && !coveredByShownRoof(scene, container.x, container.y)) scene.onInspect(a.id);
+    });
   }
   scene.actorObjs.set(a.id, { container, sprite, col: a.col, row: a.row });
   scene.sceneObjs.push(container);
@@ -712,7 +717,7 @@ interface Bridge {
  *  PCs + DM-named NPCs. Wins over freeCamera.
  *  INCREMENTAL updates: bump `deltaNonce` with a fresh `deltas` array to tween tokens (move/spawn/
  *  reveal/…) without a full rebuild — pass a NEW `data` reference only when the location changes. */
-export default function SceneCanvas({ data, freeCamera = false, playerView = false, fitNonce = 0, showRoofs = true, deltas = null, deltaNonce = 0, pings = null, pingNonce = 0 }: { data: any; freeCamera?: boolean; playerView?: boolean; fitNonce?: number; showRoofs?: boolean; deltas?: any[] | null; deltaNonce?: number; pings?: string[] | null; pingNonce?: number }) {
+export default function SceneCanvas({ data, freeCamera = false, playerView = false, fitNonce = 0, showRoofs = true, deltas = null, deltaNonce = 0, pings = null, pingNonce = 0, onInspect }: { data: any; freeCamera?: boolean; playerView?: boolean; fitNonce?: number; showRoofs?: boolean; deltas?: any[] | null; deltaNonce?: number; pings?: string[] | null; pingNonce?: number; onInspect?: (id: string) => void }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const bridgeRef = useRef<Bridge>({ scene: null, pending: null, game: null });
 
@@ -759,6 +764,7 @@ export default function SceneCanvas({ data, freeCamera = false, playerView = fal
               afterAssetsLoaded(scene, () => queueDeltaAssets(scene, ds), () => applyDeltasImpl(scene, ds));
             scene.fit = () => { if (scene.lastData) fitCamera(scene, scene.lastData); };
             scene.playerView = playerView; // player view: locked party camera + rings + name-tags
+            scene.onInspect = onInspect; // P4: click a token → open its Book entry (optional)
             // /play keeps auto-fit on resize; player view re-locks on the party; the Lab free-camera
             // leaves the tester's view alone.
             scene.scale.on('resize', () => {
