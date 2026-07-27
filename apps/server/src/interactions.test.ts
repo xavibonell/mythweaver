@@ -535,6 +535,42 @@ describe('P4e transgress — a witnessed CRIME is outrage, not fear (theft/desec
   });
 });
 
+describe('S7 violence has a social cost — assault must not be cheaper than theft', () => {
+  const assault = (map: SceneMap): DisturbanceEvent => ({ aggressor: obj(map, 'pc:aldric'), target: obj(map, 'npc:bram'), kind: 'attack' });
+
+  it('THE ASYMMETRY: striking a friendly costs witnesses standing (it used to be free)', () => {
+    const { engine, state, map } = makeEngine();
+    engine.upsertEntity({ id: 'npc:kael', kind: 'npc', name: 'Ser Kael' });
+    resolveReactions(engine, map, assault(map), [], state.ledger, 'on');
+    // −2 for an assault: graver than the −1 a theft costs the same onlooker.
+    expect(standingOf({ archetype: 'authority', temper: 'brave' } as any, engine.getState().ledger, 'npc:kael')).toBe(-2);
+  });
+
+  it('THE VICTIM is docked hardest — the witness loop skips them, so they were the one who never resented it', () => {
+    const { engine, state, map } = makeEngine();
+    engine.upsertEntity({ id: 'npc:bram', kind: 'npc', name: 'Bram' }); // the person actually struck
+    resolveReactions(engine, map, assault(map), [], state.ledger, 'on');
+    expect(standingOf({ archetype: 'commoner', temper: 'steady' } as any, engine.getState().ledger, 'npc:bram')).toBe(-3);
+  });
+
+  it('attacking a MONSTER is not a social crime — no standing moves', () => {
+    const ogre: MapObject = { id: 'npc:ogre', kind: 'actor', role: 'npc', tag: 'ogre', name: 'Ogre', col: 10, row: 11, footprint: { w: 1, h: 1 }, facing: 'down', visible: true } as MapObject;
+    const { engine, state, map } = makeEngine([ogre]);
+    engine.upsertEntity({ id: 'npc:kael', kind: 'npc', name: 'Ser Kael' });
+    engine.upsertEntity({ id: 'npc:ogre-card', kind: 'npc', name: 'Ogre', persona: { archetype: 'monster' } as any });
+    resolveReactions(engine, map, { aggressor: obj(map, 'pc:aldric'), target: obj(map, 'npc:ogre'), kind: 'attack' }, [], state.ledger, 'on');
+    const facts = (engine.getState().ledger?.facts ?? []).filter((f: any) => f.attribute === 'standing:party');
+    expect(facts.length).toBe(0);
+  });
+
+  it('dry mode records NO standing change (soak stays side-effect free)', () => {
+    const { engine, state, map } = makeEngine();
+    engine.upsertEntity({ id: 'npc:kael', kind: 'npc', name: 'Ser Kael' });
+    resolveReactions(engine, map, assault(map), [], state.ledger, 'dry');
+    expect((engine.getState().ledger?.facts ?? []).filter((f: any) => f.attribute === 'standing:party').length).toBe(0);
+  });
+});
+
 describe('P4e hazard — an environmental danger: everyone recoils, nobody charges it', () => {
   // A fire at (10,12). The acting PC is only the nominal "aggressor" (nearest PC); the crowd flees the LOCUS.
   const fire = (map: SceneMap): DisturbanceEvent => ({ aggressor: obj(map, 'pc:aldric'), kind: 'hazard', at: { col: 10, row: 12 } });

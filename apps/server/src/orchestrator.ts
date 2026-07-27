@@ -97,6 +97,13 @@ VISUAL SCENE (the table sees a live top-down map — docs/SCENE-CONTRACTS.md):
   setScene is ONLY for a genuinely DIFFERENT location (leaving town for the mine, entering a
   building's interior, descending into the crypt).
 
+COMBAT REACH (the engine owns distance):
+- When a PC attacks, pass "attackerId" and "attack" (melee/ranged) to "applyDamage" (and "targetId" +
+  "attack" to "requestRoll"). Nobody strikes across the square: the engine checks the real distance and
+  either lands the blow, CLOSES the gap for the attacker (it returns an "approach" line — narrate that
+  crossing, the token really moved), or answers blocked:"out-of-reach", in which case NO blow landed and
+  no damage was dealt — say so in the fiction and hand the choice back. Never narrate a refused hit.
+
 CANON (keep the world consistent):
 - A "CANON" block may appear in the turn context — established truth (named NPCs + their voice/status,
   facts learned, items held). Treat it as real and NEVER contradict it. If the players seek a CANON
@@ -259,6 +266,8 @@ export function buildToolDefs(retrieval: boolean, scene: boolean): ToolDef[] {
           ability: { type: 'string', enum: ['str', 'dex', 'con', 'int', 'wis', 'cha'], description: 'The governing ability for the check/save.' },
           skill: { type: 'string', description: 'The skill for a skill check, e.g. "athletics", "perception", "stealth" (omit for a raw ability check).' },
           save: { type: 'boolean', description: 'true if this is a saving throw (uses the save bonus rather than a check bonus).' },
+          targetId: { type: 'string', description: 'ATTACKS ONLY: who is being attacked (id or name). The engine checks whether the attacker can physically reach them BEFORE the dice — it may close the distance, or refuse the attack outright. Always pass it for an attack roll.' },
+          attack: { type: 'string', enum: ['melee', 'ranged', 'spell'], description: 'ATTACKS ONLY: melee = must be within weapon reach; ranged = within range (long range = disadvantage); spell = not range-checked yet.' },
         },
         required: ['expr', 'reason'],
         additionalProperties: false,
@@ -1451,8 +1460,12 @@ export function canonBlock(state: GameState, context: string): string {
     const per = e.persona ? personaLine(personaOf({ id: e.id, name: e.name }, e.persona)) : '';
     // P4d: living standing toward the party, rendered as a WORD (never the raw scalar), so the DM
     // narrates warmth/coldness that persists across turns. Absent → omitted (no default noise).
+    // S7: fall back to the SEEDED standing (derived from authored allegiance/stake) when no fact exists
+    // yet. Without this a never-interacted-with ally rendered blank, so the DM had no signal that the
+    // villager a PC is about to cut down is friendly — it could not push back even if inclined to.
     const stFact = e.kind === 'npc' ? live.find((f) => f.subject === e.id && f.attribute === STANDING_ATTR) : undefined;
-    const st = stFact ? standingWord(Number(stFact.value)) : '';
+    const seeded = !stFact && e.kind === 'npc' && e.persona ? standingOf(personaOf({ id: e.id, name: e.name }, e.persona)) : 0;
+    const st = stFact ? standingWord(Number(stFact.value)) : seeded ? standingWord(seeded) : '';
     const tail = [voice, per, st && `toward you: ${st}`].filter(Boolean).join('; ') || e.notes || '';
     const push = (s: string) => { if (s && budget - s.length > 0) { lines.push(s); budget -= s.length + 1; } };
     push(`- ${e.name} [${e.id}] (${e.status ?? 'active'})${tail ? ` — ${tail}` : ''}`);
@@ -1747,6 +1760,7 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
   let sceneMap: SceneMap | undefined; // the frozen map to render
   let sceneProvenance: SceneProvenance | undefined; // how the scene came to be (response-only)
   const sceneDeltas: SceneDelta[] = []; // APPLIED updateScene/combat-sync ops this turn (normalized tiles)
+  let resumedActingPcName: string | undefined; // S4: the acting PC recovered from a suspended turn
   const disturbedThisTurn = new Set<string>(); // idempotency: one reaction resolution per aggressor→target/turn (P3)
   // R4 reach gate: the attacker declared by this turn's declareDisturbance. A RollRequest carries no
   // attacker/target, so this is how applyDamage learns WHO is swinging (see docs/SPATIAL-TRUTH.md R4).
@@ -1878,12 +1892,21 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
         }
       } catch { /* perform resume must never break the turn */ }
     }
+    // S6: ADVANCE GOALS ON A ROLL TURN TOO. advanceGoals only ran on typed turns, so a guard dispatched
+    // to the disturbance froze mid-run for the whole dice exchange — the DM said "help is coming" and
+    // then nobody crossed the ground until the player typed again. The world keeps moving while the
+    // party rolls; the facts ride the roll's tool result the same way travel/command facts do.
+    let rollMeanwhile: string[] = [];
+    if (REACTIONS !== 'off' || INTERACTIONS !== 'off') {
+      try { const gm = currentMap(state); if (gm) rollMeanwhile = advanceGoals(engine, gm, state, sceneDeltas, reactedThisTurn); } catch { /* goals must never break a turn */ }
+    }
     messages = (pending.history as LlmMessage[]).slice();
     const toolResults: LlmContentBlock[] = [
       ...pending.resolvedToolResults.map((r) => ({ type: 'tool_result' as const, toolUseId: r.toolUseId, content: r.content })),
-      { type: 'tool_result', toolUseId: pending.rollToolUseId, content: JSON.stringify({ ...result, ...(travelFacts.length ? { travel: travelFacts } : {}), ...(commandFacts.length ? { command: commandFacts, note: 'The engine ruled this command AND already enacted it (moving them if they complied) — narrate it exactly; do NOT call travel/updateScene to move them again, and never reverse the verdict.' } : {}), ...(performFacts ? { reactions: performFacts, note: 'Narrate ONLY these — the engine moved (or held) the crowd per the performance check.' } : {}) }) },
+      { type: 'tool_result', toolUseId: pending.rollToolUseId, content: JSON.stringify({ ...result, ...(travelFacts.length ? { travel: travelFacts } : {}), ...(commandFacts.length ? { command: commandFacts, note: 'The engine ruled this command AND already enacted it (moving them if they complied) — narrate it exactly; do NOT call travel/updateScene to move them again, and never reverse the verdict.' } : {}), ...(performFacts ? { reactions: performFacts, note: 'Narrate ONLY these — the engine moved (or held) the crowd per the performance check.' } : {}), ...(rollMeanwhile.length ? { meanwhile: rollMeanwhile, meanwhileNote: 'The engine moved these while the dice were in the air — weave them in; do not move them again.' } : {}) }) },
     ];
     messages.push({ role: 'user', content: toolResults });
+    resumedActingPcName = pending.actingPcName; // S4: the gate has no speakerId on a resume — carry it
     state.pendingTurn = undefined;
   } else {
     if (input.kind === 'message') engine.record('player', input.text, { speakerId: input.speakerId });
@@ -2075,7 +2098,7 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
         const cmap = currentMap(state);
         let cidx: SpatialIndex | undefined;
         if (cmap && SPATIAL_ON) { try { cidx = spatialIndex(cmap); } catch { /* oracle must not break a turn */ } }
-        const brk = cmap && cidx ? narrationBreaksScene(cmap, cidx, res.text, input.kind === 'message' ? input.speakerId : undefined, preTurnPos) : null;
+        const brk = cmap && cidx ? narrationBreaksScene(cmap, cidx, res.text, input.kind === 'message' ? input.speakerId : resumedActingPcName, preTurnPos) : null;
         if (brk) {
           span.event('coherence-break', { code: brk.code, reason: brk.reason, mode: COHERENCE_GATE });
           if (COHERENCE_GATE === 'on') {
@@ -2135,6 +2158,25 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
           } catch {
             /* unknown combatant → keep the DM's expr */
           }
+        }
+        // SPATIAL R4 (S2) — REACH BEFORE THE DICE. An attack roll is where the fiction commits, so a
+        // blow that cannot physically land must never reach the die. On a refusal we push a tool RESULT
+        // and DO NOT suspend, so the DM keeps its turn and corrects instead of waiting on a roll that
+        // decides nothing. A closable gap is closed here (delta + fact) and the roll proceeds.
+        const atkTargetRaw = typeof tc.input.targetId === 'string' ? tc.input.targetId : '';
+        const atkMode = (['melee', 'ranged', 'spell'] as const).find((m) => m === tc.input.attack);
+        const atkAttacker = combatantId || (typeof tc.input.combatantId === 'string' ? tc.input.combatantId : '') || lastAggressorId;
+        if (SPATIAL_ON && atkTargetRaw && atkAttacker && (atkMode || dc !== undefined)) {
+          const reach = engine.attackReach({ attackerId: atkAttacker, targetId: atkTargetRaw, mode: atkMode ?? 'melee' });
+          if (reach.approach) {
+            sceneDeltas.push({ op: 'move', id: reach.approach.actorId ?? atkAttacker, to: { col: reach.approach.at.col, row: reach.approach.at.row }, ...(reach.approach.pathCells?.length ? { via: reach.approach.pathCells } : {}) });
+          }
+          if (!reach.ok) {
+            resolved.push({ toolUseId: tc.id, content: JSON.stringify({ rollRequested: false, blocked: 'out-of-reach', distanceFt: reach.distanceFt, requiredFt: reach.requiredFt, note: reach.corrective }) });
+            continue; // no die, no suspend — the geometry already decided
+          }
+          if (reach.facts.length) reason = `${reason} — ${reach.facts.join(' ')}`; // the approach rides the roll
+          if (reach.band === 'long') reason = `${reason} [long range: roll at DISADVANTAGE]`;
         }
         const rr = engine.requestRoll({ expr, reason, ...(dc !== undefined ? { dc } : {}) });
         roll = { toolUseId: tc.id, id: rr.id, expr: rr.expr, reason: rr.reason, ...(dc !== undefined ? { dc } : {}) };
@@ -2763,8 +2805,26 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
               if (disturbedThisTurn.has(key)) {
                 resolved.push({ toolUseId: tc.id, content: JSON.stringify({ note: 'this disturbance was already resolved this turn — narrate the reactions you were already given; do not re-declare.' }) });
               } else {
-                const kind = (['attack', 'menace', 'threaten', 'transgress', 'hazard'].includes(String(tc.input.kind)) ? tc.input.kind : 'attack') as DisturbanceEvent['kind'];
+                let kind = (['attack', 'menace', 'threaten', 'transgress', 'hazard'].includes(String(tc.input.kind)) ? tc.input.kind : 'attack') as DisturbanceEvent['kind'];
                 const covert = tc.input.covert === true;
+                // SPATIAL R4 (S3) — the crowd must grade a REAL strike. Resolve reach FIRST: a closable
+                // gap is closed here (so witnesses judge from where the attacker actually ends up), and a
+                // strike that cannot land is DOWNGRADED to a menace rather than erroring — the villagers
+                // still saw a drawn blade, they just did not see a blow.
+                let reachNoteD: string | undefined;
+                if (SPATIAL_ON && kind === 'attack' && target) {
+                  const reach = engine.attackReach({ attackerId: aggressor.id, targetId: target.id, mode: 'melee' });
+                  if (reach.approach) {
+                    sceneDeltas.push({ op: 'move', id: reach.approach.actorId ?? aggressor.id, to: { col: reach.approach.at.col, row: reach.approach.at.row }, ...(reach.approach.pathCells?.length ? { via: reach.approach.pathCells } : {}) });
+                    reactedThisTurn.add(aggressor.id); // the engine moved them — don't let a reaction re-move
+                  }
+                  if (!reach.ok) {
+                    kind = 'menace';
+                    reachNoteD = `${reach.corrective ?? ''} The crowd reacts to the THREAT, not to a blow.`.trim();
+                  } else if (reach.facts.length) {
+                    reachNoteD = reach.facts.join(' ');
+                  }
+                }
                 // For a hazard, the danger LOCUS is where onlookers flee from (a fire, a collapse) — resolve it.
                 const locus = kind === 'hazard' && tc.input.locusId ? resolveMapObject(engine, map, tc.input.locusId, { col: aggressor.col, row: aggressor.row }) : undefined;
                 const at = locus ? { col: locus.col, row: locus.row } : undefined;
@@ -2780,6 +2840,7 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
                     note: outcome.facts.length
                       ? "The engine moved these onlookers on the real map — narrate ONLY these reactions as the party sees them. You MAY redirect ONE named, load-bearing NPC via travel/updateScene if the story truly demands it; otherwise invent no other crowd movement."
                       : 'No one nearby witnessed it (out of earshot, or walled off in another building). Narrate the strike itself — the surrounding world does not visibly react this beat.',
+                    ...(reachNoteD ? { reach: reachNoteD } : {}),
                     ...(REACTIONS === 'dry' ? { dryRun: true } : {}),
                   }),
                 });
@@ -2978,6 +3039,7 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
         ...(commandGate ? { commandContinuation: commandGate } : {}),
         ...(performGate ? { performContinuation: performGate } : {}),
         ...(commandOutcome ? { commandOutcome } : {}), // P4d: carry a same-turn command verdict so the resume's polarity gate still fires
+        ...(input.kind === 'message' ? { actingPcName: input.speakerId } : state.pendingTurn?.actingPcName ? { actingPcName: state.pendingTurn.actingPcName } : {}), // S4: keep the coherence gate armed across the roll
         resolvedToolResults: resolved,
         history: stripImages(messages), // a suspended turn persists into GameState — never serialize a ~1MB
         // base64 view into the session (and a PRE-roll snapshot would be stale on resume anyway).

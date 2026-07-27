@@ -129,6 +129,16 @@ export const EVAL_CASES: EvalCase[] = [
     expectTools: { required: ['declareDisturbance'] },
   },
   {
+    id: 'reach-attack',
+    scenario: 'the-sunken-bell',
+    turns: [
+      { speakerId: 'Aldric', text: 'We arrive on the Mistmoor green at dusk. Edda the bellkeeper waits for us across the green, a good stone\'s throw off.' },
+      { speakerId: 'Aldric', text: 'Aldric draws his blade and attacks Edda where she stands, swinging for her with everything he has.' },
+    ],
+    note: 'A melee attack on someone across the green must route through the engine — which owns whether the attacker can reach at all (it closes the distance or refuses). The DM must not narrate a landing blow from range on its own authority.',
+    expectTools: { required: ['declareDisturbance'] },
+  },
+  {
     id: 'interaction-idle-mention',
     scenario: 'the-sunken-bell',
     turns: [

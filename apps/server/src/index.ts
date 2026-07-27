@@ -1041,6 +1041,19 @@ app.get('/dm/lab/sessions', async () => {
 });
 
 // The live table's cold-boot hydration: everything one screen needs to join a running session.
+// A CHEAP change-stamp for the live table to poll. The table is a separate page from the DM Lab, and
+// sessions only ever changed through the page that submitted the turn — so a table opened beside the lab
+// froze at join time (map, transcript, HP, turn counter, cost) while the world moved on. This is the
+// smallest honest signal: two counters, no map, no LLM, no cost.
+app.get('/dm/lab/session/:id/rev', async (req, reply) => {
+  const session = dmLabSessions.get((req.params as { id: string }).id);
+  if (!session) {
+    reply.code(404);
+    return { error: 'session not found' };
+  }
+  return { turnIndex: session.turnIndex, rev: session.sceneRev, pendingRoll: session.pendingRoll ? true : false };
+});
+
 app.get('/dm/lab/session/:id/view', async (req, reply) => {
   const session = dmLabSessions.get((req.params as { id: string }).id);
   if (!session) {

@@ -338,6 +338,10 @@ export interface PendingTurn {
    *  polarity gate still checks the narration against it. `verdict` is a CommandVerdict (string here to keep
    *  the shared package free of the apps/server enum). */
   commandOutcome?: { targetName: string; verdict: string };
+  /** SPATIAL R4/S4: the PC who acted on the turn that suspended. The coherence gate needs an acting PC
+   *  to measure earshot/reach against, and a roll-resume turn has no speakerId of its own — without
+   *  this the whole proximity check silently switches OFF for exactly the beat that narrates the hit. */
+  actingPcName?: string;
 }
 
 /** Authored adventure context fed to the DM so it runs the written scenario (GM-facing, not read aloud). */

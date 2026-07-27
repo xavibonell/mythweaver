@@ -137,6 +137,32 @@ export default function DmLiveTable() {
 
   useEffect(() => { logRef.current?.scrollTo(0, logRef.current.scrollHeight); }, [log]);
 
+  // LIVE SYNC. The table is a SEPARATE page from the DM Lab, so a turn played in the lab used to reach
+  // it never — it sat frozen at join time while the world moved on ("nothing moved" on screen even
+  // though the engine had walked half the crowd). Poll a tiny {turnIndex, rev} stamp and re-hydrate only
+  // when it actually changes: no map, no LLM, no cost per tick. Paused while hidden (a background tab
+  // must not poll) and while THIS page has a turn in flight (submit() owns the update then).
+  useEffect(() => {
+    const id = view?.sessionId;
+    if (!id) return;
+    let stop = false;
+    const tick = async () => {
+      if (stop || busy || document.hidden) return;
+      try {
+        const r = await fetch(`${SERVER}/dm/lab/session/${id}/rev`);
+        if (!r.ok) return;
+        const s = await r.json();
+        if (s.turnIndex === view.turnIndex && s.rev === sceneRev.current) return; // nothing moved
+        const v = await (await fetch(`${SERVER}/dm/lab/session/${id}/view`)).json();
+        if (!stop) hydrate(v);
+      } catch { /* a dropped poll must never break the table */ }
+    };
+    const h = setInterval(tick, 2000);
+    document.addEventListener('visibilitychange', tick);
+    return () => { stop = true; clearInterval(h); document.removeEventListener('visibilitychange', tick); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view?.sessionId, view?.turnIndex, busy]);
+
   async function join(id: string) {
     const res = await fetch(`${SERVER}/dm/lab/session/${id}/view`);
     if (!res.ok) {
@@ -147,8 +173,16 @@ export default function DmLiveTable() {
       return;
     }
     const v = await res.json();
+    hydrate(v, { fresh: true });
+    history.replaceState(null, '', `?session=${id}`);
+  }
+
+  /** Adopt a full /view payload. Extracted from join() so the POLL can repair the WHOLE table — the map
+   *  was never the only thing that went stale when a turn was played from the DM Lab; the transcript,
+   *  turn counter, party HP, arc and cost all froze at join time too. */
+  function hydrate(v: any, opts: { fresh?: boolean } = {}) {
     setView(v);
-    setSpeaker(v.party?.[0]?.name ?? 'player');
+    if (opts.fresh) setSpeaker(v.party?.[0]?.name ?? 'player');
     setCharacters(v.characters ?? []);
     setArc(v.arc ?? null);
     setPendingRoll(v.pendingRoll ?? null);
@@ -163,10 +197,9 @@ export default function DmLiveTable() {
     }));
     // THE WHY: on a fresh table (turn 0), show the campaign's purpose once — players should never
     // wonder "why are we here". Premise from the blueprint; goal from the active beat's intent.
-    if ((v.turnIndex ?? 0) === 0 && (v.arc?.blueprint?.premise || v.arc?.brief?.activeBeatIntent)) {
+    if (opts.fresh && (v.turnIndex ?? 0) === 0 && (v.arc?.blueprint?.premise || v.arc?.brief?.activeBeatIntent)) {
       setPrologue({ premise: v.arc?.blueprint?.premise ?? '', goal: v.arc?.brief?.activeBeatIntent ?? '' });
     }
-    history.replaceState(null, '', `?session=${id}`);
   }
 
   function applyScene(scene: any) {

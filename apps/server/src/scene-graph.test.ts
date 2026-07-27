@@ -115,4 +115,28 @@ describe('narrationBreaksScene — the deterministic coherence gate (P2)', () =>
     expect(brk('Hobb Fen waits in the gloom near the forge, arms folded.')).toBeNull(); // outdoors NEAR ≠ inside
     expect(brk('Hobb Fen slips into the forge without a word.')?.code).toBe('membership'); // real containment still fires
   });
+
+  // CHECK 3 (SPATIAL R4/S4) — the last net under the reach gate: a melee blow narrated as CONNECTING
+  // while the target is far away. This is the exact leak that shipped a strike across the square.
+  it('REACH: fires on a melee blow narrated as landing on a distant NPC', () => {
+    expect(brk('Aldric’s strike lands. Tessa stumbles hard against the well’s rim.')?.code).toBe('reach'); // Tessa 75 ft
+    expect(brk('The longsword bites into Tessa Reed’s side.')?.code).toBe('reach');
+  });
+  it('REACH: does NOT fire on a MISS, a swing, or an approach — only a landed blow claims adjacency', () => {
+    expect(brk('Aldric swings at Tessa and misses wide.')).toBeNull();
+    expect(brk('Aldric lunges toward Tessa Reed across the green.')).toBeNull();
+    expect(brk('Aldric charges at Tessa, blade raised.')).toBeNull();
+  });
+  it('REACH: does NOT fire when the target is genuinely within reach', () => {
+    // No fixture NPC starts inside 15 ft (nearest is Hobb at 20 ft), so put him at arm's length via the
+    // turn-start snapshot — the same pre-move endpoint the earshot check honours.
+    const adjacent = new Map([['npc:hobb', { col: 10, row: 11 }]]); // 5 ft from Aldric when the blow fell
+    expect(narrationBreaksScene(map, idx, 'Aldric strikes Hobb Fen across the jaw.', 'Aldric', adjacent)).toBeNull();
+  });
+  it('REACH: a blow on someone who was ADJACENT at turn start passes (they fled after)', () => {
+    const line = 'Aldric’s blade catches Tessa as she turns to run.';
+    expect(narrationBreaksScene(map, idx, line, 'Aldric')?.code).toBe('reach'); // 75 ft now, no snapshot
+    const fled = new Map([['npc:tessa', { col: 10, row: 12 }]]); // she was 10 ft away when struck
+    expect(narrationBreaksScene(map, idx, line, 'Aldric', fled)).toBeNull();
+  });
 });

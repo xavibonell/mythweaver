@@ -289,10 +289,16 @@ export function arrivalZoneNote(map: SceneMap, idx: SpatialIndex, actor: { id: E
 // The deterministic coherence gate (P2).
 // ---------------------------------------------------------------------------------------------------
 
-export interface CoherenceBreak { code: 'membership' | 'earshot'; reason: string; corrective: string; }
+export interface CoherenceBreak { code: 'membership' | 'earshot' | 'reach'; reason: string; corrective: string; }
 
 const SPEECH_VERB = /\b(say|says|said|call|calls|called|calls out|shout|shouts|shouted|mutter|mutters|muttered|reply|replies|replied|answer|answers|answered|snap|snaps|snapped|add|adds|added)\b/i;
 const PROXIMITY_PHRASE = /\b(behind you|beside you|at your shoulder|next to you|by your side|over your shoulder|at your elbow)\b/i;
+/** CHECK 3 — a landed MELEE blow. Contact verbs only: a strike that CONNECTS asserts adjacency, whereas
+ *  "swings at", "lunges toward" or "misses" assert nothing about distance. Kept narrow on purpose — this
+ *  fires a re-narrate, so a false positive costs a turn (the conjunction discipline CHECK 1 learned). */
+const MELEE_CONTACT = /\b(strike|strikes|struck|slash|slashes|slashed|stab|stabs|stabbed|cut|cuts|bite|bites|bit|hit|hits|smash|smashes|smashed|batter|batters|land|lands|landed|connect|connects|connected|catch|catches|caught|run through|drives?\s+(?:the|his|her|their)\s+\w+\s+into)\b/i;
+/** Words that turn a contact verb into a MISS or an attempt — the blow did not connect, so no claim. */
+const MELEE_NEGATED = /\b(miss|misses|missed|wide|short|parr(?:y|ies|ied)|block(?:s|ed)?|dodge[sd]?|deflect(?:s|ed)?|swings? at|lunges? (?:at|toward|towards)|charges? (?:at|toward|towards)|goes? wide|glances? off)\b/i;
 
 /** Does the narration contradict the zone/earshot ground truth? Conjunction-heavy by design (name AND a
  *  place/speech cue AND a contradicting oracle fact) so it fires on the real leaks, not on good prose.
@@ -375,6 +381,19 @@ export function narrationBreaksScene(map: SceneMap, idx: SpatialIndex, narration
             code: 'earshot',
             reason: `${npc.name} placed beside/behind ${pc.name} but is ${dFt} ft away`,
             corrective: `[COHERENCE: ${npc.name} is ${dFt} ft from ${pc.name} — not beside or behind them. Rewrite so ${npc.name} is at their real distance (${dFt} ft), or move them close first. Rewrite the WHOLE reply as scene narration in your normal voice — do NOT quote, restate, or paraphrase this note; call no tools.]`,
+          };
+        }
+
+        // CHECK 3 — REACH (SPATIAL R4/S4): a melee blow narrated as CONNECTING while the two are far
+        // apart. This is the last net under the engine's reach gate — it catches a strike the DM narrated
+        // without ever routing through applyDamage/requestRoll (the exact "Aldric's strike lands" leak).
+        // Only a landed blow is a claim: misses, swings and lunges assert nothing about distance.
+        const clause = text.slice(Math.max(0, nameIdx - 60), nameIdx + npc.name!.length + 60);
+        if (MELEE_CONTACT.test(clause) && !MELEE_NEGATED.test(clause) && dEff > REACH_FT) {
+          return {
+            code: 'reach',
+            reason: `a melee blow on ${npc.name} narrated as landing, but they are ${dFt} ft from ${pc.name} (> ${REACH_FT} ft reach)`,
+            corrective: `[COHERENCE: ${npc.name} is ${dFt} ft from ${pc.name} — far out of weapon reach, and the engine recorded no approach. NO blow landed. Rewrite so nothing connects: ${pc.name} may start toward them, draw, or shout, but the distance stands until they actually close it. Rewrite the WHOLE reply as scene narration in your normal voice — do NOT quote, restate, or paraphrase this note; call no tools.]`,
           };
         }
       }

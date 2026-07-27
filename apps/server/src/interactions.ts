@@ -237,6 +237,20 @@ export function resolveReactions(engine: Engine, map: SceneMap, ev: DisturbanceE
   // live ledger that standingOf re-reads, so without this a lone theft would compound the same card's
   // standing (−1, then −2…). Keyed by CARD id (the `reacted` guard is token-keyed and can't catch this).
   const dockedCards = new Set<string>();
+  // S7 — VIOLENCE HAS A SOCIAL COST. Until now the ledger modelled the social cost of THEFT (−1 with
+  // every witness) and none at all for ASSAULT: `valenceOf` maps only `transgress` to 'outrage', so
+  // stabbing a friendly villager was free — with the witnesses AND with the victim, who is skipped by
+  // the witness loop entirely. Striking a NON-HOSTILE person is the graver offence, so it docks harder.
+  // Attacking a monster/beast is not a social crime, and a covert act nobody saw costs nothing.
+  const victimPersona = ev.target ? personaForToken(ev.target, ledger) : undefined;
+  const victimHostile = !victimPersona || victimPersona.archetype === 'monster' || victimPersona.archetype === 'beast';
+  const violenceCost = !ev.covert && !victimHostile && (ev.kind === 'attack' || ev.kind === 'menace') ? (ev.kind === 'attack' ? 2 : 1) : 0;
+  /** Write a standing drop once per ledger identity (the name-alias guard applies to every lane). */
+  const dock = (cardId: string, persona: Persona, amount: number) => {
+    if (!amount || dockedCards.has(cardId)) return;
+    engine.recordFact({ subject: cardId, attribute: STANDING_ATTR, value: String(clampStanding(standingOf(persona, ledger, cardId) - amount)) });
+    dockedCards.add(cardId);
+  };
   for (const w of ws) {
     if (reactors >= MAX_REACTORS) { overflow++; reacted.add(w.o.id); continue; }
     let moved = false;
@@ -262,12 +276,9 @@ export function resolveReactions(engine: Engine, map: SceneMap, ev: DisturbanceE
       // Engine-owned reaction state (the DM's updateScene path strips rx:*; this is the trusted writer).
       const rs = engine.applySceneDeltas([{ op: 'setState', id: w.o.id, state: { 'rx:verb': w.intent.verb, 'rx:grade': w.grade, 'rx:moved': moved } }]);
       sceneDeltas.push(...rs.applied);
-      // P4e: a WITNESSED transgression (theft/desecration) costs the party standing with everyone who saw it —
-      // but only ONCE per ledger identity per crime (dockedCards guards against name-aliased tokens).
-      if (valence === 'outrage' && w.card && !dockedCards.has(w.card.id)) {
-        engine.recordFact({ subject: w.card.id, attribute: STANDING_ATTR, value: String(clampStanding(standingOf(w.persona, ledger, w.card.id) - 1)) });
-        dockedCards.add(w.card.id);
-      }
+      // P4e/S7: a WITNESSED crime costs the party standing with everyone who saw it — theft −1,
+      // an assault on a non-hostile person −2. Once per ledger identity (name-alias guard).
+      if (w.card) dock(w.card.id, w.persona, valence === 'outrage' ? 1 : violenceCost);
       // P4f: an 'emerge' witness (walled off, only alerted) is given a WAYPOINT GOAL to its own doorway —
       // advanceGoals walks it there next beat and it speaks on arrival. The consumer P3 was missing.
       if (w.intent.verb === 'emerge') {
@@ -283,6 +294,13 @@ export function resolveReactions(engine: Engine, map: SceneMap, ev: DisturbanceE
   if (overflow > 0) {
     // Disposition-neutral + no movement claim — the engine did NOT walk these tail onlookers.
     facts.push(`Around the edges of the scene, ${overflow} more ${overflow === 1 ? 'onlooker reacts' : 'onlookers react'}.`);
+  }
+  // S7: THE VICTIM. The witness loop skips the person actually struck, so until now the one NPC with the
+  // strongest reason to resent the party was the only one whose standing never moved. They don't need to
+  // "witness" it — it happened to them. Deliberately steeper than a bystander's view of the same act.
+  if (mode === 'on' && violenceCost && ev.target) {
+    const vCard = ledger ? findCard(ledger, ev.target) : undefined;
+    if (vCard && victimPersona) dock(vCard.id, victimPersona, violenceCost + 1);
   }
   // P4f: a disturbance carries beyond earshot — distant authority is DISPATCHED (walks in over beats). A
   // hazard summons no lawman to "apprehend" anyone (there's no offender), so only violence/crime dispatches.
