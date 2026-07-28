@@ -24,6 +24,7 @@ import {
 import { playerArcView, playerBook, playerCharacters, playerSceneMap, playerTurn, projectDeltas } from './player-view.js';
 import { generatePrologue } from './prologue.js';
 import { generateChronicle } from './chronicler.js';
+import { summarizeBeat } from './scribe.js';
 import { buildRetriever } from './corpus.js';
 import { buildExemplarRetriever } from './exemplar-corpus.js';
 import { buildTracer } from './tracing.js';
@@ -998,7 +999,29 @@ app.post('/dm/lab/session', async (req, reply) => {
  * what it never sees. The result lands as a `chronicle` event filed under the CLOSED beat; the table's
  * poll picks it up via journalLen. MYTHWEAVER_CHRONICLER=off ⇒ $0, byte-identical behavior.
  */
-const CHRONICLE_ROW_KINDS = new Set(['goal', 'place', 'met', 'verdict', 'disposition', 'finding', 'loot', 'clue', 'decision']);
+/**
+ * THE SCRIBE (P5.1). One line per turn, fire-and-forget, so a Book kept by a table that spends the
+ * scene TALKING is not empty. Input is exclusively the two things said aloud this turn. Subjects are
+ * restricted to people the journal already knows — the scribe records, it never introduces anyone
+ * (dossier birth stays solely with the narration matcher).
+ */
+function maybeScribe(sessionId: string, session: DmLabSession, playerLine: string, speaker: string | undefined, narration: string): void {
+  if ((process.env.MYTHWEAVER_SCRIBE ?? 'on') === 'off') return;
+  if (!narration?.trim() || !playerLine?.trim()) return;
+  try {
+    void summarizeBeat(llm, { playerLine, ...(speaker ? { speaker } : {}), narration }).then((text) => {
+      if (!text || dmLabSessions.get(sessionId) !== session) return;
+      const st = session.engine.getState();
+      const known = new Set((st.journal ?? []).flatMap((e) => e.subjects));
+      const subjects = Object.values(st.ledger?.entities ?? {})
+        .filter((c) => c.name && known.has(c.id) && new RegExp(`\\b${c.name.split(/\s+/)[0]!.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(text))
+        .map((c) => c.id);
+      session.engine.journal({ kind: 'beat', subjects, text });
+    });
+  } catch { /* the Book is never worth a turn */ }
+}
+
+const CHRONICLE_ROW_KINDS = new Set(['beat', 'goal', 'place', 'met', 'verdict', 'disposition', 'finding', 'loot', 'clue', 'decision']);
 function maybeChronicle(sessionId: string, session: DmLabSession): void {
   if ((process.env.MYTHWEAVER_CHRONICLER ?? 'on') === 'off') return;
   try {
@@ -1060,6 +1083,7 @@ app.post('/dm/lab/session/:id/turn', async (req, reply) => {
       deltas: turn.deltas ?? [],
       rev: session.sceneRev,
     };
+    maybeScribe((req.params as { id: string }).id, session, 'say' in input ? input.say : `rolled ${(input as { roll: number }).roll}`, 'say' in input ? input.as : undefined, turn.narration ?? '');
     maybeChronicle((req.params as { id: string }).id, session);
     return { turn, scene, totalCostUsd: session.totalCostUsd, totalLatencyMs: session.totalLatencyMs, pendingRoll: session.pendingRoll ?? null, arc: arcView(session), characters: characterSheets(session) };
   } catch (err) {
@@ -1193,6 +1217,7 @@ app.post('/dm/lab/session/:id/player-turn', async (req, reply) => {
   }
   try {
     const turn = await dmLabSubmit(session, input);
+    maybeScribe((req.params as { id: string }).id, session, 'say' in input ? input.say : `rolled ${(input as { roll: number }).roll}`, 'say' in input ? input.as : undefined, turn.narration ?? '');
     maybeChronicle((req.params as { id: string }).id, session);
     const st = session.engine.getState();
     const map = st.world?.currentLocationId ? st.world.locations[st.world.currentLocationId] : undefined;

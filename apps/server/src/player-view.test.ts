@@ -279,7 +279,9 @@ describe('playerBook — P5 kinds land in their places, never as debug rows', ()
     const green = b.chapters.find((c) => c.beatId === 'scene:b1')!;
     expect(green.summary).toContain('You met Tessa');
     expect(green.outcome).toBe('resolved'); // marker lives in scene:b2's group — found anyway
-    expect(green.events.map((e) => e.kind)).toEqual(['met', 'clue']); // no chronicle row
+    // No chronicle row (it IS the prose) and no `met` row either: a meeting belongs to the person's
+    // entry, and the turn's beat line already tells the Journal that the encounter happened.
+    expect(green.events.map((e) => e.kind)).toEqual(['clue']);
   });
 
   it('met births the dossier with the DM\'s introducing sentence; the clue joins the deeds and Findings', () => {

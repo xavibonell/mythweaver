@@ -17,6 +17,7 @@ import SceneCanvas from '../play/SceneCanvas';
 import SheetModal from './SheetModal';
 import PartyDock from './PartyDock';
 import BookDrawer from './BookDrawer';
+import { loadAssetLibrary } from '../play/manifest';
 
 const SERVER = process.env.NEXT_PUBLIC_SERVER_URL ?? 'http://localhost:6984';
 
@@ -87,12 +88,15 @@ export default function DmLiveTable() {
   const [sheetId, setSheetId] = useState<string | null>(null); // which PC's sheet is open (P2)
   const [book, setBook] = useState<any>(null); // the Book: chapters, people met, findings (P3/P4)
   const [dossierId, setDossierId] = useState<string | null>(null); // an open NPC entry
+  const [assetsRev, setAssetsRev] = useState(0); // bumped once the sprite library lands → portraits paint
   const sceneRev = useRef(0);
   const journalLenRef = useRef(0);
   const logRef = useRef<HTMLDivElement>(null);
 
-  // Session list + ?session= deep link.
+  // Session list + ?session= deep link. Also warm the sprite library up front: the Book draws its
+  // portraits from the SAME art the canvas uses, and it can open before any scene has rendered.
   useEffect(() => {
+    loadAssetLibrary(SERVER).then(() => setAssetsRev((n) => n + 1)).catch(() => {});
     fetch(`${SERVER}/dm/lab/sessions`).then((r) => r.json()).then((d) => setSessions(d.sessions ?? [])).catch(() => {});
     const id = new URLSearchParams(window.location.search).get('session');
     if (id) join(id);
@@ -290,6 +294,9 @@ export default function DmLiveTable() {
         <PartyDock party={characters} onOpen={(id) => setSheetId(id)} />
         {/* THE BOOK (P4): what the party knows — chapters, people met, things found. */}
         <BookDrawer
+          /* a plain prop, not a key: the drawer must REPAINT when the sprite library lands, never
+             remount — remounting would slam the Book shut under whoever was reading it. */
+          artRev={assetsRev}
           book={book} arc={arc} selected={dossierId} onSelect={setDossierId}
           // Book→map pings (P5): rides the SAME story-ping machinery narration mentions use.
           mapObjects={sceneData?.objects ?? []}

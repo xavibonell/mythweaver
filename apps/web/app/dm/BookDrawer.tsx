@@ -20,12 +20,39 @@
  */
 
 import { useState } from 'react';
+import { SPRITES, DEFAULT_SPRITE } from '../play/manifest';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 const ICON: Record<string, string> = {
-  chapter: '📕', goal: '🎯', place: '📍', met: '◇', verdict: '›', disposition: '💬', finding: '🔍', loot: '🎒', clue: '◈', decision: '◆',
+  chapter: '📕', goal: '🎯', place: '📍', beat: '·', met: '◇', verdict: '›', disposition: '💬', finding: '🔍', loot: '🎒', clue: '◈', decision: '◆',
 };
+
+/**
+ * A PORTRAIT is the person's own map sprite, blown up — the pixel art the table is already looking
+ * at, so a face in the Book and a token on the green are recognisably the same villager. Frame 0 of
+ * the idle sheet: the box is one frame wide and the sheet is scaled by height, so frames 1..n stay
+ * outside the box. Falls back to a plain silhouette tag if the library hasn't loaded yet.
+ */
+function Portrait({ tag, size = 34 }: { tag?: string; size?: number }) {
+  const s = SPRITES[tag ?? ''] ?? SPRITES[DEFAULT_SPRITE];
+  const scale = s ? size / s.frameH : 2;
+  return (
+    <div
+      style={{
+        flex: '0 0 auto', width: s ? s.frameW * scale : size, height: size,
+        border: '1px solid #2b3542', borderRadius: 4, background: '#171a21',
+        ...(s ? {
+          backgroundImage: `url(${s.src})`,
+          backgroundSize: `auto ${s.frameH * scale}px`,
+          backgroundPosition: '0 0',
+          backgroundRepeat: 'no-repeat',
+          imageRendering: 'pixelated' as const,
+        } : {}),
+      }}
+    />
+  );
+}
 
 const TABS = [
   { key: 'journal', mark: '📖', label: 'Journal' },
@@ -86,7 +113,8 @@ function regardWord(n: number): { word: string; color: string } {
   return { word: 'devoted', color: '#3fa34d' };
 }
 
-export default function BookDrawer({ book, arc, selected, onSelect, mapObjects = [], onPing }: { book: any; arc: any; selected: string | null; onSelect: (id: string | null) => void; mapObjects?: any[]; onPing?: (id: string) => void }) {
+export default function BookDrawer({ book, arc, selected, onSelect, mapObjects = [], onPing, artRev = 0 }: { book: any; arc: any; selected: string | null; onSelect: (id: string | null) => void; mapObjects?: any[]; onPing?: (id: string) => void; artRev?: number }) {
+  void artRev; // repaint trigger only — SPRITES is a module table the Portrait reads at render time
   const [tab, setTab] = useState<TabKey | null>(null);
   const chapters: any[] = book?.chapters ?? [];
   const people: any[] = book?.people ?? [];
@@ -98,6 +126,9 @@ export default function BookDrawer({ book, arc, selected, onSelect, mapObjects =
   // projection already dropped the rest.
   const pingFor = (d: { id?: string; name?: string }): string | null =>
     mapObjects.find((o) => o.visible !== false && (o.id === d.id || (o.name && o.name === d.name)))?.id ?? null;
+  /** The token a dossier belongs to — the same name bridge the pings use (card ids ≠ token ids). */
+  const tokenFor = (d: { id?: string; name?: string }): any =>
+    mapObjects.find((o) => o.visible !== false && (o.id === d.id || (o.name && o.name === d.name)));
   const pingForSubjects = (subjects?: string[]): string | null => {
     for (const s of subjects ?? []) {
       const direct = mapObjects.find((o) => o.visible !== false && o.id === s);
@@ -194,7 +225,8 @@ export default function BookDrawer({ book, arc, selected, onSelect, mapObjects =
           <div style={{ ...C.body, display: openTab === 'people' ? 'block' : 'none' }}>
             {dossier ? (
               <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <Portrait tag={tokenFor(dossier)?.tag} size={48} />
                   <span style={{ ...C.sub, flex: 1 }}>
                     First met turn {dossier.firstSeen?.turn} · last seen turn {dossier.lastSeen?.turn}
                   </span>
@@ -218,8 +250,9 @@ export default function BookDrawer({ book, arc, selected, onSelect, mapObjects =
               people.map((p) => {
                 const r = regardWord(p.regard);
                 return (
-                  <button key={p.id} onClick={() => onSelect(p.id)} style={{ display: 'flex', width: '100%', justifyContent: 'space-between', alignItems: 'center', background: 'transparent', border: 'none', borderBottom: '1px solid #16181e', color: '#d8dbe2', padding: '8px 2px', cursor: 'pointer', textAlign: 'left' }}>
-                    <span style={{ fontSize: 13 }}>{p.name}</span>
+                  <button key={p.id} onClick={() => onSelect(p.id)} style={{ display: 'flex', width: '100%', gap: 10, justifyContent: 'space-between', alignItems: 'center', background: 'transparent', border: 'none', borderBottom: '1px solid #16181e', color: '#d8dbe2', padding: '8px 2px', cursor: 'pointer', textAlign: 'left' }}>
+                    <Portrait tag={tokenFor(p)?.tag} />
+                    <span style={{ flex: 1, fontSize: 13 }}>{p.name}</span>
                     <span style={{ fontSize: 11, color: r.color }}>{r.word} ›</span>
                   </button>
                 );

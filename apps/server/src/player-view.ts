@@ -184,8 +184,12 @@ export function playerBook(state: GameState): { prologue: string | null; chapter
     byBeat.get(ev.beatId)!.push(ev);
   }
   if (!order.includes(state.currentSceneId)) order.push(state.currentSceneId); // the beat we're in, even if quiet
+  // A `met` event is a PERSON's arrival record — it births their entry and carries the sentence that
+  // introduced them. Rendering it as a Journal row too says the same moment twice, because the beat
+  // line for that turn already narrates the encounter. So: folded for People, not listed for Journal.
+  const isRow = (e: JournalEvent) => e.kind !== 'met';
   const chapters: Chapter[] = order.map((beatId) => {
-    const evs = byBeat.get(beatId) ?? [];
+    const evs = (byBeat.get(beatId) ?? []).filter(isRow);
     // The goal as it stood DURING this chapter — the live brief is overwritten on every replan, so the
     // snapshot is the only way a closed chapter remembers what the party was trying to do.
     const goal = [...evs].reverse().find((e) => e.kind === 'goal')?.text;
@@ -221,7 +225,7 @@ export function playerBook(state: GameState): { prologue: string | null; chapter
       d.lastSeen = { turn: ev.turn, beatId: ev.beatId };
       if (ev.kind === 'disposition') d.regard += Number(ev.data?.dir ?? 0); // witnessed shifts only, from 0
       if (ev.kind === 'met' && !d.intro) d.intro = ev.text; // the DM's own introducing sentence
-      if (ev.kind === 'verdict' || ev.kind === 'clue') d.deeds.unshift({ seq: ev.seq, turn: ev.turn, text: ev.text });
+      if (ev.kind === 'verdict' || ev.kind === 'clue' || ev.kind === 'beat') d.deeds.unshift({ seq: ev.seq, turn: ev.turn, text: ev.text });
     }
   }
   for (const d of people.values()) d.deeds = d.deeds.slice(0, 12); // newest few; the chapter holds the rest

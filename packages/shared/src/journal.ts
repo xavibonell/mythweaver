@@ -25,6 +25,7 @@ export type JournalKind =
   | 'chronicle' // 2-4 sentences of prose over a CLOSED chapter — rendered above its rows, never as one
   | 'goal' // what the party is trying to do (snapshotted, because the brief is overwritten in place)
   | 'place' // the party entered somewhere
+  | 'beat' // what happened this turn, in one line — the scribe's record of play itself
   | 'met' // a carded person was named aloud in narration for the first time (narrated ⇒ revealed)
   | 'verdict' // the world answered: a crowd scattered, an NPC obeyed or refused, help arrived
   | 'disposition' // someone's regard for the party visibly shifted

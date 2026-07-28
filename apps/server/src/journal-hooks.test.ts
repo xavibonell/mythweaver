@@ -57,6 +57,25 @@ describe('buildNameMatcher — precision first: a false match is a permanent lea
   });
 });
 
+describe('buildNameMatcher — tier 2: someone STANDING THERE is introduced by first name alone', () => {
+  // The failure the first live test hit: the DM writes "Tessa returns the greeting evenly" — the
+  // name opens the sentence, which the strict rule reads as ambiguous. For a villager the players
+  // can SEE on the map, it is not ambiguous at all, and this is how DMs actually write.
+  const staged = new Set(['tessa reed']);
+  const m = buildNameMatcher([{ name: 'Tessa Reed' }, { name: 'Garrick Reed' }, { name: 'Willow' }], staged);
+  it('a staged first name lands wherever it appears, sentence-initial included', () => {
+    expect(m('Tessa Reed', 'Tessa returns the greeting evenly, brushing dirt from her sleeves.')).toBe(true);
+    expect(m('Tessa Reed', '“Seed’s gone,” Tessa says.')).toBe(true);
+  });
+  it('staged does NOT mean careless: a lowercase homograph still births no one', () => {
+    const m2 = buildNameMatcher([{ name: 'Willow' }], new Set(['willow']));
+    expect(m2('Willow', 'she rests beneath a willow by the ditch')).toBe(false);
+  });
+  it('an UNSTAGED namesake stays unborn even while their relative is staged', () => {
+    expect(m('Garrick Reed', 'Tessa Reed waves you over.')).toBe(false);
+  });
+});
+
 describe('narratedMeets — narrated ⇒ revealed, and nothing else', () => {
   it('births a card the narration names, with the introducing sentence as the text', () => {
     const out = narratedMeets('The square is loud. Tessa Reed waves you over. Rain begins.', st());
@@ -127,5 +146,25 @@ describe('tokenEvidence quote guard — a name opening DIALOGUE is as ambiguous 
     const m = buildNameMatcher([{ name: 'Rose Thorn' }]);
     expect(m('Rose Thorn', 'She sighs. “Rose petals litter the altar,” she says.')).toBe(false);
     expect(m('Rose Thorn', '“I warned Rose about this,” she says.')).toBe(true);
+  });
+});
+
+describe('introSentence — a menu of options is not an introduction (live-test regression)', () => {
+  const s = (): GameState => ({
+    currentSceneId: 'scene:b1', flags: {}, journal: [], journalSalt: SALT,
+    world: { currentLocationId: 'loc:x', locations: { 'loc:x': { objects: [{ id: 't1', name: 'Hobb Fen', visible: true }, { id: 't2', name: 'Orrin Vale', visible: true }] } } },
+    ledger: { entities: { 'npc:hobb': { id: 'npc:hobb', kind: 'npc', name: 'Hobb Fen' }, 'npc:orrin': { id: 'npc:orrin', kind: 'npc', name: 'Orrin Vale' } }, facts: [], plants: {} },
+  } as unknown as GameState);
+
+  it('prefers a descriptive sentence and never files a suggestion as a first impression', () => {
+    const out = narratedMeets('Orrin stands by the locked storehouse, turning a key over in his fingers. Ask Hobb about the metal. What do you do?', s());
+    const byId = Object.fromEntries(out.map((o) => [o.cardId, o.text]));
+    expect(byId['npc:orrin']).toBe('Orrin stands by the locked storehouse, turning a key over in his fingers.');
+    expect(byId['npc:hobb']).toBe('Hobb Fen is here, among the people of this place.'); // named only in the menu
+  });
+
+  it('strips the DM markdown the Book must never show', () => {
+    const out = narratedMeets('Orrin waits by the **STOREHOUSE** door.', s());
+    expect(out[0]!.text).toBe('Orrin waits by the STOREHOUSE door.');
   });
 });

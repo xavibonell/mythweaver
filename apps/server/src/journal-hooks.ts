@@ -44,8 +44,15 @@ function tokenEvidence(token: string, narration: string): boolean {
 }
 
 /** Build the narration↔name matcher for one cast. Token uniqueness is computed over EVERY card name
- *  (PCs included): a token two people share identifies neither. */
-export function buildNameMatcher(cards: { name?: string }[]): (name: string, narration: string) => boolean {
+ *  (PCs included): a token two people share identifies neither.
+ *
+ *  TWO TIERS, because the risk is not the same for everyone. Someone STAGED on the map is already
+ *  standing in the players' view — the DM naming them is a plain introduction, and the DM writes
+ *  "Tessa returns the greeting" far more often than "the woman called Tessa Reed does" — so a staged
+ *  name matches wherever it appears. Someone UNSTAGED is authored cast the table has never seen, and
+ *  a false match there leaks a stranger's existence, so their name must survive the strict evidence
+ *  test (multi-word full name, or a unique token that is NOT merely opening a sentence or a quote). */
+export function buildNameMatcher(cards: { name?: string }[], stagedNames: Set<string> = new Set()): (name: string, narration: string) => boolean {
   const owners = new Map<string, number>();
   for (const c of cards) {
     for (const t of new Set((c.name ?? '').split(/\s+/).filter((t) => t.length >= 4))) {
@@ -54,9 +61,25 @@ export function buildNameMatcher(cards: { name?: string }[]): (name: string, nar
   }
   return (name, narration) => {
     if (!name || !narration) return false;
+    const staged = stagedNames.has(name.toLowerCase());
+    // Staging relaxes POSITION, never CASE — otherwise a staged "Willow" is born from the willow
+    // she is standing under. Only a multi-word full name is unambiguous enough to match loosely.
     if (name.includes(' ') && new RegExp(`\\b${esc(name)}\\b`, 'i').test(narration)) return true;
-    return name.split(/\s+/).some((t) => t.length >= 4 && owners.get(t) === 1 && tokenEvidence(t, narration));
+    // A single token still has to be capitalized like a proper noun — that is what keeps a staged
+    // "Willow" from being born out of the willow she is standing under.
+    return name.split(/\s+/).some((t) => t.length >= 4 && owners.get(t) === 1
+      && (staged ? new RegExp(`\\b${esc(t)}\\b`).test(narration) : tokenEvidence(t, narration)));
   };
+}
+
+/** Names the players can currently SEE on the map — the tier-1 signal above. Hidden tokens never
+ *  count: a lurker the projection drops must not become evidence that they were introduced. */
+export function stagedNames(state: GameState): Set<string> {
+  const world = state.world;
+  const map = world?.currentLocationId ? world.locations[world.currentLocationId] : undefined;
+  const out = new Set<string>();
+  for (const o of map?.objects ?? []) if (o.visible !== false && o.name) out.add(o.name.toLowerCase());
+  return out;
 }
 
 /** Every card id the journal has already shown the players. */
@@ -66,18 +89,28 @@ function knownIds(state: GameState): Set<string> {
 
 const allCards = (state: GameState) => Object.values(state.ledger?.entities ?? {});
 
-/** The sentence that introduced them — the DM's words, not a template. */
+/** The DM narrates in markdown (**STOREHOUSE**, *iron creaking*); the Book is prose, not source. */
+export const plainProse = (s: string) => s.replace(/\*\*(.+?)\*\*/g, '$1').replace(/\*(.+?)\*/g, '$1').replace(/[*_`]/g, '').trim();
+
+/** The sentence that introduced them — the DM's words, not a template.
+ *
+ *  Not every sentence that carries a name INTRODUCES anyone. DM turns close with menus of options
+ *  ("Ask Orrin about the lock. Ask Hobb about the metal. What do you do?"), and a live test filed
+ *  exactly those as first impressions. A suggestion is addressed to the players, not a description
+ *  of the person, so questions and imperative prompts are skipped in favour of a plain statement;
+ *  when a name appears ONLY in a menu, the neutral fallback is the honest entry. */
 function introSentence(name: string, narration: string, matches: (n: string, s: string) => boolean): string {
-  const sentences = narration.split(/(?<=[.!?…])\s+/);
-  const hit = sentences.find((s) => matches(name, s));
-  return (hit ?? `${name} enters the story.`).trim();
+  const sentences = narration.split(/(?<=[.!?…])\s+/).map((s) => s.trim()).filter(Boolean);
+  const descriptive = (s: string) => !/[?]\s*$/.test(s) && !/^(ask|try|tell|talk|speak|asking|maybe|consider|you could|perhaps)\b/i.test(s);
+  const hit = sentences.find((s) => matches(name, s) && descriptive(s)) ?? sentences.find((s) => matches(name, s) && descriptive(s.replace(/\s*what do you do\?.*$/i, '')));
+  return plainProse(hit ?? `${name} is here, among the people of this place.`);
 }
 
 /** Carded NPCs named aloud for the first time → `met` events. */
 export function narratedMeets(narration: string, state: GameState): { cardId: string; text: string }[] {
   if (!narration) return [];
   const known = knownIds(state);
-  const matches = buildNameMatcher(allCards(state));
+  const matches = buildNameMatcher(allCards(state), stagedNames(state));
   const out: { cardId: string; text: string }[] = [];
   for (const card of allCards(state)) {
     if (card.kind !== 'npc' || !card.name || known.has(card.id)) continue;
@@ -102,7 +135,7 @@ export function clueFactKey(subject: string, attribute: string, salt: string): s
 export function corroboratedClues(narration: string, facts: DmFact[], state: GameState): { subjects: string[]; text: string; factKey: string }[] {
   if (!narration || !facts.length) return [];
   const known = knownIds(state);
-  const matches = buildNameMatcher(allCards(state));
+  const matches = buildNameMatcher(allCards(state), stagedNames(state));
   const salt = (state.journalSalt ??= randomUUID());
   const cards = state.ledger?.entities ?? {};
   const already = new Set(
