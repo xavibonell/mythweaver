@@ -1054,3 +1054,33 @@ describe('classifySpeechAct — a question must not be executed as a move', () =
     expect(classifySpeechAct({ kind: 'roll', requestId: 'r1', total: 12 })).toBe('act');
   });
 });
+
+describe('ROLL GATE — prose that asks for a roll must become a real roll request', () => {
+  it('re-prompts once, arms the dice, and KEEPS the narration that asked', async () => {
+    const engine = newEngine();
+    // Exactly the live failure: the DM writes the ask (with a leaked DC) and calls nothing, so the
+    // table saw an instruction and no dice, and the next thing the player typed was read as speech.
+    const asked = 'Pip reaches the storehouse door. The lock is old iron, its face scratched bright around the keyway. Roll an Intelligence (Investigation) check, DC 15.';
+    const llm = new FakeLlmProvider([
+      fakeText(asked),
+      fakeToolUse([{ id: 'tu1', name: 'requestRoll', input: { expr: '1d20+3', reason: 'Investigation to inspect the lock', dc: 15 } }]),
+    ]);
+
+    const result = await runTurn({ engine, llm, now: frozenClock }, { kind: 'message', speakerId: 'Pip', text: 'I go to check the lock of the storehouse' });
+
+    expect(result.rollRequest).toMatchObject({ expr: '1d20+3' }); // the dice actually arm
+    expect(result.narration).toBe(asked); // the prose is carried, not dropped for a blank beat
+    expect(engine.getState().pendingTurn).toBeTruthy();
+    // The re-prompt names the failure so the model corrects rather than re-narrating.
+    const nudge = JSON.stringify(llm.requests[1]!.messages.at(-1));
+    expect(nudge).toContain('ROLL GATE');
+  });
+
+  it('stays out of the way when the narration merely describes', async () => {
+    const engine = newEngine();
+    const llm = new FakeLlmProvider([fakeText('The lock is old iron and the dust lies undisturbed.')]);
+    const result = await runTurn({ engine, llm, now: frozenClock }, { kind: 'message', speakerId: 'Pip', text: 'I look at the door.' });
+    expect(result.rollRequest).toBeUndefined();
+    expect(llm.requests).toHaveLength(1); // no wasted second call
+  });
+});

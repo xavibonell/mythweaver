@@ -1690,6 +1690,29 @@ export function extractMentions(map: SceneMap | undefined, narration: string): s
   return out;
 }
 
+/**
+ * Does this narration ASK the player for a roll? (the roll gate's detector)
+ *
+ * The DM is supposed to call `requestRoll`; when it instead writes "Roll an Intelligence
+ * (Investigation) check, DC 15" the table sees an instruction with no dice interface, and whatever
+ * the player types next is read as speech — a live session had a PC "say" the number 19 to a villager.
+ * Deliberately narrow: an imperative aimed at the player (roll/make/give me … check|save|throw), a
+ * bare d20 call, or a stated DC — which is itself a leak the players should never be shown.
+ */
+export function narrationAsksForRoll(text: string): string | null {
+  if (!text) return null;
+  const patterns = [
+    /\b(?:roll|make|give)\s+(?:me\s+)?(?:an?|your)\s+[^.?!\n]{0,48}?\b(?:check|save|saving throw)\b/i,
+    /\broll\s+(?:a\s+|an\s+)?d20\b/i,
+    /\bDC\s*\d+\b/,
+  ];
+  for (const p of patterns) {
+    const m = p.exec(text);
+    if (m) return m[0].trim();
+  }
+  return null;
+}
+
 export function movementBackstop(engine: Engine, state: GameState, input: TurnInput, sceneDeltas: SceneDelta[]): void {
   if (input.kind !== 'message') return;
   const text = input.text.toLowerCase();
@@ -1835,6 +1858,8 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
   let coherenceRetries = 0; // P2: at most one re-narration if prose breaks zone membership / earshot
   let commandOutcome: { targetName: string; verdict: CommandVerdict } | undefined; // P4b: this turn's directNpc verdict
   let commandRetries = 0; // P4b: at most one re-narration if prose defies the command verdict (polarity gate)
+  let rollGateRetries = 0; // at most one re-prompt when the prose asks for a roll but never called for it
+  let rollGateNarration: string | undefined; // that prose, carried onto the suspended turn so it isn't lost
 
   if (input.kind === 'roll') {
     const pending = state.pendingTurn as PendingTurn | undefined;
@@ -2164,6 +2189,24 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
           commandRetries++;
           const first = commandOutcome.targetName.split(/\s+/)[0];
           messages.push({ role: 'user', content: `The engine ruled that ${commandOutcome.targetName} ${defy.want === 'obeyed' ? 'COMPLIES' : 'REFUSES'}. Rewrite your narration so ${first} ${defy.want === 'obeyed' ? 'does as asked' : 'does NOT comply'} — narrate the verdict you were given, never its opposite.` });
+          continue;
+        }
+      }
+
+      // ROLL GATE: the prose ASKS for a roll ("Roll an Investigation check, DC 15") but no tool call
+      // was made, so no dice interface appears and the turn dead-ends — the player types a number as a
+      // sentence and the table is one beat out of step forever after. Reaching this branch means the
+      // step made NO tool call, and a requestRoll on any earlier step would already have returned, so
+      // "asks for a roll here" is exactly the failure. Same shape as the gates above: one bounded
+      // re-prompt that turns the words into the call. The narration is KEPT — the model is told to
+      // make the call only, and we carry this text through to the suspended turn.
+      if (res.text && rollGateRetries < 1 && steps < MAX_STEPS) {
+        const ask = narrationAsksForRoll(res.text);
+        if (ask) {
+          rollGateRetries++;
+          rollGateNarration = res.text;
+          span.event('roll-gate', { ask });
+          messages.push({ role: 'user', content: `[ROLL GATE: your narration asks for a roll ("${ask}") but you did not call requestRoll, so no dice appeared for the player and the turn stalled. Call requestRoll NOW as your ONLY tool call — the expression (e.g. "1d20+3") and the "dc". Do not narrate anything further; your previous narration is already delivered. Never state the DC in prose: it belongs in the tool call.]` });
           continue;
         }
       }
@@ -3079,6 +3122,9 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
     }
 
     if (roll) {
+      // The roll gate re-prompted for the tool call ALONE, so this step's text is usually empty —
+      // carry the narration that asked for the roll rather than handing the table a blank beat.
+      if (!res.text && rollGateNarration) res.text = rollGateNarration;
       if (res.text) engine.record('narration', res.text);
       state.pendingTurn = {
         rollRequestId: roll.id,

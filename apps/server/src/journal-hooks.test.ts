@@ -177,3 +177,20 @@ describe('the perceived sheet rejects placeholder prose (B3)', () => {
     expect(sheet).toEqual({ traits: ['Protective of the village'] }); // every placeholder gone
   });
 });
+
+describe('narrationAsksForRoll — the roll gate detector', () => {
+  it('catches the ask the DM writes instead of calling the tool', async () => {
+    const { narrationAsksForRoll } = await import('./orchestrator.js');
+    expect(narrationAsksForRoll('A careful inspection might separate real damage from planted theatre. Roll an Intelligence (Investigation) check, DC 15.')).toBeTruthy();
+    expect(narrationAsksForRoll('Make a Dexterity saving throw.')).toBeTruthy();
+    expect(narrationAsksForRoll('Give me a Perception check.')).toBeTruthy();
+    expect(narrationAsksForRoll('roll a d20')).toBeTruthy();
+    expect(narrationAsksForRoll('The lock is old iron, its face scratched bright.')).toBeNull();
+    expect(narrationAsksForRoll('She makes a decision and turns away.')).toBeNull(); // "makes a …" is not a check
+  });
+
+  it('treats a DC stated in prose as an ask — players must never be shown the number', async () => {
+    const { narrationAsksForRoll } = await import('./orchestrator.js');
+    expect(narrationAsksForRoll('The climb looks hard, DC 15.')).toBe('DC 15');
+  });
+});

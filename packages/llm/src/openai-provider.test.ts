@@ -145,3 +145,12 @@ describe('joinOutputText — a reasoning model that restates itself must not dou
     expect(joinOutputText(['', '   ', NARRATION])).toBe(NARRATION);
   });
 });
+
+describe('joinOutputText — a restatement must never TRUNCATE the narration', () => {
+  it('keeps the fuller block when the second pass extends the first', () => {
+    const partial = 'Pip reaches the storehouse door after a long crossing of the green.';
+    const full = `${partial} The lock is old iron, its face scratched bright around the keyway.`;
+    expect(joinOutputText([partial, full])).toBe(full);
+    expect(joinOutputText([full, partial])).toBe(full); // order must not decide it
+  });
+});

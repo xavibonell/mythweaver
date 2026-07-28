@@ -67,20 +67,23 @@ const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
  */
 export function joinOutputText(blocks: string[]): string {
   const norm = (s: string) => s.replace(/\s+/g, ' ').replace(/[^\p{L}\p{N} ]/gu, '').trim().toLowerCase();
-  const kept: string[] = [];
-  const seen = new Set<string>();
+  const kept: { text: string; key: string }[] = [];
   for (const b of blocks) {
-    const t = b.trim();
-    if (!t) continue;
-    const k = norm(t);
-    if (!k || seen.has(k)) continue;
-    // A block that merely restates one already kept (or is restated BY it) is the same narration.
-    const dup = [...seen].some((s) => (s.length > 40 && k.length > 40) && (s.includes(k) || k.includes(s)));
-    if (dup) continue;
-    seen.add(k);
-    kept.push(t);
+    const text = b.trim();
+    if (!text) continue;
+    const key = norm(text);
+    if (!key) continue;
+    // When one block RESTATES another, keep the FULLER one. The restatement is usually the model's
+    // second, more complete pass, so dropping it in favour of the fragment would silently truncate
+    // the DM mid-scene — a worse failure than the doubling this function exists to prevent.
+    const clash = kept.findIndex((p) => p.key === key || (p.key.length > 40 && key.length > 40 && (p.key.includes(key) || key.includes(p.key))));
+    if (clash >= 0) {
+      if (key.length > kept[clash]!.key.length) kept[clash] = { text, key };
+      continue;
+    }
+    kept.push({ text, key });
   }
-  return kept.join('\n\n');
+  return kept.map((p) => p.text).join('\n\n');
 }
 
 /** Map our messages (Anthropic-style content blocks) to OpenAI chat messages. */
