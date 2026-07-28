@@ -42,6 +42,7 @@ import { generateStatBlock, type MonsterSpec } from './monster-gen.js';
 import { bumpSpatialVersion, spatialIndex } from './spatial/oracle.js';
 import { deriveMoveCaps, runTravel, swimGateFailure, type TravelIntent, type TravelVerdict } from './spatial/travel.js';
 import { classifyReach, reachRequiredFt, type AttackMode, type ReachReason, type ReachVerdict } from './spatial/reach.js';
+import { journalWitnesses } from './witness.js';
 import type { SceneMap, JournalEvent} from '@mythweaver/shared';
 import { statBlockToCombatant } from './state.js';
 import { abilityMod, deriveAbilityCheckModifier, deriveArmorClass, derivePassive, deriveProficiencyBonus, deriveSaveModifier, deriveSkillModifier, deriveSpellsPreparedMax } from './derive.js';
@@ -123,10 +124,11 @@ export class Engine implements EngineTools {
    * witnessed, so the stream ships to a player screen verbatim and never needs read-time redaction.
    * Never throws: a Book entry must not be able to break a turn.
    */
-  journal(e: { kind: JournalEvent['kind']; subjects?: string[]; text: string; data?: JournalEvent['data']; beatId?: string }): void {
+  journal(e: { kind: JournalEvent['kind']; subjects?: string[]; text: string; data?: JournalEvent['data']; beatId?: string; origin?: string }): void {
     try {
       const j = (this.state.journal ??= []);
       const world = this.state.world;
+      const witnesses = journalWitnesses(world?.currentLocationId ? world.locations[world.currentLocationId] : undefined, e.kind, e.origin);
       j.push({
         seq: j.length + 1, // NOT the turn: a roll-resume shares its originating turn's number
         turn: this.state.turnCount ?? 0,
@@ -137,6 +139,7 @@ export class Engine implements EngineTools {
         subjects: e.subjects ?? [],
         // Event rows are one-liners; the prologue and chronicle are PROSE and get room to breathe.
         text: ((cap) => (e.text.length > cap ? `${e.text.slice(0, cap - 3)}…` : e.text))(e.kind === 'prologue' ? 1400 : e.kind === 'chronicle' ? 700 : 240),
+        ...(witnesses ? { witnesses } : {}),
         ...(e.data ? { data: e.data } : {}),
       });
     } catch { /* the Book is never worth a turn */ }
@@ -713,6 +716,11 @@ export class Engine implements EngineTools {
       name: Engine.clip(card.name, 80) || prev?.name || card.id,
       ...(aliases.length ? { aliases } : {}),
       ...(voice.tic || voice.want || voice.fear ? { voice: { ...(voice.tic ? { tic: Engine.clip(voice.tic, 120) } : {}), ...(voice.want ? { want: Engine.clip(voice.want, 120) } : {}), ...(voice.fear ? { fear: Engine.clip(voice.fear, 120) } : {}) } } : {}),
+      // APPEARANCE IS WRITE-ONCE. Everything else here merges, because a person's wants and status
+      // change — but a face does not. If a later call could overwrite it, the same NPC would drift
+      // (stout, then willowy) across the turns, the Book and the chronicler, which is precisely the
+      // inconsistency this field exists to prevent. First writer wins, forever.
+      ...(prev?.appearance || Engine.clip(card.appearance, 200) ? { appearance: prev?.appearance ?? Engine.clip(card.appearance, 200) } : {}),
       ...(persona.archetype || persona.temper || persona.allegiance || persona.stake
         ? { persona: { ...(persona.archetype ? { archetype: persona.archetype } : {}), ...(persona.temper ? { temper: persona.temper } : {}), ...(persona.allegiance ? { allegiance: Engine.clip(persona.allegiance, 80) } : {}), ...(persona.stake ? { stake: Engine.clip(persona.stake, 120) } : {}) } }
         : {}),

@@ -82,11 +82,35 @@ const C = {
   chapTitle: { fontFamily: 'ui-serif, Georgia, serif', color: '#c9a227', fontSize: 14, marginTop: 12 } as React.CSSProperties,
 };
 
-function EventRow({ e, pingId, onPing }: { e: any; pingId?: string | null; onPing?: (id: string) => void }) {
+/** Token ring colours, in the order the canvas assigns them (SceneCanvas PC_RING_COLORS). */
+const RING = ['#5b8dd6', '#5bd68d', '#d6c25b', '#d65b8d', '#8d5bd6'];
+
+/**
+ * WHO KNOWS THIS. Shown only when SOME of the party witnessed it — when everyone was there (the
+ * common case today) the chips would be noise on every single row. The colours match the rings on
+ * the map tokens and the party dock, so "the blue one heard this" reads without a legend.
+ */
+function Witnesses({ ids, pcs }: { ids?: string[]; pcs: any[] }) {
+  if (!ids || !pcs.length || ids.length >= pcs.length) return null;
+  const seen = pcs.map((p, i) => ({ ...p, color: RING[i % RING.length] })).filter((p) => ids.includes(p.id));
+  if (!seen.length) return null;
+  return (
+    <span style={{ flex: '0 0 auto', display: 'flex', gap: 2 }} title={`Known to ${seen.map((p) => p.name ?? p.id).join(', ')}`}>
+      {seen.map((p) => (
+        <span key={p.id} style={{ width: 14, height: 14, borderRadius: '50%', border: `1px solid ${p.color}`, color: p.color, fontSize: 8, lineHeight: '12px', textAlign: 'center', fontWeight: 700 }}>
+          {(p.name ?? '?').slice(0, 1)}
+        </span>
+      ))}
+    </span>
+  );
+}
+
+function EventRow({ e, pingId, onPing, pcs = [] }: { e: any; pingId?: string | null; onPing?: (id: string) => void; pcs?: any[] }) {
   return (
     <div style={C.row}>
       <span style={{ flex: '0 0 auto', width: 15 }}>{ICON[e.kind] ?? '·'}</span>
       <span style={{ flex: 1 }}>{e.text}</span>
+      <Witnesses ids={e.witnesses} pcs={pcs} />
       {pingId && onPing && <PingBtn onClick={() => onPing(pingId)} />}
       <span style={{ ...C.sub, flex: '0 0 auto' }}>t{e.turn}</span>
     </div>
@@ -101,6 +125,19 @@ function PingBtn({ onClick }: { onClick: () => void }) {
       onClick={(ev) => { ev.stopPropagation(); onClick(); }}
       style={{ flex: '0 0 auto', background: 'transparent', border: '1px solid #2b3542', color: '#c9a227', borderRadius: 4, padding: '0 5px', cursor: 'pointer', fontSize: 11, lineHeight: '16px' }}
     >⌖</button>
+  );
+}
+
+/** One section of the perceived sheet; renders nothing when the party has observed nothing. */
+function SheetList({ title, items }: { title: string; items?: string[] }) {
+  if (!items?.length) return null;
+  return (
+    <>
+      <div style={{ ...C.chapTitle, marginTop: 14 }}>{title}</div>
+      {items.map((t, i) => (
+        <div key={i} style={C.row}><span style={{ flex: '0 0 auto', width: 15 }}>·</span><span style={{ flex: 1 }}>{t}</span></div>
+      ))}
+    </>
   );
 }
 
@@ -126,6 +163,8 @@ export default function BookDrawer({ book, arc, selected, onSelect, mapObjects =
   // projection already dropped the rest.
   const pingFor = (d: { id?: string; name?: string }): string | null =>
     mapObjects.find((o) => o.visible !== false && (o.id === d.id || (o.name && o.name === d.name)))?.id ?? null;
+  // The party, in canvas order — witness chips colour-match the map rings and the party dock.
+  const pcs = mapObjects.filter((o: any) => o.kind === 'actor' && o.role === 'pc');
   /** The token a dossier belongs to — the same name bridge the pings use (card ids ≠ token ids). */
   const tokenFor = (d: { id?: string; name?: string }): any =>
     mapObjects.find((o) => o.visible !== false && (o.id === d.id || (o.name && o.name === d.name)));
@@ -217,34 +256,45 @@ export default function BookDrawer({ book, arc, selected, onSelect, mapObjects =
                     {c.summary}
                   </div>
                 )}
-                {(c.events ?? []).map((e: any) => <EventRow key={e.seq} e={e} pingId={pingForSubjects(e.subjects)} onPing={onPing} />)}
+                {(c.events ?? []).map((e: any) => <EventRow key={e.seq} e={e} pingId={pingForSubjects(e.subjects)} onPing={onPing} pcs={pcs} />)}
               </div>
             ))}
           </div>
 
           <div style={{ ...C.body, display: openTab === 'people' ? 'block' : 'none' }}>
             {dossier ? (
+              /* A CHARACTER SHEET OF WHAT WE KNOW — deliberately NOT a list of what happened. The
+                 Journal already holds the events; repeating them here said everything twice and told
+                 the table nothing new. What belongs to a person is the read on them. */
               <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <Portrait tag={tokenFor(dossier)?.tag} size={48} />
-                  <span style={{ ...C.sub, flex: 1 }}>
-                    First met turn {dossier.firstSeen?.turn} · last seen turn {dossier.lastSeen?.turn}
-                  </span>
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                  <Portrait tag={tokenFor(dossier)?.tag} size={52} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    {/* Canonical appearance (B2) — authored once, never regenerated. */}
+                    {dossier.appearance
+                      ? <div style={{ fontSize: 12.5, lineHeight: 1.5, color: '#cfd3dc' }}>{dossier.appearance}</div>
+                      : <div style={C.empty}>You haven&rsquo;t taken a good look at them yet.</div>}
+                    <div style={{ ...C.sub, marginTop: 4 }}>met turn {dossier.firstSeen?.turn} · last seen turn {dossier.lastSeen?.turn}</div>
+                  </div>
                   {onPing && pingFor(dossier) && <PingBtn onClick={() => onPing(pingFor(dossier)!)} />}
                 </div>
-                {/* The sentence that introduced them — the DM's own words, kept as the first impression. */}
-                {dossier.intro && (
-                  <div style={{ fontFamily: 'ui-serif, Georgia, serif', fontStyle: 'italic', fontSize: 12.5, lineHeight: 1.6, color: '#b9bec9', marginTop: 8 }}>
-                    &ldquo;{dossier.intro}&rdquo;
-                  </div>
-                )}
-                <div style={{ marginTop: 8, fontSize: 13 }}>
+
+                <div style={{ marginTop: 10, fontSize: 13 }}>
                   Seems <b style={{ color: regardWord(dossier.regard).color }}>{regardWord(dossier.regard).word}</b>
+                  {dossier.manner ? <span style={{ color: '#b9bec9' }}> · {dossier.manner}</span> : null}
                 </div>
-                <div style={{ ...C.chapTitle, marginTop: 14 }}>Seen to</div>
-                {dossier.deeds?.length
-                  ? dossier.deeds.map((d: any) => <div key={d.seq} style={C.row}><span style={{ flex: '0 0 auto', width: 15 }}>·</span><span style={{ flex: 1 }}>{d.text}</span><span style={C.sub}>t{d.turn}</span></div>)
-                  : <div style={C.empty}>You&rsquo;ve only just met.</div>}
+
+                <SheetList title="What we make of them" items={dossier.traits} />
+                <SheetList title="Seen carrying / can do" items={dossier.carries} />
+                {dossier.candor && (
+                  <>
+                    <div style={{ ...C.chapTitle, marginTop: 14 }}>Straight with us?</div>
+                    <div style={{ fontSize: 12.5, lineHeight: 1.5, color: '#cfd3dc' }}>{dossier.candor}</div>
+                  </>
+                )}
+                {!dossier.manner && !dossier.traits?.length && !dossier.carries?.length && !dossier.candor && (
+                  <div style={{ ...C.empty, marginTop: 12 }}>Nothing to say about them yet — talk to them, watch what they do, and this fills in.</div>
+                )}
               </div>
             ) : people.length ? (
               people.map((p) => {
@@ -262,7 +312,7 @@ export default function BookDrawer({ book, arc, selected, onSelect, mapObjects =
 
           <div style={{ ...C.body, display: openTab === 'findings' ? 'block' : 'none' }}>
             {findings.length
-              ? findings.map((f: any) => <EventRow key={f.seq} e={f} pingId={pingForSubjects(f.subjects)} onPing={onPing} />)
+              ? findings.map((f: any) => <EventRow key={f.seq} e={f} pingId={pingForSubjects(f.subjects)} onPing={onPing} pcs={pcs} />)
               : <div style={C.empty}>Nothing found yet. Search the world — look inside things, and what you turn up is written here.</div>}
           </div>
         </div>

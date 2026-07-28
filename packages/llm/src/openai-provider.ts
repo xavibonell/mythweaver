@@ -55,6 +55,34 @@ interface OpenAIResponsesPayload {
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
+/**
+ * Join a /v1/responses reply's `output_text` blocks into ONE narration.
+ *
+ * A reasoning model sometimes emits its answer, thinks again, and emits a near-identical answer as a
+ * second block. Concatenating blocks straight (`text += c.text`) welded them into a doubled paragraph
+ * with no separator — the DM appeared to say everything twice at the table, and every downstream
+ * consumer (transcript, journal, style corpus) inherited the doubling. Identical or
+ * whitespace/punctuation-equivalent blocks collapse to one; genuinely different blocks are kept and
+ * separated by a blank line, because a model CAN legitimately emit prose in parts.
+ */
+export function joinOutputText(blocks: string[]): string {
+  const norm = (s: string) => s.replace(/\s+/g, ' ').replace(/[^\p{L}\p{N} ]/gu, '').trim().toLowerCase();
+  const kept: string[] = [];
+  const seen = new Set<string>();
+  for (const b of blocks) {
+    const t = b.trim();
+    if (!t) continue;
+    const k = norm(t);
+    if (!k || seen.has(k)) continue;
+    // A block that merely restates one already kept (or is restated BY it) is the same narration.
+    const dup = [...seen].some((s) => (s.length > 40 && k.length > 40) && (s.includes(k) || k.includes(s)));
+    if (dup) continue;
+    seen.add(k);
+    kept.push(t);
+  }
+  return kept.join('\n\n');
+}
+
 /** Map our messages (Anthropic-style content blocks) to OpenAI chat messages. */
 function toMessages(system: string | undefined, messages: LlmMessage[]): Record<string, unknown>[] {
   const out: Record<string, unknown>[] = [];
@@ -199,11 +227,11 @@ export class OpenAIProvider implements LlmProvider {
     if (!res.ok) throw new Error(`OpenAI API error ${res.status}: ${await res.text()}`);
     const data = (await res.json()) as OpenAIResponsesPayload;
 
-    let text = '';
+    const textBlocks: string[] = [];
     const toolCalls: ToolCall[] = [];
     for (const item of data.output ?? []) {
       if (item.type === 'message') {
-        for (const c of item.content ?? []) if (c.type === 'output_text' && c.text) text += c.text;
+        for (const c of item.content ?? []) if (c.type === 'output_text' && c.text) textBlocks.push(c.text);
       } else if (item.type === 'function_call' && item.call_id && item.name) {
         let input: Record<string, unknown> = {};
         try {
@@ -216,7 +244,7 @@ export class OpenAIProvider implements LlmProvider {
     }
 
     return {
-      text,
+      text: joinOutputText(textBlocks),
       toolCalls,
       usage: {
         inputTokens: data.usage?.input_tokens ?? 0,

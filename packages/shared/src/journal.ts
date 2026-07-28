@@ -32,6 +32,7 @@ export type JournalKind =
   | 'finding' // a point of interest was discovered or searched
   | 'loot' // something was actually taken
   | 'clue' // a recorded fact the DM ALSO said aloud — value-verbatim corroboration, never bookkeeping
+  | 'insight' // the party's READ on someone: manner, traits, what they carry, how candid they seem
   | 'decision'; // a choice the party made, recorded as canon
 
 export interface JournalEvent {
@@ -47,6 +48,13 @@ export interface JournalEvent {
   subjects: string[];
   /** The player-facing sentence, composed at write time. Never a template to be filled in later. */
   text: string;
+  /** WHO PERCEIVED THIS — PC token ids, computed from the map when the event was written (present in
+   *  the location; within earshot of the origin when the moment had one). Absent on events nobody
+   *  "witnesses" (the prologue, a chapter boundary, the chronicler's prose).
+   *
+   *  Recorded from the first slice onward even though today's table shares one screen: the moment the
+   *  party splits, a Book that never partitioned its history cannot be split retroactively. */
+  witnesses?: string[];
   /** Small structured extras per kind: {outcome}, {dir:-1}, {items,gold}, {opened:true}. */
   data?: Record<string, string | number | boolean>;
 }
@@ -62,8 +70,15 @@ export interface Dossier {
    *  is seeded from authored allegiance — printing that would put a disguised villain's true feelings
    *  on the players' screen before they earned the knowledge. */
   regard: number;
-  /** The sentence that introduced them — the DM's own words, captured by the `met` event. */
-  intro?: string;
+  /** What they LOOK like — the canonical appearance, copied into the `met` event when they were
+   *  introduced. Authored once and never regenerated, so the Book and the DM agree forever. */
+  appearance?: string;
+  /** The party's READ on them, from the latest `insight` event — perceived, never authored truth.
+   *  A character sheet of what we KNOW, which is a different thing from what happened (the Journal). */
+  manner?: string;
+  traits?: string[];
+  carries?: string[];
+  candor?: string;
   /** What this person was seen to do, newest first. */
   deeds: { seq: number; turn: number; text: string }[];
 }

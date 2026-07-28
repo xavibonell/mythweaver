@@ -168,3 +168,12 @@ describe('introSentence — a menu of options is not an introduction (live-test 
     expect(out[0]!.text).toBe('Orrin waits by the STOREHOUSE door.');
   });
 });
+
+describe('the perceived sheet rejects placeholder prose (B3)', () => {
+  it('drops "unknown"/"not assessed" lines so an unseen person shows an empty sheet, not noise', async () => {
+    const { profilePerson } = await import('./profiler.js');
+    const llm = { complete: async () => ({ text: JSON.stringify({ manner: 'Unknown; reportedly observant', traits: ['Not yet assessed', 'Protective of the village'], carries: ['none'], candor: 'Not assessed; has not spoken' }), toolCalls: [], usage: { inputTokens: 0, outputTokens: 0 }, model: 'test', stopReason: 'end' }) } as never;
+    const sheet = await profilePerson(llm, { name: 'Hobb Fen', playerLine: 'x', narration: 'y' });
+    expect(sheet).toEqual({ traits: ['Protective of the village'] }); // every placeholder gone
+  });
+});

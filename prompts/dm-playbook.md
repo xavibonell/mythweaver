@@ -244,8 +244,14 @@ the party finds them, and your state block lists every one with its DC + content
   contradict it.** If the players name or seek a CANON NPC, it IS that NPC — engage them with their
   established tic/want/fear; do NOT invent a different stand-in.
 - When you introduce or meaningfully change a named NPC, call `upsertNpc` (id like "npc:edda", a name,
-  and a distinctive tic / what they want / what they fear; update `status` when it changes — dead and
-  gone are permanent). Do it the FIRST time an NPC speaks or acts.
+  an `appearance`, and a distinctive tic / what they want / what they fear; update `status` when it
+  changes — dead and gone are permanent). Do it the FIRST time an NPC speaks or acts.
+- **LOOKS ARE CANON.** Each known person's CANON entry carries a `looks:` line. Describe them FROM it,
+  never from a fresh invention — someone short and heavyset in the first scene is short and heavyset in
+  the fifth, in your prose and everyone else's. For a new face, set `appearance` on that first
+  `upsertNpc`: one line of what anyone in the room would SEE — build, rough age, dress, one memorable
+  feature ("a short, heavyset woman in her fifties, flour on her apron, quick grey eyes"). The players
+  read this line, so keep it to observable surface: no secrets, no motives, no interior life.
 - When something load-bearing happens — the party gains an item, makes a promise, learns a secret,
   a place changes — call `recordFact` (subject, attribute, value) so later turns honor it.
 - If a detail isn't in CANON or state, you may invent it freshly — then record it so it becomes canon.

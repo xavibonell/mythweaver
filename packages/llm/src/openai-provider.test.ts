@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { OpenAIProvider, usesResponsesApi } from './openai-provider.js';
+import { OpenAIProvider, joinOutputText, usesResponsesApi } from './openai-provider.js';
 
 /** Capture URL + body of each POST the provider makes, returning a canned payload. */
 function stubFetch(payload: unknown): { urls: string[]; bodies: Record<string, unknown>[] } {
@@ -120,5 +120,28 @@ describe('OpenAIProvider temperature handling (chat-completions path)', () => {
     const p = new OpenAIProvider({ apiKey: 'x', model: 'gpt-4o' });
     await p.complete({ messages: [{ role: 'user', content: 'hi' }], temperature: 0.7 });
     expect(cap.bodies[0]!.temperature).toBe(0.7);
+  });
+});
+
+describe('joinOutputText — a reasoning model that restates itself must not double the DM (B0)', () => {
+  const NARRATION = 'Aldric crosses the green, boots scraping the dry cobbles, and stops beside Tessa. She brushes dirt from her sleeves. "Seed’s gone. Lock looks untouched."';
+
+  it('collapses an exact restatement into one narration', () => {
+    expect(joinOutputText([NARRATION, NARRATION])).toBe(NARRATION);
+  });
+
+  it('collapses a restatement that only differs in whitespace or trailing prompt punctuation', () => {
+    const again = `${NARRATION.replace(/\s+/g, '  ')}`;
+    expect(joinOutputText([NARRATION, again])).toBe(NARRATION);
+  });
+
+  it('keeps genuinely different blocks, separated — never welded into one paragraph', () => {
+    const out = joinOutputText(['The gate groans open.', 'Beyond it, the road forks north.']);
+    expect(out).toBe('The gate groans open.\n\nBeyond it, the road forks north.');
+    expect(out).not.toContain('open.Beyond'); // the weld that produced the live bug
+  });
+
+  it('ignores empty and whitespace-only blocks', () => {
+    expect(joinOutputText(['', '   ', NARRATION])).toBe(NARRATION);
   });
 });

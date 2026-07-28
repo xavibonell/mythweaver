@@ -436,6 +436,13 @@ export interface EntityCard {
   aliases?: string[];
   /** NPC personality anchors so a returning NPC sounds like themselves. */
   voice?: { tic?: string; want?: string; fear?: string };
+  /** WHAT THEY LOOK LIKE — one line of observable surface (build, age, dress, one memorable feature).
+   *  WRITE-ONCE canon: the composer authors it for staged cast, `upsertNpc` sets it for anyone invented
+   *  in play, and `Engine.upsertEntity` refuses to overwrite it thereafter — so Tessa cannot be stout in
+   *  one scene and willowy in the next. Every generator that describes her is CONDITIONED on this string
+   *  (it rides the per-turn CANON block); nobody re-invents it. Deliberately surface only: it is copied
+   *  verbatim into the player-facing Book the moment she is introduced, so it must hold no secret. */
+  appearance?: string;
   /** Optional authored disposition (living-world reactivity). Absent → the resolver DERIVES one at
    *  read-time via profileOf(); present → it overrides the derived archetype/temper and adds colour. */
   persona?: PersonaSeed;

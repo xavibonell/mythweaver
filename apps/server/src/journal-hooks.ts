@@ -106,15 +106,25 @@ function introSentence(name: string, narration: string, matches: (n: string, s: 
   return plainProse(hit ?? `${name} is here, among the people of this place.`);
 }
 
-/** Carded NPCs named aloud for the first time → `met` events. */
-export function narratedMeets(narration: string, state: GameState): { cardId: string; text: string }[] {
+/** Carded NPCs named aloud for the first time → `met` events.
+ *
+ *  The event COPIES the card's canonical `appearance` (B2). Copy rather than read-through, because the
+ *  projection law is write-time safety: the Book must never reach into a DM-grade card at render time,
+ *  and a person the party has not met must not have their description sitting in the payload at all. */
+export function narratedMeets(narration: string, state: GameState): { cardId: string; text: string; appearance?: string }[] {
   if (!narration) return [];
   const known = knownIds(state);
   const matches = buildNameMatcher(allCards(state), stagedNames(state));
-  const out: { cardId: string; text: string }[] = [];
+  const out: { cardId: string; text: string; appearance?: string }[] = [];
   for (const card of allCards(state)) {
     if (card.kind !== 'npc' || !card.name || known.has(card.id)) continue;
-    if (matches(card.name, narration)) out.push({ cardId: card.id, text: introSentence(card.name, narration, matches) });
+    if (matches(card.name, narration)) {
+      out.push({
+        cardId: card.id,
+        text: introSentence(card.name, narration, matches),
+        ...(card.appearance ? { appearance: plainProse(card.appearance) } : {}),
+      });
+    }
   }
   return out;
 }

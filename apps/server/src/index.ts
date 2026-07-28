@@ -25,6 +25,8 @@ import { playerArcView, playerBook, playerCharacters, playerSceneMap, playerTurn
 import { generatePrologue } from './prologue.js';
 import { generateChronicle } from './chronicler.js';
 import { summarizeBeat } from './scribe.js';
+import { profilePerson } from './profiler.js';
+import { buildNameMatcher, stagedNames } from './journal-hooks.js';
 import { buildRetriever } from './corpus.js';
 import { buildExemplarRetriever } from './exemplar-corpus.js';
 import { buildTracer } from './tracing.js';
@@ -1016,8 +1018,64 @@ function maybeScribe(sessionId: string, session: DmLabSession, playerLine: strin
       const subjects = Object.values(st.ledger?.entities ?? {})
         .filter((c) => c.name && known.has(c.id) && new RegExp(`\\b${c.name.split(/\s+/)[0]!.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(text))
         .map((c) => c.id);
-      session.engine.journal({ kind: 'beat', subjects, text });
+      // ORIGIN = the character who acted: the beat is heard by whoever was near them, which is what
+      // makes a split party's Books diverge later without any UI change now.
+      session.engine.journal({ kind: 'beat', subjects, text, ...(speaker ? { origin: speaker } : {}) });
     });
+  } catch { /* the Book is never worth a turn */ }
+}
+
+/**
+ * THE PROFILER (B3). After a turn, update the party's READ on each person who actually took part —
+ * a perceived character sheet, not a replay of the Journal. Fire-and-forget like the scribe; input is
+ * only the prior sheet plus what was said aloud, so it cannot leak and costs the table no latency.
+ * Cards with no canonical `appearance` (older campaigns, frozen fixtures) may have one distilled from
+ * the same narration — the engine's write-once guard then freezes it for every future generator.
+ */
+function maybeProfile(sessionId: string, session: DmLabSession, playerLine: string, narration: string): void {
+  if ((process.env.MYTHWEAVER_INSIGHTS ?? 'on') === 'off') return;
+  if (!narration?.trim()) return;
+  try {
+    const st = session.engine.getState();
+    const j = st.journal ?? [];
+    const known = new Set(j.flatMap((e) => e.subjects));
+    const cards = Object.values(st.ledger?.entities ?? {}).filter((c) => c.kind === 'npc' && c.name && known.has(c.id));
+    // Only people this turn actually involved, and at most two — a crowd scene must not fan out.
+    const matches = buildNameMatcher(Object.values(st.ledger?.entities ?? {}), stagedNames(st));
+    const involved = cards.filter((c) => matches(c.name, narration)).slice(0, 2);
+    for (const card of involved) {
+      const prior = [...j].reverse().find((e) => e.kind === 'insight' && e.subjects.includes(card.id));
+      const p = (k: string) => (prior?.data?.[k] !== undefined ? String(prior.data[k]) : undefined);
+      void profilePerson(llm, {
+        name: card.name,
+        prior: {
+          ...(p('manner') ? { manner: p('manner')! } : {}),
+          ...(p('traits') ? { traits: p('traits')!.split(' · ') } : {}),
+          ...(p('carries') ? { carries: p('carries')!.split(' · ') } : {}),
+          ...(p('candor') ? { candor: p('candor')! } : {}),
+        },
+        playerLine,
+        narration,
+        ...(card.appearance ? {} : { needsAppearance: true }),
+      }).then((sheet) => {
+        if (!sheet || dmLabSessions.get(sessionId) !== session) return;
+        // A minted appearance becomes CANON through the engine (write-once), so the DM's own prompt
+        // sees it from the next turn on — the Book and the narrator never diverge.
+        if (sheet.appearance && !card.appearance) session.engine.upsertEntity({ id: card.id, appearance: sheet.appearance });
+        session.engine.journal({
+          kind: 'insight',
+          subjects: [card.id],
+          text: `What we make of ${card.name}`, // the row never renders; the entry is the payload
+          data: {
+            ...(sheet.manner ? { manner: sheet.manner } : {}),
+            ...(sheet.traits?.length ? { traits: sheet.traits.join(' · ') } : {}),
+            ...(sheet.carries?.length ? { carries: sheet.carries.join(' · ') } : {}),
+            ...(sheet.candor ? { candor: sheet.candor } : {}),
+            ...(sheet.appearance ? { appearance: sheet.appearance } : {}),
+          },
+        });
+      });
+    }
   } catch { /* the Book is never worth a turn */ }
 }
 
@@ -1084,6 +1142,7 @@ app.post('/dm/lab/session/:id/turn', async (req, reply) => {
       rev: session.sceneRev,
     };
     maybeScribe((req.params as { id: string }).id, session, 'say' in input ? input.say : `rolled ${(input as { roll: number }).roll}`, 'say' in input ? input.as : undefined, turn.narration ?? '');
+    maybeProfile((req.params as { id: string }).id, session, 'say' in input ? input.say : `rolled ${(input as { roll: number }).roll}`, turn.narration ?? '');
     maybeChronicle((req.params as { id: string }).id, session);
     return { turn, scene, totalCostUsd: session.totalCostUsd, totalLatencyMs: session.totalLatencyMs, pendingRoll: session.pendingRoll ?? null, arc: arcView(session), characters: characterSheets(session) };
   } catch (err) {
@@ -1218,6 +1277,7 @@ app.post('/dm/lab/session/:id/player-turn', async (req, reply) => {
   try {
     const turn = await dmLabSubmit(session, input);
     maybeScribe((req.params as { id: string }).id, session, 'say' in input ? input.say : `rolled ${(input as { roll: number }).roll}`, 'say' in input ? input.as : undefined, turn.narration ?? '');
+    maybeProfile((req.params as { id: string }).id, session, 'say' in input ? input.say : `rolled ${(input as { roll: number }).roll}`, turn.narration ?? '');
     maybeChronicle((req.params as { id: string }).id, session);
     const st = session.engine.getState();
     const map = st.world?.currentLocationId ? st.world.locations[st.world.currentLocationId] : undefined;

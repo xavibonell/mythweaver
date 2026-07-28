@@ -723,12 +723,13 @@ export function buildToolDefs(retrieval: boolean, scene: boolean): ToolDef[] {
     {
       name: 'upsertNpc',
       description:
-        'CANON: record or update a named NPC the moment they matter, so they stay themselves when they return. Give a stable id ("npc:edda"), their name, and their voice — a speech tic, what they WANT, what they FEAR. Update "status" when it changes ("wounded","captive","gone","dead"; dead/gone are permanent). Do this the FIRST time an NPC speaks or acts.',
+        'CANON: record or update a named NPC the moment they matter, so they stay themselves when they return. Give a stable id ("npc:edda"), their name, their APPEARANCE (what anyone would see), and their voice — a speech tic, what they WANT, what they FEAR. Update "status" when it changes ("wounded","captive","gone","dead"; dead/gone are permanent). Do this the FIRST time an NPC speaks or acts.',
       inputSchema: {
         type: 'object',
         properties: {
           id: { type: 'string', description: 'Stable id, e.g. "npc:edda".' },
           name: { type: 'string' },
+          appearance: { type: 'string', description: 'One line of what anyone in the room SEES: build, rough age, dress, one memorable feature ("a short, heavyset woman in her fifties, flour on her apron, quick grey eyes"). Set it the first time — it becomes canon and is shown to the players, so keep it to observable surface: no secrets, no motives.' },
           tic: { type: 'string', description: 'A distinctive speech/behaviour tic.' },
           want: { type: 'string', description: 'What they want.' },
           fear: { type: 'string', description: 'What they fear.' },
@@ -1470,6 +1471,10 @@ export function canonBlock(state: GameState, context: string): string {
     const tail = [voice, per, st && `toward you: ${st}`].filter(Boolean).join('; ') || e.notes || '';
     const push = (s: string) => { if (s && budget - s.length > 0) { lines.push(s); budget -= s.length + 1; } };
     push(`- ${e.name} [${e.id}] (${e.status ?? 'active'})${tail ? ` — ${tail}` : ''}`);
+    // B2: the canonical LOOK, on its own line so it survives the tail's budget trimming. This is the
+    // binding mechanism for physical consistency: every turn's narration is conditioned on the same
+    // string, so a person cannot be stout in one scene and willowy in the next.
+    if (e.appearance) push(`    · looks: ${e.appearance}`);
     for (const f of factsFor(e.id)) if (f.attribute !== STANDING_ATTR) push(`    · ${f.attribute}: ${f.value}`); // standing shown as a word above
   };
 
@@ -1805,7 +1810,7 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
     try {
       if (result.narration) {
         for (const m of narratedMeets(result.narration, state)) {
-          engine.journal({ kind: 'met', subjects: [m.cardId], text: m.text, data: { via: 'narration' } });
+          engine.journal({ kind: 'met', subjects: [m.cardId], text: m.text, data: { via: 'narration', ...(m.appearance ? { appearance: m.appearance } : {}) } });
         }
         for (const c of corroboratedClues(result.narration, dmFactsThisTurn, state)) {
           engine.journal({ kind: 'clue', subjects: c.subjects, text: c.text, data: { factKey: c.factKey } });
@@ -2505,6 +2510,7 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
             id,
             kind: 'npc',
             name: String(i.name ?? ''),
+            ...(i.appearance ? { appearance: String(i.appearance) } : {}), // write-once in the engine
             ...(Object.keys(voice).length ? { voice } : {}),
             ...(Object.keys(persona).length ? { persona } : {}),
             ...(typeof i.status === 'string' ? { status: i.status as EntityCard['status'] } : {}),

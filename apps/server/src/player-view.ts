@@ -187,7 +187,7 @@ export function playerBook(state: GameState): { prologue: string | null; chapter
   // A `met` event is a PERSON's arrival record — it births their entry and carries the sentence that
   // introduced them. Rendering it as a Journal row too says the same moment twice, because the beat
   // line for that turn already narrates the encounter. So: folded for People, not listed for Journal.
-  const isRow = (e: JournalEvent) => e.kind !== 'met';
+  const isRow = (e: JournalEvent) => e.kind !== 'met' && e.kind !== 'insight';
   const chapters: Chapter[] = order.map((beatId) => {
     const evs = (byBeat.get(beatId) ?? []).filter(isRow);
     // The goal as it stood DURING this chapter — the live brief is overwritten on every replan, so the
@@ -224,7 +224,18 @@ export function playerBook(state: GameState): { prologue: string | null; chapter
       }
       d.lastSeen = { turn: ev.turn, beatId: ev.beatId };
       if (ev.kind === 'disposition') d.regard += Number(ev.data?.dir ?? 0); // witnessed shifts only, from 0
-      if (ev.kind === 'met' && !d.intro) d.intro = ev.text; // the DM's own introducing sentence
+      if (ev.kind === 'met' && !d.appearance && ev.data?.appearance) d.appearance = String(ev.data.appearance);
+      // The party's READ, latest wins — a sheet of what we know, not a replay of what happened
+      // (the Journal owns that; repeating it in the entry was the redundancy the table called out).
+      if (ev.kind === 'insight' && ev.data) {
+        const p = (k: string) => (ev.data![k] !== undefined ? String(ev.data![k]) : undefined);
+        const list = (k: string) => (p(k) ? p(k)!.split(' · ').filter(Boolean) : undefined);
+        if (p('manner')) d.manner = p('manner');
+        if (list('traits')) d.traits = list('traits');
+        if (list('carries')) d.carries = list('carries');
+        if (p('candor')) d.candor = p('candor');
+        if (!d.appearance && p('appearance')) d.appearance = p('appearance');
+      }
       if (ev.kind === 'verdict' || ev.kind === 'clue' || ev.kind === 'beat') d.deeds.unshift({ seq: ev.seq, turn: ev.turn, text: ev.text });
     }
   }

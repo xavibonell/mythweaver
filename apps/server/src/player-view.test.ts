@@ -25,6 +25,7 @@ const MARKERS = {
   encounter: 'ZZENCOUNTERZZ-bone-naga',
   trueItem: 'ZZITEMZZ Blade of the Hollow King',
   briefIntent: 'ZZINTENTZZ-the-miller-is-about-to-turn',
+  unmetLook: 'ZZLOOKZZ-a-gaunt-man-with-a-brand-on-his-wrist',
 };
 
 const COLS = 20, ROWS = 20;
@@ -62,7 +63,11 @@ function fixtureState(): GameState {
       brief: { activeBeatIntent: MARKERS.briefIntent, reachable: [], bridgeNpcs: [MARKERS.notes], clocks: ['ZZCLOCKZZ'], notes: MARKERS.notes },
     },
     ledger: {
-      entities: { 'npc:tessa': { id: 'npc:tessa', name: 'Tessa Reed', kind: 'npc', voice: { tic: 'brushes dirt', want: MARKERS.want, fear: MARKERS.fear }, notes: MARKERS.notes } },
+      entities: {
+        'npc:tessa': { id: 'npc:tessa', name: 'Tessa Reed', kind: 'npc', voice: { tic: 'brushes dirt', want: MARKERS.want, fear: MARKERS.fear }, notes: MARKERS.notes },
+        // Authored cast the party has NEVER met: their canon look must not ship (B2).
+        'npc:stranger': { id: 'npc:stranger', name: 'The Stranger', kind: 'npc', appearance: MARKERS.unmetLook },
+      },
       facts: [], plants: { 'plant:locket': { id: 'plant:locket', what: MARKERS.plant, status: 'planted' } },
     },
     encounters: [{ sceneId: 'scene:b9', monsters: [{ statBlockId: MARKERS.encounter, count: 2 }] }],
@@ -266,7 +271,7 @@ describe('playerBook — P5 kinds land in their places, never as debug rows', ()
     flags: {},
     ledger: { entities: { 'npc:tessa': { id: 'npc:tessa', kind: 'npc', name: 'Tessa Reed' } }, facts: [], plants: {} },
     journal: [
-      { seq: 1, turn: 1, beatId: 'scene:b1', kind: 'met', subjects: ['npc:tessa'], text: 'Tessa Reed waves you over.' },
+      { seq: 1, turn: 1, beatId: 'scene:b1', kind: 'met', subjects: ['npc:tessa'], text: 'Tessa Reed waves you over.', data: { appearance: 'a short, heavyset woman in her fifties, flour on her apron' } },
       { seq: 2, turn: 2, beatId: 'scene:b1', kind: 'clue', subjects: ['npc:tessa'], text: 'Learned: she was seen by the bell tower after dark', data: { factKey: 'k' } },
       // The closing marker lives in the NEXT beat's group (journaled after currentSceneId flips).
       { seq: 3, turn: 3, beatId: 'scene:b2', kind: 'chapter', subjects: ['scene:b2'], text: 'The Mill', data: { from: 'scene:b1', to: 'scene:b2', outcome: 'resolved', opened: true } },
@@ -284,11 +289,38 @@ describe('playerBook — P5 kinds land in their places, never as debug rows', ()
     expect(green.events.map((e) => e.kind)).toEqual(['clue']);
   });
 
-  it('met births the dossier with the DM\'s introducing sentence; the clue joins the deeds and Findings', () => {
+  it('met births the dossier carrying the CANON appearance; the clue joins the deeds and Findings', () => {
     const b = playerBook(base());
     const tessa = b.people.find((p) => p.id === 'npc:tessa')!;
-    expect(tessa.intro).toBe('Tessa Reed waves you over.');
+    // The look is copied from the card at write time — the entry never reaches into DM-grade data.
+    expect(tessa.appearance).toBe('a short, heavyset woman in her fifties, flour on her apron');
     expect(tessa.deeds[0]!.text).toContain('bell tower');
     expect(b.findings.map((e) => e.kind)).toEqual(['clue']);
+  });
+});
+
+describe('playerBook — the entry is a SHEET of what we know, not a replay (B2/B3)', () => {
+  const withInsight = (): GameState => ({
+    currentSceneId: 'scene:b1',
+    adventure: { pitch: 'x', scenes: { 'scene:b1': { title: 'The Green' } } },
+    flags: {},
+    ledger: { entities: { 'npc:tessa': { id: 'npc:tessa', kind: 'npc', name: 'Tessa Reed', appearance: 'CANON-LOOK' } }, facts: [], plants: {} },
+    journal: [
+      { seq: 1, turn: 1, beatId: 'scene:b1', kind: 'met', subjects: ['npc:tessa'], text: 'Tessa waves.', data: { appearance: 'a short, heavyset woman in her fifties' } },
+      { seq: 2, turn: 2, beatId: 'scene:b1', kind: 'insight', subjects: ['npc:tessa'], text: 'What we make of Tessa Reed', data: { manner: 'blunt, unhurried', traits: 'protective of the village · answers before you finish asking', carries: 'a key at her belt', candor: 'seems to be steering you toward the road' } },
+      { seq: 3, turn: 3, beatId: 'scene:b1', kind: 'insight', subjects: ['npc:tessa'], text: 'What we make of Tessa Reed', data: { manner: 'blunt, and tired now', traits: 'protective of the village' } },
+    ],
+  } as unknown as GameState);
+
+  it('folds the LATEST insight into the perceived sheet, and never renders it as a Journal row', () => {
+    const b = playerBook(withInsight());
+    const t = b.people[0]!;
+    expect(t.manner).toBe('blunt, and tired now'); // latest wins
+    expect(t.traits).toEqual(['protective of the village']);
+    expect(t.carries).toEqual(['a key at her belt']); // an untouched section survives
+    expect(t.appearance).toBe('a short, heavyset woman in her fifties');
+    const kinds = b.chapters.flatMap((c) => c.events).map((e) => e.kind);
+    expect(kinds).not.toContain('insight'); // the sheet is the payload, not a row
+    expect(kinds).not.toContain('met');
   });
 });

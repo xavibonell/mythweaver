@@ -7,3 +7,4 @@ export { hitDieForClass, XP_THRESHOLDS, levelForXp, hitDieAvg, ASI_LEVELS } from
 export { buildSpatialIndex, spatialIndex, bumpSpatialVersion, distanceFt, findPath, hasLineOfSight, whereIs, travelTime, DEFAULT_CAPS, type SpatialIndex, type MoveCaps, type Medium, type Cell, type PathResult, type WhereIs } from './spatial/oracle.js';
 export { deriveMoveCaps, type TravelIntent, type TravelVerdict } from './spatial/travel.js';
 export { classifyReach, planApproach, reachRequiredFt, DEFAULT_MELEE_REACH_FT, type AttackMode, type ReachRequirement, type ReachVerdict, type ReachReason } from './spatial/reach.js';
+export { journalWitnesses, WITNESS_EARSHOT_FT } from './witness.js';
