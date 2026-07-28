@@ -84,6 +84,61 @@ function stripTheCrowd(path) {
   return dropped;
 }
 
+/**
+ * CLEAR THE FIGHTING GROUND — the check that mattered most and was missing entirely.
+ *
+ * The realizer carpets a forest with ~900 ambiance sprites on a 1040-cell map, and the renderer draws
+ * ambiance at `row - 0.1` while actors sit at `row + 0.5`: any tree one or two rows BELOW a token is
+ * painted OVER it. The first build audited beautifully — tokens present, 5 ft apart, initiative live —
+ * and was unplayable, because two bandits stood under jungle canopies and the party was lost in the
+ * scatter. Mechanically perfect, visually absent.
+ *
+ * So the fight gets a clearing: every ambiance sprite and loose prop inside the combat's bounding box
+ * (plus a margin, and biased DOWNWARD where the occluders live) is removed. The forest still frames
+ * the scene; the road you fight on is actually open, which is what the brief asked for anyway.
+ */
+function clearTheFightingGround(path, margin = 3) {
+  const file = JSON.parse(readFileSync(path, 'utf8'));
+  const st = file.state;
+  const map = st.world?.locations?.[st.world.currentLocationId];
+  if (!map) return { ambiance: 0, props: 0 };
+  const actors = map.objects.filter((o) => o.kind === 'actor');
+  if (!actors.length) return { ambiance: 0, props: 0 };
+  const cols = actors.map((a) => a.col), rows = actors.map((a) => a.row);
+  const box = {
+    c0: Math.min(...cols) - margin, c1: Math.max(...cols) + margin,
+    r0: Math.min(...rows) - margin, r1: Math.max(...rows) + margin + 2, // +2: the rows that occlude
+  };
+  const inside = (o) => o.col >= box.c0 && o.col <= box.c1 && o.row >= box.r0 && o.row <= box.r1;
+  const before = { ambiance: (map.ambiance ?? []).length, props: map.objects.length };
+  map.ambiance = (map.ambiance ?? []).filter((a) => !inside(a));
+  map.objects = map.objects.filter((o) => o.kind === 'actor' || !inside(o));
+  const removed = { ambiance: before.ambiance - map.ambiance.length, props: before.props - map.objects.length };
+  if (removed.ambiance || removed.props) writeFileSync(path, JSON.stringify(file));
+  return removed;
+}
+
+/** Would a player SEE this fight? Occluders are the sprites on an actor's own cell and the 1-2 rows
+ *  below it (those draw in front), within a column either side — a tall canopy is wider than its cell. */
+function legibility(state) {
+  const map = state.world?.locations?.[state.world.currentLocationId];
+  if (!map) return { buried: [], density: 0 };
+  const actors = map.objects.filter((o) => o.kind === 'actor');
+  const clutter = [...(map.ambiance ?? []), ...map.objects.filter((o) => o.kind !== 'actor')];
+  const buried = [];
+  for (const a of actors) {
+    const over = clutter.filter((c) => Math.abs(c.col - a.col) <= 1 && c.row >= a.row && c.row <= a.row + 2);
+    if (over.length) buried.push(`${a.name ?? a.id} behind ${[...new Set(over.map((o) => o.tag))].slice(0, 3).join('/')}`);
+  }
+  // Density is measured over the FIGHT, not the map: a thick forest framing an open road is good
+  // scenery. What kills a fight is scatter on the ground the tokens stand on.
+  const cols = actors.map((a) => a.col), rows = actors.map((a) => a.row);
+  const box = { c0: Math.min(...cols) - 2, c1: Math.max(...cols) + 2, r0: Math.min(...rows) - 2, r1: Math.max(...rows) + 2 };
+  const area = Math.max(1, (box.c1 - box.c0 + 1) * (box.r1 - box.r0 + 1));
+  const near = clutter.filter((c) => c.col >= box.c0 && c.col <= box.c1 && c.row >= box.r0 && c.row <= box.r1);
+  return { buried, density: Math.round((near.length / area) * 100) };
+}
+
 const ft = (a, b) => Math.max(Math.abs(a.col - b.col), Math.abs(a.row - b.row)) * 5;
 
 /** Is this fixture actually ready to fight in? The checks a hand-built blob would silently fail. */
@@ -107,15 +162,19 @@ function audit(state) {
     return { name: c.name, hp: `${c.currentHitPoints}/${c.maxHitPoints}`, ac: c.armorClass, ft: Math.min(...pcs.map((p) => ft(p, t))) };
   });
   if (dists.length && Math.min(...dists.map((d) => d.ft)) > 60) gaps.push('every enemy is >60 ft away — the party spends the first rounds walking');
+  const leg = legibility(state);
+  for (const b of leg.buried) gaps.push(`INVISIBLE: ${b} — the renderer paints those over the token`);
+  if (leg.density > 25) gaps.push(`${leg.density}% of the ground the fight stands on is scatter — the tokens cannot be read`);
   const active = order[state.combat?.turnIndex ?? 0];
   const activeC = combatants.find((c) => c.id === active);
   if (activeC && activeC.kind !== 'pc') gaps.push(`it is ${activeC.name}'s turn, not a player's — the fixture opens on a monster acting`);
-  return { pcs: pcs.length, foes: dists, order: order.length, active: activeC?.name, gaps };
+  return { pcs: pcs.length, foes: dists, order: order.length, active: activeC?.name, density: leg.density, buriedCount: leg.buried.length, gaps };
 }
 
 const report = (a) => {
   console.log(`\n  party tokens : ${a.pcs}`);
   console.log(`  initiative   : ${a.order} in order · active = ${a.active ?? '(none)'}`);
+  console.log(`  legibility   : ${a.density}% scatter on the fighting ground · ${a.buriedCount} token(s) occluded`);
   for (const d of a.foes) console.log(`  enemy        : ${d.name} — ${d.hp} HP, AC ${d.ac}, ${d.ft} ft from the nearest PC`);
   if (a.gaps.length) { console.log('\n  NOT READY:'); for (const g of a.gaps) console.log(`   ! ${g}`); }
   else console.log('\n  READY — load it and swing.');
@@ -158,6 +217,8 @@ async function main() {
   const path = `content/dev-sessions/${SLUG}.json`;
   const freezeAndRead = async () => {
     await post(`/dm/lab/session/${sessionId}/freeze?key=${dmKey}`, { slug: SLUG, title: TITLE });
+    const cleared = clearTheFightingGround(path);
+    if (cleared.ambiance || cleared.props) console.log(`   cleared the ground: ${cleared.ambiance} ambiance + ${cleared.props} props removed from the fight`);
     const dropped = stripTheCrowd(path);
     if (dropped.length) console.log(`   stripped ${dropped.length} bystander token(s): ${dropped.slice(0, 6).join(', ')}${dropped.length > 6 ? ' …' : ''}`);
     return JSON.parse(readFileSync(path, 'utf8')).state;
@@ -185,6 +246,8 @@ async function main() {
     const settle = await post(`/dm/lab/session/${re.sessionId}/turn`, { say: 'Call it out — where is each of them, right now?', as: 'Aldric' }, reDm);
     console.log(`   ${(settle.turn?.narration ?? '').slice(0, 260)}…`);
     await post(`/dm/lab/session/${re.sessionId}/freeze?key=${re.dmKey}`, { slug: SLUG, title: TITLE });
+    const cleared = clearTheFightingGround(path);
+    if (cleared.ambiance || cleared.props) console.log(`   cleared the ground: ${cleared.ambiance} ambiance + ${cleared.props} props removed from the fight`);
     const dropped = stripTheCrowd(path);
     if (dropped.length) console.log(`   (stripped ${dropped.length} more)`);
     a = audit(JSON.parse(readFileSync(path, 'utf8')).state);
