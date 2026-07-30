@@ -169,7 +169,10 @@ export type TurnInput =
   | { kind: 'message'; speakerId: string; text: string }
   | { kind: 'roll'; requestId: string; total: number }
   // No player line — asks the DM to deliver the campaign's OPENING narration (session start).
-  | { kind: 'opening' };
+  | { kind: 'opening' }
+  // COMBAT MODE (C1): the active PC explicitly yields — the engine advances the order and the enemy
+  // phase runs (in dmLabSubmit). Deterministic: no LLM call happens on this input itself.
+  | { kind: 'endTurn'; speakerId?: string };
 
 export interface TurnRollRequest {
   id: string;
@@ -252,6 +255,16 @@ export function buildToolDefs(retrieval: boolean, scene: boolean): ToolDef[] {
       name: 'getState',
       description: 'Read the authoritative game state (HP, conditions, scene, combatants). Returns JSON.',
       inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+    },
+    {
+      name: 'dash',
+      description: 'COMBAT: the active combatant trades their ACTION for another round of movement (PHB Dash). Use when a player wants to cover ground fast or a walk was refused for lack of feet.',
+      inputSchema: {
+        type: 'object',
+        properties: { combatantId: { type: 'string', description: 'Who dashes (id or name).' } },
+        required: ['combatantId'],
+        additionalProperties: false,
+      },
     },
     {
       name: 'requestRoll',
@@ -1823,8 +1836,8 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
 
   const span = (deps.tracer ?? NOOP_TRACER).startTurn({
     sessionId: state.sessionId,
-    speaker: input.kind === 'message' ? input.speakerId : input.kind === 'roll' ? 'roll' : 'opening',
-    input: input.kind === 'message' ? input.text : input.kind === 'roll' ? `declared roll ${input.total}` : 'session start',
+    speaker: input.kind === 'message' ? input.speakerId : input.kind === 'roll' ? 'roll' : input.kind,
+    input: input.kind === 'message' ? input.text : input.kind === 'roll' ? `declared roll ${input.total}` : input.kind === 'endTurn' ? 'end turn' : 'session start',
   });
   const finish = (result: TurnResult): TurnResult => {
     if (firedExemplars && !result.exemplars) result.exemplars = firedExemplars;
@@ -1860,6 +1873,41 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
   let commandRetries = 0; // P4b: at most one re-narration if prose defies the command verdict (polarity gate)
   let rollGateRetries = 0; // at most one re-prompt when the prose asks for a roll but never called for it
   let rollGateNarration: string | undefined; // that prose, carried onto the suspended turn so it isn't lost
+
+  // ================= COMBAT MODE (C1) — deterministic pre-LLM gates =================
+  // The engine owns the order (C0); this is the cheap front door. An out-of-turn line is refused
+  // BEFORE any model call — $0, instant — and "end turn" typed as text becomes the real thing.
+  if (state.combat.active) {
+    if (input.kind === 'message' && /^\s*(?:i\s+)?end\s+(?:my\s+)?turn\s*[.!]?\s*$/i.test(input.text)) {
+      input = { kind: 'endTurn', speakerId: input.speakerId };
+    }
+    const activeC = engine.activeCombatant();
+    if (input.kind === 'message' && activeC?.kind === 'pc' && input.speakerId
+        && activeC.name.trim().toLowerCase() !== input.speakerId.trim().toLowerCase()) {
+      return finish({
+        narration: `(Round ${state.combat.round}) It's ${activeC.name}'s turn — hold that thought, ${input.speakerId}. When ${activeC.name} is done, End Turn passes the round along.`,
+        costUsd: 0,
+        model: 'combat-gate',
+        trace: emptyTrace(now() - startedAt),
+      });
+    }
+    if (input.kind === 'endTurn') {
+      // Only the active PC's turn can be yielded (any seat may press the button FOR them — one shared
+      // screen — but the engine still refuses when a roll hangs or a monster is mid-phase).
+      if (!activeC || activeC.kind !== 'pc') {
+        return finish({ narration: '', costUsd: 0, model: 'combat-gate', trace: emptyTrace(now() - startedAt) });
+      }
+      const end = engine.endTurn(activeC.id);
+      return finish({
+        narration: end.ok ? '' : `(${end.reason})`,
+        costUsd: 0,
+        model: 'combat-gate',
+        trace: emptyTrace(now() - startedAt),
+      });
+    }
+  } else if (input.kind === 'endTurn') {
+    return finish({ narration: '(no combat is running — nothing to end)', costUsd: 0, model: 'combat-gate', trace: emptyTrace(now() - startedAt) });
+  }
 
   if (input.kind === 'roll') {
     const pending = state.pendingTurn as PendingTurn | undefined;
@@ -2088,7 +2136,24 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
     }
     journalVerdicts(meanwhileFacts);
     const meanwhileBlock = meanwhileFacts.length ? `=== MEANWHILE (since the last beat the engine moved these — weave them into your reply; do not move them again) ===\n${meanwhileFacts.map((f) => `- ${f}`).join('\n')}\n\n` : '';
+    // COMBAT MODE (C1): the DM must know whose turn it is and what budget remains — the engine
+    // enforces either way, but a narrator that KNOWS the order narrates with it instead of against it.
+    let combatBlock = '';
+    if (state.combat.active) {
+      const activeC = engine.activeCombatant();
+      const ae = activeC?.actionEconomy;
+      const orderLine = state.combat.order.map((id) => {
+        const c = state.combatants[id];
+        return c ? `${c.id === activeC?.id ? '▶ ' : ''}${c.name}${c.downed || c.dead ? ' (down)' : ''}` : id;
+      }).join(' → ');
+      combatBlock =
+        `=== COMBAT (round ${state.combat.round} — STRICT TURNS, engine-enforced) ===\n` +
+        `ACTIVE: ${activeC?.name ?? '?'}${ae ? ` — action: ${ae.action ? 'available' : 'SPENT'}, bonus: ${ae.bonusAction ? 'available' : 'SPENT'}, movement: ${ae.movementRemainingFt} ft left` : ''}\n` +
+        `Order: ${orderLine}\n` +
+        `Only the ACTIVE combatant acts. Out-of-turn attempts and overdrafts come back as tool refusals — narrate them as table rulings. When the active PC is done, remind them to End Turn; the enemies take their turns automatically after it.\n\n`;
+    }
     const turnText =
+      combatBlock +
       meanwhileBlock +
       gmBlock +
       canon +
@@ -2255,10 +2320,28 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
         const atkTargetRaw = typeof tc.input.targetId === 'string' ? tc.input.targetId : '';
         const atkMode = (['melee', 'ranged', 'spell'] as const).find((m) => m === tc.input.attack);
         const atkAttacker = combatantId || (typeof tc.input.combatantId === 'string' ? tc.input.combatantId : '') || lastAggressorId;
+        // COMBAT MODE (C1): the swing costs the ACTION at the moment the die is requested — a miss
+        // still spends it (PHB); the refusal is a verdict the DM narrates, never a hung roll.
+        if (state.combat.active && atkTargetRaw && atkAttacker && (atkMode || dc !== undefined)) {
+          const atkCid = engine.findCombatantId(atkAttacker) ?? atkAttacker ?? '';
+          if (atkCid && state.combatants[atkCid]) {
+            const spendV = engine.spendAction(atkCid);
+            if (!spendV.ok) {
+              resolved.push({ toolUseId: tc.id, content: JSON.stringify({ rollRequested: false, blocked: 'action-economy', note: `${spendV.reason} — narrate it and hand the moment on (End Turn advances the round).` }) });
+              continue;
+            }
+          }
+        }
         if (SPATIAL_ON && atkTargetRaw && atkAttacker && (atkMode || dc !== undefined)) {
           const reach = engine.attackReach({ attackerId: atkAttacker, targetId: atkTargetRaw, mode: atkMode ?? 'melee' });
           if (reach.approach) {
             sceneDeltas.push({ op: 'move', id: reach.approach.actorId ?? atkAttacker, to: { col: reach.approach.at.col, row: reach.approach.at.row }, ...(reach.approach.pathCells?.length ? { via: reach.approach.pathCells } : {}) });
+            if (state.combat.active) {
+              const mvCid = engine.findCombatantId(reach.approach.actorId ?? atkAttacker) ?? '';
+              const walked = (reach.approach.pathCells?.length ?? 1) * 5;
+              const left = state.combatants[mvCid]?.actionEconomy?.movementRemainingFt ?? walked;
+              if (mvCid) engine.spendMovement(mvCid, Math.min(walked, left)); // reach capped it by speed; clamp keeps the ledger honest
+            }
           }
           if (!reach.ok) {
             resolved.push({ toolUseId: tc.id, content: JSON.stringify({ rollRequested: false, blocked: 'out-of-reach', distanceFt: reach.distanceFt, requiredFt: reach.requiredFt, note: reach.corrective }) });
@@ -2478,7 +2561,9 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
               if (c) targetId = c.id;
             }
           }
-          const r = engine.applyDamage({ targetId, amount: Number.isFinite(amount) ? amount : 0, type: String(tc.input.type ?? 'bludgeoning') as DamageType });
+          // C0 attribution: WHO dealt it rides into the engine (downedBy → "Pip fells Bandit 1" in the Book).
+          const dmgAttacker = typeof tc.input.attackerId === 'string' && tc.input.attackerId ? (engine.findCombatantId(tc.input.attackerId) ?? tc.input.attackerId) : lastAggressorId;
+          const r = engine.applyDamage({ targetId, amount: Number.isFinite(amount) ? amount : 0, type: String(tc.input.type ?? 'bludgeoning') as DamageType, ...(dmgAttacker ? { attackerId: dmgAttacker } : {}) });
           // The approach line is ENGINE-AUTHORED: the DM must narrate the closing it did not order.
           resolved.push({ toolUseId: tc.id, content: JSON.stringify(reachNote ? { ...r, approach: reachNote } : r) });
         } catch (e) {
@@ -2572,8 +2657,24 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
         } catch (e) {
           resolved.push({ toolUseId: tc.id, content: JSON.stringify({ error: (e as Error).message }) });
         }
+      } else if (tc.name === 'dash') {
+        const dashCid = engine.findCombatantId(String(tc.input.combatantId ?? '')) ?? String(tc.input.combatantId ?? '');
+        const d = engine.dash(dashCid);
+        resolved.push({ toolUseId: tc.id, content: JSON.stringify(d) });
       } else if (tc.name === 'spendResource') {
         try {
+          // COMBAT MODE (C1): casting a levelled spell is the turn's action. Guarded here because the
+          // slot spend is the one deterministic moment every levelled cast passes through.
+          if (state.combat.active && tc.input.level !== undefined) {
+            const castCid = engine.findCombatantId(String(tc.input.combatantId ?? '')) ?? '';
+            if (castCid && state.combatants[castCid]) {
+              const spendV = engine.spendAction(castCid);
+              if (!spendV.ok) {
+                resolved.push({ toolUseId: tc.id, content: JSON.stringify({ error: `${spendV.reason} — the spell waits for next round` }) });
+                continue;
+              }
+            }
+          }
           const r = engine.spendResource({
             combatantId: (engine.findCombatantId(String(tc.input.combatantId ?? '')) ?? String(tc.input.combatantId ?? '')),
             resource: String(tc.input.resource ?? ''),
@@ -2851,7 +2952,26 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
             // the resolved place either way, so "go to the storehouse" narrates arriving AT the storehouse.
             const inMap = map.objects.some((o) => o.id === targetObj!.id);
             const arrivalNote = !inMap ? `arrived at ${targetObj.name ?? targetObj.tag} (its door) — narrate reaching THAT building` : personNote;
+            // COMBAT MODE (C1): a fighter's stride is a budget. Guard the turn, refuse a walk that
+            // cannot fit the remaining feet (straight-line minimum — the cheap certain check), and
+            // bill the actual path after. Non-combatants (fleeing villagers) keep moving freely.
+            const walkCid = engine.findCombatantId(actorObj.id) ?? '';
+            const walkC = state.combat.active ? state.combatants[walkCid] : undefined;
+            if (walkC) {
+              const g = engine.turnGuard(walkCid);
+              if (!g.ok) {
+                resolved.push({ toolUseId: tc.id, content: JSON.stringify({ error: `not ${actorObj.name ?? actorObj.id}'s turn — ${(g as { activeName?: string }).activeName ?? 'another combatant'} is acting` }) });
+                continue;
+              }
+              const minFt = Math.max(Math.abs(targetObj.col - actorObj.col), Math.abs(targetObj.row - actorObj.row)) * (map.grid?.feetPerTile ?? 5);
+              const left = walkC.actionEconomy?.movementRemainingFt ?? 0;
+              if (minFt > left + 5) { // +5: adjacency snap means you stop a cell short of a person
+                resolved.push({ toolUseId: tc.id, content: JSON.stringify({ moved: false, blocked: 'movement', note: `${walkC.name} needs at least ${minFt} ft but has ${left} ft of movement left — Dash trades the action for a fresh round of movement, or close what you can.` }) });
+                continue;
+              }
+            }
             const v = engine.travel({ actorId: actorObj.id, to: inMap ? { id: targetObj.id } : { col: targetObj.col, row: targetObj.row } });
+            if (walkC && v.moved) engine.spendMovement(walkCid, Math.min(v.ft, walkC.actionEconomy?.movementRemainingFt ?? v.ft));
             if (v.at) sceneDeltas.push({ op: 'move', id: actorObj.id, to: { col: v.at.col, row: v.at.row }, ...(v.pathCells?.length ? { via: v.pathCells } : {}) });
             if (v.moved && v.legs?.some((l) => l.swimming)) crossedWater = true; // the verdict swam — bind the prose (below)
             if (v.needsRoll && !roll) {

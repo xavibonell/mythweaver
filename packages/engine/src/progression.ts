@@ -50,3 +50,12 @@ export const hitDieAvg = (size: number): number => Math.floor(size / 2) + 1;
 /** Levels at which most classes gain an Ability Score Improvement / feat. Class-specific extras
  *  (Fighter 6/14, Rogue 10) are deferred — flagged, not auto-applied, so pacing/agency stay the table's. */
 export const ASI_LEVELS: readonly number[] = [4, 8, 12, 16, 19];
+
+/** SRD 5.1 XP value by challenge rating (combat mode C0 — the engine awards, never the LLM). */
+const XP_BY_CR: Record<string, number> = {
+  '0': 10, '0.125': 25, '0.25': 50, '0.5': 100,
+  '1': 200, '2': 450, '3': 700, '4': 1100, '5': 1800, '6': 2300, '7': 2900, '8': 3900,
+  '9': 5000, '10': 5900, '11': 7200, '12': 8400, '13': 10000, '14': 11500, '15': 13000,
+  '16': 15000, '17': 18000, '18': 20000, '19': 22000, '20': 25000,
+};
+export const xpForCr = (cr: number): number => XP_BY_CR[String(cr)] ?? Math.max(10, Math.round(cr * 200));

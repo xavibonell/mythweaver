@@ -41,6 +41,7 @@ import { FakeSceneComposer, type SceneComposer } from '@mythweaver/scene';
 import { ABILITIES, SKILLS, type Ability, type CharacterSheet, type EntityCard, type EstablishScene, type GameState, type PartyMemberRef, type RealizeSceneResult, type SceneDelta, type SceneMap, type SceneProvenance, type SceneRealizeContext, type Skill, type StatBlock } from '@mythweaver/shared';
 import { createHash } from 'node:crypto';
 import { loadItemCatalog, loadScenario, parseScenario, resolveParty } from './content.js';
+import { runEnemyPhase } from './combat-phase.js';
 import { buildExemplarRetriever, type ExemplarRetriever } from './exemplar-corpus.js';
 import { buildRetriever } from './corpus.js';
 import { loadDirectorArchitect, loadDirectorComposer, loadDirectorPlanner, loadPlaybook } from './prompts.js';
@@ -453,7 +454,7 @@ export function createDmLabSession(deps: DmLabDeps, scenarioId: string): DmLabSe
 /** Advance the session by ONE turn (a player line, or a declared/auto roll). Mutates the session. */
 export async function dmLabSubmit(
   session: DmLabSession,
-  input: { say: string; as?: string } | { roll: number; auto?: boolean } | { open: true },
+  input: { say: string; as?: string } | { roll: number; auto?: boolean } | { open: true } | { endTurn: true; as?: string },
 ): Promise<DmLabTurn> {
   const { engine, recorder, composer } = session;
   const sliceStart = recorder.exchanges.length;
@@ -468,6 +469,9 @@ export async function dmLabSubmit(
   } else if ('roll' in input) {
     turnInput = { kind: 'roll', requestId: session.pendingRoll?.id ?? '', total: input.roll };
     label = { speaker: 'roll', text: `🎲 ${input.roll}`, kind: input.auto ? 'auto-roll' : 'roll' };
+  } else if ('endTurn' in input) {
+    turnInput = { kind: 'endTurn', ...(input.as ? { speakerId: input.as } : {}) };
+    label = { speaker: input.as ?? 'player', text: '⏭ end turn', kind: 'message' };
   } else {
     turnInput = { kind: 'message', speakerId: input.as ?? 'player', text: input.say };
     label = { speaker: input.as ?? 'player', text: input.say, kind: 'message' };
@@ -494,6 +498,19 @@ export async function dmLabSubmit(
   // Track which style exemplars fired so the next turns don't repeat them (rolling window of 8).
   if (result.exemplars?.length) {
     session.recentExemplarIds = [...session.recentExemplarIds, ...result.exemplars.map((e) => e.id)].slice(-8);
+  }
+  // COMBAT MODE (C1): when the order lands on a monster and no roll hangs, the world takes its
+  // turns HERE — engine-resolved, one narration call — so a single round-trip returns "your blow
+  // lands, the bandits answer, Elara is up". Never while a roll is pending (a die in the air owns
+  // the table), and never for PCs (the phase acts only for NPCs, by construction).
+  if (!result.rollRequest && engine.getState().combat.active && engine.activeCombatant()?.kind === 'npc') {
+    try {
+      const phase = await runEnemyPhase({ engine, llm: recorder, playbook: session.playbook });
+      if (phase) {
+        result.narration = [result.narration, phase.narration].filter(Boolean).join('\n\n');
+        if (phase.deltas.length) result.deltas = [...(result.deltas ?? []), ...phase.deltas];
+      }
+    } catch { /* the phase must never eat the player's turn — worst case the next input re-runs it */ }
   }
   const latencyMs = Date.now() - startedAt;
   const after = snapshot(engine.getState());

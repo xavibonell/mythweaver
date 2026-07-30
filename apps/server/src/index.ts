@@ -1109,9 +1109,11 @@ function maybeChronicle(sessionId: string, session: DmLabSession): void {
 app.post('/dm/lab/session/:id/turn', async (req, reply) => {
   const session = dmSession(req, reply);
   if (!session) return reply;
-  const body = (req.body ?? {}) as { say?: unknown; as?: unknown; roll?: unknown; auto?: unknown; open?: unknown };
-  let input: { say: string; as?: string } | { roll: number; auto?: boolean } | { open: true };
-  if (body.open === true) {
+  const body = (req.body ?? {}) as { say?: unknown; as?: unknown; roll?: unknown; auto?: unknown; open?: unknown; endTurn?: unknown };
+  let input: { say: string; as?: string } | { roll: number; auto?: boolean } | { open: true } | { endTurn: true; as?: string };
+  if (body.endTurn === true) {
+    input = { endTurn: true, ...(typeof body.as === 'string' && body.as.trim() ? { as: body.as.trim().slice(0, 40) } : {}) };
+  } else if (body.open === true) {
     if (session.turnIndex > 0) return badRequest(reply, 'opening narration is only available at the start of a session');
     input = { open: true };
   } else if (body.auto === true) {
@@ -1141,8 +1143,8 @@ app.post('/dm/lab/session/:id/turn', async (req, reply) => {
       deltas: turn.deltas ?? [],
       rev: session.sceneRev,
     };
-    maybeScribe((req.params as { id: string }).id, session, 'say' in input ? input.say : `rolled ${(input as { roll: number }).roll}`, 'say' in input ? input.as : undefined, turn.narration ?? '');
-    maybeProfile((req.params as { id: string }).id, session, 'say' in input ? input.say : `rolled ${(input as { roll: number }).roll}`, turn.narration ?? '');
+    maybeScribe((req.params as { id: string }).id, session, 'say' in input ? input.say : 'roll' in input ? `rolled ${(input as { roll: number }).roll}` : '(end of turn)', 'say' in input ? input.as : undefined, turn.narration ?? '');
+    maybeProfile((req.params as { id: string }).id, session, 'say' in input ? input.say : 'roll' in input ? `rolled ${(input as { roll: number }).roll}` : '(end of turn)', turn.narration ?? '');
     maybeChronicle((req.params as { id: string }).id, session);
     return { turn, scene, totalCostUsd: session.totalCostUsd, totalLatencyMs: session.totalLatencyMs, pendingRoll: session.pendingRoll ?? null, arc: arcView(session), characters: characterSheets(session) };
   } catch (err) {
@@ -1257,10 +1259,12 @@ app.post('/dm/lab/session/:id/player-turn', async (req, reply) => {
     reply.code(404);
     return { error: 'session not found — start a new one' };
   }
-  const body = (req.body ?? {}) as { say?: unknown; as?: unknown; roll?: unknown; auto?: unknown };
+  const body = (req.body ?? {}) as { say?: unknown; as?: unknown; roll?: unknown; auto?: unknown; endTurn?: unknown };
   // Same intake discipline as the DM route (no `open` — the opening is the DM's to trigger).
-  let input: { say: string; as?: string } | { roll: number; auto?: boolean };
-  if (body.auto === true) {
+  let input: { say: string; as?: string } | { roll: number; auto?: boolean } | { endTurn: true; as?: string };
+  if (body.endTurn === true) {
+    input = { endTurn: true, ...(typeof body.as === 'string' && body.as.trim() ? { as: body.as.trim().slice(0, 40) } : {}) };
+  } else if (body.auto === true) {
     if (!session.pendingRoll) return badRequest(reply, 'no roll is pending to auto-roll');
     input = { roll: autoRollTotal(session.pendingRoll.expr), auto: true };
   } else if (body.roll !== undefined && body.roll !== null && body.roll !== '') {
@@ -1276,8 +1280,8 @@ app.post('/dm/lab/session/:id/player-turn', async (req, reply) => {
   }
   try {
     const turn = await dmLabSubmit(session, input);
-    maybeScribe((req.params as { id: string }).id, session, 'say' in input ? input.say : `rolled ${(input as { roll: number }).roll}`, 'say' in input ? input.as : undefined, turn.narration ?? '');
-    maybeProfile((req.params as { id: string }).id, session, 'say' in input ? input.say : `rolled ${(input as { roll: number }).roll}`, turn.narration ?? '');
+    maybeScribe((req.params as { id: string }).id, session, 'say' in input ? input.say : 'roll' in input ? `rolled ${(input as { roll: number }).roll}` : '(end of turn)', 'say' in input ? input.as : undefined, turn.narration ?? '');
+    maybeProfile((req.params as { id: string }).id, session, 'say' in input ? input.say : 'roll' in input ? `rolled ${(input as { roll: number }).roll}` : '(end of turn)', turn.narration ?? '');
     maybeChronicle((req.params as { id: string }).id, session);
     const st = session.engine.getState();
     const map = st.world?.currentLocationId ? st.world.locations[st.world.currentLocationId] : undefined;

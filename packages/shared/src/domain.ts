@@ -242,6 +242,9 @@ export interface Combatant {
   deathSaves?: { successes: number; failures: number };
   /** Set when a PC fails three death saves. */
   dead?: boolean;
+  /** WHO dropped them (combatant id) — stamped by applyDamage when HP hits 0. Attribution feeds the
+   *  journal ("Pip fells Bandit 1") and the fight summary; XP stays an even party split regardless. */
+  downedBy?: string;
   /** Damage modifiers — engine-owned, copied from the stat block when an npc is spawned (P2). */
   damageResistances?: DamageType[];
   damageImmunities?: DamageType[];

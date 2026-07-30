@@ -38,6 +38,7 @@ import {
   type StatBlock,
 } from '@mythweaver/shared';
 import { rollDice, validateDeclaredRoll, type Rng } from './dice.js';
+import { xpForCr } from './progression.js';
 import { generateStatBlock, type MonsterSpec } from './monster-gen.js';
 import { bumpSpatialVersion, spatialIndex } from './spatial/oracle.js';
 import { deriveMoveCaps, runTravel, swimGateFailure, type TravelIntent, type TravelVerdict } from './spatial/travel.js';
@@ -231,7 +232,7 @@ export class Engine implements EngineTools {
    * soaks temporary HP first, clamps at 0, and marks a creature downed at 0 HP. A hit on an
    * already-dying PC is an automatic death-save failure (three failures = dead).
    */
-  applyDamage(args: { targetId: string; amount: number; type: DamageType }): { remaining: number; downed: boolean } {
+  applyDamage(args: { targetId: string; amount: number; type: DamageType; attackerId?: string }): { remaining: number; downed: boolean } {
     const c = this.state.combatants[args.targetId];
     if (!c) throw new Error(`Unknown combatant: ${args.targetId}`);
     if (c.dead) return { remaining: 0, downed: true };
@@ -264,6 +265,16 @@ export class Engine implements EngineTools {
       c.downed = true;
       if (!c.conditions.includes('unconscious')) c.conditions.push('unconscious');
       if (c.kind === 'pc' && !c.deathSaves) c.deathSaves = { successes: 0, failures: 0 }; // dying: rolls begin
+      // ATTRIBUTION (C0): who felled whom is table history — the Book and the fight summary read it.
+      // XP never does (even split on victory); credit is for the story, not the scoreboard.
+      if (args.attackerId) {
+        // Loose resolve, like every other id the DM hands us ('pc-1', 'Aldric', 'pc:pc-1' all land).
+        const by = this.state.combatants[args.attackerId] ?? this.state.combatants[this.findCombatantId(args.attackerId) ?? ''];
+        c.downedBy = by?.id ?? args.attackerId;
+        if (by && c.kind === 'npc') {
+          this.journal({ kind: 'verdict', subjects: [], text: `${by.name} fells ${c.name}.`, origin: by.id });
+        }
+      }
     }
     this.record(
       'engine',
@@ -368,21 +379,152 @@ export class Engine implements EngineTools {
       .sort((a, b) => b.initiative - a.initiative)
       .map((i) => i.combatantId);
     this.state.combat = { active: true, round: 1, turnIndex: 0, order };
+    // COMBAT MODE (C0): initiative finally MEANS something — seed every fighter's action economy so
+    // the spend/refuse verdicts below have a budget to enforce from the very first turn.
+    for (const id of order) this.refreshEconomy(id);
     this.record('engine', `Combat started (round 1) — order: ${order.join(', ')}`);
   }
 
-  /** Advance to the next combatant; wraps to the next round at the end of the order. */
+  /** The combatant whose turn it is, or undefined outside combat. */
+  activeCombatant(): Combatant | undefined {
+    const cs = this.state.combat;
+    if (!cs.active || !cs.order.length) return undefined;
+    return this.state.combatants[cs.order[cs.turnIndex]!];
+  }
+
+  /** Top up a combatant's per-round budget (turn start / combat start). Speed via the same lookup
+   *  travel uses, so a restrained fighter budgets 0 ft here exactly as the walk gate would rule. */
+  private refreshEconomy(id: string): void {
+    const c = this.state.combatants[id];
+    if (!c) return;
+    c.actionEconomy = { action: true, bonusAction: true, reaction: true, movementRemainingFt: deriveMoveCaps(this.state, id).speedFt };
+  }
+
+  /** Can this combatant take a TURN at all? Dead never; downed monsters are out of the fight;
+   *  downed PCs are dying — their turn exists only for the death save (C3 prompts it; until then
+   *  they are skipped rather than stalling the table with a turn they cannot use). */
+  private canTakeTurn(c: Combatant | undefined): boolean {
+    return !!c && !c.dead && !c.downed;
+  }
+
+  /**
+   * TURN GUARD — the deep defense of combat mode. Every economy-spending mutation asks it first, so
+   * even a confused tool call cannot act out of order (same doctrine as the reach gate: the verdict
+   * is data the DM narrates, never an exception that eats a turn).
+   */
+  turnGuard(combatantId: string): { ok: true } | { ok: false; reason: 'no-combat' | 'not-your-turn'; activeId?: string; activeName?: string; round?: number } {
+    const cs = this.state.combat;
+    if (!cs.active) return { ok: true }; // outside combat there is no order to break
+    const active = this.activeCombatant();
+    if (!active) return { ok: false, reason: 'no-combat' };
+    if (active.id !== combatantId) return { ok: false, reason: 'not-your-turn', activeId: active.id, activeName: active.name, round: cs.round };
+    return { ok: true };
+  }
+
+  /** Spend the active combatant's ACTION (an attack spends it when the roll is REQUESTED — a miss
+   *  still costs the swing, per the rules). Refusals are narratable verdicts. */
+  spendAction(combatantId: string): { ok: true } | { ok: false; reason: string } {
+    const guard = this.turnGuard(combatantId);
+    if (!guard.ok) return { ok: false, reason: `not your turn — ${guard.activeName ?? 'someone else'} is acting` };
+    if (!this.state.combat.active) return { ok: true }; // no economy outside combat
+    const c = this.state.combatants[combatantId];
+    if (!c) return { ok: false, reason: `unknown combatant: ${combatantId}` };
+    const ae = (c.actionEconomy ??= { action: true, bonusAction: true, reaction: true, movementRemainingFt: deriveMoveCaps(this.state, combatantId).speedFt });
+    if (!ae.action) return { ok: false, reason: `${c.name} has already used their action this turn` };
+    ae.action = false;
+    this.record('engine', `${c.name} spends their action`, { combatantId, economy: { ...ae } });
+    return { ok: true };
+  }
+
+  spendBonusAction(combatantId: string): { ok: true } | { ok: false; reason: string } {
+    const guard = this.turnGuard(combatantId);
+    if (!guard.ok) return { ok: false, reason: `not your turn — ${guard.activeName ?? 'someone else'} is acting` };
+    if (!this.state.combat.active) return { ok: true };
+    const c = this.state.combatants[combatantId];
+    if (!c) return { ok: false, reason: `unknown combatant: ${combatantId}` };
+    const ae = (c.actionEconomy ??= { action: true, bonusAction: true, reaction: true, movementRemainingFt: deriveMoveCaps(this.state, combatantId).speedFt });
+    if (!ae.bonusAction) return { ok: false, reason: `${c.name} has already used their bonus action this turn` };
+    ae.bonusAction = false;
+    return { ok: true };
+  }
+
+  /** Spend movement feet. Callers ask BEFORE walking (budget check) and confirm AFTER with the real
+   *  path cost, so the clamp lives with the path, not here. */
+  spendMovement(combatantId: string, feet: number): { ok: true; remainingFt: number } | { ok: false; reason: string; remainingFt: number } {
+    const guard = this.turnGuard(combatantId);
+    if (!guard.ok) return { ok: false, reason: `not your turn — ${guard.activeName ?? 'someone else'} is acting`, remainingFt: 0 };
+    const c = this.state.combatants[combatantId];
+    if (!c) return { ok: false, reason: `unknown combatant: ${combatantId}`, remainingFt: 0 };
+    if (!this.state.combat.active) return { ok: true, remainingFt: Infinity };
+    const ae = (c.actionEconomy ??= { action: true, bonusAction: true, reaction: true, movementRemainingFt: deriveMoveCaps(this.state, combatantId).speedFt });
+    if (feet > ae.movementRemainingFt) {
+      return { ok: false, reason: `${c.name} needs ${feet} ft but has ${ae.movementRemainingFt} ft of movement left`, remainingFt: ae.movementRemainingFt };
+    }
+    ae.movementRemainingFt -= feet;
+    return { ok: true, remainingFt: ae.movementRemainingFt };
+  }
+
+  /** Dash: trade the action for a fresh helping of movement (PHB p.192). */
+  dash(combatantId: string): { ok: true; movementRemainingFt: number } | { ok: false; reason: string } {
+    const spent = this.spendAction(combatantId);
+    if (!spent.ok) return spent;
+    const c = this.state.combatants[combatantId]!;
+    const speed = deriveMoveCaps(this.state, combatantId).speedFt;
+    c.actionEconomy!.movementRemainingFt += speed;
+    this.record('engine', `${c.name} dashes (+${speed} ft movement)`, { combatantId });
+    return { ok: true, movementRemainingFt: c.actionEconomy!.movementRemainingFt };
+  }
+
+  /**
+   * End the active combatant's turn. Explicit, never inferred: bonus actions and parting words exist,
+   * so nothing auto-ends a turn when the pips run out. A pending roll blocks it — no one leaves a die
+   * in the air.
+   */
+  endTurn(combatantId: string): { ok: true; activeCombatantId: string; round: number } | { ok: false; reason: string } {
+    const guard = this.turnGuard(combatantId);
+    if (!this.state.combat.active) return { ok: false, reason: 'no combat is running' };
+    if (!guard.ok) return { ok: false, reason: `not your turn — ${(guard as { activeName?: string }).activeName ?? 'someone else'} is acting` };
+    if (this.state.pendingTurn) return { ok: false, reason: 'a roll is still pending — declare it first' };
+    const next = this.nextTurn();
+    return { ok: true, ...next };
+  }
+
+  /** Advance to the next combatant who can actually act; wraps rounds; refreshes the new active's
+   *  economy. Skips the dead and the downed (a dying PC's save prompt is C3). If a full lap finds
+   *  nobody actable, the fight is over by definition. */
   nextTurn(): { activeCombatantId: string; round: number } {
     const cs = this.state.combat;
     if (!cs.active || cs.order.length === 0) throw new Error('No active combat to advance.');
-    cs.turnIndex += 1;
-    if (cs.turnIndex >= cs.order.length) {
-      cs.turnIndex = 0;
-      cs.round += 1;
+    for (let hops = 0; hops < cs.order.length + 1; hops++) {
+      cs.turnIndex += 1;
+      if (cs.turnIndex >= cs.order.length) {
+        cs.turnIndex = 0;
+        cs.round += 1;
+      }
+      const c = this.state.combatants[cs.order[cs.turnIndex]!];
+      if (this.canTakeTurn(c)) {
+        this.refreshEconomy(c!.id);
+        this.record('engine', `Round ${cs.round} — active: ${c!.name}`, { round: cs.round, activeCombatantId: c!.id });
+        return { activeCombatantId: c!.id, round: cs.round };
+      }
     }
-    const activeCombatantId = cs.order[cs.turnIndex]!;
-    this.record('engine', `Round ${cs.round} — active: ${activeCombatantId}`, { round: cs.round, activeCombatantId });
-    return { activeCombatantId, round: cs.round };
+    // Nobody left who can act — the fight has resolved itself.
+    this.endCombat();
+    return { activeCombatantId: '', round: cs.round };
+  }
+
+  /** Drop a combatant from the order (fled, banished) without ending the fight. Keeps the index
+   *  pointing at the same ACTIVE combatant when someone earlier in the order leaves. */
+  removeFromInitiative(combatantId: string): void {
+    const cs = this.state.combat;
+    if (!cs.active) return;
+    const idx = cs.order.indexOf(combatantId);
+    if (idx === -1) return;
+    cs.order.splice(idx, 1);
+    if (cs.order.length === 0) { this.endCombat(); return; }
+    if (idx < cs.turnIndex) cs.turnIndex -= 1;
+    if (cs.turnIndex >= cs.order.length) cs.turnIndex = 0;
+    this.record('engine', `${combatantId} leaves the fight`, { combatantId });
   }
 
   /**
@@ -390,7 +532,43 @@ export class Engine implements EngineTools {
    * authoritative state stops asserting phantom combat with dead foes "present" (P0 state-truth).
    * PCs persist. Idempotent.
    */
-  endCombat(): { despawned: string[] } {
+  endCombat(): { despawned: string[]; xpAwarded?: number; bodies?: string[] } {
+    const wasActive = this.state.combat.active;
+    // VICTORY AFTERMATH (C0) — before the field clears, the fight pays out. Victory = combat was live
+    // and at least one PC is not dead (a TPK pays nothing; the Director owns that aftermath).
+    const npcs = Object.values(this.state.combatants).filter((c) => c.kind === 'npc');
+    const fallen = npcs.filter((c) => c.downed || c.dead);
+    const pcsAlive = Object.values(this.state.combatants).filter((c) => c.kind === 'pc' && !c.dead);
+    let xpAwarded: number | undefined;
+    const bodies: string[] = [];
+    if (wasActive && fallen.length && pcsAlive.length) {
+      // XP: SRD value by CR, split EVENLY across the party (per-kill credit breeds kill-stealing and
+      // punishes the healer). Dying-but-alive PCs earn their share — they were in the fight.
+      const total = fallen.reduce((n, c) => n + xpForCr(this.state.bestiary?.[c.refId]?.challengeRating ?? 0), 0);
+      xpAwarded = Math.max(1, Math.floor(total / pcsAlive.length));
+      for (const pc of pcsAlive) {
+        try { this.awardXp({ combatantId: pc.id, amount: xpAwarded }); } catch { /* progression home may be absent in bare fixtures */ }
+      }
+      // LOOT: every fallen enemy leaves a BODY — a discovered POI at its last cell, so the whole
+      // search → Findings → Book pipeline works on corpses with no new machinery. Coins by CR; item
+      // refs need catalog-valid ids, so gear stays narrative until statblocks carry loot tables.
+      const map = this.state.world?.currentLocationId ? this.state.world.locations[this.state.world.currentLocationId] : undefined;
+      for (const c of fallen) {
+        try {
+          const tok = map?.objects.find((o) => o.id === c.id);
+          const cr = this.state.bestiary?.[c.refId]?.challengeRating ?? 0;
+          const gold = Math.max(1, Math.round(cr * 20) + this.rollDice('1d6'));
+          const poiId = `poi:body-${c.id.replace(/[^a-z0-9-]/gi, '')}`;
+          if (!this.state.pois?.[poiId]) {
+            this.placePoi({ id: poiId, kind: 'container', look: `${c.name}'s body`, hidden: false, contents: { gold }, ...(tok ? { anchor: `${tok.col},${tok.row}` } : {}) });
+            this.discoverPoi({ id: poiId, by: 'the fight ending' });
+            bodies.push(poiId);
+          }
+        } catch { /* a body that fails to place must not eat the victory */ }
+      }
+      this.journal({ kind: 'verdict', subjects: [], text: `The fight is over. ${fallen.length === 1 ? 'The enemy lies' : 'The enemies lie'} where ${fallen.length === 1 ? 'it' : 'they'} fell.` });
+      this.record('engine', `Victory — ${total} XP (${xpAwarded} each to ${pcsAlive.length}); ${bodies.length} bod${bodies.length === 1 ? 'y' : 'ies'} lootable`, { xpAwarded, bodies });
+    }
     const despawned: string[] = [];
     for (const [id, c] of Object.entries(this.state.combatants)) {
       if (c.kind === 'npc') {
@@ -398,12 +576,11 @@ export class Engine implements EngineTools {
         despawned.push(id);
       }
     }
-    const wasActive = this.state.combat.active;
     this.state.combat = { active: false, round: 0, turnIndex: 0, order: [] };
     if (wasActive || despawned.length) {
       this.record('engine', `Combat ended${despawned.length ? ` — ${despawned.length} foe(s) cleared from the field` : ''}`, { despawned });
     }
-    return { despawned };
+    return { despawned, ...(xpAwarded !== undefined ? { xpAwarded } : {}), ...(bodies.length ? { bodies } : {}) };
   }
 
   /** Auto-resolve a fight the moment no conscious enemy (npc) remains. */
