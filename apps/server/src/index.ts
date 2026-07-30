@@ -21,7 +21,7 @@ import {
   saveDirectorComposer,
   loadSceneArchitect,
 } from './prompts.js';
-import { playerArcView, playerBook, playerCharacters, playerSceneMap, playerTurn, projectDeltas } from './player-view.js';
+import { playerArcView, playerBook, playerCharacters, playerCombatView, playerSceneMap, playerTurn, projectDeltas } from './player-view.js';
 import { generatePrologue } from './prologue.js';
 import { generateChronicle } from './chronicler.js';
 import { summarizeBeat } from './scribe.js';
@@ -1246,6 +1246,7 @@ app.get('/dm/lab/session/:id/player-view', async (req, reply) => {
     characters: playerCharacters(characterSheets(session) as unknown as Record<string, unknown>[]),
     scene: { ...(map ? { map: playerSceneMap(map) } : {}), rev: session.sceneRev },
     book: playerBook(st), // the Book: chapters, people met, things found
+    combat: playerCombatView(st), // C2: round/order/health WORDS + the active PC's own pips & range
     // The poll's change-stamp, echoed here so the client stores the SAME number /rev reports. It must
     // never be recomputed from Book rows — prologue and chronicle are journal events that render as
     // prose, not rows, and a recount that missed them re-hydrated the table every 2s, forever.
@@ -1297,6 +1298,7 @@ app.post('/dm/lab/session/:id/player-turn', async (req, reply) => {
       arc: playerArcView(st),
       characters: playerCharacters(characterSheets(session) as unknown as Record<string, unknown>[]),
       book: playerBook(st),
+      combat: playerCombatView(st),
       journalLen: st.journal?.length ?? 0, // same stamp /rev reports — never recount from Book rows
     };
   } catch (err) {

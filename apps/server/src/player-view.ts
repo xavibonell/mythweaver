@@ -14,8 +14,8 @@
  * secret-scan in player-view.test.ts.
  */
 
-import type { Chapter, CharacterSheet, Dossier, GameState, ItemDef, JournalEvent, MapObject, SceneDelta, SceneMap } from '@mythweaver/shared';
-import { spatialIndex, whereIs } from '@mythweaver/engine';
+import type { Chapter, CharacterSheet, Combatant, Dossier, GameState, ItemDef, JournalEvent, MapObject, SceneDelta, SceneMap } from '@mythweaver/shared';
+import { deriveMoveCaps, spatialIndex, whereIs } from '@mythweaver/engine';
 
 /** Engine-owned map state that must never reach a player (reaction/goal bookkeeping, sticky refusals). */
 const SECRET_STATE_KEY = /^(rx:|cmd-refused:)/;
@@ -142,6 +142,99 @@ export function playerTurn(turn: Record<string, unknown>, map: SceneMap | undefi
 }
 
 /** Party sheets with the one leak the DM serializer carries: an unidentified item's true name + magic flag. */
+/**
+ * COMBAT VIEW (docs/COMBAT-MODE.md C2) — the fight as the table may see it.
+ *
+ * Enemy health ships as a WORD, never a number: exact monster HP is authored truth the players have
+ * not earned (the same law as every other lane here), and "how hurt is it?" is better D&D as table
+ * texture anyway. The party's own numbers live on the dock; the rail speaks in states for everyone.
+ * The ACTIVE PC also gets their action-economy pips and the cells their remaining movement can reach
+ * (a plain walkable BFS — difficult terrain refinement can come with the oracle later).
+ */
+export interface PlayerCombatView {
+  round: number;
+  activeId: string | null;
+  order: { id: string; name: string; kind: 'pc' | 'npc'; healthWord: string; down: boolean; isActive: boolean }[];
+  /** Present only while a PC is active — their own turn budget (their knowledge by definition). */
+  active?: { id: string; name: string; action: boolean; bonusAction: boolean; movementRemainingFt: number };
+  /** Cells the active PC can still reach this turn (movement tint). Empty when not a PC's turn. */
+  moveRange?: { col: number; row: number }[];
+}
+
+const healthWord = (c: Combatant): string => {
+  if (c.dead) return 'dead';
+  if (c.downed) return 'down';
+  const r = c.maxHitPoints > 0 ? c.currentHitPoints / c.maxHitPoints : 1;
+  if (r >= 1) return 'unharmed';
+  if (r >= 0.5) return 'wounded';
+  if (r >= 0.25) return 'bloodied';
+  return 'near death';
+};
+
+/** 8-direction BFS over walkable ground within the movement budget (Chebyshev grid — a diagonal step
+ *  is one cell, matching the engine's distance rule). Occupied cells stay tintable: squeezing past is
+ *  the walk gate's ruling at travel time, not the preview's. */
+function reachableCells(map: SceneMap, from: { col: number; row: number }, budgetFt: number): { col: number; row: number }[] {
+  const feet = map.grid?.feetPerTile ?? 5;
+  const steps = Math.floor(budgetFt / feet);
+  if (steps <= 0) return [];
+  const { cols, rows } = map.grid;
+  const seen = new Set<number>([from.row * cols + from.col]);
+  let frontier = [from];
+  const out: { col: number; row: number }[] = [];
+  for (let d = 0; d < steps && frontier.length; d++) {
+    const next: { col: number; row: number }[] = [];
+    for (const cell of frontier) {
+      for (let dc = -1; dc <= 1; dc++) for (let dr = -1; dr <= 1; dr++) {
+        if (!dc && !dr) continue;
+        const col = cell.col + dc, row = cell.row + dr;
+        if (col < 0 || col >= cols || row < 0 || row >= rows) continue;
+        const k = row * cols + col;
+        if (seen.has(k) || !map.walkable?.[row]?.[col]) continue;
+        seen.add(k);
+        next.push({ col, row });
+        out.push({ col, row });
+      }
+    }
+    frontier = next;
+  }
+  return out;
+}
+
+export function playerCombatView(state: GameState): PlayerCombatView | null {
+  const cs = state.combat;
+  if (!cs?.active || !cs.order.length) return null;
+  const activeId = cs.order[cs.turnIndex] ?? null;
+  const order = cs.order
+    .map((id) => state.combatants[id])
+    .filter((c): c is Combatant => !!c)
+    .map((c) => ({
+      id: c.id,
+      name: c.name,
+      kind: c.kind,
+      healthWord: healthWord(c),
+      down: !!(c.downed || c.dead),
+      isActive: c.id === activeId,
+    }));
+  const view: PlayerCombatView = { round: cs.round, activeId, order };
+  const active = activeId ? state.combatants[activeId] : undefined;
+  if (active?.kind === 'pc') {
+    // A save frozen before the economy existed has no budget fields yet — an untouched turn IS the
+    // full budget, so derive exactly what refreshEconomy would seed rather than hiding the pips.
+    const ae = active.actionEconomy ?? { action: true, bonusAction: true, reaction: true, movementRemainingFt: deriveMoveCaps(state, active.id).speedFt };
+    view.active = {
+      id: active.id, name: active.name,
+      action: ae.action,
+      bonusAction: ae.bonusAction,
+      movementRemainingFt: ae.movementRemainingFt,
+    };
+    const map = state.world?.currentLocationId ? state.world.locations[state.world.currentLocationId] : undefined;
+    const tok = map?.objects.find((o) => o.id === active.id);
+    if (map && tok) view.moveRange = reachableCells(map, { col: tok.col, row: tok.row }, ae.movementRemainingFt);
+  }
+  return view;
+}
+
 export function playerCharacters(characters: Record<string, unknown>[]): Record<string, unknown>[] {
   return characters.map((c) => {
     const items = (c.items as { name?: string; category?: string; magic?: boolean; identified?: boolean }[] | undefined) ?? undefined;

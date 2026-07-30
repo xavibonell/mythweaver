@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { GameState, SceneDelta, SceneMap } from '@mythweaver/shared';
-import { maskItem, playerArcView, playerBook, playerCharacters, playerSceneMap, playerTurn, projectDeltas } from './player-view.js';
+import { maskItem, playerArcView, playerBook, playerCharacters, playerCombatView, playerSceneMap, playerTurn, projectDeltas } from './player-view.js';
 
 /**
  * THE SECRET SCAN — the permanent guard behind the Player Interface (docs/PLAYER-INTERFACE.md P1).
@@ -322,5 +322,52 @@ describe('playerBook — the entry is a SHEET of what we know, not a replay (B2/
     const kinds = b.chapters.flatMap((c) => c.events).map((e) => e.kind);
     expect(kinds).not.toContain('insight'); // the sheet is the payload, not a row
     expect(kinds).not.toContain('met');
+  });
+});
+
+describe('playerCombatView — the fight in words, never enemy numbers (C2)', () => {
+  const fightState = (): GameState => ({
+    currentSceneId: 'scene:b1',
+    flags: {}, ledger: { entities: {}, facts: [], plants: {} },
+    combat: { active: true, round: 2, turnIndex: 0, order: ['pc:a', 'npc:b1', 'npc:b2'] },
+    combatants: {
+      'pc:a': { id: 'pc:a', name: 'Aldric', kind: 'pc', refId: 'a', currentHitPoints: 12, maxHitPoints: 12, temporaryHitPoints: 0, armorClass: 16, conditions: [], actionEconomy: { action: true, bonusAction: false, reaction: true, movementRemainingFt: 15 } },
+      'npc:b1': { id: 'npc:b1', name: 'Bandit 1', kind: 'npc', refId: 'bandit', currentHitPoints: 5, maxHitPoints: 11, temporaryHitPoints: 0, armorClass: 12, conditions: [] },
+      'npc:b2': { id: 'npc:b2', name: 'Bandit 2', kind: 'npc', refId: 'bandit', currentHitPoints: 2, maxHitPoints: 11, temporaryHitPoints: 0, armorClass: 12, conditions: [], downed: true },
+    },
+    world: { currentLocationId: 'loc:green', locations: { 'loc:green': fixtureMap() }, links: [] },
+  } as unknown as GameState);
+
+  it('ships health WORDS for enemies and never a hit-point number', () => {
+    const st = fightState();
+    (st.world!.locations['loc:green']!.objects as { id: string; col: number; row: number }[]).push({ id: 'pc:a', col: 4, row: 4 } as never);
+    const v = playerCombatView(st)!;
+    expect(v.order.map((o: { healthWord: string }) => o.healthWord)).toEqual(['unharmed', 'bloodied', 'down']);
+    const enemyEntries = v.order.filter((o: { kind: string }) => o.kind === 'npc');
+    for (const e of enemyEntries) {
+      expect(Object.keys(e).sort()).toEqual(['down', 'healthWord', 'id', 'isActive', 'kind', 'name']);
+    }
+    expect(JSON.stringify(v)).not.toMatch(/HitPoints|"hp"/);
+  });
+
+  it('the ACTIVE PC gets their own pips and a movement range bounded by remaining feet', () => {
+    const st = fightState();
+    (st.world!.locations['loc:green']!.objects as { id: string; col: number; row: number }[]).push({ id: 'pc:a', col: 4, row: 4 } as never);
+    const v = playerCombatView(st)!;
+    expect(v.active).toMatchObject({ name: 'Aldric', action: true, bonusAction: false, movementRemainingFt: 15 });
+    expect(v.moveRange!.length).toBeGreaterThan(0);
+    for (const c of v.moveRange!) {
+      expect(Math.max(Math.abs(c.col - 4), Math.abs(c.row - 4))).toBeLessThanOrEqual(3); // 15 ft = 3 cells
+    }
+  });
+
+  it('no pips or range when an NPC is active; null outside combat', () => {
+    const st = fightState();
+    (st.combat as { turnIndex: number }).turnIndex = 1; // Bandit 1's turn
+    const v = playerCombatView(st)!;
+    expect(v.active).toBeUndefined();
+    expect(v.moveRange).toBeUndefined();
+    (st.combat as { active: boolean }).active = false;
+    expect(playerCombatView(st)).toBeNull();
   });
 });

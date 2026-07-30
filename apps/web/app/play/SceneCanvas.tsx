@@ -224,6 +224,42 @@ function identifyLabel(o: { name?: string; tag: string; role?: string }): string
  *  name). Pings pulse IN PLACE — no camera move. (An earlier "glance at the first off-frame mention"
  *  kept yanking the camera to a distant duplicate the narration didn't really point at — e.g. a second
  *  "rope" prop across the map — so it was removed; the focus-framing already keeps the subject in view.) */
+/**
+ * COMBAT OVERLAY (docs/COMBAT-MODE.md C2) — the grid the fight stands on, the ground the active PC
+ * can still reach, and a steady pulse on whoever is acting. All engine truth: the range cells come
+ * from the server's BFS over remaining movement, never a client guess. Rebuilt whole per turn-change
+ * (cheap: one Graphics + one tween), cleared whole when combat ends.
+ */
+function drawCombatOverlay(scene: any, opts: { on: boolean; cells?: { col: number; row: number }[] | null; activeId?: string | null }): void {
+  // clear previous
+  if (scene.combatGfx) { scene.combatGfx.destroy(); scene.combatGfx = null; }
+  if (scene.combatPulse) { scene.combatPulse.stop(); scene.combatPulse = null; }
+  if (scene.combatRing) { scene.combatRing.destroy(); scene.combatRing = null; }
+  const data = scene.lastData;
+  if (!opts.on || !data) return;
+  const g = scene.add.graphics().setDepth(5000); // above terrain + tints, below DOM labels
+  scene.combatGfx = g;
+  const cols = data.grid?.cols ?? 0, rows = data.grid?.rows ?? 0;
+  // the grid, whisper-quiet — combat legibility without turning the forest into graph paper
+  g.lineStyle(1, 0xc9a227, 0.10);
+  for (let c = 0; c <= cols; c++) g.lineBetween(c * TILE, 0, c * TILE, rows * TILE);
+  for (let r = 0; r <= rows; r++) g.lineBetween(0, r * TILE, cols * TILE, r * TILE);
+  // reachable ground for the active PC
+  for (const cell of opts.cells ?? []) {
+    g.fillStyle(0xc9a227, 0.16);
+    g.fillRect(cell.col * TILE + 1, cell.row * TILE + 1, TILE - 2, TILE - 2);
+    g.lineStyle(1, 0xc9a227, 0.35);
+    g.strokeRect(cell.col * TILE + 0.5, cell.row * TILE + 0.5, TILE - 1, TILE - 1);
+  }
+  // the actor whose moment it is — a ring that breathes instead of the pings' one-shot flash
+  const a = opts.activeId ? scene.actorObjs?.get(opts.activeId) : null;
+  if (a) {
+    const ring = scene.add.ellipse(a.container.x, a.container.y, TILE * 1.35, TILE * 0.66).setStrokeStyle(2.5, 0xc9a227, 0.9).setDepth(a.container.depth - 0.01);
+    scene.combatRing = ring;
+    scene.combatPulse = scene.tweens.add({ targets: ring, scaleX: 1.18, scaleY: 1.18, alpha: 0.45, duration: 650, yoyo: true, repeat: -1 });
+  }
+}
+
 function showStoryPings(scene: any, ids: string[]): void {
   const data = scene.lastData;
   if (!data || !ids?.length) return;
@@ -717,7 +753,7 @@ interface Bridge {
  *  PCs + DM-named NPCs. Wins over freeCamera.
  *  INCREMENTAL updates: bump `deltaNonce` with a fresh `deltas` array to tween tokens (move/spawn/
  *  reveal/…) without a full rebuild — pass a NEW `data` reference only when the location changes. */
-export default function SceneCanvas({ data, freeCamera = false, playerView = false, fitNonce = 0, showRoofs = true, deltas = null, deltaNonce = 0, pings = null, pingNonce = 0, onInspect }: { data: any; freeCamera?: boolean; playerView?: boolean; fitNonce?: number; showRoofs?: boolean; deltas?: any[] | null; deltaNonce?: number; pings?: string[] | null; pingNonce?: number; onInspect?: (id: string) => void }) {
+export default function SceneCanvas({ data, freeCamera = false, playerView = false, fitNonce = 0, showRoofs = true, deltas = null, deltaNonce = 0, pings = null, pingNonce = 0, onInspect, combatActive = false, activeTokenId = null, rangeCells = null, combatKey = '' }: { data: any; freeCamera?: boolean; playerView?: boolean; fitNonce?: number; showRoofs?: boolean; deltas?: any[] | null; deltaNonce?: number; pings?: string[] | null; pingNonce?: number; onInspect?: (id: string) => void; combatActive?: boolean; activeTokenId?: string | null; rangeCells?: { col: number; row: number }[] | null; combatKey?: string }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const bridgeRef = useRef<Bridge>({ scene: null, pending: null, game: null });
 
@@ -831,6 +867,19 @@ export default function SceneCanvas({ data, freeCamera = false, playerView = fal
   useEffect(() => {
     if (deltaNonce && deltas?.length) bridgeRef.current.scene?.applyDeltas?.(deltas);
   }, [deltaNonce]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // COMBAT OVERLAY: grid + movement range + active-turn pulse. Keyed on combatKey (activeId +
+  // remaining feet) so a spent stride retints without a full re-render; retried briefly because the
+  // scene builds async and a poll can land before the bridge does.
+  useEffect(() => {
+    let tries = 0;
+    const apply = () => {
+      const sc = bridgeRef.current.scene;
+      if (!sc || !sc.lastData) { if (tries++ < 20) setTimeout(apply, 300); return; }
+      drawCombatOverlay(sc, { on: combatActive, cells: rangeCells, activeId: activeTokenId });
+    };
+    apply();
+  }, [combatActive, combatKey, data]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // STORY PINGS: pulse+label the objects the narration just mentioned (bump pingNonce per turn).
   useEffect(() => {

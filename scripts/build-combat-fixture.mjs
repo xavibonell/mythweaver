@@ -157,6 +157,7 @@ function audit(state) {
   if (placed.length !== foes.length) gaps.push(`${foes.length - placed.length} enemy combatant(s) have NO map token (invisible to the table, unreachable by the reach gate)`);
   const order = state.combat?.order ?? [];
   if (!order.length) gaps.push('combat not started (no initiative order)');
+  if (state.pendingTurn) gaps.push('frozen MID-ROLL — a die nobody can declare blocks End Turn forever (resolve or drop the roll before freezing)');
   const dists = placed.map((c) => {
     const t = tokenFor(c);
     return { name: c.name, hp: `${c.currentHitPoints}/${c.maxHitPoints}`, ac: c.armorClass, ft: Math.min(...pcs.map((p) => ft(p, t))) };

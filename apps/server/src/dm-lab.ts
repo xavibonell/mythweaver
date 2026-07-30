@@ -331,6 +331,13 @@ export function createDmLabSession(deps: DmLabDeps, scenarioId: string): DmLabSe
   // scene the DM invents uses the $0 deterministic composer; the frozen opening is reused verbatim.
   if (deps.frozenState) {
     const state = deps.frozenState;
+    // A freeze captured mid-suspension carries a pendingTurn the NEW session never asked for — the
+    // roll bar isn't seeded from it, so nobody can ever declare that die, and (C0) endTurn correctly
+    // refuses forever. A fresh table starts with no die in the air; the stale one is dropped, logged.
+    if (state.pendingTurn) {
+      console.warn(`frozen session carried a stale pendingTurn (${state.pendingTurn.rollReason ?? state.pendingTurn.rollRequestId}) — cleared on load`);
+      delete state.pendingTurn;
+    }
     const engine = new Engine(state);
     try {
       engine.sanitizePartyStaging(); // a bad freeze can never present an indoor/wet/scattered party

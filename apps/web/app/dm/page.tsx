@@ -17,6 +17,7 @@ import SceneCanvas from '../play/SceneCanvas';
 import SheetModal from './SheetModal';
 import PartyDock from './PartyDock';
 import BookDrawer from './BookDrawer';
+import CombatRail from './CombatRail';
 import { loadAssetLibrary } from '../play/manifest';
 
 const SERVER = process.env.NEXT_PUBLIC_SERVER_URL ?? 'http://localhost:6984';
@@ -89,6 +90,9 @@ export default function DmLiveTable() {
   const [book, setBook] = useState<any>(null); // the Book: chapters, people met, findings (P3/P4)
   const [dossierId, setDossierId] = useState<string | null>(null); // an open NPC entry
   const [assetsRev, setAssetsRev] = useState(0); // bumped once the sprite library lands → portraits paint
+  const [combat, setCombat] = useState<any>(null); // C2: round/order/active pips/move range (server truth)
+  const [turnBanner, setTurnBanner] = useState<string | null>(null); // "Round 2 — Elara" toast
+  const lastActiveRef = useRef<string | null>(null);
   const sceneRev = useRef(0);
   const journalLenRef = useRef(0);
   const logRef = useRef<HTMLDivElement>(null);
@@ -162,7 +166,7 @@ export default function DmLiveTable() {
    *  turn counter, party HP, arc and cost all froze at join time too. */
   function hydrate(v: any, opts: { fresh?: boolean } = {}) {
     setView(v);
-    if (opts.fresh) setSpeaker(v.party?.[0]?.name ?? 'player');
+    if (opts.fresh) setSpeaker(v.combat?.active?.name ?? v.party?.[0]?.name ?? 'player');
     setCharacters(v.characters ?? []);
     setArc(v.arc ?? null);
     setBook(v.book ?? null);
@@ -173,6 +177,7 @@ export default function DmLiveTable() {
     // prose, not rows, so a recount undercounts forever and the poll re-hydrates every 2s for nothing.
     journalLenRef.current = v.journalLen ?? (v.book?.chapters ?? []).reduce((n: number, c: any) => n + (c.events?.length ?? 0), 0);
     setPendingRoll(v.pendingRoll ?? null);
+    applyCombat(v.combat);
     sceneRev.current = v.scene?.rev ?? 0;
     if (v.scene?.map) setSceneData(v.scene.map);
     // Rebuild the transcript from the session's rolling recent lines.
@@ -186,6 +191,21 @@ export default function DmLiveTable() {
     if (opts.fresh && (v.turnIndex ?? 0) === 0 && (v.book?.prologue || v.arc?.premise || v.arc?.goal)) {
       setPrologue({ premise: v.book?.prologue ?? v.arc?.premise ?? '', goal: v.arc?.goal ?? '' });
     }
+  }
+
+  /** Adopt the server's combat view: rail data, banner on turn change, speaker auto-follow.
+   *  The dropdown snaps to whoever the engine says is acting — one shared screen, no dropdown churn —
+   *  but stays editable (an out-of-turn pick just earns the instant, free refusal). */
+  function applyCombat(c: any) {
+    setCombat(c ?? null);
+    const activeId = c?.activeId ?? null;
+    if (activeId && activeId !== lastActiveRef.current) {
+      const activeEntry = (c.order ?? []).find((o: any) => o.isActive);
+      if (activeEntry) setTurnBanner(`Round ${c.round} — ${activeEntry.name}`);
+      setTimeout(() => setTurnBanner(null), 1800);
+      if (c.active?.name) setSpeaker(c.active.name);
+    }
+    lastActiveRef.current = activeId;
   }
 
   function applyScene(scene: any) {
@@ -216,6 +236,7 @@ export default function DmLiveTable() {
       if (t.kind !== 'message' && !echo) setLog((l) => [...l, { who: 'roll', text: t.input }]);
       setLog((l) => [...l, { who: 'Dungeon Master', text: t.narration || '(awaiting your roll)', dm: true, turn: t }]);
       setPendingRoll(d.pendingRoll ?? null);
+      applyCombat(d.combat);
       setCharacters(d.characters ?? []);
       if (d.arc) setArc(d.arc);
       // The Book is always REPLACED by the authoritative array, never appended to — otherwise a poll
@@ -280,6 +301,8 @@ export default function DmLiveTable() {
             stays available on /play for the scene track. */}
         <SceneCanvas
           data={sceneData} playerView showRoofs={showRoofs} deltas={deltas} deltaNonce={deltaNonce} pings={pings} pingNonce={pingNonce}
+          combatActive={!!combat} activeTokenId={combat?.activeId ?? null} rangeCells={combat?.moveRange ?? null}
+          combatKey={`${combat?.activeId ?? ''}:${combat?.active?.movementRemainingFt ?? ''}`}
           // Click a token: a PC opens their sheet, anyone the Book knows opens their entry.
           onInspect={(id: string) => {
             if (characters.some((c: any) => (c.id ?? c.name) === id)) { setSheetId(id); return; }
@@ -292,6 +315,13 @@ export default function DmLiveTable() {
         </div>
         {/* The party, ambient over the map — click a chip for the full sheet (P2). */}
         <PartyDock party={characters} onOpen={(id) => setSheetId(id)} />
+        {/* COMBAT (C2): the initiative rail — order, active glow, health words. */}
+        <CombatRail combat={combat} mapObjects={sceneData?.objects ?? []} />
+        {turnBanner && (
+          <div style={{ position: 'absolute', top: 64, left: '50%', transform: 'translateX(-50%)', zIndex: 26, background: 'rgba(12,14,19,0.92)', border: '1px solid #c9a227', color: '#e8d9a0', borderRadius: 8, padding: '6px 18px', fontFamily: 'ui-serif, Georgia, serif', fontSize: 15, pointerEvents: 'none' }}>
+            {turnBanner}
+          </div>
+        )}
         {/* THE BOOK (P4): what the party knows — chapters, people met, things found. */}
         <BookDrawer
           /* a plain prop, not a key: the drawer must REPAINT when the sprite library lands, never
@@ -362,6 +392,15 @@ export default function DmLiveTable() {
             </div>
           </div>
         )}
+        {/* COMBAT (C2): the active PC's turn budget, server truth — never a client guess. */}
+        {combat?.active && (
+          <div style={{ display: 'flex', gap: 12, alignItems: 'center', padding: '6px 12px', borderTop: '1px solid #23262f', fontSize: 12, color: '#9aa0b0' }}>
+            <span style={{ color: '#c9a227', fontFamily: 'ui-serif, Georgia, serif' }}>{combat.active.name}&rsquo;s turn</span>
+            <span style={{ color: combat.active.action ? '#7fb389' : '#565b66', textDecoration: combat.active.action ? 'none' : 'line-through' }}>⚔ action</span>
+            <span style={{ color: combat.active.bonusAction ? '#7fb389' : '#565b66', textDecoration: combat.active.bonusAction ? 'none' : 'line-through' }}>✦ bonus</span>
+            <span style={{ color: combat.active.movementRemainingFt > 0 ? '#7fb389' : '#565b66' }}>🥾 {combat.active.movementRemainingFt} ft</span>
+          </div>
+        )}
         {/* input */}
         <div style={{ display: 'flex', gap: 6, padding: 10, borderTop: '1px solid #23262f' }}>
           <select value={speaker} onChange={(e) => setSpeaker(e.target.value)} style={{ width: 110 }}>
@@ -371,11 +410,19 @@ export default function DmLiveTable() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && !busy && !pendingRoll && send()}
-            placeholder={pendingRoll ? 'resolve the roll above first' : 'What does the party do?'}
+            placeholder={pendingRoll ? 'resolve the roll above first' : combat?.active ? `${combat.active.name} acts…` : 'What does the party do?'}
             disabled={busy || !!pendingRoll}
             style={{ flex: 1 }}
           />
           <button style={S.btn} onClick={send} disabled={busy || !!pendingRoll || !input.trim()}>Say</button>
+          {combat?.active && (
+            <button
+              title="Pass the round to the next combatant"
+              style={{ ...S.btn, background: !combat.active.action && combat.active.movementRemainingFt <= 0 ? '#c9a227' : '#2b3542', color: !combat.active.action && combat.active.movementRemainingFt <= 0 ? '#141414' : '#c9d4e0' }}
+              disabled={busy || !!pendingRoll}
+              onClick={() => submit({ endTurn: true, as: speaker }, { who: speaker, text: '⏭ end turn' })}
+            >End Turn</button>
+          )}
         </div>
       </div>
       {/* The full character sheet, opened from a PartyDock chip (P2). Play continues behind it. */}
