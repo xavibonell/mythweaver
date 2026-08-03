@@ -73,14 +73,16 @@ const activePc = (engine: Engine, state: GameState): string | undefined => {
 };
 
 describe('the pre-LLM combat gate — out-of-turn costs nothing and calls nobody', () => {
-  it('refuses a message from the wrong PC without an LLM call, naming whose turn it is', async () => {
+  it('refuses a PC who already ENDED their block turn — $0, no LLM call (C3 semantics)', async () => {
     const { engine, state } = liveFight();
-    const active = activePc(engine, state)!; // walk to the first PC turn
-    const other = active === 'Aldric' ? 'Elara' : 'Aldric';
+    activePc(engine, state); // walk to the PC block (both PCs are adjacent → both may act)
+    const spent = state.combat.order[state.combat.turnIndex]!;
+    const spentName = state.combatants[spent]!.name;
+    engine.endTurn(spent); // their turn is over; their ally is still up
     const llm = new FakeLlmProvider([]); // ANY call would throw — the gate must answer alone
-    const result = await runTurn({ engine, llm, now: frozenClock }, { kind: 'message', speakerId: other, text: 'I attack!' });
+    const result = await runTurn({ engine, llm, now: frozenClock }, { kind: 'message', speakerId: spentName, text: 'I attack again!' });
     expect(result.costUsd).toBe(0);
-    expect(result.narration).toContain(`${active}'s turn`);
+    expect(result.narration).toContain("'s turn");
     expect(llm.requests).toHaveLength(0);
   });
 
@@ -160,5 +162,77 @@ describe('the enemy phase — the world finally answers', () => {
     const phase = await runEnemyPhase({ engine, llm, playbook: 'x' });
     expect(phase?.facts.some((f) => f.includes('No one is left standing'))).toBe(true);
     expect(state.combat.active).toBe(true); // the fight state survives for the Director's aftermath
+  });
+});
+
+describe('C3/C4 — morale and the death-save narration path', () => {
+  it('a bloodied bandit whose side is half gone BREAKS instead of swinging', async () => {
+    const { engine, state } = liveFight();
+    const bandits = Object.values(state.combatants).filter((c) => c.kind === 'npc');
+    // one bandit dead, the other bloodied → morale threshold met for the survivor
+    engine.applyDamage({ targetId: bandits[0]!.id, amount: 20, type: 'slashing' });
+    bandits[1]!.currentHitPoints = 4; // 4/11 → bloodied
+    while (engine.activeCombatant()?.kind === 'pc') engine.endTurn(engine.activeCombatant()!.id);
+    const llm = new FakeLlmProvider([fakeText('The last bandit turns and runs for the treeline.')]);
+    const phase = await runEnemyPhase({ engine, llm, playbook: 'x' });
+    expect(phase!.facts.join(' ')).toMatch(/falls back|breaks and flees/);
+    // the breaking bandit spent its turn fleeing, not swinging — nobody took a hit this phase
+    const pcs = Object.values(state.combatants).filter((c) => c.kind === 'pc');
+    expect(pcs.every((c) => c.currentHitPoints === c.maxHitPoints)).toBe(true);
+  });
+
+  it('leadFacts (a death save) are narrated even when NO monster follows in the order', async () => {
+    const { engine, state } = liveFight();
+    while (engine.activeCombatant()?.kind === 'npc') engine.endTurn(engine.activeCombatant()!.id);
+    expect(engine.activeCombatant()?.kind).toBe('pc');
+    const llm = new FakeLlmProvider([fakeText('Aldric clings on — one success. Elara, go!')]);
+    const phase = await runEnemyPhase({ engine, llm, playbook: 'x', leadFacts: ["Aldric's death save: 14 — 1 success, 0 failures."] });
+    expect(phase).toBeTruthy();
+    expect(phase!.narration).toContain('clings on');
+    expect(llm.requests).toHaveLength(1);
+  });
+});
+
+describe('C3/C4 — the enemy phase must never WEDGE on a combatant who stopped being able to act', () => {
+  it('a fleeing monster DOWNED by an opportunity attack hands the turn on instead of freezing the table', async () => {
+    const { engine, state } = liveFight();
+    const bandits = Object.values(state.combatants).filter((c) => c.kind === 'npc');
+    const [b1, b2] = bandits;
+    // Morale conditions: half the side already out, b1 bloodied AND low enough that one OA drops it.
+    b2!.dead = true;
+    b1!.currentHitPoints = 2; // 2 <= floor(11/2): bloodied; a 1d4=3 OA hit downs it
+    // b1 stands adjacent to a PC, so breaking away provokes.
+    const map = state.world!.locations['loc:arena']!;
+    const tok = map.objects.find((o) => o.id === b1!.id)!;
+    tok.col = 5; tok.row = 6; // Aldric is at (5,5)
+    engine.startCombat([
+      { combatantId: b1!.id, initiative: 20 },
+      { combatantId: 'pc:pc-1', initiative: 15 },
+      { combatantId: 'pc:pc-2', initiative: 14 },
+    ]);
+    expect(engine.activeCombatant()!.id).toBe(b1!.id);
+
+    const llm = new FakeLlmProvider([fakeText('The bandit breaks — and falls.')]);
+    await runEnemyPhase({ engine, llm, playbook: 'x' });
+
+    // Whatever happened to the bandit, the TABLE must be playable: either the fight ended, or a PC is up.
+    if (state.combat.active) {
+      const ids = engine.activeIds();
+      expect(ids.length).toBeGreaterThan(0);
+      expect(state.combatants[ids[0]!]!.kind).toBe('pc');
+      expect(engine.turnGuard(ids[0]!).ok).toBe(true);
+    }
+  });
+
+  it('normalizeTurn unsticks a spotlight that can no longer act (a wedged freeze self-heals)', () => {
+    const { engine, state } = liveFight();
+    // Hand-wedge it: the spotlight is a downed monster nobody can end for.
+    while (engine.activeCombatant()?.kind !== 'npc') engine.endTurn(engine.activeCombatant()!.id);
+    const stuck = engine.activeCombatant()!;
+    stuck.downed = true;
+    expect(engine.activeIds()).toEqual([]); // wedged
+    engine.normalizeTurn();
+    const ids = engine.activeIds();
+    expect(ids.length).toBeGreaterThan(0); // healed
   });
 });

@@ -34,16 +34,19 @@ export default function CombatRail({ combat, mapObjects = [] }: { combat: any; m
       </div>
       {combat.order.map((c: any) => {
         const color = HEALTH_COLOR[c.healthWord] ?? '#8a90a0';
+        // Grouped ally turns (C3): every un-ended member of the current PC block glows — any of them
+        // may act next, in whatever order the table likes.
+        const isUp = combat.activeIds ? combat.activeIds.includes(c.id) : c.isActive;
         return (
           <div
             key={c.id}
-            title={`${c.name} — ${c.healthWord}${c.isActive ? ' · acting now' : ''}`}
+            title={`${c.name} — ${c.healthWord}${(combat.activeIds ? combat.activeIds.includes(c.id) : c.isActive) ? ' · may act now' : ''}`}
             style={{
               display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, padding: '3px 5px',
               borderRadius: 8, minWidth: 44,
-              border: c.isActive ? '1px solid #c9a227' : '1px solid transparent',
-              background: c.isActive ? 'rgba(201,162,39,0.14)' : 'transparent',
-              transform: c.isActive ? 'scale(1.06)' : 'none',
+              border: isUp ? '1px solid #c9a227' : '1px solid transparent',
+              background: isUp ? 'rgba(201,162,39,0.14)' : 'transparent',
+              transform: isUp ? 'scale(1.06)' : 'none',
               opacity: c.down ? 0.45 : 1,
               transition: 'transform 120ms ease, opacity 120ms ease',
             }}
@@ -52,7 +55,7 @@ export default function CombatRail({ combat, mapObjects = [] }: { combat: any; m
               <Portrait tag={tagFor(c.id, c.name)} size={26} />
               {c.down && <span style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', fontSize: 13 }}>💀</span>}
             </div>
-            <span style={{ fontSize: 9, color: c.isActive ? '#e8d9a0' : '#9aa0b0', maxWidth: 52, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            <span style={{ fontSize: 9, color: isUp ? '#e8d9a0' : '#9aa0b0', maxWidth: 52, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {c.name}
             </span>
             <span style={{ width: 22, height: 3, borderRadius: 2, background: color }} />

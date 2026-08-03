@@ -154,11 +154,35 @@ export function playerTurn(turn: Record<string, unknown>, map: SceneMap | undefi
 export interface PlayerCombatView {
   round: number;
   activeId: string | null;
+  /** Grouped ally turns (C3): every un-ended member of the current PC block may act — the rail glows
+   *  all of them, and any of their seats may End Turn for themselves. */
+  activeIds: string[];
   order: { id: string; name: string; kind: 'pc' | 'npc'; healthWord: string; down: boolean; isActive: boolean }[];
-  /** Present only while a PC is active — their own turn budget (their knowledge by definition). */
+  /** Present only while a PC is active — the SPOTLIGHT's turn budget (their knowledge by definition). */
   active?: { id: string; name: string; action: boolean; bonusAction: boolean; movementRemainingFt: number };
+  /** Per-member budgets for the whole un-ended block — the pips follow whichever ally is speaking. */
+  block?: { id: string; name: string; action: boolean; bonusAction: boolean; movementRemainingFt: number }[];
   /** Cells the active PC can still reach this turn (movement tint). Empty when not a PC's turn. */
   moveRange?: { col: number; row: number }[];
+}
+
+/** Pure mirror of the ENGINE's block rule (Engine.currentBlock/activeIds) — combat-turns tests pin
+ *  the two to each other. Duplicated because the projection works on bare state, not an Engine. */
+function blockActiveIds(state: GameState): string[] {
+  const cs = state.combat;
+  if (!cs?.active || !cs.order.length) return [];
+  const at = cs.turnIndex;
+  const dying = (c?: Combatant) => !!c && c.kind === 'pc' && !!c.downed && !c.dead && (c.deathSaves?.successes ?? 0) < 3;
+  const actable = (c?: Combatant) => !!c && !c.dead && !c.fled && (!c.downed || dying(c));
+  const spot = state.combatants[cs.order[at]!];
+  if (!spot) return [];
+  if (spot.kind !== 'pc' || dying(spot)) return [cs.order[at]!];
+  const isBlockPc = (i: number) => { const c = state.combatants[cs.order[i]!]; return !!c && c.kind === 'pc' && !dying(c); };
+  let lo = at, hi = at;
+  while (lo - 1 >= 0 && isBlockPc(lo - 1)) lo--;
+  while (hi + 1 < cs.order.length && isBlockPc(hi + 1)) hi++;
+  const ended = new Set(cs.blockEnded ?? []);
+  return cs.order.slice(lo, hi + 1).filter((id) => !ended.has(id) && actable(state.combatants[id]));
 }
 
 const healthWord = (c: Combatant): string => {
@@ -216,7 +240,16 @@ export function playerCombatView(state: GameState): PlayerCombatView | null {
       down: !!(c.downed || c.dead),
       isActive: c.id === activeId,
     }));
-  const view: PlayerCombatView = { round: cs.round, activeId, order };
+  const ids = blockActiveIds(state);
+  const view: PlayerCombatView = { round: cs.round, activeId, activeIds: ids, order };
+  const budgets = ids
+    .map((id) => state.combatants[id])
+    .filter((c): c is Combatant => !!c && c.kind === 'pc')
+    .map((c) => {
+      const ae = c.actionEconomy ?? { action: true, bonusAction: true, reaction: true, movementRemainingFt: deriveMoveCaps(state, c.id).speedFt };
+      return { id: c.id, name: c.name, action: ae.action, bonusAction: ae.bonusAction, movementRemainingFt: ae.movementRemainingFt };
+    });
+  if (budgets.length) view.block = budgets;
   const active = activeId ? state.combatants[activeId] : undefined;
   if (active?.kind === 'pc') {
     // A save frozen before the economy existed has no budget fields yet — an untouched turn IS the

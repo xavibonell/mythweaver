@@ -393,14 +393,22 @@ export default function DmLiveTable() {
           </div>
         )}
         {/* COMBAT (C2): the active PC's turn budget, server truth — never a client guess. */}
-        {combat?.active && (
-          <div style={{ display: 'flex', gap: 12, alignItems: 'center', padding: '6px 12px', borderTop: '1px solid #23262f', fontSize: 12, color: '#9aa0b0' }}>
-            <span style={{ color: '#c9a227', fontFamily: 'ui-serif, Georgia, serif' }}>{combat.active.name}&rsquo;s turn</span>
-            <span style={{ color: combat.active.action ? '#7fb389' : '#565b66', textDecoration: combat.active.action ? 'none' : 'line-through' }}>⚔ action</span>
-            <span style={{ color: combat.active.bonusAction ? '#7fb389' : '#565b66', textDecoration: combat.active.bonusAction ? 'none' : 'line-through' }}>✦ bonus</span>
-            <span style={{ color: combat.active.movementRemainingFt > 0 ? '#7fb389' : '#565b66' }}>🥾 {combat.active.movementRemainingFt} ft</span>
-          </div>
-        )}
+        {(() => {
+          // Pips follow whoever is SPEAKING when they're in the acting block (grouped ally turns);
+          // otherwise the spotlight. Server truth either way.
+          const pips = (combat?.block ?? []).find((b: any) => b.name === speaker) ?? combat?.active;
+          if (!pips) return null;
+          const others = (combat?.block ?? []).filter((b: any) => b.id !== pips.id).map((b: any) => b.name);
+          return (
+            <div style={{ display: 'flex', gap: 12, alignItems: 'center', padding: '6px 12px', borderTop: '1px solid #23262f', fontSize: 12, color: '#9aa0b0' }}>
+              <span style={{ color: '#c9a227', fontFamily: 'ui-serif, Georgia, serif' }}>{pips.name}&rsquo;s turn</span>
+              <span style={{ color: pips.action ? '#7fb389' : '#565b66', textDecoration: pips.action ? 'none' : 'line-through' }}>⚔ action</span>
+              <span style={{ color: pips.bonusAction ? '#7fb389' : '#565b66', textDecoration: pips.bonusAction ? 'none' : 'line-through' }}>✦ bonus</span>
+              <span style={{ color: pips.movementRemainingFt > 0 ? '#7fb389' : '#565b66' }}>🥾 {pips.movementRemainingFt} ft</span>
+              {others.length > 0 && <span style={{ color: '#565b66' }}>· also up: {others.join(', ')}</span>}
+            </div>
+          );
+        })()}
         {/* input */}
         <div style={{ display: 'flex', gap: 6, padding: 10, borderTop: '1px solid #23262f' }}>
           <select value={speaker} onChange={(e) => setSpeaker(e.target.value)} style={{ width: 110 }}>

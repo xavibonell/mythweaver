@@ -204,6 +204,9 @@ export class Engine implements EngineTools {
       combatantId: combatant.id,
       refId: statBlock.id,
     });
+    // C3: anyone spawned into a LIVE fight is a reinforcement — startEncounter's own spawns are safe
+    // (combat isn't active yet when it spawns; startCombat builds the order right after).
+    if (this.state.combat.active) this.insertIntoInitiative(combatant.id);
     return combatant;
   }
 
@@ -328,11 +331,13 @@ export class Engine implements EngineTools {
    * Roll a death save for a dying PC (d20): >=10 success, <10 failure; nat 20 revives at 1 HP;
    * nat 1 is two failures. Three successes = stable; three failures = dead.
    */
-  rollDeathSave(combatantId: string): { roll: number; successes: number; failures: number; status: 'dying' | 'stable' | 'revived' | 'dead' } {
+  rollDeathSave(combatantId: string, declared?: number): { roll: number; successes: number; failures: number; status: 'dying' | 'stable' | 'revived' | 'dead' } {
     const c = this.state.combatants[combatantId];
     if (!c) throw new Error(`Unknown combatant: ${combatantId}`);
     if (c.kind !== 'pc' || !c.downed || c.dead) throw new Error(`${c.name} is not making death saves.`);
-    const roll = this.rollDice('1d20');
+    // C3: the most dramatic die in the game belongs in the PLAYER's hand — a declared physical roll
+    // lands here through the roll bar; the engine only rolls when nobody declared (legacy tool path).
+    const roll = declared !== undefined ? Math.max(1, Math.min(20, Math.floor(declared))) : this.rollDice('1d20');
     const ds = (c.deathSaves ??= { successes: 0, failures: 0 });
 
     let status: 'dying' | 'stable' | 'revived' | 'dead' = 'dying';
@@ -397,27 +402,78 @@ export class Engine implements EngineTools {
   private refreshEconomy(id: string): void {
     const c = this.state.combatants[id];
     if (!c) return;
-    c.actionEconomy = { action: true, bonusAction: true, reaction: true, movementRemainingFt: deriveMoveCaps(this.state, id).speedFt };
+    // C4: timed conditions tick at the START of the afflicted's turn; hitting zero lifts them.
+    if (c.conditionTimers?.length) {
+      const keep: NonNullable<Combatant['conditionTimers']> = [];
+      for (const t of c.conditionTimers) {
+        if (t.roundsLeft - 1 <= 0) {
+          c.conditions = c.conditions.filter((x) => x !== t.condition);
+          this.record('engine', `${c.name} is no longer ${t.condition} (duration expired)`, { combatantId: id, condition: t.condition });
+        } else keep.push({ condition: t.condition, roundsLeft: t.roundsLeft - 1 });
+      }
+      c.conditionTimers = keep.length ? keep : undefined;
+    }
+    c.actionEconomy = this.isDying(c)
+      ? { action: false, bonusAction: false, reaction: false, movementRemainingFt: 0 } // a death save is the whole turn
+      : { action: true, bonusAction: true, reaction: true, movementRemainingFt: deriveMoveCaps(this.state, id).speedFt };
   }
 
-  /** Can this combatant take a TURN at all? Dead never; downed monsters are out of the fight;
-   *  downed PCs are dying — their turn exists only for the death save (C3 prompts it; until then
-   *  they are skipped rather than stalling the table with a turn they cannot use). */
+  /** Can this combatant take a TURN at all? Dead and fled never; downed monsters are out of the
+   *  fight; a DYING PC's turn exists — it IS the death save (the server arms the roll) — while a
+   *  STABLE one (3 successes) sleeps through the round. */
   private canTakeTurn(c: Combatant | undefined): boolean {
-    return !!c && !c.dead && !c.downed;
+    if (!c || c.dead || c.fled) return false;
+    if (!c.downed) return true;
+    return c.kind === 'pc' && (c.deathSaves?.successes ?? 0) < 3; // dying, not stable
+  }
+
+  /** Dying = this turn is a death save, nothing else. */
+  isDying(c: Combatant | undefined): boolean {
+    return !!c && c.kind === 'pc' && !!c.downed && !c.dead && (c.deathSaves?.successes ?? 0) < 3;
+  }
+
+  /** GROUPED ALLY TURNS (C3, the BG3 rule): the current BLOCK is the maximal contiguous run of PC
+   *  entries around order[turnIndex] — allies rolled next to each other act in any sequence among
+   *  themselves. A monster (or a dying PC, whose turn is only a save) is always a block of one. */
+  currentBlock(): string[] {
+    const cs = this.state.combat;
+    if (!cs.active || !cs.order.length) return [];
+    const at = cs.turnIndex;
+    const spot = this.state.combatants[cs.order[at]!];
+    if (!spot || spot.kind !== 'pc' || this.isDying(spot)) return [cs.order[at]!];
+    const isBlockPc = (i: number) => {
+      const c = this.state.combatants[cs.order[i]!];
+      return !!c && c.kind === 'pc' && !this.isDying(c);
+    };
+    let lo = at, hi = at;
+    while (lo - 1 >= 0 && isBlockPc(lo - 1)) lo--;
+    while (hi + 1 < cs.order.length && isBlockPc(hi + 1)) hi++;
+    return cs.order.slice(lo, hi + 1);
+  }
+
+  /** Who may ACT right now: the block's members who can take a turn and haven't ended it. */
+  activeIds(): string[] {
+    const cs = this.state.combat;
+    const ended = new Set(cs.blockEnded ?? []);
+    return this.currentBlock().filter((id) => !ended.has(id) && this.canTakeTurn(this.state.combatants[id]));
   }
 
   /**
    * TURN GUARD — the deep defense of combat mode. Every economy-spending mutation asks it first, so
    * even a confused tool call cannot act out of order (same doctrine as the reach gate: the verdict
-   * is data the DM narrates, never an exception that eats a turn).
+   * is data the DM narrates, never an exception that eats a turn). Within an ally block, ANY member
+   * who hasn't ended their turn passes.
    */
   turnGuard(combatantId: string): { ok: true } | { ok: false; reason: 'no-combat' | 'not-your-turn'; activeId?: string; activeName?: string; round?: number } {
     const cs = this.state.combat;
     if (!cs.active) return { ok: true }; // outside combat there is no order to break
     const active = this.activeCombatant();
     if (!active) return { ok: false, reason: 'no-combat' };
-    if (active.id !== combatantId) return { ok: false, reason: 'not-your-turn', activeId: active.id, activeName: active.name, round: cs.round };
+    const ids = this.activeIds();
+    if (!ids.includes(combatantId)) {
+      const names = ids.map((id) => this.state.combatants[id]?.name ?? id).join(' / ');
+      return { ok: false, reason: 'not-your-turn', activeId: active.id, activeName: names || active.name, round: cs.round };
+    }
     return { ok: true };
   }
 
@@ -481,10 +537,27 @@ export class Engine implements EngineTools {
    * in the air.
    */
   endTurn(combatantId: string): { ok: true; activeCombatantId: string; round: number } | { ok: false; reason: string } {
+    const cs = this.state.combat;
+    if (!cs.active) return { ok: false, reason: 'no combat is running' };
     const guard = this.turnGuard(combatantId);
-    if (!this.state.combat.active) return { ok: false, reason: 'no combat is running' };
     if (!guard.ok) return { ok: false, reason: `not your turn — ${(guard as { activeName?: string }).activeName ?? 'someone else'} is acting` };
     if (this.state.pendingTurn) return { ok: false, reason: 'a roll is still pending — declare it first' };
+    // Within an ally block, ending YOUR turn hands the spotlight to an un-ended ally; the order only
+    // advances past the block when every member has ended.
+    const block = this.currentBlock();
+    if (block.length > 1) {
+      const ended = new Set(cs.blockEnded ?? []);
+      ended.add(combatantId);
+      cs.blockEnded = [...ended];
+      const remaining = block.filter((id) => !ended.has(id) && this.canTakeTurn(this.state.combatants[id]));
+      if (remaining.length) {
+        cs.turnIndex = cs.order.indexOf(remaining[0]!);
+        const spot = this.state.combatants[remaining[0]!]!;
+        this.record('engine', `${this.state.combatants[combatantId]?.name ?? combatantId} ends their turn — ${spot.name} still to act`, { blockRemaining: remaining });
+        return { ok: true, activeCombatantId: spot.id, round: cs.round };
+      }
+      cs.turnIndex = cs.order.indexOf(block[block.length - 1]!); // advance FROM the block's tail
+    }
     const next = this.nextTurn();
     return { ok: true, ...next };
   }
@@ -503,7 +576,8 @@ export class Engine implements EngineTools {
       }
       const c = this.state.combatants[cs.order[cs.turnIndex]!];
       if (this.canTakeTurn(c)) {
-        this.refreshEconomy(c!.id);
+        cs.blockEnded = []; // a fresh block (or fresh solo turn) — nobody has ended yet
+        for (const id of this.currentBlock()) if (this.canTakeTurn(this.state.combatants[id])) this.refreshEconomy(id);
         this.record('engine', `Round ${cs.round} — active: ${c!.name}`, { round: cs.round, activeCombatantId: c!.id });
         return { activeCombatantId: c!.id, round: cs.round };
       }
@@ -511,6 +585,37 @@ export class Engine implements EngineTools {
     // Nobody left who can act — the fight has resolved itself.
     this.endCombat();
     return { activeCombatantId: '', round: cs.round };
+  }
+
+  /** REINFORCEMENTS (C3): a combatant who arrives mid-fight rolls initiative and slots in AFTER the
+   *  current position — they act this round, but not before whoever is already moving. */
+  insertIntoInitiative(combatantId: string, initiative?: number): { initiative: number } | undefined {
+    const cs = this.state.combat;
+    const c = this.state.combatants[combatantId];
+    if (!cs.active || !c || cs.order.includes(combatantId)) return undefined;
+    const init = initiative ?? this.rollDice('1d20') + (c.initiativeBonus ?? 0);
+    c.initiative = init;
+    cs.order.splice(cs.turnIndex + 1, 0, combatantId);
+    this.refreshEconomy(combatantId);
+    this.record('engine', `${c.name} joins the fight (initiative ${init}, next in the order)`, { combatantId, initiative: init });
+    return { initiative: init };
+  }
+
+  /**
+   * UNWEDGE (C3/C4 review): the spotlight can stop being able to act DURING its own turn — a fleeing
+   * monster dropped by an opportunity attack is the live case. `endTurn` then refuses (its own guard
+   * says the downed cannot act) and the table freezes: nobody may move, nothing may be ended. So any
+   * caller can normalize first — if whoever holds the spotlight cannot take a turn, hand it on until
+   * someone can (or the fight resolves). Idempotent and cheap; safe to call before every gate.
+   */
+  normalizeTurn(): void {
+    const cs = this.state.combat;
+    if (!cs.active || !cs.order.length) return;
+    for (let hops = 0; hops < cs.order.length + 1; hops++) {
+      if (!cs.active) return;
+      if (this.canTakeTurn(this.activeCombatant())) return;
+      try { this.nextTurn(); } catch { return; }
+    }
   }
 
   /** Drop a combatant from the order (fled, banished) without ending the fight. Keeps the index
@@ -521,6 +626,7 @@ export class Engine implements EngineTools {
     const idx = cs.order.indexOf(combatantId);
     if (idx === -1) return;
     cs.order.splice(idx, 1);
+    if (cs.blockEnded?.length) cs.blockEnded = cs.blockEnded.filter((x) => x !== combatantId);
     if (cs.order.length === 0) { this.endCombat(); return; }
     if (idx < cs.turnIndex) cs.turnIndex -= 1;
     if (cs.turnIndex >= cs.order.length) cs.turnIndex = 0;
@@ -537,14 +643,17 @@ export class Engine implements EngineTools {
     // VICTORY AFTERMATH (C0) — before the field clears, the fight pays out. Victory = combat was live
     // and at least one PC is not dead (a TPK pays nothing; the Director owns that aftermath).
     const npcs = Object.values(this.state.combatants).filter((c) => c.kind === 'npc');
-    const fallen = npcs.filter((c) => c.downed || c.dead);
+    const fallen = npcs.filter((c) => (c.downed || c.dead) && !c.fled);
+    const routed = npcs.filter((c) => c.fled && !c.downed && !c.dead);
     const pcsAlive = Object.values(this.state.combatants).filter((c) => c.kind === 'pc' && !c.dead);
     let xpAwarded: number | undefined;
     const bodies: string[] = [];
-    if (wasActive && fallen.length && pcsAlive.length) {
+    if (wasActive && (fallen.length || routed.length) && pcsAlive.length) {
       // XP: SRD value by CR, split EVENLY across the party (per-kill credit breeds kill-stealing and
       // punishes the healer). Dying-but-alive PCs earn their share — they were in the fight.
-      const total = fallen.reduce((n, c) => n + xpForCr(this.state.bestiary?.[c.refId]?.challengeRating ?? 0), 0);
+      // An enemy who BROKE and ran was beaten off: half value, and no body to loot.
+      const total = fallen.reduce((n, c) => n + xpForCr(this.state.bestiary?.[c.refId]?.challengeRating ?? 0), 0)
+        + routed.reduce((n, c) => n + Math.floor(xpForCr(this.state.bestiary?.[c.refId]?.challengeRating ?? 0) / 2), 0);
       xpAwarded = Math.max(1, Math.floor(total / pcsAlive.length));
       for (const pc of pcsAlive) {
         try { this.awardXp({ combatantId: pc.id, amount: xpAwarded }); } catch { /* progression home may be absent in bare fixtures */ }
@@ -583,15 +692,20 @@ export class Engine implements EngineTools {
     return { despawned, ...(xpAwarded !== undefined ? { xpAwarded } : {}), ...(bodies.length ? { bodies } : {}) };
   }
 
+  /** Public check for callers that change the fight WITHOUT dealing damage (a rout, a banish). */
+  checkCombatEnd(): void {
+    this.maybeEndCombat();
+  }
+
   /** Auto-resolve a fight the moment no conscious enemy (npc) remains. */
   private maybeEndCombat(): void {
     if (!this.state.combat.active) return;
-    const enemyStanding = Object.values(this.state.combatants).some((c) => c.kind === 'npc' && !c.downed && !c.dead);
+    const enemyStanding = Object.values(this.state.combatants).some((c) => c.kind === 'npc' && !c.downed && !c.dead && !c.fled);
     if (!enemyStanding) this.endCombat();
   }
 
   /** Add or remove a condition on a combatant. A creature immune to a condition never gains it. */
-  applyCondition(args: { combatantId: string; condition: Condition; add: boolean }): void {
+  applyCondition(args: { combatantId: string; condition: Condition; add: boolean; rounds?: number }): void {
     const c = this.state.combatants[args.combatantId];
     if (!c) throw new Error(`Unknown combatant: ${args.combatantId}`);
     if (args.add && c.conditionImmunities?.includes(args.condition)) {
@@ -601,6 +715,13 @@ export class Engine implements EngineTools {
     const has = c.conditions.includes(args.condition);
     if (args.add && !has) c.conditions.push(args.condition);
     else if (!args.add && has) c.conditions = c.conditions.filter((x) => x !== args.condition);
+    // C4: a duration makes it a timer — ticked at the start of the afflicted's turns (refreshEconomy).
+    if (args.add && args.rounds && args.rounds > 0) {
+      c.conditionTimers = [...(c.conditionTimers ?? []).filter((t) => t.condition !== args.condition), { condition: args.condition, roundsLeft: Math.floor(args.rounds) }];
+    } else if (!args.add) {
+      c.conditionTimers = c.conditionTimers?.filter((t) => t.condition !== args.condition);
+      if (c.conditionTimers && !c.conditionTimers.length) delete c.conditionTimers;
+    }
     this.record('engine', `${c.name} ${args.add ? 'gains' : 'loses'} ${args.condition}`, { combatantId: c.id, condition: args.condition, add: args.add });
   }
 
@@ -724,9 +845,67 @@ export class Engine implements EngineTools {
     const world = this.state.world;
     const map = world?.currentLocationId ? world.locations[world.currentLocationId] : undefined;
     if (!map) return { moved: false, ft: 0, rounds: 0, legs: [], facts: [], rejected: 'no scene established' };
+    // C4 — OPPORTUNITY ATTACKS live at the single movement gate. Capture who stood in melee reach
+    // BEFORE the walk; whoever the mover breaks away from gets one reaction swing, engine-rolled.
+    const oaFrom = this.state.combat.active ? map.objects.find((o) => o.id === intent.actorId) : undefined;
+    const oaStart = oaFrom ? { col: oaFrom.col, row: oaFrom.row } : undefined;
     const verdict = runTravel({ state: this.state, map, applyMove: (actorId, to) => this.travelApplyMove(map, actorId, to) }, intent);
+    if (verdict.moved && verdict.at && oaStart && !this.state.pendingTurn) {
+      verdict.facts.push(...this.resolveOpportunityAttacks(intent.actorId, oaStart, verdict.at, map));
+    }
     if (verdict.facts.length) this.record('engine', `travel: ${verdict.facts[0]}`, { travel: { actorId: intent.actorId, ...verdict } });
     return verdict;
+  }
+
+  /**
+   * OPPORTUNITY ATTACKS (C4). Everyone's reactions — monsters' AND the party's — are ENGINE-rolled:
+   * a reaction is a reflex, not a decision, and suspending the enemy phase to hand a player a die for
+   * an interrupt would stall the one-call round this mode is built on (the deliberate attacks stay
+   * the players' own dice, always). Disengage suppresses it; v1 reach is a flat 5 ft.
+   */
+  private resolveOpportunityAttacks(moverId: string, from: { col: number; row: number }, to: { col: number; row: number }, map: SceneMap): string[] {
+    const facts: string[] = [];
+    const cid = this.findCombatantId(moverId) ?? moverId;
+    const mover = this.state.combatants[cid];
+    if (!mover || !this.state.combat.active) return facts;
+    if (mover.actionEconomy?.disengaged) return facts; // clean break — that was the point of the action
+    const feet = map.grid?.feetPerTile ?? 5;
+    const cheb = (a: { col: number; row: number }, b: { col: number; row: number }) => Math.max(Math.abs(a.col - b.col), Math.abs(a.row - b.row)) * feet;
+    for (const c of Object.values(this.state.combatants)) {
+      if (c.kind === mover.kind || c.downed || c.dead || c.fled) continue;
+      const tok = map.objects.find((o) => o.id === c.id);
+      if (!tok) continue;
+      if (cheb(from, tok) > 5 || cheb(to, tok) <= 5) continue; // only BREAKING AWAY provokes
+      const ae = (c.actionEconomy ??= { action: true, bonusAction: true, reaction: true, movementRemainingFt: 0 });
+      if (!ae.reaction) continue;
+      ae.reaction = false;
+      const atk = c.kind === 'npc'
+        ? this.state.bestiary?.[c.refId]?.attacks?.[0]
+        : this.state.sheets?.[c.id]?.attacks?.[0];
+      const bonus = atk?.attackBonus ?? 2;
+      const d20 = this.rollDice('1d20');
+      const hit = d20 === 20 || (d20 !== 1 && d20 + bonus >= mover.armorClass);
+      if (!hit) {
+        facts.push(`${c.name} lashes out as ${mover.name} pulls away — and misses (opportunity attack).`);
+        continue;
+      }
+      const dmg = this.rollDice(atk?.damage ?? '1d4') + (d20 === 20 ? this.rollDice(atk?.damage ?? '1d4') : 0);
+      const res = this.applyDamage({ targetId: cid, amount: dmg, type: atk?.damageType ?? 'bludgeoning', attackerId: c.id });
+      facts.push(`${c.name} strikes ${mover.name} as they pull away — ${dmg} ${atk?.damageType ?? 'bludgeoning'} (opportunity attack)${res.downed ? `; ${mover.name} goes DOWN` : ''}.`);
+      if (res.downed) break; // the walk is over
+    }
+    return facts;
+  }
+
+  /** Disengage (PHB): spend the action; leaving reach provokes nothing for the rest of the turn. */
+  disengage(combatantId: string): { ok: true } | { ok: false; reason: string } {
+    const cid = this.findCombatantId(combatantId) ?? combatantId;
+    const spent = this.spendAction(cid);
+    if (!spent.ok) return spent;
+    const c = this.state.combatants[cid]!;
+    c.actionEconomy!.disengaged = true;
+    this.record('engine', `${c.name} disengages — their movement provokes no opportunity attacks this turn`, { combatantId: cid });
+    return { ok: true };
   }
 
   /**

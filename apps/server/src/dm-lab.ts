@@ -510,14 +510,26 @@ export async function dmLabSubmit(
   // turns HERE — engine-resolved, one narration call — so a single round-trip returns "your blow
   // lands, the bandits answer, Elara is up". Never while a roll is pending (a die in the air owns
   // the table), and never for PCs (the phase acts only for NPCs, by construction).
-  if (!result.rollRequest && engine.getState().combat.active && engine.activeCombatant()?.kind === 'npc') {
+  const phaseLead = (result as { phaseLeadFacts?: string[] }).phaseLeadFacts;
+  if (!result.rollRequest && (phaseLead?.length || (engine.getState().combat.active && engine.activeCombatant()?.kind === 'npc'))) {
     try {
-      const phase = await runEnemyPhase({ engine, llm: recorder, playbook: session.playbook });
+      const phase = await runEnemyPhase({ engine, llm: recorder, playbook: session.playbook, ...(phaseLead?.length ? { leadFacts: phaseLead } : {}) });
       if (phase) {
         result.narration = [result.narration, phase.narration].filter(Boolean).join('\n\n');
         if (phase.deltas.length) result.deltas = [...(result.deltas ?? []), ...phase.deltas];
       }
     } catch { /* the phase must never eat the player's turn — worst case the next input re-runs it */ }
+  }
+  // C3 — THE DEATH SAVE ARM. If the dust settles on a DYING PC, their turn IS a death save: put the
+  // die straight in the player's hand (the roll bar), no LLM asked. The resume path applies RAW.
+  {
+    const st2 = engine.getState();
+    const dying = st2.combat.active ? engine.activeCombatant() : undefined;
+    if (!result.rollRequest && dying && engine.isDying(dying)) {
+      const rr = engine.requestRoll({ expr: '1d20', reason: `${dying.name} is DYING — death saving throw (straight d20: 10+ succeeds, 20 brings them back)` });
+      st2.pendingTurn = { rollRequestId: rr.id, rollToolUseId: 'death-save', rollExpr: rr.expr, rollReason: rr.reason, resolvedToolResults: [], history: [], deathSaveContinuation: { combatantId: dying.id } };
+      result.rollRequest = { id: rr.id, expr: rr.expr, reason: rr.reason };
+    }
   }
   const latencyMs = Date.now() - startedAt;
   const after = snapshot(engine.getState());

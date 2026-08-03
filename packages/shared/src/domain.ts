@@ -219,6 +219,8 @@ export interface ActionEconomy {
   bonusAction: boolean;
   reaction: boolean;
   movementRemainingFt: number;
+  /** Disengage was taken this turn — leaving reach provokes no opportunity attacks (C4). */
+  disengaged?: boolean;
 }
 
 /** A live participant in play (PC or monster instance). */
@@ -245,6 +247,12 @@ export interface Combatant {
   /** WHO dropped them (combatant id) — stamped by applyDamage when HP hits 0. Attribution feeds the
    *  journal ("Pip fells Bandit 1") and the fight summary; XP stays an even party split regardless. */
   downedBy?: string;
+  /** Broke and ran (morale, C3): out of the order and off the map, but alive — half XP on victory,
+   *  no body to loot, and maybeEndCombat stops waiting for them. */
+  fled?: boolean;
+  /** Timed conditions (C4): rounds tick down at the START of this combatant's turn; 0 ⇒ the condition
+   *  lifts with an engine fact. Untimed conditions (in `conditions` alone) still toggle manually. */
+  conditionTimers?: { condition: Condition; roundsLeft: number }[];
   /** Damage modifiers — engine-owned, copied from the stat block when an npc is spawned (P2). */
   damageResistances?: DamageType[];
   damageImmunities?: DamageType[];
@@ -290,6 +298,9 @@ export interface CombatState {
   turnIndex: number;
   /** Combatant ids in initiative order (desc). */
   order: string[];
+  /** Grouped ally turns (C3): block members who already ended their turn this block. Serialized so a
+   *  freeze mid-block resumes exactly; cleared whenever the order advances into a new block. */
+  blockEnded?: string[];
 }
 
 export interface Scene {
@@ -323,6 +334,10 @@ export interface PendingTurn {
   rollReason: string;
   /** The DC/AC the roll is checked against, if any (so success survives resume — spec §4.2). */
   rollDc?: number;
+  /** C3: this suspension IS a death save — the dying PC's whole turn. On declare, the engine applies
+   *  RAW (nat 1 = two failures, nat 20 = up at 1 HP, 10+ success), ends their turn, and the enemy
+   *  phase narrates the outcome. No LLM is consulted to ASK for it — dying is not a tool call. */
+  deathSaveContinuation?: { combatantId: string };
   /** P5: facts the DM recorded in the SUSPENDED half of this turn. The clue lane corroborates against
    *  the FINAL narration, which for the record-then-roll shape only exists on resume — without this
    *  carry, the canonical recordFact+requestRoll turn could never produce a clue. Dies with the turn. */

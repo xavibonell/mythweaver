@@ -174,6 +174,10 @@ export type TurnInput =
   // phase runs (in dmLabSubmit). Deterministic: no LLM call happens on this input itself.
   | { kind: 'endTurn'; speakerId?: string };
 
+/** Facts produced by a deterministic pre-turn resolution (a death save) — the enemy-phase narration
+ *  voices them, so the table hears "two failures" and the bandits' answer in one breath. */
+export interface TurnResultLead { phaseLeadFacts?: string[] }
+
 export interface TurnRollRequest {
   id: string;
   expr: string;
@@ -255,6 +259,16 @@ export function buildToolDefs(retrieval: boolean, scene: boolean): ToolDef[] {
       name: 'getState',
       description: 'Read the authoritative game state (HP, conditions, scene, combatants). Returns JSON.',
       inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+    },
+    {
+      name: 'disengage',
+      description: 'COMBAT: the active combatant spends their ACTION to disengage — their movement this turn provokes no opportunity attacks. Use when a player wants to retreat from melee safely.',
+      inputSchema: {
+        type: 'object',
+        properties: { combatantId: { type: 'string', description: 'Who disengages (id or name).' } },
+        required: ['combatantId'],
+        additionalProperties: false,
+      },
     },
     {
       name: 'dash',
@@ -1878,26 +1892,37 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
   // The engine owns the order (C0); this is the cheap front door. An out-of-turn line is refused
   // BEFORE any model call — $0, instant — and "end turn" typed as text becomes the real thing.
   if (state.combat.active) {
+    // Heal a wedged spotlight BEFORE refusing anyone (review: a fleeing monster downed by an OA left
+    // the turn on a combatant who could not act, and every seat got "not your turn" forever).
+    engine.normalizeTurn();
     if (input.kind === 'message' && /^\s*(?:i\s+)?end\s+(?:my\s+)?turn\s*[.!]?\s*$/i.test(input.text)) {
       input = { kind: 'endTurn', speakerId: input.speakerId };
     }
     const activeC = engine.activeCombatant();
-    if (input.kind === 'message' && activeC?.kind === 'pc' && input.speakerId
-        && activeC.name.trim().toLowerCase() !== input.speakerId.trim().toLowerCase()) {
+    // Grouped ally turns (C3): any un-ended member of the current PC block may act — the gate
+    // refuses only speakers OUTSIDE the block, naming everyone who may still move.
+    const actableNames = engine.activeIds().map((id) => state.combatants[id]?.name ?? id);
+    const speakerActable = (sp?: string) => !!sp && actableNames.some((n) => n.trim().toLowerCase() === sp.trim().toLowerCase());
+    if (input.kind === 'message' && activeC?.kind === 'pc' && input.speakerId && !speakerActable(input.speakerId)) {
       return finish({
-        narration: `(Round ${state.combat.round}) It's ${activeC.name}'s turn — hold that thought, ${input.speakerId}. When ${activeC.name} is done, End Turn passes the round along.`,
+        narration: `(Round ${state.combat.round}) It's ${actableNames.join(' and ')}'s turn — hold that thought, ${input.speakerId}. End Turn passes the round along.`,
         costUsd: 0,
         model: 'combat-gate',
         trace: emptyTrace(now() - startedAt),
       });
     }
     if (input.kind === 'endTurn') {
-      // Only the active PC's turn can be yielded (any seat may press the button FOR them — one shared
-      // screen — but the engine still refuses when a roll hangs or a monster is mid-phase).
       if (!activeC || activeC.kind !== 'pc') {
         return finish({ narration: '', costUsd: 0, model: 'combat-gate', trace: emptyTrace(now() - startedAt) });
       }
-      const end = engine.endTurn(activeC.id);
+      // Within a block, End Turn ends the SPEAKER's turn when they're a member; else the spotlight's.
+      let endId = activeC.id;
+      const endSpeaker = input.kind === 'endTurn' ? input.speakerId : undefined;
+      if (endSpeaker) {
+        const m = engine.activeIds().find((id) => (state.combatants[id]?.name ?? '').trim().toLowerCase() === endSpeaker.trim().toLowerCase());
+        if (m) endId = m;
+      }
+      const end = engine.endTurn(endId);
       return finish({
         narration: end.ok ? '' : `(${end.reason})`,
         costUsd: 0,
@@ -1912,6 +1937,24 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
   if (input.kind === 'roll') {
     const pending = state.pendingTurn as PendingTurn | undefined;
     if (!pending) throw new Error('No pending roll to resolve for this session.');
+    // C3 — THE DEATH SAVE. The dying PC's whole turn is this one die, rolled by the PLAYER. The
+    // engine applies RAW, the turn ends, and the enemy phase narrates the outcome with whatever the
+    // world does next. No LLM touches the adjudication.
+    if (pending.deathSaveContinuation) {
+      const dsId = pending.deathSaveContinuation.combatantId;
+      const name = state.combatants[dsId]?.name ?? 'The fallen';
+      const out = engine.rollDeathSave(dsId, input.total);
+      state.pendingTurn = undefined;
+      const fact =
+        out.status === 'revived' ? `${name} rolls a natural 20 on the death save — they surge back up with 1 HP!`
+        : out.status === 'dead' ? `${name} fails the last death save. ${name} is dead.`
+        : out.status === 'stable' ? `${name} steadies — three successes. Stable, but out cold.`
+        : `${name}'s death save: ${out.roll} — ${out.successes} success${out.successes === 1 ? '' : 'es'}, ${out.failures} failure${out.failures === 1 ? '' : 's'}.`;
+      if (state.combat.active) {
+        try { engine.nextTurn(); } catch { /* the fight may have resolved */ }
+      }
+      return finish({ narration: '', costUsd: 0, model: 'combat-gate', trace: emptyTrace(now() - startedAt), phaseLeadFacts: [fact] } as TurnResult & TurnResultLead);
+    }
     // P5: facts recorded in the suspended half corroborate against THIS resume's narration — the
     // canonical record-then-roll turn only narrates the value after the die lands.
     if (pending.dmFacts?.length) dmFactsThisTurn.push(...pending.dmFacts);
@@ -2657,6 +2700,9 @@ export async function runTurn(deps: OrchestratorDeps, input: TurnInput): Promise
         } catch (e) {
           resolved.push({ toolUseId: tc.id, content: JSON.stringify({ error: (e as Error).message }) });
         }
+      } else if (tc.name === 'disengage') {
+        const disCid = engine.findCombatantId(String(tc.input.combatantId ?? '')) ?? String(tc.input.combatantId ?? '');
+        resolved.push({ toolUseId: tc.id, content: JSON.stringify(engine.disengage(disCid)) });
       } else if (tc.name === 'dash') {
         const dashCid = engine.findCombatantId(String(tc.input.combatantId ?? '')) ?? String(tc.input.combatantId ?? '');
         const d = engine.dash(dashCid);

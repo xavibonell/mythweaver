@@ -38,6 +38,34 @@ function resolveMonsterTurn(engine: Engine, state: GameState, npc: Combatant, de
   const token = map?.objects.find((o) => o.id === npc.id);
   if (!map || !token) return [`${npc.name} is nowhere on the field and holds back.`];
 
+  // MORALE (C3): flesh breaks. A bloodied fighter whose side is half gone runs for the trees — the
+  // mindless (undead, constructs, oozes) never do. Deterministic, so the same fight routs the same way.
+  const kindLine = state.bestiary?.[npc.refId]?.type ?? '';
+  const fearless = /undead|construct|ooze|fiend|elemental/i.test(kindLine);
+  const foes = Object.values(state.combatants).filter((c) => c.kind === 'npc');
+  const outOfFight = foes.filter((c) => c.downed || c.dead || c.fled).length;
+  const bloodied = npc.currentHitPoints <= Math.floor(npc.maxHitPoints / 2);
+  if (!fearless && bloodied && outOfFight * 2 >= foes.length) {
+    const { cols, rows } = map.grid;
+    const edges = [
+      { col: 0, row: token.row }, { col: cols - 1, row: token.row },
+      { col: token.col, row: 0 }, { col: token.col, row: rows - 1 },
+    ].sort((a, b) => (Math.abs(a.col - token.col) + Math.abs(a.row - token.row)) - (Math.abs(b.col - token.col) + Math.abs(b.row - token.row)));
+    const v = engine.travel({ actorId: npc.id, to: edges[0]!, mode: 'auto' });
+    if (v.moved && v.at) deltas.push({ op: 'move', id: npc.id, to: { col: v.at.col, row: v.at.row }, ...(v.pathCells?.length ? { via: v.pathCells } : {}) } as SceneDelta);
+    const at = v.at ?? token;
+    const nearEdge = at.col <= 1 || at.row <= 1 || at.col >= cols - 2 || at.row >= rows - 2;
+    if (nearEdge) {
+      npc.fled = true;
+      deltas.push({ op: 'despawn', id: npc.id } as SceneDelta);
+      facts.push(`${npc.name} breaks and flees the field!`);
+      engine.checkCombatEnd(); // a full rout ends the fight without a killing blow
+    } else {
+      facts.push(`${npc.name} falls back, bloodied, looking for a way out.`);
+    }
+    return facts;
+  }
+
   // Nearest CONSCIOUS PC with a token — the policy never chases the dying.
   const feet = map.grid?.feetPerTile ?? 5;
   const targets = Object.values(state.combatants)
@@ -92,19 +120,22 @@ function resolveMonsterTurn(engine: Engine, state: GameState, npc: Combatant, de
  * Run every consecutive NPC turn from the current position in the order, then narrate the batch.
  * Returns null when there is nothing to do (the active combatant is already a PC, or no combat).
  */
-export async function runEnemyPhase(args: { engine: Engine; llm: LlmProvider; playbook: string }): Promise<EnemyPhaseResult | null> {
+export async function runEnemyPhase(args: { engine: Engine; llm: LlmProvider; playbook: string; leadFacts?: string[] }): Promise<EnemyPhaseResult | null> {
   const { engine, llm } = args;
   const state = engine.getState();
-  if (!state.combat.active) return null;
+  const lead = args.leadFacts ?? [];
+  if (!state.combat.active && !lead.length) return null;
   let active = engine.activeCombatant();
-  if (!active || active.kind === 'pc') return null;
+  // A death save's outcome must be narrated even when no monster follows it in the order.
+  if ((!active || active.kind === 'pc') && !lead.length) return null;
 
-  const facts: string[] = [];
+  engine.normalizeTurn(); // a wedged spotlight (stale freeze, prior crash) heals before we read it
+  const facts: string[] = [...lead];
   const deltas: SceneDelta[] = [];
   const roundAtStart = state.combat.round;
   for (let hops = 0; hops < state.combat.order.length + 2 && state.combat.active; hops++) {
     active = engine.activeCombatant();
-    if (!active || active.kind === 'pc') break;
+    if (!active || active.kind !== 'npc') break;
     // A beaten party ends the phase, not the world: the Director owns what bandits do with victory.
     const conscious = Object.values(state.combatants).some((c) => c.kind === 'pc' && !c.dead && !c.downed);
     if (!conscious) {
@@ -112,9 +143,13 @@ export async function runEnemyPhase(args: { engine: Engine; llm: LlmProvider; pl
       break;
     }
     facts.push(...resolveMonsterTurn(engine, state, active, deltas));
-    if (!state.combat.active) break; // the phase's own damage can end the fight (last PC downs a foe on OA later)
+    if (!state.combat.active) break; // the phase's own damage (or a full rout) can end the fight
+    // The actor may have STOPPED being able to act during its own turn — it fled the field, or an
+    // opportunity attack dropped it as it ran. endTurn would refuse (the downed cannot end a turn),
+    // so hand the spotlight on directly; otherwise the table wedges with nobody able to move.
+    if (active.fled || active.downed || active.dead) { try { engine.nextTurn(); } catch { break; } continue; }
     const end = engine.endTurn(active.id);
-    if (!end.ok) break; // never loop on a refusal
+    if (!end.ok) { engine.normalizeTurn(); break; } // never loop on a refusal — but never leave it stuck
   }
 
   const after = engine.activeCombatant();
