@@ -18,15 +18,63 @@ and knowing where everything is. Canonical detail lives in `docs/` (see Pointers
 cp .env.example .env        # then fill ANTHROPIC_API_KEY (+ OPENAI_API_KEY for semantic RAG)
 npm install                 # install all workspace deps
 npm run build               # tsc project references — must be clean
-npm test                    # 84 tests; all should pass (engine + orchestrator + scene + rag + rubric)
+npm test                    # 808 tests (1 known flake — see "Catching up" below)
 ```
+
+## CATCHING UP — an existing checkout after `git pull` (READ THIS FIRST if you already have the repo)
+*For a machine that already has this repo and its `.env` keys and just needs to match `main` exactly.
+Do NOT re-clone and do NOT touch `.env` — everything below is idempotent.*
+
+```bash
+git pull                    # or: git fetch origin && git checkout main && git merge --ff-only origin/main
+npm install                 # cheap no-op unless the lockfile moved; run it, don't reason about it
+npm run build               # REQUIRED — the servers run compiled dist/, not src/
+npm test                    # expect 807 passing / 1 failing (see "known failure" below)
+```
+Then **restart any running dev server** (see below) and hard-reload the browser tab.
+
+**What a pull does and does not bring.**
+- **Comes with the pull:** all code, `prompts/*.md` (the DM playbook — persona changes ride git),
+  `content/dev-sessions/*.json` (the instant-load fixtures, incl. `roadside-ambush` = a combat test
+  that opens mid-fight), `docs/*`, `assets/dawnlike-index.json` (the sprite index).
+- **Does NOT come with the pull (gitignored, per-machine):** `.env`, `apps/web/.env.local`,
+  `content/corpus/` + `raw-data/` (rules RAG), `content/exemplars/` (Technique B voice corpus).
+  Missing corpora degrade silently and correctly — `lookupRule` falls back to keyword/none and the
+  style exemplars switch off. **A different voice corpus is the normal reason two machines' DMs sound
+  different; it is not a bug.** Rebuild instructions are in the two corpus sections below.
+
+**Sanity checks after the build (30 seconds, catches the failures that actually happen):**
+```bash
+curl -s localhost:6984/health                       # {"ok":true}
+curl -s localhost:6984/dm/lab/dev-sessions          # lists roadside-ambush + oakhollow-green + …
+grep NEXT_PUBLIC_SERVER_URL apps/web/.env.local     # MUST be http://localhost:6984
+```
+If `apps/web/.env.local` points anywhere else the live table 404s **"session not found"** — Next
+inlines `NEXT_PUBLIC_*` at startup, so **restart the web app** after changing it.
+
+**Known failure (not caused by your pull):** `packages/scene/src/scene-programmer.test.ts › theme is
+inferred from the brief when omitted` is a long-standing flake. 1 failed / 807 passed is the expected
+green. Anything else failing IS new — bisect before building on it.
+
+**Gotchas that have each cost a debugging session:**
+- `npm run dev:server` is now a supervisor (`scripts/dev-server.mjs`): it runs `tsc -b --watch` **and**
+  restarts `apps/server/dist/index.js` whenever any workspace's `dist/` changes. Editing a file in
+  `packages/*` reaches the running server. But anything that launches `dist` directly (an IDE preview,
+  `.claude/launch.json`) has **no watch** — rebuild and restart it by hand.
+- **DM-Lab sessions are in-memory.** Restarting the backend wipes every session; old `?session=` links
+  404. Start a fresh one from the Lab's Generate tab (or load a prerendered dev session — instant, $0).
+- Combat, the Book, and the live table all read the **compiled** server. "Nothing changed on my end"
+  after an edit is almost always a stale `dist` or an unreloaded Phaser canvas.
+- Optional feature flags default to ON and need no `.env` entry: `MYTHWEAVER_SCRIBE` (per-turn journal
+  lines), `MYTHWEAVER_INSIGHTS` (NPC perceived-sheet profiler), `MYTHWEAVER_CHRONICLER` (chapter
+  prose). Set any to `off` to disable its LLM calls ($0, behavior otherwise identical).
 
 ## Run it
 Ports come from `.env`: **backend `:6984`, web `:6985`** (the web app calls the backend at
 `http://localhost:6984` by default — keep `PORT=6984` or set `NEXT_PUBLIC_SERVER_URL` to match).
 
 ```bash
-npm run dev:server          # backend on :6984 (tsx watch — hot-reloads on source edits)
+npm run dev:server          # backend on :6984 (supervisor: tsc -b --watch + auto-restart on dist change)
 npm run dev:web             # web UI on :6985
 npm run db:up               # Postgres+pgvector (loads db/init/001_init.sql). ONLY needed for the
                             # play/session API (/sessions, /sessions/:id/turn). The DM Lab + Scene

@@ -4,7 +4,7 @@
 "license": "CC-BY 4.0 \u2014 DawnLike by DragonDePlatino & DawnBringer; atlas by Tommy Ettinger",
 "tile": 16,
 "count": 4105,
-"inLibrary": 23,
+"inLibrary": 1038,
 "categories": [
 {
 "name": "Ammo",
@@ -352,7 +352,7 @@
 99
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "acid pool center",
@@ -668,7 +668,7 @@
 531
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "air elemental",
@@ -690,7 +690,7 @@
 243
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "aklys",
@@ -725,7 +725,7 @@
 783
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "alert box",
@@ -769,7 +769,7 @@
 257
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "altar",
@@ -804,7 +804,7 @@
 945
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "aluminum wand",
@@ -982,7 +982,7 @@
 945
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "angled poleaxe",
@@ -1008,7 +1008,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "anti magic field tile",
@@ -1021,7 +1021,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "ape",
@@ -1043,7 +1043,7 @@
 405
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "apple",
@@ -1056,7 +1056,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "aquamarine pendant",
@@ -1091,7 +1091,7 @@
 567
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "arch priest",
@@ -1113,7 +1113,7 @@
 819
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "archaeologist",
@@ -1135,7 +1135,7 @@
 567
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "archlich",
@@ -1157,7 +1157,7 @@
 369
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "archmage",
@@ -1179,7 +1179,7 @@
 801
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "archon",
@@ -1201,7 +1201,7 @@
 261
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "arctic fern",
@@ -1223,7 +1223,7 @@
 819
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "arctic fern spore",
@@ -1245,7 +1245,7 @@
 945
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "arctic fern sprout",
@@ -1267,7 +1267,7 @@
 801
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "arctic tern",
@@ -1289,7 +1289,7 @@
 189
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "arduous trail down left",
@@ -1445,7 +1445,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "armor stand full",
@@ -1458,7 +1458,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "armory sign",
@@ -1471,7 +1471,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "arrow",
@@ -1484,7 +1484,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "arrow trap tile",
@@ -1510,7 +1510,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "asleep box",
@@ -1554,7 +1554,7 @@
 27
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "asp",
@@ -1576,7 +1576,7 @@
 225
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "assassin",
@@ -1598,7 +1598,7 @@
 405
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "assassin bug",
@@ -1620,7 +1620,7 @@
 117
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "assorted shelves",
@@ -1633,7 +1633,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "athame",
@@ -1672,7 +1672,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "baalzebub",
@@ -1694,7 +1694,7 @@
 783
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "baby albatross",
@@ -1716,7 +1716,7 @@
 81
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "baby aluminum falcon",
@@ -1738,7 +1738,7 @@
 819
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "baby arctic tern",
@@ -1760,7 +1760,7 @@
 189
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "baby bald eagle",
@@ -1782,7 +1782,7 @@
 729
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "baby barn owl",
@@ -1804,7 +1804,7 @@
 549
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "baby bat",
@@ -1826,7 +1826,7 @@
 243
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "baby black boar",
@@ -1848,7 +1848,7 @@
 945
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "baby black goat",
@@ -1870,7 +1870,7 @@
 387
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "baby black horse",
@@ -1892,7 +1892,7 @@
 927
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "baby black naga",
@@ -1914,7 +1914,7 @@
 239
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "baby black sheep",
@@ -1936,7 +1936,7 @@
 257
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "baby bogwyrm",
@@ -1958,7 +1958,7 @@
 855
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "baby brown horse",
@@ -1980,7 +1980,7 @@
 513
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "baby bull",
@@ -2002,7 +2002,7 @@
 567
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "baby cave penguin",
@@ -2024,7 +2024,7 @@
 765
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "baby cave swift",
@@ -2046,7 +2046,7 @@
 819
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "baby cockatrice",
@@ -2068,7 +2068,7 @@
 819
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "baby condor",
@@ -2090,7 +2090,7 @@
 945
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "baby cormorant",
@@ -2112,7 +2112,7 @@
 981
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "baby crocodile",
@@ -2134,7 +2134,7 @@
 657
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "baby dairy cow",
@@ -2156,7 +2156,7 @@
 855
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "baby darkwyrm",
@@ -2178,7 +2178,7 @@
 369
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "baby deer",
@@ -2200,7 +2200,7 @@
 477
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "baby doom chickabay",
@@ -2222,7 +2222,7 @@
 297
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "baby dove",
@@ -2244,7 +2244,7 @@
 963
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "baby dreadwyrm",
@@ -2266,7 +2266,7 @@
 567
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "baby duck",
@@ -2288,7 +2288,7 @@
 671
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "baby emu",
@@ -2310,7 +2310,7 @@
 9
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "baby fen chickabay",
@@ -2332,7 +2332,7 @@
 279
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "baby firedrake",
@@ -2354,7 +2354,7 @@
 81
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "baby glendrake",
@@ -2376,7 +2376,7 @@
 77
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "baby golden eagle",
@@ -2398,7 +2398,7 @@
 405
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "baby golden naga",
@@ -2420,7 +2420,7 @@
 369
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "baby gray goat",
@@ -2486,7 +2486,7 @@
 207
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "baby gray sheep",
@@ -2530,7 +2530,7 @@
 63
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "baby griffon",
@@ -2552,7 +2552,7 @@
 693
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "baby guardian naga",
@@ -2574,7 +2574,7 @@
 495
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "baby hog",
@@ -2596,7 +2596,7 @@
 801
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "baby hydra",
@@ -2618,7 +2618,7 @@
 243
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "baby icewyrm",
@@ -2640,7 +2640,7 @@
 621
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "baby kingwyrm",
@@ -2662,7 +2662,7 @@
 189
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "baby kiwi",
@@ -2684,7 +2684,7 @@
 509
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "baby lightwyrm",
@@ -2728,7 +2728,7 @@
 153
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "baby nighthawk",
@@ -2750,7 +2750,7 @@
 369
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "baby osprey",
@@ -2772,7 +2772,7 @@
 81
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "baby ostrich",
@@ -2794,7 +2794,7 @@
 963
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "baby parakeet",
@@ -2816,7 +2816,7 @@
 891
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "baby peacock",
@@ -2838,7 +2838,7 @@
 531
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "baby pelican",
@@ -2860,7 +2860,7 @@
 765
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "baby penguin",
@@ -2882,7 +2882,7 @@
 729
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "baby phoenix",
@@ -2904,7 +2904,7 @@
 783
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "baby pig",
@@ -2926,7 +2926,7 @@
 81
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "baby plains chickabay",
@@ -2948,7 +2948,7 @@
 99
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "baby puffin",
@@ -2970,7 +2970,7 @@
 459
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "baby purple worm",
@@ -2992,7 +2992,7 @@
 585
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "baby pyrolisk",
@@ -3014,7 +3014,7 @@
 729
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "baby red naga",
@@ -3036,7 +3036,7 @@
 81
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "baby robin",
@@ -3058,7 +3058,7 @@
 945
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "baby sanddrake",
@@ -3080,7 +3080,7 @@
 603
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "baby seagull",
@@ -3102,7 +3102,7 @@
 779
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "baby searwyrm",
@@ -3124,7 +3124,7 @@
 855
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "baby sheenwyrm",
@@ -3146,7 +3146,7 @@
 369
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "baby slug",
@@ -3168,7 +3168,7 @@
 639
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "baby snail",
@@ -3190,7 +3190,7 @@
 981
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "baby snow griffon",
@@ -3212,7 +3212,7 @@
 725
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "baby snowy owl",
@@ -3234,7 +3234,7 @@
 891
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "baby sphinx",
@@ -3256,7 +3256,7 @@
 639
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "baby stormwyrm",
@@ -3278,7 +3278,7 @@
 783
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "baby swan",
@@ -3300,7 +3300,7 @@
 347
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "baby taiga chickabay",
@@ -3322,7 +3322,7 @@
 855
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "baby terror bird",
@@ -3344,7 +3344,7 @@
 423
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "baby thrush",
@@ -3366,7 +3366,7 @@
 927
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "baby white goat",
@@ -3388,7 +3388,7 @@
 567
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "baby white naga",
@@ -3410,7 +3410,7 @@
 873
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "baby white sheep",
@@ -3432,7 +3432,7 @@
 459
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "baby winter wolf",
@@ -3454,7 +3454,7 @@
 603
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "baby wyvern",
@@ -3476,7 +3476,7 @@
 311
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "backpack",
@@ -3489,7 +3489,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "bag",
@@ -3550,7 +3550,7 @@
 549
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "balrog",
@@ -3572,7 +3572,7 @@
 477
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "balsa wand",
@@ -3607,7 +3607,7 @@
 171
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "bamboo shoots",
@@ -3620,7 +3620,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "banana",
@@ -3633,7 +3633,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "banded mail",
@@ -3668,7 +3668,7 @@
 549
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "barbarian",
@@ -3690,7 +3690,7 @@
 783
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "barbed devil",
@@ -3712,7 +3712,7 @@
 603
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "bare oak dense",
@@ -4150,7 +4150,7 @@
 747
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "barn kitten",
@@ -4172,7 +4172,7 @@
 873
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "barn owl",
@@ -4194,7 +4194,7 @@
 423
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "barracuda",
@@ -4216,7 +4216,7 @@
 729
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "barrow wight",
@@ -4238,7 +4238,7 @@
 185
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "basin",
@@ -4260,7 +4260,7 @@
 729
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "battle axe",
@@ -4312,7 +4312,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "bear trap tile",
@@ -4338,7 +4338,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "bed b",
@@ -4351,7 +4351,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "bee grub",
@@ -4373,7 +4373,7 @@
 135
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "bell",
@@ -4386,7 +4386,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "beluga whale",
@@ -4408,7 +4408,7 @@
 189
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "bent arrow",
@@ -4456,7 +4456,7 @@
 545
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "big distortion",
@@ -4566,7 +4566,7 @@
 549
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "big hound",
@@ -4588,7 +4588,7 @@
 563
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "big protection",
@@ -4689,7 +4689,7 @@
 963
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "big terror",
@@ -4777,7 +4777,7 @@
 369
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "black boar",
@@ -4799,7 +4799,7 @@
 981
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "black candle",
@@ -4821,7 +4821,7 @@
 423
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "black candle pair",
@@ -4843,7 +4843,7 @@
 261
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "black goat",
@@ -4865,7 +4865,7 @@
 891
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "black heart full",
@@ -4975,7 +4975,7 @@
 585
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "black light",
@@ -5019,7 +5019,7 @@
 513
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "black onyx ring",
@@ -5054,7 +5054,7 @@
 261
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "black ore left right",
@@ -5155,7 +5155,7 @@
 819
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "black sheep",
@@ -5177,7 +5177,7 @@
 639
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "black unicorn",
@@ -5199,7 +5199,7 @@
 329
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "black wand",
@@ -5403,7 +5403,7 @@
 185
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "blazing fern spore",
@@ -5425,7 +5425,7 @@
 131
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "blazing fern sprout",
@@ -5447,7 +5447,7 @@
 981
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "blind box",
@@ -5504,7 +5504,7 @@
 855
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "blizzard tree",
@@ -5526,7 +5526,7 @@
 621
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "blob of melted metal",
@@ -5552,7 +5552,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "bloody scroll",
@@ -5708,7 +5708,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "blue heart full",
@@ -5818,7 +5818,7 @@
 909
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "blue liquid drizzle",
@@ -5831,7 +5831,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "blue liquid spatter",
@@ -5844,7 +5844,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "blue ore left",
@@ -6075,7 +6075,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "blue puddle",
@@ -6088,7 +6088,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "blue scroll",
@@ -6123,7 +6123,7 @@
 567
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "blue snowcap alone",
@@ -6495,7 +6495,7 @@
 149
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "board a",
@@ -6556,7 +6556,7 @@
 621
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "bobcat",
@@ -6578,7 +6578,7 @@
 189
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "bodily fluid",
@@ -6591,7 +6591,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "bog nymph",
@@ -6613,7 +6613,7 @@
 657
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "bog waders",
@@ -6648,7 +6648,7 @@
 675
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "bogwyrm armor",
@@ -6696,7 +6696,7 @@
 909
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "bone wand",
@@ -6761,7 +6761,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "bottle",
@@ -6787,7 +6787,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "brain",
@@ -6800,7 +6800,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "brass armor",
@@ -6826,7 +6826,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "brass ring",
@@ -6865,7 +6865,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "brick clear pool center",
@@ -9741,7 +9741,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "broken barrel",
@@ -9754,7 +9754,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "broken chest",
@@ -9767,7 +9767,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "broken gold portcullis",
@@ -9780,7 +9780,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "broken gravestone a",
@@ -9793,7 +9793,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "broken gravestone b",
@@ -9806,7 +9806,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "broken heart",
@@ -9832,7 +9832,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "broken iron portcullis",
@@ -9845,7 +9845,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "broken keg",
@@ -9858,7 +9858,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "broken safe",
@@ -9871,7 +9871,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "broken stone door",
@@ -9884,7 +9884,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "broken wooden door",
@@ -9897,7 +9897,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "bronze armor",
@@ -10543,7 +10543,7 @@
 311
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "brown mold",
@@ -10565,7 +10565,7 @@
 77
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "brown peak alone",
@@ -10708,7 +10708,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "brown potion",
@@ -10743,7 +10743,7 @@
 437
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "brown rocks",
@@ -10756,7 +10756,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "brown snowcap alone",
@@ -10921,7 +10921,7 @@
 315
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "brown volcano alone",
@@ -11163,7 +11163,7 @@
 59
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "bubbly potion",
@@ -11211,7 +11211,7 @@
 513
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "bugle",
@@ -11246,7 +11246,7 @@
 549
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "bullwhip",
@@ -11259,7 +11259,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "buns",
@@ -11294,7 +11294,7 @@
 837
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "burning demon tree",
@@ -11316,7 +11316,7 @@
 621
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "burning evil shrub",
@@ -11338,7 +11338,7 @@
 149
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "burning evil tree",
@@ -11360,7 +11360,7 @@
 549
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "burning oak dense",
@@ -12112,7 +12112,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "cactus dense",
@@ -12342,7 +12342,7 @@
 675
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "camera",
@@ -12381,7 +12381,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "cancel box",
@@ -12416,7 +12416,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "candle",
@@ -12460,7 +12460,7 @@
 441
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "candy bar",
@@ -12495,7 +12495,7 @@
 999
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "carnivorous ape",
@@ -12517,7 +12517,7 @@
 999
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "carrot",
@@ -12530,7 +12530,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "castle",
@@ -12708,7 +12708,7 @@
 747
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "cave penguin",
@@ -12730,7 +12730,7 @@
 873
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "cave spider",
@@ -12752,7 +12752,7 @@
 297
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "cave swift",
@@ -12774,7 +12774,7 @@
 459
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "caveman",
@@ -12796,7 +12796,7 @@
 279
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "cavewoman",
@@ -12818,7 +12818,7 @@
 441
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "centipede",
@@ -12840,7 +12840,7 @@
 801
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "cerberus",
@@ -12862,7 +12862,7 @@
 441
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "chain shirt",
@@ -12875,7 +12875,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "chameleon",
@@ -12897,7 +12897,7 @@
 909
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "champion",
@@ -12919,7 +12919,7 @@
 531
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "chaos tome",
@@ -12954,7 +12954,7 @@
 351
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "checkpoint",
@@ -12980,7 +12980,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "cherry wand",
@@ -13015,7 +13015,7 @@
 315
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "chillbug",
@@ -13037,7 +13037,7 @@
 549
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "chilly wand",
@@ -13089,7 +13089,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "city",
@@ -13124,7 +13124,7 @@
 603
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "clay ring",
@@ -13405,7 +13405,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "closed big chest",
@@ -13418,7 +13418,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "closed big safe",
@@ -13431,7 +13431,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "closed chest",
@@ -13444,7 +13444,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "closed gold portcullis front",
@@ -13457,7 +13457,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "closed gold portcullis side",
@@ -13470,7 +13470,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "closed ice chest",
@@ -13483,7 +13483,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "closed iron portcullis front",
@@ -13496,7 +13496,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "closed iron portcullis side",
@@ -13509,7 +13509,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "closed keg",
@@ -13522,7 +13522,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "closed safe",
@@ -13535,7 +13535,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "closed stone door front",
@@ -13548,7 +13548,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "closed stone door side",
@@ -13561,7 +13561,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "closed wooden door front",
@@ -13574,7 +13574,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "closed wooden door side",
@@ -13587,7 +13587,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "cloudy lens",
@@ -13868,7 +13868,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "clumsy mitt",
@@ -13903,7 +13903,7 @@
 981
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "cockatrice",
@@ -13925,7 +13925,7 @@
 135
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "code book",
@@ -13951,7 +13951,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "coffin b",
@@ -13964,7 +13964,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "cogdog",
@@ -13986,7 +13986,7 @@
 77
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "cold beam h",
@@ -14109,7 +14109,7 @@
 693
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "colorwind mail",
@@ -14170,7 +14170,7 @@
 351
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "confirm box",
@@ -14227,7 +14227,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "convict",
@@ -14249,7 +14249,7 @@
 747
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "copper coin",
@@ -14323,7 +14323,7 @@
 549
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "corn",
@@ -14336,7 +14336,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "corpse",
@@ -14349,7 +14349,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "cow bell",
@@ -14384,7 +14384,7 @@
 765
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "cream pie",
@@ -14397,7 +14397,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "crested helm",
@@ -14432,7 +14432,7 @@
 585
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "croesus",
@@ -14454,7 +14454,7 @@
 603
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "crossbow",
@@ -14467,7 +14467,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "crossbow bolt",
@@ -14480,7 +14480,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "crysknife",
@@ -14506,7 +14506,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "crystal golem",
@@ -14528,7 +14528,7 @@
 567
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "crystal shelves",
@@ -14541,7 +14541,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "crystal wand",
@@ -14576,7 +14576,7 @@
 801
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "curved wand",
@@ -14637,7 +14637,7 @@
 315
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "dagger",
@@ -14650,7 +14650,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "dairy bottle",
@@ -14663,7 +14663,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "dairy cow",
@@ -14685,7 +14685,7 @@
 117
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "dairy pot",
@@ -14698,7 +14698,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "dao",
@@ -14720,7 +14720,7 @@
 27
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "dark acid wall center",
@@ -14911,7 +14911,7 @@
 333
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "dark black c",
@@ -17172,7 +17172,7 @@
 675
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "dark orange wall center",
@@ -19018,7 +19018,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "dark tome",
@@ -19273,7 +19273,7 @@
 909
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "darkwyrm armor",
@@ -19312,7 +19312,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "dart trap tile",
@@ -20847,7 +20847,7 @@
 423
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "death beam h",
@@ -20957,7 +20957,7 @@
 477
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "deep water tile",
@@ -21027,7 +21027,7 @@
 9
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "demogorgon",
@@ -21049,7 +21049,7 @@
 711
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "demon shrub",
@@ -21071,7 +21071,7 @@
 387
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "demon tree",
@@ -21093,7 +21093,7 @@
 189
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "dented pot",
@@ -21128,7 +21128,7 @@
 531
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "derro slaver",
@@ -21150,7 +21150,7 @@
 657
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "desert cloak",
@@ -21185,7 +21185,7 @@
 693
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "devil snare",
@@ -21207,7 +21207,7 @@
 383
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "diamond ring",
@@ -23283,7 +23283,7 @@
 203
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "dirt trail down left",
@@ -23461,7 +23461,7 @@
 981
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "dispater",
@@ -23483,7 +23483,7 @@
 927
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "divine cyan scroll",
@@ -23544,7 +23544,7 @@
 221
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "dog eared book",
@@ -23579,7 +23579,7 @@
 711
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "dove",
@@ -23601,7 +23601,7 @@
 819
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "down marker",
@@ -23636,7 +23636,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "dragonfly",
@@ -23658,7 +23658,7 @@
 549
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "drama story",
@@ -23706,7 +23706,7 @@
 747
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "dreadwyrm armor",
@@ -23758,7 +23758,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "dry scrub",
@@ -23771,7 +23771,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "duck",
@@ -24040,7 +24040,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "dung worm",
@@ -24062,7 +24062,7 @@
 243
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "dungeon fern",
@@ -24084,7 +24084,7 @@
 585
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "dungeon fern spore",
@@ -24106,7 +24106,7 @@
 189
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "dungeon fern sprout",
@@ -24128,7 +24128,7 @@
 621
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "dusk boulder c",
@@ -25606,7 +25606,7 @@
 599
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "dusty bloody scroll",
@@ -25723,7 +25723,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "dusty white scroll",
@@ -25793,7 +25793,7 @@
 131
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "dwarf barbarian",
@@ -25815,7 +25815,7 @@
 9
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "dwarf expert",
@@ -25837,7 +25837,7 @@
 873
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "dwarf healer",
@@ -25859,7 +25859,7 @@
 207
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "dwarf king",
@@ -25881,7 +25881,7 @@
 243
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "dwarf knight",
@@ -25903,7 +25903,7 @@
 419
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "dwarf lord",
@@ -25925,7 +25925,7 @@
 459
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "dwarf mummy",
@@ -25947,7 +25947,7 @@
 837
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "dwarf nomad",
@@ -25969,7 +25969,7 @@
 801
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "dwarf ranger",
@@ -25991,7 +25991,7 @@
 459
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "dwarf zombie",
@@ -26013,7 +26013,7 @@
 477
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "dwarvish iron helm",
@@ -26122,7 +26122,7 @@
 297
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "earth tome",
@@ -26148,7 +26148,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "ebony wand",
@@ -26183,7 +26183,7 @@
 603
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "effervescent potion",
@@ -26231,7 +26231,7 @@
 333
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "elemental tome",
@@ -26266,7 +26266,7 @@
 149
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "elf king",
@@ -26288,7 +26288,7 @@
 999
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "elf lord",
@@ -26310,7 +26310,7 @@
 243
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "elf mummy",
@@ -26332,7 +26332,7 @@
 351
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "elf zombie",
@@ -26354,7 +26354,7 @@
 657
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "elven boots",
@@ -26484,7 +26484,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "empty shop sign",
@@ -26497,7 +26497,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "emu",
@@ -26519,7 +26519,7 @@
 117
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "encyclopedia",
@@ -26907,7 +26907,7 @@
 567
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "enter icon",
@@ -26942,7 +26942,7 @@
 95
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "eruption effect",
@@ -26999,7 +26999,7 @@
 783
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "ettin mummy",
@@ -27021,7 +27021,7 @@
 873
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "ettin zombie",
@@ -27043,7 +27043,7 @@
 279
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "eucalyptus leaf",
@@ -27056,7 +27056,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "evil eye",
@@ -27078,7 +27078,7 @@
 459
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "evil shrub",
@@ -27100,7 +27100,7 @@
 63
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "evil tree",
@@ -27122,7 +27122,7 @@
 207
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "executioner",
@@ -27144,7 +27144,7 @@
 981
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "exquisite boots",
@@ -27179,7 +27179,7 @@
 495
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "eye tyrant",
@@ -27201,7 +27201,7 @@
 45
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "eyeball",
@@ -27214,7 +27214,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "fairy step mushrooms",
@@ -27275,7 +27275,7 @@
 855
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "farmer man",
@@ -27297,7 +27297,7 @@
 891
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "farmer woman",
@@ -27319,7 +27319,7 @@
 621
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "fedora",
@@ -27354,7 +27354,7 @@
 837
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "feral hog",
@@ -27376,7 +27376,7 @@
 657
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "field guide",
@@ -27411,7 +27411,7 @@
 801
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "fierce lynx",
@@ -27433,7 +27433,7 @@
 765
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "fierce puma",
@@ -27455,7 +27455,7 @@
 729
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "fighter",
@@ -27477,7 +27477,7 @@
 135
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "fighting fish",
@@ -27499,7 +27499,7 @@
 369
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "fingers",
@@ -27534,7 +27534,7 @@
 351
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "fire beam h",
@@ -27855,7 +27855,7 @@
 693
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "fire giant",
@@ -27877,7 +27877,7 @@
 261
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "fire horn",
@@ -27890,7 +27890,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "fire icon",
@@ -27925,7 +27925,7 @@
 873
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "fire skeleton",
@@ -27947,7 +27947,7 @@
 801
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "fire tome",
@@ -27973,7 +27973,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "fire vortex",
@@ -27995,7 +27995,7 @@
 135
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "firedrake",
@@ -28017,7 +28017,7 @@
 99
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "firedrake armor",
@@ -28065,7 +28065,7 @@
 563
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "fizzy potion",
@@ -28091,7 +28091,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "flame garb",
@@ -28126,7 +28126,7 @@
 81
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "flash beam h",
@@ -28249,7 +28249,7 @@
 855
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "fleshy book",
@@ -28288,7 +28288,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "floating eye",
@@ -28310,7 +28310,7 @@
 387
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "fog cloud",
@@ -28332,7 +28332,7 @@
 27
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "font",
@@ -28371,7 +28371,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "force beam h",
@@ -28481,7 +28481,7 @@
 873
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "forest cloak",
@@ -28516,7 +28516,7 @@
 981
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "forest spirit",
@@ -28538,7 +28538,7 @@
 297
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "forest sprite",
@@ -28560,7 +28560,7 @@
 459
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "forked polearm",
@@ -28612,7 +28612,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "fortifications side",
@@ -28625,7 +28625,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "fortified gold portcullis front",
@@ -28638,7 +28638,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "fortified gold portcullis side",
@@ -28651,7 +28651,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "fortified iron portcullis front",
@@ -28664,7 +28664,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "fortified iron portcullis side",
@@ -28677,7 +28677,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "fortified stone door front",
@@ -28690,7 +28690,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "fortified stone door side",
@@ -28703,7 +28703,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "fortified wand",
@@ -28729,7 +28729,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "fortified wooden door side",
@@ -28742,7 +28742,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "fortune cookie",
@@ -28755,7 +28755,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "fountain",
@@ -28799,7 +28799,7 @@
 851
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "frag grenade",
@@ -28834,7 +28834,7 @@
 405
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "frog",
@@ -28891,7 +28891,7 @@
 315
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "frost horn",
@@ -28904,7 +28904,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "full bookshelves",
@@ -28917,7 +28917,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "full plate",
@@ -28969,7 +28969,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "gargoyle",
@@ -28991,7 +28991,7 @@
 693
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "garnet pendant",
@@ -29026,7 +29026,7 @@
 549
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "gas grenade",
@@ -29061,7 +29061,7 @@
 99
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "gauge blue full",
@@ -29611,7 +29611,7 @@
 9
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "gelatinous cube",
@@ -29633,7 +29633,7 @@
 369
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "geryon",
@@ -29655,7 +29655,7 @@
 189
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "ghost",
@@ -29677,7 +29677,7 @@
 873
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "ghoul",
@@ -29699,7 +29699,7 @@
 369
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "giant",
@@ -29721,7 +29721,7 @@
 225
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "giant ant",
@@ -29743,7 +29743,7 @@
 315
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "giant bat",
@@ -29765,7 +29765,7 @@
 675
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "giant beetle",
@@ -29787,7 +29787,7 @@
 909
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "giant flea",
@@ -29809,7 +29809,7 @@
 761
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "giant louse",
@@ -29831,7 +29831,7 @@
 513
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "giant mimic",
@@ -29853,7 +29853,7 @@
 869
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "giant mummy",
@@ -29875,7 +29875,7 @@
 873
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "giant rat",
@@ -29897,7 +29897,7 @@
 225
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "giant scorpion",
@@ -29919,7 +29919,7 @@
 747
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "giant slug",
@@ -29941,7 +29941,7 @@
 225
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "giant snail",
@@ -29963,7 +29963,7 @@
 891
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "giant spider",
@@ -29985,7 +29985,7 @@
 99
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "giant tick",
@@ -30007,7 +30007,7 @@
 99
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "giant tortoise",
@@ -30029,7 +30029,7 @@
 963
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "giant turtle",
@@ -30051,7 +30051,7 @@
 801
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "giant zombie",
@@ -30073,7 +30073,7 @@
 315
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "gila monster",
@@ -30095,7 +30095,7 @@
 279
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "glass golem",
@@ -30117,7 +30117,7 @@
 207
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "glass piercer",
@@ -30139,7 +30139,7 @@
 765
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "glass ring",
@@ -30330,7 +30330,7 @@
 981
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "glendrake armor",
@@ -30518,7 +30518,7 @@
 207
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "gnome king",
@@ -30540,7 +30540,7 @@
 873
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "gnome lord",
@@ -30562,7 +30562,7 @@
 369
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "gnome mummy",
@@ -30584,7 +30584,7 @@
 45
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "gnome wizard",
@@ -30606,7 +30606,7 @@
 693
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "gnome zombie",
@@ -30628,7 +30628,7 @@
 783
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "goblin",
@@ -30672,7 +30672,7 @@
 999
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "goblin prince",
@@ -30694,7 +30694,7 @@
 981
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "gold archway",
@@ -30707,7 +30707,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "gold book",
@@ -30746,7 +30746,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "gold foil",
@@ -30781,7 +30781,7 @@
 261
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "gold portal",
@@ -30803,7 +30803,7 @@
 63
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "gold portcullis frame",
@@ -30816,7 +30816,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "gold ring",
@@ -30873,7 +30873,7 @@
 261
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "golden naga",
@@ -30895,7 +30895,7 @@
 873
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "golden potion",
@@ -30943,7 +30943,7 @@
 729
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "grandmaster mail",
@@ -30982,7 +30982,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "grappling hook h",
@@ -31083,7 +31083,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "gravestone b",
@@ -31096,7 +31096,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "gravestone c",
@@ -31109,7 +31109,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "gravestone d",
@@ -31122,7 +31122,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "gravestone e",
@@ -31443,7 +31443,7 @@
 369
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "gray goat",
@@ -31465,7 +31465,7 @@
 635
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "gray horse",
@@ -31487,7 +31487,7 @@
 855
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "gray ooze",
@@ -31509,7 +31509,7 @@
 423
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "gray parrot",
@@ -31531,7 +31531,7 @@
 729
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "gray pebbles",
@@ -31544,7 +31544,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "gray rocks",
@@ -31557,7 +31557,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "gray scroll",
@@ -31592,7 +31592,7 @@
 657
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "gray squirrel",
@@ -31614,7 +31614,7 @@
 873
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "gray unicorn",
@@ -31636,7 +31636,7 @@
 135
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "gray white c",
@@ -31788,7 +31788,7 @@
 459
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "green bill",
@@ -32083,7 +32083,7 @@
 585
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "green grass",
@@ -32096,7 +32096,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "green heart full",
@@ -32197,7 +32197,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "green liquid spatter",
@@ -32210,7 +32210,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "green mold",
@@ -32232,7 +32232,7 @@
 909
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "green mound alone",
@@ -32615,7 +32615,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "green puddle",
@@ -32628,7 +32628,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "green red c",
@@ -32784,7 +32784,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "green slime",
@@ -32806,7 +32806,7 @@
 639
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "green snowcap alone",
@@ -33178,7 +33178,7 @@
 891
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "gremlin",
@@ -33200,7 +33200,7 @@
 99
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "grid bug",
@@ -33222,7 +33222,7 @@
 585
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "griffon",
@@ -33244,7 +33244,7 @@
 603
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "guard",
@@ -33266,7 +33266,7 @@
 531
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "guardian naga",
@@ -33288,7 +33288,7 @@
 855
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "hammer",
@@ -33301,7 +33301,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "handful of copper coins",
@@ -33401,7 +33401,7 @@
 387
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "hawaiian shirt",
@@ -33440,7 +33440,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "healer",
@@ -33462,7 +33462,7 @@
 189
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "health icon",
@@ -33488,7 +33488,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "heart marker",
@@ -33523,7 +33523,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "heavenly portal",
@@ -33545,7 +33545,7 @@
 549
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "heck puppy",
@@ -33567,7 +33567,7 @@
 77
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "hell hound",
@@ -33589,7 +33589,7 @@
 441
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "helmet",
@@ -33602,7 +33602,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "hen",
@@ -33624,7 +33624,7 @@
 693
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "heroic story",
@@ -33672,7 +33672,7 @@
 945
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "high priest",
@@ -33694,7 +33694,7 @@
 581
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "hill cloak",
@@ -33729,7 +33729,7 @@
 477
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "hill orc",
@@ -33751,7 +33751,7 @@
 711
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "hilted polearm",
@@ -33786,7 +33786,7 @@
 495
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "history book",
@@ -33821,7 +33821,7 @@
 675
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "hobgoblin",
@@ -33843,7 +33843,7 @@
 743
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "hog",
@@ -33865,7 +33865,7 @@
 189
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "hog ear mushrooms",
@@ -34008,7 +34008,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "homestead",
@@ -34043,7 +34043,7 @@
 495
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "hooked polearm",
@@ -34069,7 +34069,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "horned devil",
@@ -34091,7 +34091,7 @@
 855
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "horror story",
@@ -34165,7 +34165,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "human mummy",
@@ -34187,7 +34187,7 @@
 657
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "human zombie",
@@ -34209,7 +34209,7 @@
 347
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "hungry bag",
@@ -34222,7 +34222,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "hydra",
@@ -34244,7 +34244,7 @@
 315
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "ice devil",
@@ -34266,7 +34266,7 @@
 135
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "ice fence down left",
@@ -34435,7 +34435,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "ice tome",
@@ -34483,7 +34483,7 @@
 603
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "ice vortex",
@@ -34505,7 +34505,7 @@
 369
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "icewyrm",
@@ -34527,7 +34527,7 @@
 855
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "icewyrm armor",
@@ -34575,7 +34575,7 @@
 243
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "illustrated manuscript",
@@ -34610,7 +34610,7 @@
 707
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "incubus",
@@ -34632,7 +34632,7 @@
 347
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "infernal archway",
@@ -34645,7 +34645,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "infernal ore",
@@ -34658,7 +34658,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "infernal portal",
@@ -34680,7 +34680,7 @@
 873
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "inn sign",
@@ -34693,7 +34693,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "intermittent teeth",
@@ -34728,7 +34728,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "inventory icon",
@@ -34776,7 +34776,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "iridium wand",
@@ -34837,7 +34837,7 @@
 23
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "iron piercer",
@@ -34859,7 +34859,7 @@
 963
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "iron portcullis frame",
@@ -34885,7 +34885,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "iron wand",
@@ -34946,7 +34946,7 @@
 621
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "jabberwock",
@@ -34968,7 +34968,7 @@
 297
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "jackal",
@@ -34990,7 +34990,7 @@
 315
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "jackrabbit",
@@ -35012,7 +35012,7 @@
 567
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "jade pendant",
@@ -35064,7 +35064,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "jellyfish",
@@ -35086,7 +35086,7 @@
 855
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "jeweled wand",
@@ -35121,7 +35121,7 @@
 243
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "jujitsu gi",
@@ -35160,7 +35160,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "keepsake necklace",
@@ -35186,7 +35186,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "key",
@@ -35199,7 +35199,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "keystone kop",
@@ -35221,7 +35221,7 @@
 311
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "kidney",
@@ -35234,7 +35234,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "killer bee",
@@ -35256,7 +35256,7 @@
 117
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "killer beetle",
@@ -35278,7 +35278,7 @@
 279
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "king arthur",
@@ -35300,7 +35300,7 @@
 45
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "kingly crown",
@@ -35335,7 +35335,7 @@
 99
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "kirin",
@@ -35357,7 +35357,7 @@
 621
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "kiwi",
@@ -35379,7 +35379,7 @@
 45
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "knife",
@@ -35392,7 +35392,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "knight",
@@ -35449,7 +35449,7 @@
 693
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "kobold ascendant",
@@ -35471,7 +35471,7 @@
 459
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "kobold barbarian",
@@ -35493,7 +35493,7 @@
 945
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "kobold convict",
@@ -35515,7 +35515,7 @@
 171
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "kobold knight",
@@ -35537,7 +35537,7 @@
 603
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "kobold lord",
@@ -35559,7 +35559,7 @@
 477
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "kobold mummy",
@@ -35581,7 +35581,7 @@
 585
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "kobold priest",
@@ -35603,7 +35603,7 @@
 801
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "kobold ranger",
@@ -35625,7 +35625,7 @@
 675
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "kobold rogue",
@@ -35647,7 +35647,7 @@
 639
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "kobold shaman",
@@ -35669,7 +35669,7 @@
 711
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "kobold zombie",
@@ -35691,7 +35691,7 @@
 711
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "komodo dragon",
@@ -35713,7 +35713,7 @@
 153
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "kop kaptain",
@@ -35735,7 +35735,7 @@
 729
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "kop lieutenant",
@@ -35757,7 +35757,7 @@
 549
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "kop sergeant",
@@ -35779,7 +35779,7 @@
 189
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "kraken",
@@ -35801,7 +35801,7 @@
 261
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "lacquered armor",
@@ -35827,7 +35827,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "lance",
@@ -35853,7 +35853,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "land mine tile",
@@ -35901,7 +35901,7 @@
 473
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "large ladder down",
@@ -35949,7 +35949,7 @@
 459
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "large pellets",
@@ -35975,7 +35975,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "large shield",
@@ -36036,7 +36036,7 @@
 945
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "lava demon",
@@ -36058,7 +36058,7 @@
 783
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "lava drizzle",
@@ -36608,7 +36608,7 @@
 819
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "lava spatter",
@@ -36630,7 +36630,7 @@
 315
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "lava tile",
@@ -36643,7 +36643,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "lead foil",
@@ -36682,7 +36682,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "leather boots",
@@ -36695,7 +36695,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "leather drum",
@@ -36708,7 +36708,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "leather glove",
@@ -36743,7 +36743,7 @@
 567
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "leather shoes",
@@ -36778,7 +36778,7 @@
 423
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "left weapon rest empty",
@@ -36852,7 +36852,7 @@
 581
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "lens",
@@ -36865,7 +36865,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "lenses",
@@ -36878,7 +36878,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "leocrotta",
@@ -36900,7 +36900,7 @@
 567
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "leopard",
@@ -36922,7 +36922,7 @@
 153
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "leprechaun",
@@ -36944,7 +36944,7 @@
 113
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "lesser devil",
@@ -36966,7 +36966,7 @@
 657
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "level teleporter tile",
@@ -37001,7 +37001,7 @@
 405
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "lichen",
@@ -37023,7 +37023,7 @@
 387
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "lieutenant",
@@ -37045,7 +37045,7 @@
 257
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "light mangrove dense",
@@ -38562,7 +38562,7 @@
 873
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "lightwyrm armor",
@@ -38610,7 +38610,7 @@
 981
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "lit acid wall center",
@@ -40651,7 +40651,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "little black book",
@@ -40686,7 +40686,7 @@
 639
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "little distortion",
@@ -40796,7 +40796,7 @@
 783
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "little protection",
@@ -40884,7 +40884,7 @@
 531
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "little terror",
@@ -40963,7 +40963,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "lizard",
@@ -40985,7 +40985,7 @@
 351
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "llama",
@@ -41007,7 +41007,7 @@
 477
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "loadstone",
@@ -41020,7 +41020,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "loaf of bread",
@@ -41033,7 +41033,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "lobster",
@@ -41055,7 +41055,7 @@
 297
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "locked diary",
@@ -41081,7 +41081,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "locked gold portcullis side",
@@ -41094,7 +41094,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "locked iron portcullis front",
@@ -41107,7 +41107,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "locked iron portcullis side",
@@ -41120,7 +41120,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "locked stone door front",
@@ -41133,7 +41133,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "locked stone door side",
@@ -41146,7 +41146,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "locked wooden door front",
@@ -41159,7 +41159,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "locked wooden door side",
@@ -41172,7 +41172,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "lockpicks",
@@ -41185,7 +41185,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "locks front",
@@ -41233,7 +41233,7 @@
 275
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "long poleaxe",
@@ -41272,7 +41272,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "long wand",
@@ -41307,7 +41307,7 @@
 549
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "long worm tail",
@@ -41329,7 +41329,7 @@
 387
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "longbow",
@@ -41342,7 +41342,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "lord carnavon",
@@ -41364,7 +41364,7 @@
 261
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "love box",
@@ -41399,7 +41399,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "luggage",
@@ -41412,7 +41412,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "luminous mushroom",
@@ -41451,7 +41451,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "lurker above",
@@ -41473,7 +41473,7 @@
 801
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "lurker below",
@@ -41495,7 +41495,7 @@
 567
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "lynx",
@@ -41517,7 +41517,7 @@
 171
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "lynx kitten",
@@ -41539,7 +41539,7 @@
 693
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "mace",
@@ -41552,7 +41552,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "maddening book",
@@ -41587,7 +41587,7 @@
 81
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "maelstrom tree",
@@ -41609,7 +41609,7 @@
 729
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "mage e",
@@ -41764,7 +41764,7 @@
 171
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "magic bag",
@@ -41786,7 +41786,7 @@
 387
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "magic bones",
@@ -41808,7 +41808,7 @@
 635
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "magic burst c",
@@ -42028,7 +42028,7 @@
 477
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "magic flute",
@@ -42054,7 +42054,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "magic lamp",
@@ -42067,7 +42067,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "magic marker",
@@ -42115,7 +42115,7 @@
 927
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "magic skull",
@@ -42137,7 +42137,7 @@
 225
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "magic trap tile",
@@ -42198,7 +42198,7 @@
 585
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "man",
@@ -42220,7 +42220,7 @@
 563
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "man o war",
@@ -42242,7 +42242,7 @@
 297
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "manes",
@@ -42264,7 +42264,7 @@
 225
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "maple wand",
@@ -42303,7 +42303,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "marid",
@@ -42325,7 +42325,7 @@
 149
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "marilith",
@@ -42347,7 +42347,7 @@
 567
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "master lich",
@@ -42369,7 +42369,7 @@
 189
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "master mind flayer",
@@ -42391,7 +42391,7 @@
 603
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "master of thieves",
@@ -42413,7 +42413,7 @@
 441
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "mastodon",
@@ -42435,7 +42435,7 @@
 405
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "mat a",
@@ -42474,7 +42474,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "meat book",
@@ -42587,7 +42587,7 @@
 297
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "medical textbook",
@@ -42622,7 +42622,7 @@
 387
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "memoir",
@@ -43398,7 +43398,7 @@
 999
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "military text",
@@ -43446,7 +43446,7 @@
 801
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "miner",
@@ -43468,7 +43468,7 @@
 297
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "minion of huhetotl",
@@ -43490,7 +43490,7 @@
 819
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "minotaur",
@@ -43512,7 +43512,7 @@
 927
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "mirror",
@@ -43638,7 +43638,7 @@
 711
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "monk robes",
@@ -43673,7 +43673,7 @@
 963
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "moonstone ring",
@@ -44739,7 +44739,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "morning stone floor c",
@@ -45221,7 +45221,7 @@
 909
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "mountain fairy",
@@ -45243,7 +45243,7 @@
 171
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "mountain nymph",
@@ -45265,7 +45265,7 @@
 621
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "mountain spirit",
@@ -45287,7 +45287,7 @@
 783
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "mountain sprite",
@@ -45309,7 +45309,7 @@
 5
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "mountaineer boots",
@@ -45335,7 +45335,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "mud burst c",
@@ -45555,7 +45555,7 @@
 405
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "murky potion",
@@ -45707,7 +45707,7 @@
 99
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "nalzok",
@@ -45729,7 +45729,7 @@
 851
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "natural tome",
@@ -45777,7 +45777,7 @@
 45
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "neferet the green",
@@ -45799,7 +45799,7 @@
 207
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "newborn brown horse",
@@ -45821,7 +45821,7 @@
 599
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "newt",
@@ -45843,7 +45843,7 @@
 225
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "night boulder c",
@@ -47321,7 +47321,7 @@
 405
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "ninja",
@@ -47343,7 +47343,7 @@
 351
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "ninja master",
@@ -47365,7 +47365,7 @@
 189
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "no box",
@@ -47409,7 +47409,7 @@
 477
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "norn",
@@ -47431,7 +47431,7 @@
 495
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "novelty tee",
@@ -47897,7 +47897,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "nurse",
@@ -47919,7 +47919,7 @@
 189
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "oak wand",
@@ -47945,7 +47945,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "obsidian ring",
@@ -47980,7 +47980,7 @@
 351
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "ochre jelly",
@@ -48002,7 +48002,7 @@
 819
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "ogre",
@@ -48024,7 +48024,7 @@
 99
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "ogre king",
@@ -48046,7 +48046,7 @@
 279
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "ogre lord",
@@ -48068,7 +48068,7 @@
 963
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "oily ore left",
@@ -48169,7 +48169,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "old dragon skull",
@@ -48182,7 +48182,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "old ribcage",
@@ -48195,7 +48195,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "old skull",
@@ -48208,7 +48208,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "olog hai",
@@ -48230,7 +48230,7 @@
 513
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "opal ring",
@@ -48256,7 +48256,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "open big chest",
@@ -48269,7 +48269,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "open big safe",
@@ -48282,7 +48282,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "open chest",
@@ -48295,7 +48295,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "open gold portcullis front",
@@ -48308,7 +48308,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "open gold portcullis side",
@@ -48321,7 +48321,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "open ice chest",
@@ -48334,7 +48334,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "open iron portcullis front",
@@ -48347,7 +48347,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "open iron portcullis side",
@@ -48360,7 +48360,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "open keg",
@@ -48373,7 +48373,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "open safe",
@@ -48386,7 +48386,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "open stone door front",
@@ -48399,7 +48399,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "open stone door side",
@@ -48412,7 +48412,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "open wooden door front",
@@ -48425,7 +48425,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "open wooden door side",
@@ -48438,7 +48438,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "opening bell",
@@ -48451,7 +48451,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "oracle",
@@ -48473,7 +48473,7 @@
 513
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "orange",
@@ -48486,7 +48486,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "orange ore left",
@@ -48644,7 +48644,7 @@
 531
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "orc king",
@@ -48666,7 +48666,7 @@
 801
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "orc knight",
@@ -48688,7 +48688,7 @@
 711
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "orc marine",
@@ -48710,7 +48710,7 @@
 873
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "orc monk",
@@ -48732,7 +48732,7 @@
 927
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "orc mummy",
@@ -48754,7 +48754,7 @@
 41
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "orc rogue",
@@ -48776,7 +48776,7 @@
 369
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "orc samurai",
@@ -48798,7 +48798,7 @@
 765
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "orc shaman",
@@ -48820,7 +48820,7 @@
 63
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "orc wizard",
@@ -48842,7 +48842,7 @@
 855
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "orc zombie",
@@ -48864,7 +48864,7 @@
 783
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "orcish dagger",
@@ -48951,7 +48951,7 @@
 873
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "order tome",
@@ -48986,7 +48986,7 @@
 423
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "ordinary goblin",
@@ -49008,7 +49008,7 @@
 329
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "ordinary human",
@@ -49030,7 +49030,7 @@
 401
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "ordinary kobold",
@@ -49052,7 +49052,7 @@
 729
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "ordinary orc",
@@ -49074,7 +49074,7 @@
 927
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "ordinary woman",
@@ -49096,7 +49096,7 @@
 621
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "orion",
@@ -49118,7 +49118,7 @@
 603
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "ornate bottle",
@@ -49131,7 +49131,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "ornate candelabra",
@@ -49153,7 +49153,7 @@
 225
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "ornate candle",
@@ -49175,7 +49175,7 @@
 639
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "ornate pot",
@@ -49188,7 +49188,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "osprey",
@@ -49210,7 +49210,7 @@
 693
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "ostrich",
@@ -49232,7 +49232,7 @@
 477
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "owlbear",
@@ -49254,7 +49254,7 @@
 513
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "palace",
@@ -49621,7 +49621,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "panther",
@@ -49643,7 +49643,7 @@
 801
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "paper golem",
@@ -49665,7 +49665,7 @@
 117
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "paperback book",
@@ -49700,7 +49700,7 @@
 927
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "parasite",
@@ -49713,7 +49713,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "peace marker",
@@ -49757,7 +49757,7 @@
 9
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "peahen",
@@ -49779,7 +49779,7 @@
 369
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "pear",
@@ -49792,7 +49792,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "pearl necklace",
@@ -49928,7 +49928,7 @@
 639
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "peasant robes",
@@ -49963,7 +49963,7 @@
 653
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "pebble",
@@ -49989,7 +49989,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "pegasus",
@@ -50011,7 +50011,7 @@
 567
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "pelias",
@@ -50033,7 +50033,7 @@
 693
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "pelican",
@@ -50055,7 +50055,7 @@
 387
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "penguin",
@@ -50077,7 +50077,7 @@
 657
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "perforated wand",
@@ -50112,7 +50112,7 @@
 729
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "pet marker",
@@ -50234,7 +50234,7 @@
 225
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "phoenix",
@@ -50256,7 +50256,7 @@
 189
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "pick axe",
@@ -50269,7 +50269,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "pig",
@@ -50291,7 +50291,7 @@
 369
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "pile of copper coins",
@@ -50356,7 +50356,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "pine wand",
@@ -50492,7 +50492,7 @@
 639
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "pistol",
@@ -50505,7 +50505,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "pit fiend",
@@ -50527,7 +50527,7 @@
 707
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "pit tile",
@@ -50562,7 +50562,7 @@
 207
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "pixel",
@@ -50597,7 +50597,7 @@
 873
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "plain ring",
@@ -50632,7 +50632,7 @@
 891
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "plains chickabay",
@@ -50654,7 +50654,7 @@
 909
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "platino",
@@ -50711,7 +50711,7 @@
 653
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "plumed helm",
@@ -50942,7 +50942,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "polished silver shield",
@@ -51007,7 +51007,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "potted seedlings",
@@ -51020,7 +51020,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "prayer beads",
@@ -51055,7 +51055,7 @@
 873
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "priestess",
@@ -51077,7 +51077,7 @@
 639
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "princely crown",
@@ -51125,7 +51125,7 @@
 225
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "prisoner outfit",
@@ -51177,7 +51177,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "puce potion",
@@ -51225,7 +51225,7 @@
 981
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "puma",
@@ -51247,7 +51247,7 @@
 909
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "puma kitten",
@@ -51269,7 +51269,7 @@
 675
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "pumpkin",
@@ -51282,7 +51282,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "purple red potion",
@@ -51317,7 +51317,7 @@
 423
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "pyrolisk",
@@ -51339,7 +51339,7 @@
 189
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "python",
@@ -51361,7 +51361,7 @@
 765
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "quantum mechanic",
@@ -51383,7 +51383,7 @@
 945
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "quarterstaff",
@@ -51396,7 +51396,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "quasit",
@@ -51418,7 +51418,7 @@
 657
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "queen bee",
@@ -51440,7 +51440,7 @@
 45
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "quest leader a",
@@ -51462,7 +51462,7 @@
 621
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "quest leader b",
@@ -51484,7 +51484,7 @@
 117
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "quest leader c",
@@ -51506,7 +51506,7 @@
 999
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "quest leader d",
@@ -51528,7 +51528,7 @@
 891
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "question a",
@@ -51695,7 +51695,7 @@
 369
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "rabbit",
@@ -51739,7 +51739,7 @@
 873
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "rabid rat",
@@ -51761,7 +51761,7 @@
 927
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "rabid wolf",
@@ -51783,7 +51783,7 @@
 693
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "radiant potion",
@@ -51809,7 +51809,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "raging bull",
@@ -51831,7 +51831,7 @@
 405
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "rain jacket",
@@ -51927,7 +51927,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "recipe book",
@@ -52239,7 +52239,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "red green c",
@@ -52505,7 +52505,7 @@
 747
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "red naga",
@@ -52527,7 +52527,7 @@
 927
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "red ore left",
@@ -52549,7 +52549,7 @@
 891
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "red ore left right",
@@ -52806,7 +52806,7 @@
 693
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "red snowcap alone",
@@ -52958,7 +52958,7 @@
 441
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "red volcano alone",
@@ -53204,7 +53204,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "ribcage",
@@ -53217,7 +53217,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "rifle",
@@ -53230,7 +53230,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "right weapon rest empty",
@@ -53269,7 +53269,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "ripe fruit tree",
@@ -53282,7 +53282,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "ripe herb cluster",
@@ -53295,7 +53295,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "ripe leafy vegetable",
@@ -53308,7 +53308,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "ripe root vegetable",
@@ -53321,7 +53321,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "ripe vine vegetable",
@@ -53334,7 +53334,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "river dolphin",
@@ -53356,7 +53356,7 @@
 873
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "river nymph",
@@ -53378,7 +53378,7 @@
 189
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "river spirit",
@@ -53400,7 +53400,7 @@
 999
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "robert the lifer",
@@ -53422,7 +53422,7 @@
 603
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "robin",
@@ -53444,7 +53444,7 @@
 333
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "rock",
@@ -53457,7 +53457,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "rock mole",
@@ -53479,7 +53479,7 @@
 891
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "rock piercer",
@@ -53501,7 +53501,7 @@
 495
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "rock troll",
@@ -53523,7 +53523,7 @@
 833
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "rocky trail down left",
@@ -53688,7 +53688,7 @@
 81
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "rogue e",
@@ -53843,7 +53843,7 @@
 891
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "rope",
@@ -53878,7 +53878,7 @@
 945
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "rope h",
@@ -53992,7 +53992,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "ruby pendant",
@@ -54079,7 +54079,7 @@
 549
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "rust trap tile",
@@ -54153,7 +54153,7 @@
 315
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "sacrificial candle",
@@ -54175,7 +54175,7 @@
 459
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "saddle",
@@ -54223,7 +54223,7 @@
 585
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "samurai",
@@ -54245,7 +54245,7 @@
 747
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "sand puff",
@@ -54267,7 +54267,7 @@
 81
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "sand trail down left",
@@ -54432,7 +54432,7 @@
 675
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "sanddrake armor",
@@ -54480,7 +54480,7 @@
 189
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "sanguine potion",
@@ -54541,7 +54541,7 @@
 891
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "save icon",
@@ -54580,7 +54580,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "scimitar",
@@ -54593,7 +54593,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "scorpion",
@@ -54615,7 +54615,7 @@
 693
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "scorpius",
@@ -54637,7 +54637,7 @@
 567
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "scythe",
@@ -54650,7 +54650,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "sea nymph",
@@ -54672,7 +54672,7 @@
 747
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "sea tiger",
@@ -54694,7 +54694,7 @@
 747
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "seagull",
@@ -54716,7 +54716,7 @@
 221
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "sealed potion",
@@ -54751,7 +54751,7 @@
 639
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "self help book",
@@ -54786,7 +54786,7 @@
 819
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "sergeant",
@@ -54808,7 +54808,7 @@
 567
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "serpent",
@@ -54830,7 +54830,7 @@
 207
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "sewer rat",
@@ -54852,7 +54852,7 @@
 927
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "sewing needle",
@@ -54887,7 +54887,7 @@
 455
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "shadow skeleton",
@@ -54909,7 +54909,7 @@
 243
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "shallow water tile",
@@ -54944,7 +54944,7 @@
 851
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "shards a",
@@ -54992,7 +54992,7 @@
 149
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "sheenwyrm armor",
@@ -55040,7 +55040,7 @@
 243
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "shimmering tome",
@@ -55215,7 +55215,7 @@
 153
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "shopkeeper",
@@ -55237,7 +55237,7 @@
 455
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "short sword",
@@ -55250,7 +55250,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "short wand",
@@ -55276,7 +55276,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "shrieker",
@@ -55298,7 +55298,7 @@
 729
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "shuriken",
@@ -55311,7 +55311,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "sightseer",
@@ -55333,7 +55333,7 @@
 279
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "sign a",
@@ -55502,7 +55502,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "silvery ore left",
@@ -55677,7 +55677,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "slayer",
@@ -55699,7 +55699,7 @@
 801
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "slaying guide",
@@ -55900,7 +55900,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "sloshing potion",
@@ -55996,7 +55996,7 @@
 441
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "small mimic",
@@ -56018,7 +56018,7 @@
 693
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "small pellets",
@@ -56044,7 +56044,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "small shield",
@@ -56109,7 +56109,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "smoke cloud",
@@ -56244,7 +56244,7 @@
 675
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "snakefish",
@@ -56266,7 +56266,7 @@
 963
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "snout",
@@ -56279,7 +56279,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "snow ant",
@@ -56301,7 +56301,7 @@
 189
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "snow golem",
@@ -56323,7 +56323,7 @@
 657
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "snow griffon",
@@ -56345,7 +56345,7 @@
 621
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "snow puff",
@@ -56367,7 +56367,7 @@
 495
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "snowcap effect",
@@ -56402,7 +56402,7 @@
 981
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "snowy owlbear",
@@ -56424,7 +56424,7 @@
 621
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "soldier",
@@ -56446,7 +56446,7 @@
 405
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "soldier ant",
@@ -56468,7 +56468,7 @@
 945
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "spark bug",
@@ -56490,7 +56490,7 @@
 783
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "sparkly potion",
@@ -56568,7 +56568,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "sparse bookshelves",
@@ -56594,7 +56594,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "sparse brown rocks",
@@ -56607,7 +56607,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "sparse dry grass",
@@ -56620,7 +56620,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "sparse dry scrub",
@@ -56633,7 +56633,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "sparse gold flowers",
@@ -56646,7 +56646,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "sparse gray pebbles",
@@ -56659,7 +56659,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "sparse gray rocks",
@@ -56672,7 +56672,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "sparse green grass",
@@ -56685,7 +56685,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "sparse green scrub",
@@ -56698,7 +56698,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "sparse red flowers",
@@ -56711,7 +56711,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "sparse shelves",
@@ -56737,7 +56737,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "spear",
@@ -56750,7 +56750,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "sphinx",
@@ -56772,7 +56772,7 @@
 909
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "sphinx armor",
@@ -56885,7 +56885,7 @@
 585
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "spitting beetle",
@@ -56907,7 +56907,7 @@
 333
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "spliced book",
@@ -56933,7 +56933,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "spoiled brain",
@@ -56946,7 +56946,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "spoiled buns",
@@ -56972,7 +56972,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "spoiled corpse",
@@ -56985,7 +56985,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "spoiled ear",
@@ -56998,7 +56998,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "spoiled eyeball",
@@ -57011,7 +57011,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "spoiled fingers",
@@ -57024,7 +57024,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "spoiled gall bladder",
@@ -57037,7 +57037,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "spoiled heart",
@@ -57050,7 +57050,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "spoiled huge meat blob",
@@ -57076,7 +57076,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "spoiled kidney",
@@ -57089,7 +57089,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "spoiled liver",
@@ -57102,7 +57102,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "spoiled lung",
@@ -57115,7 +57115,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "spoiled marbled cut of meat",
@@ -57180,7 +57180,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "spoiled raw fish",
@@ -57193,7 +57193,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "spoiled snout",
@@ -57206,7 +57206,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "spoiled stomach",
@@ -57219,7 +57219,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "spoiled strip of meat",
@@ -57232,7 +57232,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "spoiled tentacle",
@@ -57245,7 +57245,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "spoiled throat",
@@ -57258,7 +57258,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "spoiled toes",
@@ -57271,7 +57271,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "spooky board",
@@ -57297,7 +57297,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "spotted jelly",
@@ -57319,7 +57319,7 @@
 729
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "spotted mushroom",
@@ -57380,7 +57380,7 @@
 909
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "squeaky ball",
@@ -57532,7 +57532,7 @@
 639
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "stamina icon",
@@ -57628,7 +57628,7 @@
 477
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "steel ring",
@@ -57693,7 +57693,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "stone archway",
@@ -57706,7 +57706,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "stone chair left",
@@ -57719,7 +57719,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "stone chair right",
@@ -57732,7 +57732,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "stone clear pool center",
@@ -57901,7 +57901,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "stone fence down left",
@@ -58066,7 +58066,7 @@
 819
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "stone golem",
@@ -58088,7 +58088,7 @@
 189
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "stone murky pool center",
@@ -58396,7 +58396,7 @@
 999
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "stone table",
@@ -58409,7 +58409,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "stone toxic pool center",
@@ -58574,7 +58574,7 @@
 167
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "storm giant",
@@ -58596,7 +58596,7 @@
 441
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "stormwyrm armor",
@@ -58666,7 +58666,7 @@
 909
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "straw golem",
@@ -58688,7 +58688,7 @@
 387
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "strip of meat",
@@ -58701,7 +58701,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "strong black horse",
@@ -58723,7 +58723,7 @@
 261
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "strong brown horse",
@@ -58745,7 +58745,7 @@
 801
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "strong gray horse",
@@ -58767,7 +58767,7 @@
 567
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "stunned box",
@@ -58811,7 +58811,7 @@
 945
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "surgical glove",
@@ -58859,7 +58859,7 @@
 657
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "swamp fern",
@@ -58881,7 +58881,7 @@
 585
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "swamp fern spore",
@@ -58903,7 +58903,7 @@
 999
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "swamp fern sprout",
@@ -58925,7 +58925,7 @@
 581
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "swan",
@@ -58947,7 +58947,7 @@
 819
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "swirly potion",
@@ -59096,7 +59096,7 @@
 207
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "tailored shoes",
@@ -59148,7 +59148,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "tarnished crystal ore",
@@ -59316,7 +59316,7 @@
 369
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "tentacle",
@@ -59329,7 +59329,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "terrier",
@@ -59351,7 +59351,7 @@
 279
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "terror bird",
@@ -59373,7 +59373,7 @@
 779
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "thick wand",
@@ -59408,7 +59408,7 @@
 279
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "thorn",
@@ -59421,7 +59421,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "throat",
@@ -59434,7 +59434,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "throne",
@@ -59469,7 +59469,7 @@
 477
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "thrusting saw",
@@ -59557,7 +59557,7 @@
 567
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "tiger eye ring",
@@ -59592,7 +59592,7 @@
 81
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "tin",
@@ -59670,7 +59670,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "tinning kit",
@@ -59727,7 +59727,7 @@
 99
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "titanothere",
@@ -59749,7 +59749,7 @@
 927
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "toes",
@@ -59762,7 +59762,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "tomato",
@@ -59775,7 +59775,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "tooled horn",
@@ -59840,7 +59840,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "tourist",
@@ -59862,7 +59862,7 @@
 387
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "towel",
@@ -59936,7 +59936,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "troll",
@@ -59958,7 +59958,7 @@
 189
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "trunk a",
@@ -60006,7 +60006,7 @@
 149
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "tsurugi",
@@ -60041,7 +60041,7 @@
 315
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "turbulent pool center",
@@ -60296,7 +60296,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "twisted ring",
@@ -60344,7 +60344,7 @@
 603
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "umber hulk",
@@ -60366,7 +60366,7 @@
 779
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "umbrella mushroom",
@@ -60401,7 +60401,7 @@
 603
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "unicorn horn",
@@ -60414,7 +60414,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "unique ring a",
@@ -60640,7 +60640,7 @@
 963
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "uranium ore",
@@ -60653,7 +60653,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "uranium wand",
@@ -60688,7 +60688,7 @@
 815
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "valkyrie",
@@ -60710,7 +60710,7 @@
 581
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "vampire",
@@ -60732,7 +60732,7 @@
 477
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "vampire bat",
@@ -60754,7 +60754,7 @@
 243
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "vampire lord",
@@ -60776,7 +60776,7 @@
 243
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "vampire mage",
@@ -60798,7 +60798,7 @@
 711
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "van helsing",
@@ -60820,7 +60820,7 @@
 207
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "very dark tile",
@@ -60868,7 +60868,7 @@
 783
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "violet fungus",
@@ -60890,7 +60890,7 @@
 495
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "violet ore left",
@@ -61013,7 +61013,7 @@
 819
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "volcanic cloud",
@@ -61057,7 +61057,7 @@
 945
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "vrock",
@@ -61079,7 +61079,7 @@
 207
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "vulgar polearm",
@@ -61127,7 +61127,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "war",
@@ -61162,7 +61162,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "ward a",
@@ -61272,7 +61272,7 @@
 333
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "warrior e",
@@ -61427,7 +61427,7 @@
 585
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "watchman",
@@ -61449,7 +61449,7 @@
 999
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "water demon",
@@ -61471,7 +61471,7 @@
 99
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "water elemental",
@@ -61493,7 +61493,7 @@
 639
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "water hulk",
@@ -61515,7 +61515,7 @@
 819
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "water moccasin",
@@ -61537,7 +61537,7 @@
 171
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "water nymph",
@@ -61559,7 +61559,7 @@
 981
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "water tome",
@@ -61594,7 +61594,7 @@
 783
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "waterskin",
@@ -61642,7 +61642,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "wax golem",
@@ -61664,7 +61664,7 @@
 675
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "webbing a",
@@ -61751,7 +61751,7 @@
 873
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "weeping archangel",
@@ -61773,7 +61773,7 @@
 963
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "werebat",
@@ -61795,7 +61795,7 @@
 63
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "werecat",
@@ -61817,7 +61817,7 @@
 441
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "werejackal",
@@ -61839,7 +61839,7 @@
 585
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "wererat",
@@ -61861,7 +61861,7 @@
 621
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "weretiger",
@@ -61883,7 +61883,7 @@
 63
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "werewolf",
@@ -61905,7 +61905,7 @@
 851
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "wet burst c",
@@ -62268,7 +62268,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "white fungus dense",
@@ -62498,7 +62498,7 @@
 369
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "white handed shield",
@@ -62533,7 +62533,7 @@
 725
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "white nosed bat",
@@ -62555,7 +62555,7 @@
 477
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "white potion",
@@ -62603,7 +62603,7 @@
 477
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "white unicorn",
@@ -62625,7 +62625,7 @@
 153
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "white wand",
@@ -62790,7 +62790,7 @@
 855
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "winged potion",
@@ -62825,7 +62825,7 @@
 261
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "wire ring",
@@ -62860,7 +62860,7 @@
 639
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "withered blizzard shrub",
@@ -62882,7 +62882,7 @@
 855
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "withered blizzard tree",
@@ -62904,7 +62904,7 @@
 999
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "withered maelstrom shrub",
@@ -62926,7 +62926,7 @@
 927
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "withered maelstrom tree",
@@ -62948,7 +62948,7 @@
 441
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "wizard",
@@ -62983,7 +62983,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "wizard of yendor",
@@ -63005,7 +63005,7 @@
 333
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "wolf",
@@ -63049,7 +63049,7 @@
 765
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "wood golem",
@@ -63071,7 +63071,7 @@
 135
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "wood nymph",
@@ -63093,7 +63093,7 @@
 423
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "woodchuck",
@@ -63115,7 +63115,7 @@
 207
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "wooden chair left",
@@ -63128,7 +63128,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "wooden chair right",
@@ -63154,7 +63154,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "wooden flute",
@@ -63167,7 +63167,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "wooden harp",
@@ -63180,7 +63180,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "wooden ring",
@@ -63206,7 +63206,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "woodpile",
@@ -63267,7 +63267,7 @@
 675
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "wumpus",
@@ -63289,7 +63289,7 @@
 603
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "wyvern",
@@ -63311,7 +63311,7 @@
 603
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "wyvern armor",
@@ -63359,7 +63359,7 @@
 167
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "xorn",
@@ -63381,7 +63381,7 @@
 27
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "yeenoghu",
@@ -63403,7 +63403,7 @@
 423
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "yellow black c",
@@ -63577,7 +63577,7 @@
 689
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "yellow mound alone",
@@ -64336,7 +64336,7 @@
 77
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "yes box",
@@ -64380,7 +64380,7 @@
 747
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "young corn stalk",
@@ -64393,7 +64393,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "young fruit tree",
@@ -64406,7 +64406,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "young herb cluster",
@@ -64419,7 +64419,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "young leafy vegetable",
@@ -64432,7 +64432,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "young root vegetable",
@@ -64445,7 +64445,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "young vine vegetable",
@@ -64458,7 +64458,7 @@
 "h": 16,
 "frames": 1,
 "framesXY": null,
-"inLibrary": false
+"inLibrary": true
 },
 {
 "name": "zap beam h",
@@ -64581,7 +64581,7 @@
 279
 ]
 ],
-"inLibrary": false
+"inLibrary": true
 }
 ]
 }
