@@ -53,11 +53,17 @@ Then **restart any running dev server** (see below) and hard-reload the browser 
 ```bash
 npm run assets:embed        # rebuild assets/library.vectors.jsonl (~pennies, needs OPENAI/VOYAGE key)
 ```
-Check whether yours is behind — the vectors header carries its own row count:
+Do NOT compare that count to `library.json`'s total — the script embeds only **Director-relevant**
+assets (`directorAssets()` drops `internal`, `tileset`, and terrain edge variants), so a healthy cache
+sits well *below* the library size and looks alarming when it isn't. Compare like for like:
 ```bash
-python3 -c "import json;print('library:',len(json.load(open('assets/library.json'))['assets']))"
-head -1 assets/library.vectors.jsonl   # {"model":…,"count":N} — N well under the library size = stale
+npm run build && node -e "import('@mythweaver/scene').then(async m=>{
+  const n=m.directorAssets(m.loadAssetLibrary()).length;
+  const c=JSON.parse(require('fs').readFileSync('assets/library.vectors.jsonl','utf8').split('\n')[0]).count;
+  console.log('director-relevant:',n,'| embedded:',c, n===c?'✅ current':'⚠️ REBUILD');})"
 ```
+Simplest rule: it is idempotent and costs pennies — **just re-run it after any pull that touched
+`assets/library.json`** rather than reasoning about the delta.
 Stale is **safe, not broken**: `loadAssetVectors()` returns null on a missing/corrupt file and semantic
 asset retrieval simply switches off (deterministic `SpecBindings` still picks art). Uncovered assets
 just stop being semantically reachable, which shows up as blander scene art, never as an error.
