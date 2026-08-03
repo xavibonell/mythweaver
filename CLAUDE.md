@@ -43,6 +43,25 @@ Then **restart any running dev server** (see below) and hard-reload the browser 
   style exemplars switch off. **A different voice corpus is the normal reason two machines' DMs sound
   different; it is not a bug.** Rebuild instructions are in the two corpus sections below.
 
+**Do the embeddings need rebuilding? Three separate lanes — usually only the third.**
+| Lane | On disk | After a pull |
+|---|---|---|
+| Rules RAG | `content/corpus/*.vectors.jsonl` (gitignored) | **No.** No embedding code or corpus format has changed; an existing corpus keeps working. |
+| Voice exemplars | `content/exemplars/*.vectors.jsonl` (gitignored) | **No.** `scripts/ingest-exemplars.mjs` changed (set-prefixed ids, configurable curation provider, canonical moveTypes) but the *reader* did not — an existing corpus loads unchanged. Re-run only to ingest NEW transcripts, which are per-machine and cost ~$3.70. |
+| **Asset retrieval** | `assets/library.vectors.jsonl` (gitignored) | **Usually YES.** `assets/library.json` IS committed and changes with the pull, while the vector cache is local — so it goes stale silently. |
+
+```bash
+npm run assets:embed        # rebuild assets/library.vectors.jsonl (~pennies, needs OPENAI/VOYAGE key)
+```
+Check whether yours is behind — the vectors header carries its own row count:
+```bash
+python3 -c "import json;print('library:',len(json.load(open('assets/library.json'))['assets']))"
+head -1 assets/library.vectors.jsonl   # {"model":…,"count":N} — N well under the library size = stale
+```
+Stale is **safe, not broken**: `loadAssetVectors()` returns null on a missing/corrupt file and semantic
+asset retrieval simply switches off (deterministic `SpecBindings` still picks art). Uncovered assets
+just stop being semantically reachable, which shows up as blander scene art, never as an error.
+
 **Sanity checks after the build (30 seconds, catches the failures that actually happen):**
 ```bash
 curl -s localhost:6984/health                       # {"ok":true}
