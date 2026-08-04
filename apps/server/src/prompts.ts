@@ -10,6 +10,7 @@ import { fileURLToPath } from 'node:url';
 import { DEFAULT_DM_PLAYBOOK } from './orchestrator.js';
 import { ARCHITECT_SYSTEM, ARC_SYSTEM } from './arc-planner.js';
 import { DEFAULT_COMPOSER_SYSTEM } from './arc-composer.js';
+import { DEFAULT_SCENE_ARCHITECT_SYSTEM } from './scene-architect.js';
 
 const PROMPTS_DIR = resolve(dirname(fileURLToPath(import.meta.url)), '../../../prompts');
 
@@ -47,6 +48,10 @@ function loadOr(path: string, fallback: string): string {
 export const loadDirectorArchitect = (): string => loadOr(DIRECTOR_ARCHITECT_PATH, ARCHITECT_SYSTEM);
 export const loadDirectorPlanner = (): string => loadOr(DIRECTOR_PLANNER_PATH, ARC_SYSTEM);
 export const loadDirectorComposer = (): string => loadOr(DIRECTOR_COMPOSER_PATH, DEFAULT_COMPOSER_SYSTEM);
+
+// Scene architect (S1 — Weave L0 emission): the per-beat SceneSpec emitter, editable like the rest.
+export const SCENE_ARCHITECT_PATH = process.env.MYTHWEAVER_SCENE_ARCHITECT_PATH ?? resolve(PROMPTS_DIR, 'scene-architect.md');
+export const loadSceneArchitect = (): string => loadOr(SCENE_ARCHITECT_PATH, DEFAULT_SCENE_ARCHITECT_SYSTEM);
 
 export const saveDirectorArchitect = (text: string): void => writeFileSync(DIRECTOR_ARCHITECT_PATH, text);
 export const saveDirectorPlanner = (text: string): void => writeFileSync(DIRECTOR_PLANNER_PATH, text);

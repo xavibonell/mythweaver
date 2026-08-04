@@ -18,7 +18,7 @@
 import { createHash } from 'node:crypto';
 import { generateStatBlock, type MonsterSpec } from '@mythweaver/engine';
 import { estimateCostUsd, type LlmProvider } from '@mythweaver/llm';
-import type { AdventureContext, ArcGenMeta, CampaignBlueprint, CharacterSheet, EncounterDef, StatBlock } from '@mythweaver/shared';
+import type { AdventureContext, ArcGenMeta, CampaignBlueprint, CharacterSheet, EncounterDef, EntityCard, PersonaSeed, Plant, ScenePlan, StatBlock } from '@mythweaver/shared';
 import { buildBlueprint, extractJson, str } from './arc-planner.js';
 import { validateScenario, type Scenario } from './content.js';
 
@@ -28,8 +28,9 @@ export interface ArcSeed {
   theme?: string;
   tone?: string; // e.g. grim | heroic | whimsical | mystery | horror
   lengthBeats?: number; // clamped 3-8
-  /** The hand-built party (name + role), which PRE-EXISTS the campaign so it's designed for them. */
-  party: { name: string; className?: string }[];
+  /** The hand-built party (name + role + optional backstory), which PRE-EXISTS the campaign so it's
+   *  designed for them. A blank backstory tells the Director to invent one that fits. */
+  party: { name: string; className?: string; backstory?: string }[];
   constraints?: string[];
   /** A throwaway phrase that varies the prompt so "Reroll" yields a different arc. */
   seedPhrase?: string;
@@ -51,6 +52,10 @@ export interface GeneratedArc {
   bestiary: Record<string, StatBlock>;
   /** The resolved party sheets (attached by the endpoint) — editable in the lab to tweak levels/HP. */
   party?: CharacterSheet[];
+  /** Canon Ledger seed (P1): the cast (NPCs with voice, native scenes) + planted details. */
+  ledger?: { entities: EntityCard[]; plants: Plant[] };
+  /** Per-PC backstories the composer echoed/invented, keyed by name — merged onto `party` by the endpoint. */
+  pcBackstories?: { name: string; backstory: string }[];
   blueprint: CampaignBlueprint;
   genMeta: ArcGenMeta;
 }
@@ -99,7 +104,7 @@ function canonicalSeed(seed: ArcSeed): string {
     theme: (seed.theme || '').trim(),
     tone: seed.tone || '',
     lengthBeats: clampLen(seed.lengthBeats),
-    party: (seed.party || []).map((p) => ({ name: p.name || '', className: p.className || '' })),
+    party: (seed.party || []).map((p) => ({ name: p.name || '', className: p.className || '', backstory: (p.backstory || '').trim() })),
     constraints: (seed.constraints || []).map((c) => (c || '').trim()).filter(Boolean),
     seedPhrase: seed.seedPhrase || '',
     monsterMode: seed.monsterMode || 'auto',
@@ -123,7 +128,11 @@ function seedDigest(seed: ArcSeed, res: MonsterResources): string {
     seed.theme ? `THEME: ${str(seed.theme, 300)}` : 'THEME: (none given — invent a fresh, compelling premise yourself)',
     seed.tone ? `TONE: ${str(seed.tone, 60)}` : '',
     `LENGTH: ${clampLen(seed.lengthBeats)} beats`,
-    `PARTY (design the adventure FOR this party): ${(seed.party || []).map((p) => (p.className ? `${str(p.name, 60)} the ${str(p.className, 40)}` : str(p.name, 60))).join(', ') || '(a small adventuring party)'}`,
+    (seed.party || []).length
+      ? `PARTY (design the adventure FOR these characters; weave their backstories in where they fit):\n${(seed.party || [])
+          .map((p) => `  - ${str(p.name, 60)}${p.className ? ` the ${str(p.className, 40)}` : ''} — ${str(p.backstory, 300) || '(no backstory given: invent a short one that fits the theme)'}`)
+          .join('\n')}`
+      : 'PARTY: (a small adventuring party)',
     (seed.constraints || []).length ? `CONSTRAINTS: ${(seed.constraints || []).map((c) => str(c, 200)).filter(Boolean).join('; ')}` : '',
     seed.seedPhrase ? `SEED PHRASE (use for variety/novelty): ${str(seed.seedPhrase, 200)}` : '',
     monsterGuidance,
@@ -136,15 +145,22 @@ export const DEFAULT_COMPOSER_SYSTEM = `You are the GAME DIRECTOR composing a br
 
 Design a coherent arc with a KNOWN ENDING: what the whole thing is about, the central problem, where the party starts, the envisioned ending you steer toward, and an ordered chain of BEATS (scenes) that route from the opening to that ending. Honor the seed's theme, tone, length, and constraints. Give players real agency — offer multiple approaches per beat, never a single gated path.
 
+SETTING — set the adventure in the established D&D multiverse, and COMMIT to one place. Unless the seed's theme or constraints already name a locale (then honor it), pick a specific canonical corner of the D&D world that fits the theme + tone and PIN it for the WHOLE arc — its region, its ruling powers, its factions, its gods — so every beat stays consistent with that one setting. Deliberately RANGE widely rather than defaulting to the same famous city each time: Waterdeep is only one option among many — reach for Baldur's Gate, Neverwinter, Icewind Dale, the Underdark, Chult, Barovia, Sigil and the Outer Planes, the Dalelands, Cormyr, Thay, Calimshan, the Feywild, and further afield. Use real D&D names — regions, cities, factions (Harpers, Zhentarim, Lords' Alliance, Emerald Enclave, Red Wizards…), and deities — accurately; invent freely only in the gaps canon leaves.
+
 Respond with ONLY a JSON object (no prose, no code fence):
-{"premise":"<what the campaign is about / its theme>","centralProblem":"<the concrete problem the party must address>","intendedEnding":"<a clear, specific resolution — how it should end if it lands>","opening":"<where/how the party starts>","beats":[{"title":"<short scene name>","summary":"<GM guidance: what's here, what's at stake, ways to engage; you MAY note suggested checks + DCs; reveal it through play>","exits":[2,3],"intent":"<what this beat accomplishes toward the ending>","monsters":[{"from":"<library id>","count":2},{"new":{"name":"<creature>","challengeRating":1,"type":"<e.g. undead>","attackName":"<e.g. Spectral Touch>","damageType":"necrotic","ranged":false},"count":1}]}],"spine":[{"milestone":"<short label>","beat":1,"intent":"<step toward the ending>"}]}
+{"premise":"<what the campaign is about / its theme>","centralProblem":"<the concrete problem the party must address>","intendedEnding":"<a clear, specific resolution — how it should end if it lands>","opening":"<where/how the party starts>","beats":[{"title":"<short scene name>","summary":"<GM guidance: what's here, what's at stake, ways to engage; you MAY note suggested checks + DCs; reveal it through play>","scene":{"look":"<1-3 sentences: what the place LOOKS like top-down — terrain, structures, water/edges>","kind":"settlement|interior|wild","mood":"<lighting/weather in plain words, e.g. \\"grim predawn fog\\">","features":["<must-exist landmark>","<another>"]},"exits":[2,3],"intent":"<what this beat accomplishes toward the ending>","monsters":[{"from":"<library id>","count":2},{"new":{"name":"<creature>","challengeRating":1,"type":"<e.g. undead>","attackName":"<e.g. Spectral Touch>","damageType":"necrotic","ranged":false},"count":1}]}],"spine":[{"milestone":"<short label>","beat":1,"intent":"<step toward the ending>"}],"cast":[{"id":"npc:<slug>","name":"<name>","atBeats":[1],"appearance":"<one line: build, age, dress, one memorable feature — what anyone would SEE>","voice":{"tic":"<a distinctive speech/behaviour tic>","want":"<what they want>","fear":"<what they fear>"},"persona":{"allegiance":"<who they answer to — a faction/lord/'the town'/'the party'; omit if none>","stake":"<one line: what they'd protect or run to in a crisis>"}}],"plants":[{"id":"plant:<slug>","what":"<a detail planted early that pays off later>"}],"pcBackstories":[{"name":"<pc name exactly as given>","backstory":"<their backstory>"}]}
 
 RULES:
 - "beats" is an ORDERED array; the FIRST beat is where the party starts. Produce the requested number of beats (3-8).
 - "exits" are the 1-based indexes of the OTHER beats reachable from this beat (a short list; the finale may have none). Build a connected path from beat 1 to the finale.
 - "spine" milestones map to a beat via its 1-based "beat" index; you MAY add 1-2 final milestones with NO "beat" (pure narrative payoff after the last scene).
 - "monsters" (optional, only on beats with a fight): each entry is EITHER {"from":"<library id>","count":N} to place an existing creature, OR {"new":{...},"count":N} to commission one — pick whichever the MONSTERS line in the seed allows. For "new", give ONLY fiction: name, challengeRating (0–5), type, attackName, damageType, ranged (true/false). The ENGINE computes its HP/AC/damage — never write any number other than challengeRating and count. Scale fights to the party size; not every beat needs combat.
-- intendedEnding must be a concrete destination, not vague. No stat blocks, no HP/AC/to-hit. Keep prose tight (~500 words total).`;
+- "scene" (per beat): the beat's VISUAL design, authored now while the whole premise is in front of you — the map generator renders from it. "look" = what a top-down map of the place shows (terrain, structures, water/edges — concrete nouns, not vibes). "kind" decides the layout family: "settlement" (buildings + streets), "interior" (an enclosed space: dungeon/cave/crypt/a building's inside), "wild" (open nature). "mood" = lighting/weather in plain words (it drives the scene's light). "features" = 2-5 landmark concepts that MUST exist on the map (the generator guarantees them).
+- "cast": EVERY named NPC in your beat prose MUST appear here with a memorable VOICE (a tic, a want, a fear) and "atBeats" = the 1-based beats they appear in. This is what keeps them themselves when they return. "appearance" is REQUIRED and is what keeps them LOOKING themselves: one line of what anyone in the room would see — build, rough age, dress, one memorable feature ("a short, heavyset woman in her fifties, flour on her apron, quick grey eyes"). It is canon the moment you write it and is shown to the players, so keep it to observable surface: no secrets, no motives, no interior life. "persona" is OPTIONAL: only the two things the engine can't infer from a role — "allegiance" (who they'd answer to in a crisis) and "stake" (what they'd protect or flee toward). Leave it off for a bystander with neither.
+- "plants": 2-4 Chekhov details planted early that pay off later (a heirloom, a rumour, a scar) — the seeds of callbacks.
+- PARTY BACKSTORIES: weave the party's backstories into the arc where they naturally fit — tie an NPC to a PC's past, let a beat touch a PC's stakes, plant a detail that pays off their history (no need to hook every PC). For any PC whose backstory is "(no backstory given…)", INVENT a short one that fits the theme.
+- "pcBackstories": return one entry per PC — the given backstory verbatim, or the short one you invented. Use the PC's name exactly as given.
+- intendedEnding must be a concrete destination, not vague. No stat blocks, no HP/AC/to-hit. Keep prose tight (~600 words total).`;
 
 interface StampCtx {
   model: string;
@@ -156,6 +172,17 @@ interface StampCtx {
 }
 
 const clampCount = (v: unknown): number => Math.max(1, Math.min(8, Math.round(Number(v)) || 1));
+
+/** Coerce a beat's authored scene design (Phase C). Look is required — without it there is no plan. */
+function coerceScenePlan(raw: unknown): ScenePlan | undefined {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const s = raw as Record<string, unknown>;
+  const look = str(s.look, 300);
+  if (!look) return undefined;
+  const kind: ScenePlan['kind'] = s.kind === 'settlement' || s.kind === 'interior' || s.kind === 'wild' ? s.kind : 'wild';
+  const features = (Array.isArray(s.features) ? s.features : []).map((f) => str(f, 40)).filter(Boolean).slice(0, 6);
+  return { look, kind, mood: str(s.mood, 80), ...(features.length ? { features } : {}) };
+}
 
 /** Coerce a commissioned-creature spec (fiction only; the engine computes the numbers). */
 function coerceSpec(raw: unknown): MonsterSpec | null {
@@ -229,7 +256,8 @@ export function buildGeneratedArc(raw: unknown, seed: ArcSeed, ctx: StampCtx, re
           .map((x) => ids[x - 1]!),
       ),
     ];
-    scenes[ids[i]!] = { title: str(b.title, 80) || `Beat ${i + 1}`, summary: str(b.summary, 1200), exits };
+    const scenePlan = coerceScenePlan(b.scene);
+    scenes[ids[i]!] = { title: str(b.title, 80) || `Beat ${i + 1}`, summary: str(b.summary, 1200), exits, ...(scenePlan ? { scenePlan } : {}) };
   }
 
   // Guarantee reachability from b1: any orphan gets an edge from its predecessor (which, going in
@@ -297,6 +325,61 @@ export function buildGeneratedArc(raw: unknown, seed: ArcSeed, ctx: StampCtx, re
     return null;
   }
 
+  // Canon Ledger seed (P1): the cast (NPCs with voice, native beats) + planted details.
+  const entities: EntityCard[] = (Array.isArray(o.cast) ? o.cast : [])
+    .map((c) => {
+      const cc = c && typeof c === 'object' ? (c as Record<string, unknown>) : {};
+      const name = str(cc.name, 80);
+      if (!name) return null;
+      const idRaw = str(cc.id, 60);
+      const id = /^[a-z]+:/i.test(idRaw) ? idRaw : `npc:${ledgerSlug(idRaw || name)}`;
+      const atScenes = (Array.isArray(cc.atBeats) ? cc.atBeats : [])
+        .map((x) => Math.round(Number(x)))
+        .filter((x) => Number.isInteger(x) && x >= 1 && x <= cap)
+        .map((x) => ids[x - 1]!);
+      const v = cc.voice && typeof cc.voice === 'object' ? (cc.voice as Record<string, unknown>) : cc;
+      const voice = { ...(str(v.tic, 120) ? { tic: str(v.tic, 120) } : {}), ...(str(v.want, 120) ? { want: str(v.want, 120) } : {}), ...(str(v.fear, 120) ? { fear: str(v.fear, 120) } : {}) };
+      // Authored persona colour (living-world reactivity, P2): allegiance + stake only — archetype/
+      // temper are DERIVED from role/tag/id at read-time (profileOf), so we don't ask the model to guess them.
+      const pp = cc.persona && typeof cc.persona === 'object' ? (cc.persona as Record<string, unknown>) : {};
+      const persona: PersonaSeed = { ...(str(pp.allegiance, 80) ? { allegiance: str(pp.allegiance, 80) } : {}), ...(str(pp.stake, 120) ? { stake: str(pp.stake, 120) } : {}) };
+      const card: EntityCard = {
+        id,
+        kind: 'npc',
+        name,
+        // Canon the moment it lands (write-once in the engine): every later describer is conditioned
+        // on this line rather than inventing its own, which is what stops an NPC's build drifting.
+        ...(str(cc.appearance, 200) ? { appearance: str(cc.appearance, 200) } : {}),
+        ...(Object.keys(voice).length ? { voice } : {}),
+        ...(Object.keys(persona).length ? { persona } : {}),
+        ...(atScenes.length ? { scenes: [...new Set(atScenes)] } : {}),
+        status: 'active',
+      };
+      return card;
+    })
+    .filter((c): c is EntityCard => c !== null)
+    .slice(0, 16);
+  const plants: Plant[] = (Array.isArray(o.plants) ? o.plants : [])
+    .map((p, i): Plant | null => {
+      const pp = p && typeof p === 'object' ? (p as Record<string, unknown>) : {};
+      const what = str(pp.what, 200) || str(pp, 200);
+      if (!what) return null;
+      return { id: str(pp.id, 60) || `plant:${i + 1}`, what, status: 'planted' };
+    })
+    .filter((p): p is Plant => p !== null)
+    .slice(0, 6);
+
+  // Per-PC backstories (echoed authored + invented for blanks), keyed by name — merged onto party later.
+  const pcBackstories = (Array.isArray(o.pcBackstories) ? o.pcBackstories : [])
+    .map((p): { name: string; backstory: string } | null => {
+      const pp = p && typeof p === 'object' ? (p as Record<string, unknown>) : {};
+      const name = str(pp.name, 60);
+      const backstory = str(pp.backstory, 400);
+      return name && backstory ? { name, backstory } : null;
+    })
+    .filter((p): p is { name: string; backstory: string } => p !== null)
+    .slice(0, 8);
+
   const genMeta: ArcGenMeta = {
     seedHash: sha1(canonicalSeed(seed)),
     ...(seed.seedPhrase ? { seedPhrase: str(seed.seedPhrase, 200) } : {}),
@@ -308,8 +391,10 @@ export function buildGeneratedArc(raw: unknown, seed: ArcSeed, ctx: StampCtx, re
     composerPromptHash: sha1(ctx.promptText),
     fallback: ctx.fallback,
   };
-  return { adventure, startSceneId: ids[0]!, encounters, bestiary, blueprint, genMeta };
+  return { adventure, startSceneId: ids[0]!, encounters, bestiary, ...(entities.length || plants.length ? { ledger: { entities, plants } } : {}), ...(pcBackstories.length ? { pcBackstories } : {}), blueprint, genMeta };
 }
+
+const ledgerSlug = (s: string): string => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'npc';
 
 /**
  * Validate a (possibly HAND-EDITED) generated bundle before it starts a session — the lab lets the
@@ -428,27 +513,47 @@ export class LlmArcComposer implements ArcComposer {
     const now = opts?.now ?? Date.now;
     const promptText = this.composerSystem();
     const monsters = monsterResources(seed, opts?.library ?? []);
+    // Composing a whole arc is one expensive call — a transient overload (429/529) should NOT silently
+    // dump the player into a generic Fake arc. Retry a couple of times with a short backoff first, and
+    // if it still fails, LOG it (don't swallow) so degraded generation is visible, not a mystery.
     let res;
-    try {
-      res = await this.llm.complete({
-        system: promptText,
-        messages: [{ role: 'user', content: seedDigest(seed, monsters) }],
-        maxTokens: 2600,
-        taskClass: 'set_piece',
-        ...(this.model ? { model: this.model } : {}),
-        ...(opts?.temperature !== undefined ? { temperature: opts.temperature } : {}),
-      });
-    } catch {
+    let lastErr: unknown;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        res = await this.llm.complete({
+          // A full arc (beats + spine + cast + plants + pcBackstories) can exceed 2600 output tokens —
+          // when it did, the JSON truncated mid-array, failed to parse, and the WHOLE arc silently fell
+          // back to the generic Fake. Give it real headroom (you only pay for tokens actually emitted).
+          system: promptText,
+          messages: [{ role: 'user', content: seedDigest(seed, monsters) }],
+          maxTokens: 6000,
+          taskClass: 'set_piece',
+          ...(this.model ? { model: this.model } : {}),
+          ...(opts?.temperature !== undefined ? { temperature: opts.temperature } : {}),
+        });
+        lastErr = undefined;
+        break;
+      } catch (err) {
+        lastErr = err;
+        if (attempt < 2) await new Promise((r) => setTimeout(r, 700 * (attempt + 1)));
+      }
+    }
+    if (!res) {
+      console.warn('[arc-composer] LLM composer failed after retries — using deterministic fallback arc:', (lastErr as Error)?.message ?? lastErr);
       return this.fallbackResult(seed, opts, promptText);
     }
     let parsed: unknown = {};
+    let parseErr = '';
     const json = extractJson(res.text);
     if (json) {
       try {
         parsed = JSON.parse(json);
-      } catch {
-        /* fall through to coercer, which returns null on empty → fallback */
+      } catch (e) {
+        parseErr = `JSON.parse failed (${(e as Error).message})`;
       }
+    } else {
+      // No balanced JSON found — almost always a maxTokens truncation cutting the object mid-array.
+      parseErr = `no parseable JSON (${res.text.length} chars, likely truncated: …${res.text.slice(-60)})`;
     }
     const arc = buildGeneratedArc(
       parsed,
@@ -456,7 +561,12 @@ export class LlmArcComposer implements ArcComposer {
       { model: res.model, ...(opts?.temperature !== undefined ? { temperature: opts.temperature } : {}), promptText, usage: { inputTokens: res.usage.inputTokens, outputTokens: res.usage.outputTokens }, now, fallback: false },
       monsters,
     );
-    if (!arc) return this.fallbackResult(seed, opts, promptText);
+    if (!arc) {
+      // Don't silently hand the player a generic arc — a real composer output that failed to become a
+      // usable arc is a signal worth surfacing (truncation, invalid scenario, empty beats).
+      console.warn('[arc-composer] composed output unusable — using deterministic fallback arc:', parseErr || 'arc failed validation (beats/premise/reachability)');
+      return this.fallbackResult(seed, opts, promptText);
+    }
     return { arc, costUsd: estimateCostUsd(res.model, res.usage.inputTokens, res.usage.outputTokens) };
   }
 
@@ -466,6 +576,46 @@ export class LlmArcComposer implements ArcComposer {
     r.arc.genMeta.fallback = true;
     r.arc.genMeta.composerPromptHash = sha1(promptText);
     return r;
+  }
+}
+
+/**
+ * RELIABILITY BACKSTOP: the composer is asked to echo a `pcBackstories` entry for every PC, but an LLM
+ * intermittently drops that field on a long generation — leaving a PC with no backstory, which should
+ * NEVER happen (every PC is canon). This is a tiny dedicated call that invents a fitting backstory for
+ * ONLY the PCs the composer left blank. Returns [] on any error (the caller keeps whatever it had).
+ */
+export async function inventBackstories(
+  llm: LlmProvider,
+  args: { premise: string; party: { name: string; className: string }[]; temperature?: number; model?: string },
+): Promise<{ backstories: { name: string; backstory: string }[]; costUsd: number }> {
+  if (!args.party.length) return { backstories: [], costUsd: 0 };
+  const system =
+    'You are the GAME DIRECTOR. Given a campaign premise and a party, write a vivid ONE-to-two-sentence backstory for EACH character that fits the premise and gives them a personal stake in it. No mechanics, no rolls — pure fiction. Respond with ONLY a JSON object: {"backstories":[{"name":"<exact name as given>","backstory":"…"}]} — one entry per character, echoing each name exactly.';
+  const user = `PREMISE: ${args.premise || '(none given — invent a fitting one)'}\n\nPARTY:\n${args.party.map((p) => `- ${p.name} the ${p.className}`).join('\n')}`;
+  try {
+    const res = await llm.complete({
+      system,
+      messages: [{ role: 'user', content: user }],
+      maxTokens: 700,
+      taskClass: 'set_piece',
+      ...(args.model ? { model: args.model } : {}),
+      ...(args.temperature !== undefined ? { temperature: args.temperature } : {}),
+    });
+    const costUsd = estimateCostUsd(res.model, res.usage.inputTokens, res.usage.outputTokens);
+    const json = extractJson(res.text);
+    if (!json) return { backstories: [], costUsd };
+    const parsed = JSON.parse(json) as Record<string, unknown>;
+    const arr = Array.isArray(parsed.backstories) ? parsed.backstories : [];
+    const backstories = arr
+      .map((b) => {
+        const bb = b && typeof b === 'object' ? (b as Record<string, unknown>) : {};
+        return { name: str(bb.name, 60), backstory: str(bb.backstory, 400) };
+      })
+      .filter((b) => b.name && b.backstory);
+    return { backstories, costUsd };
+  } catch {
+    return { backstories: [], costUsd: 0 };
   }
 }
 

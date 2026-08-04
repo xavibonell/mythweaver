@@ -14,7 +14,21 @@
  * total so an unattended script keeps moving (flagged as `auto-roll`).
  */
 
-import { Engine, createInitialState, diceRange, parseDice } from '@mythweaver/engine';
+import {
+  Engine,
+  createInitialState,
+  diceRange,
+  parseDice,
+  abilityMod,
+  deriveProficiencyBonus,
+  deriveCarry,
+  deriveSkillModifier,
+  deriveSaveModifier,
+  derivePassive,
+  deriveSpellSaveDc,
+  deriveSpellsPreparedMax,
+  XP_THRESHOLDS,
+} from '@mythweaver/engine';
 import {
   createProvider,
   type LlmContentBlock,
@@ -24,13 +38,19 @@ import {
 } from '@mythweaver/llm';
 import type { Retriever } from '@mythweaver/rag';
 import { FakeSceneComposer, type SceneComposer } from '@mythweaver/scene';
-import type { CharacterSheet, GameState, StatBlock } from '@mythweaver/shared';
+import { ABILITIES, SKILLS, type Ability, type CharacterSheet, type EntityCard, type EstablishScene, type GameState, type PartyMemberRef, type RealizeSceneResult, type SceneDelta, type SceneMap, type SceneProvenance, type SceneRealizeContext, type Skill, type StatBlock } from '@mythweaver/shared';
 import { createHash } from 'node:crypto';
-import { loadScenario, parseScenario, resolveParty } from './content.js';
+import { loadItemCatalog, loadScenario, parseScenario, resolveParty } from './content.js';
+import { runEnemyPhase } from './combat-phase.js';
+import { buildExemplarRetriever, type ExemplarRetriever } from './exemplar-corpus.js';
 import { buildRetriever } from './corpus.js';
 import { loadDirectorArchitect, loadDirectorComposer, loadDirectorPlanner, loadPlaybook } from './prompts.js';
 import { buildArcPlanner, type ArcPlanner } from './arc-planner.js';
 import { buildArcComposer, type ArcComposer, type GeneratedArc } from './arc-composer.js';
+import { renderDmView } from './dm-view.js';
+
+/** apps/web/public — where the DawnLike sheets live (same derivation as index.ts's scene.png routes). */
+const ASSETS_ROOT = new URL('../../web/public', import.meta.url).pathname;
 import { runTurn, type TurnInput, type TurnResult, type TurnRollRequest } from './orchestrator.js';
 
 /** A scripted lab turn: a player line, or a declared physical-dice total. */
@@ -54,6 +74,18 @@ export interface DmLabTurn {
   tools: ToolTrace[];
   /** Human-readable authoritative-state changes this turn produced (empty if none). */
   diff: string[];
+  /** This turn established/entered a location (the Run tab re-renders the scene panel). */
+  sceneChanged?: boolean;
+  /** How the scene came to be — engine, briefs, mood chain, program + net injections. */
+  sceneProvenance?: SceneProvenance;
+  /** APPLIED scene deltas (updateScene/combat sync) — the map moved this turn. */
+  deltas?: SceneDelta[];
+  /** An arc beat transition landed this turn (advanceScene) — the client shows a title card. */
+  beat?: TurnResult['beat'];
+  /** Style exemplars injected this turn (Technique B) — which real-DM beats shaped the register. */
+  exemplars?: TurnResult['exemplars'];
+  /** Map-object ids the narration mentions — the live table pings them (story pings). */
+  mentions?: string[];
   model: string;
   steps: number;
   costUsd: number;
@@ -72,6 +104,11 @@ export interface DmLabDeps {
   retriever?: Retriever;
   /** Defaults to a deterministic FakeSceneComposer (no API cost). */
   composer?: SceneComposer;
+  /** LIVE-PLAY modern engine (wire-in part 3) — all kinds realize via the programmer path; classic on failure. */
+  realizeScene?: (est: EstablishScene, party: PartyMemberRef[], ctx?: SceneRealizeContext) => Promise<RealizeSceneResult | null>;
+  /** Scene engine for THIS session: 'modern' (default — the real programmer path, ~$0.01-0.05 per new
+   *  location) or 'fake' (the deterministic $0 composer, for cheap DM iteration). */
+  sceneEngine?: 'modern' | 'fake';
   /** DM persona. Defaults to the EDITED prompts/dm-playbook.md (loadPlaybook), so editing the
    *  file + re-running iterates the real persona — not the in-code DEFAULT_DM_PLAYBOOK fallback. */
   playbook?: string;
@@ -92,6 +129,13 @@ export interface DmLabDeps {
   /** The hand-built party (resolved character sheets). Required for generated sessions; authored
    *  sessions fall back to the scenario's pregens. */
   party?: CharacterSheet[];
+  /** Style-exemplar retriever (Technique B) — real-DM beats injected per turn. */
+  exemplars?: ExemplarRetriever;
+  /** Session A/B knob: false = suppress exemplar injection even when a retriever is wired. */
+  useExemplars?: boolean;
+  /** A captured full GameState (a prerendered dev session): hydrate it into a fresh Engine so play
+   *  starts over an ALREADY-rendered scene instantly, $0. Bypasses arc/scenario setup + scene render. */
+  frozenState?: GameState;
 }
 
 /**
@@ -106,12 +150,14 @@ export function buildDmLabDeps(): DmLabDeps & { ragMode: string } {
   const { retriever, description: ragMode } = buildRetriever(null); // no DB needed for in-memory retrieval
   const arcPlanner = buildArcPlanner(llm, { architectSystem: loadDirectorArchitect, plannerSystem: loadDirectorPlanner });
   const arcComposer = buildArcComposer(llm, { composerSystem: loadDirectorComposer });
+  const { exemplars } = buildExemplarRetriever();
   return {
     llm,
     ...(retriever ? { retriever } : {}),
     composer: new FakeSceneComposer(),
     ...(arcPlanner ? { arcPlanner } : {}),
     ...(arcComposer ? { arcComposer } : {}),
+    ...(exemplars ? { exemplars } : {}),
     ragMode,
   };
 }
@@ -140,8 +186,13 @@ export function autoRollTotal(expr: string): number {
 interface CombatantSnap {
   id: string;
   hp: string;
+  ac: number;
   conditions: string[];
   downed: boolean;
+  /** Compact character-engine signature (level/xp, spell slots, hit dice, class resources, exhaustion,
+   *  inspiration, concentration, gold, item count, attunement) so the lab trace shows progression, rests,
+   *  and shopping/loot unfold, the way it already shows HP. */
+  res: string;
 }
 interface StateSnap {
   scene: string;
@@ -159,12 +210,28 @@ function snapshot(state: GameState): StateSnap {
     combat: state.combat.active ? `round ${state.combat.round}` : 'no',
     pending: state.pendingTurn ? `${state.pendingTurn.rollExpr} — ${state.pendingTurn.rollReason}` : null,
     // All combatants (PCs + spawned monsters), so the lab trace shows the fight unfold.
-    combatants: Object.values(state.combatants).map((c) => ({
-      id: c.id,
-      hp: `${c.currentHitPoints}/${c.maxHitPoints}`,
-      conditions: [...c.conditions],
-      downed: !!c.downed,
-    })),
+    combatants: Object.values(state.combatants).map((c) => {
+      const cs = state.characters?.[c.id];
+      return {
+        id: c.id,
+        hp: `${c.currentHitPoints}/${c.maxHitPoints}`,
+        ac: c.armorClass,
+        conditions: [...c.conditions],
+        downed: !!c.downed,
+        res: [
+          cs ? `lvl:${cs.level} xp:${cs.xp}` : '',
+          c.slotsRemaining ? `slots:${c.slotsRemaining.slice(1).join('/')}` : '',
+          c.hitDice ? `hd:${c.hitDice.remaining}/${c.hitDice.max}` : '',
+          ...Object.entries(c.resources ?? {}).map(([k, v]) => `${k}:${v.current}/${v.max}`),
+          c.exhaustion ? `exh:${c.exhaustion}` : '',
+          c.inspiration ? 'insp' : '',
+          c.concentratingOn ? `conc:${c.concentratingOn.spell}` : '',
+          cs ? `gp:${cs.currency.gp} items:${cs.items.length}${cs.attunedInstanceIds.length ? ` atn:${cs.attunedInstanceIds.length}` : ''}` : '',
+        ]
+          .filter(Boolean)
+          .join(' '),
+      };
+    }),
     flags: { ...state.flags },
   };
 }
@@ -185,8 +252,10 @@ function diffSnaps(before: StateSnap, after: StateSnap): string[] {
       continue;
     }
     if (b.hp !== a.hp) out.push(`${a.id} HP: ${b.hp} → ${a.hp}`);
+    if (b.ac !== a.ac) out.push(`${a.id} AC: ${b.ac} → ${a.ac}`);
     if (!b.downed && a.downed) out.push(`${a.id} DOWNED`);
     if (b.downed && !a.downed) out.push(`${a.id} back up`);
+    if (b.res !== a.res) out.push(`${a.id} resources: ${b.res || '∅'} → ${a.res || '∅'}`);
     const added = a.conditions.filter((c) => !b.conditions.includes(c));
     const removed = b.conditions.filter((c) => !a.conditions.includes(c));
     if (added.length) out.push(`${a.id} +${added.join(', +')}`);
@@ -220,9 +289,16 @@ function buildResultIndex(exchanges: { request: LlmRequest }[]): Map<string, str
  */
 export interface DmLabSession {
   scenarioId: string;
+  /** Per-session DM key (P1). The sessionId is the PLAYERS' join credential, so it cannot also be the
+   *  thing that unlocks DM-grade payloads — this is minted at create and returned only to the creating
+   *  DM Lab page. A screen-content boundary for a LAN table, not authentication. */
+  dmKey?: string;
   engine: Engine;
   recorder: RecordingProvider;
   composer: SceneComposer;
+  realizeScene?: (est: EstablishScene, party: PartyMemberRef[], ctx?: SceneRealizeContext) => Promise<RealizeSceneResult | null>;
+  /** Which scene engine this session was created with (surfaced in the UI). */
+  sceneEngine: 'modern' | 'fake';
   retriever?: Retriever;
   arcPlanner?: ArcPlanner;
   playbook: string;
@@ -230,17 +306,70 @@ export interface DmLabSession {
   arcTemperature?: number;
   recent: string[];
   turnIndex: number;
+  /** Monotonic scene revision — bumped on every setScene AND every applied delta batch, so a client
+   *  can detect it missed something (revision gap → full re-render instead of delta application). */
+  sceneRev: number;
   totalCostUsd: number;
   totalLatencyMs: number;
+  /** Chapters with a chronicle call in flight (P5) — a slow LLM must not double-write on the next turn. */
+  chronicling?: Set<string>;
   /** Set when the last turn asked for a roll (the next submit should declare it). */
   pendingRoll?: TurnRollRequest;
   /** Scene the party started in + the party roster (for the UI header). */
   scene: string;
   party: { id: string; name: string }[];
+  /** Style exemplars (Technique B): the retriever + the session A/B knob + recently-fired ids (de-dup). */
+  exemplars?: ExemplarRetriever;
+  exemplarsOn: boolean;
+  recentExemplarIds: string[];
 }
 
 /** Build a fresh interactive session (engine state, recorder, captured persona/scenario/temp). */
 export function createDmLabSession(deps: DmLabDeps, scenarioId: string): DmLabSession {
+  // Prerendered dev session: hydrate a captured GameState directly (the scene is already rendered and
+  // sitting in state.world) — instant, $0, no arc-gen, no realizer. Force sceneEngine 'fake' so any NEW
+  // scene the DM invents uses the $0 deterministic composer; the frozen opening is reused verbatim.
+  if (deps.frozenState) {
+    const state = deps.frozenState;
+    // A freeze captured mid-suspension carries a pendingTurn the NEW session never asked for — the
+    // roll bar isn't seeded from it, so nobody can ever declare that die, and (C0) endTurn correctly
+    // refuses forever. A fresh table starts with no die in the air; the stale one is dropped, logged.
+    if (state.pendingTurn) {
+      console.warn(`frozen session carried a stale pendingTurn (${state.pendingTurn.rollReason ?? state.pendingTurn.rollRequestId}) — cleared on load`);
+      delete state.pendingTurn;
+    }
+    const engine = new Engine(state);
+    try {
+      engine.sanitizePartyStaging(); // a bad freeze can never present an indoor/wet/scattered party
+    } catch { /* staging guard must never break a load */ }
+    // Seed the visible transcript from the captured log so the feed shows the opening context on load.
+    const recent = state.log
+      .filter((e) => e.kind === 'narration' || e.kind === 'player')
+      .slice(-12)
+      .map((e) => (e.kind === 'narration' ? `Dungeon Master: ${e.text}` : `${(e.data as { speakerId?: string } | undefined)?.speakerId ?? 'The party'}: ${e.text}`));
+    return {
+      scenarioId,
+      engine,
+      recorder: new RecordingProvider(deps.llm),
+      composer: deps.composer ?? new FakeSceneComposer(),
+      sceneEngine: 'fake',
+      ...(deps.retriever ? { retriever: deps.retriever } : {}),
+      ...(deps.arcPlanner ? { arcPlanner: deps.arcPlanner } : {}),
+      playbook: deps.playbook ?? loadPlaybook(),
+      ...(deps.temperature !== undefined ? { temperature: deps.temperature } : {}),
+      ...(deps.arcTemperature !== undefined ? { arcTemperature: deps.arcTemperature } : {}),
+      recent,
+      turnIndex: 0,
+      sceneRev: 1, // a scene is already established → non-zero so the client renders it immediately
+      totalCostUsd: 0,
+      totalLatencyMs: 0,
+      scene: state.currentSceneId,
+      party: Object.values(state.combatants).filter((c) => c.kind === 'pc').map((c) => ({ id: c.id, name: c.name })),
+      ...(deps.exemplars ? { exemplars: deps.exemplars } : {}),
+      exemplarsOn: !!deps.exemplars && deps.useExemplars !== false,
+      recentExemplarIds: [],
+    };
+  }
   // Generate-mode: a Composer-generated arc supplies the adventure/blueprint/encounters/bestiary, and
   // the party comes from the hand-built roster (deps.party). Authored-mode: the on-disk scenario (or a
   // live-edited override) drives everything, with the scenario's own pregens + bestiary, as before.
@@ -263,7 +392,7 @@ export function createDmLabSession(deps: DmLabDeps, scenarioId: string): DmLabSe
   } else {
     const bundle = loadScenario(scenarioId);
     const scenario = deps.scenarioJson ? parseScenario(deps.scenarioJson, scenarioId) : bundle.scenario;
-    adventure = { pitch: scenario.pitch, scenes: Object.fromEntries(scenario.scenes.map((s) => [s.id, { title: s.title, summary: s.summary, exits: s.exits }])) };
+    adventure = { pitch: scenario.pitch, scenes: Object.fromEntries(scenario.scenes.map((s) => [s.id, { title: s.title, summary: s.summary, exits: s.exits, ...(s.scenePlan ? { scenePlan: s.scenePlan } : {}) }])) };
     encounters = scenario.encounters;
     // Optionally drop the party into a chosen scene (e.g. the undercroft fight) to test it directly.
     startSceneId = deps.startSceneId && scenario.scenes.some((s) => s.id === deps.startSceneId) ? deps.startSceneId : scenario.startSceneId;
@@ -279,14 +408,36 @@ export function createDmLabSession(deps: DmLabDeps, scenarioId: string): DmLabSe
     ...(adventure ? { adventure } : {}),
     ...(encounters ? { encounters } : {}),
     bestiary,
+    itemCatalog: loadItemCatalog(),
   });
   // Pre-prime the architected blueprint so the orchestrator SKIPS the architect step in generate-mode.
   if (gen) state.arc = { blueprint: gen.blueprint, genMeta: gen.genMeta };
+  // Prime the Canon Ledger from the generated cast + plants + the PCs' backstories (facts accrue in play).
+  // Each PC with a backstory becomes a kind:'pc' canon entity so the DM always knows who they are.
+  const pcCards = party
+    .filter((p) => p.backstory)
+    .map((p): EntityCard => ({ id: p.id, kind: 'pc', name: p.name, notes: p.backstory! }));
+  if (gen?.ledger || pcCards.length) {
+    state.ledger = {
+      entities: {
+        ...Object.fromEntries((gen?.ledger?.entities ?? []).map((e) => [e.id, e])),
+        ...Object.fromEntries(pcCards.map((c) => [c.id, c])),
+      },
+      facts: [],
+      plants: Object.fromEntries((gen?.ledger?.plants ?? []).map((p) => [p.id, p])),
+    };
+  }
+  // The sceneEngine knob: 'fake' drops the modern realizer so setScene uses the $0 deterministic
+  // composer — cheap DM iteration. Default is 'modern': the lab is the test-play surface, so scenes
+  // should look like the real thing unless you opt out.
+  const sceneEngine: 'modern' | 'fake' = deps.sceneEngine === 'fake' || !deps.realizeScene ? 'fake' : 'modern';
   return {
     scenarioId,
     engine: new Engine(state),
     recorder: new RecordingProvider(deps.llm),
     composer: deps.composer ?? new FakeSceneComposer(),
+    sceneEngine,
+    ...(sceneEngine === 'modern' && deps.realizeScene ? { realizeScene: deps.realizeScene } : {}),
     ...(deps.retriever ? { retriever: deps.retriever } : {}),
     ...(deps.arcPlanner ? { arcPlanner: deps.arcPlanner } : {}),
     playbook: deps.playbook ?? loadPlaybook(),
@@ -294,19 +445,23 @@ export function createDmLabSession(deps: DmLabDeps, scenarioId: string): DmLabSe
     ...(deps.arcTemperature !== undefined ? { arcTemperature: deps.arcTemperature } : {}),
     recent: [],
     turnIndex: 0,
+    sceneRev: 0,
     totalCostUsd: 0,
     totalLatencyMs: 0,
     scene: startSceneId,
     party: Object.values(state.combatants)
       .filter((c) => c.kind === 'pc')
       .map((c) => ({ id: c.id, name: c.name })),
+    ...(deps.exemplars ? { exemplars: deps.exemplars } : {}),
+    exemplarsOn: !!deps.exemplars && deps.useExemplars !== false,
+    recentExemplarIds: [],
   };
 }
 
 /** Advance the session by ONE turn (a player line, or a declared/auto roll). Mutates the session. */
 export async function dmLabSubmit(
   session: DmLabSession,
-  input: { say: string; as?: string } | { roll: number; auto?: boolean } | { open: true },
+  input: { say: string; as?: string } | { roll: number; auto?: boolean } | { open: true } | { endTurn: true; as?: string },
 ): Promise<DmLabTurn> {
   const { engine, recorder, composer } = session;
   const sliceStart = recorder.exchanges.length;
@@ -321,6 +476,9 @@ export async function dmLabSubmit(
   } else if ('roll' in input) {
     turnInput = { kind: 'roll', requestId: session.pendingRoll?.id ?? '', total: input.roll };
     label = { speaker: 'roll', text: `🎲 ${input.roll}`, kind: input.auto ? 'auto-roll' : 'roll' };
+  } else if ('endTurn' in input) {
+    turnInput = { kind: 'endTurn', ...(input.as ? { speakerId: input.as } : {}) };
+    label = { speaker: input.as ?? 'player', text: '⏭ end turn', kind: 'message' };
   } else {
     turnInput = { kind: 'message', speakerId: input.as ?? 'player', text: input.say };
     label = { speaker: input.as ?? 'player', text: input.say, kind: 'message' };
@@ -332,14 +490,47 @@ export async function dmLabSubmit(
       llm: recorder,
       ...(session.retriever ? { retriever: session.retriever } : {}),
       composer,
+      ...(session.realizeScene ? { realizeScene: session.realizeScene } : {}),
       ...(session.arcPlanner ? { arcPlanner: session.arcPlanner } : {}),
       playbook: session.playbook,
       recentTranscript: session.recent,
       ...(session.temperature !== undefined ? { temperature: session.temperature } : {}),
       ...(session.arcTemperature !== undefined ? { arcTemperature: session.arcTemperature } : {}),
+      ...(session.exemplars && session.exemplarsOn ? { exemplars: session.exemplars, excludeExemplarIds: session.recentExemplarIds } : {}),
+      // P3 — the DM's eye: annotated roofless view of the current map (gated by MYTHWEAVER_DM_VISION).
+      dmView: (map, actingPcName) => renderDmView(map, ASSETS_ROOT, actingPcName),
     },
     turnInput,
   );
+  // Track which style exemplars fired so the next turns don't repeat them (rolling window of 8).
+  if (result.exemplars?.length) {
+    session.recentExemplarIds = [...session.recentExemplarIds, ...result.exemplars.map((e) => e.id)].slice(-8);
+  }
+  // COMBAT MODE (C1): when the order lands on a monster and no roll hangs, the world takes its
+  // turns HERE — engine-resolved, one narration call — so a single round-trip returns "your blow
+  // lands, the bandits answer, Elara is up". Never while a roll is pending (a die in the air owns
+  // the table), and never for PCs (the phase acts only for NPCs, by construction).
+  const phaseLead = (result as { phaseLeadFacts?: string[] }).phaseLeadFacts;
+  if (!result.rollRequest && (phaseLead?.length || (engine.getState().combat.active && engine.activeCombatant()?.kind === 'npc'))) {
+    try {
+      const phase = await runEnemyPhase({ engine, llm: recorder, playbook: session.playbook, ...(phaseLead?.length ? { leadFacts: phaseLead } : {}) });
+      if (phase) {
+        result.narration = [result.narration, phase.narration].filter(Boolean).join('\n\n');
+        if (phase.deltas.length) result.deltas = [...(result.deltas ?? []), ...phase.deltas];
+      }
+    } catch { /* the phase must never eat the player's turn — worst case the next input re-runs it */ }
+  }
+  // C3 — THE DEATH SAVE ARM. If the dust settles on a DYING PC, their turn IS a death save: put the
+  // die straight in the player's hand (the roll bar), no LLM asked. The resume path applies RAW.
+  {
+    const st2 = engine.getState();
+    const dying = st2.combat.active ? engine.activeCombatant() : undefined;
+    if (!result.rollRequest && dying && engine.isDying(dying)) {
+      const rr = engine.requestRoll({ expr: '1d20', reason: `${dying.name} is DYING — death saving throw (straight d20: 10+ succeeds, 20 brings them back)` });
+      st2.pendingTurn = { rollRequestId: rr.id, rollToolUseId: 'death-save', rollExpr: rr.expr, rollReason: rr.reason, resolvedToolResults: [], history: [], deathSaveContinuation: { combatantId: dying.id } };
+      result.rollRequest = { id: rr.id, expr: rr.expr, reason: rr.reason };
+    }
+  }
   const latencyMs = Date.now() - startedAt;
   const after = snapshot(engine.getState());
 
@@ -350,6 +541,7 @@ export async function dmLabSubmit(
   }
 
   session.turnIndex += 1;
+  if (result.sceneChanged || result.deltas?.length) session.sceneRev += 1; // clients detect gaps → full re-render
   session.totalCostUsd += result.costUsd;
   session.totalLatencyMs += latencyMs;
   if (result.rollRequest) session.pendingRoll = result.rollRequest;
@@ -366,6 +558,12 @@ export async function dmLabSubmit(
     ...(result.rollRequest ? { rollRequest: result.rollRequest } : {}),
     tools,
     diff: diffSnaps(before, after),
+    ...(result.sceneChanged ? { sceneChanged: true } : {}),
+    ...(result.sceneProvenance ? { sceneProvenance: result.sceneProvenance } : {}),
+    ...(result.deltas?.length ? { deltas: result.deltas } : {}),
+    ...(result.beat ? { beat: result.beat } : {}),
+    ...(result.exemplars?.length ? { exemplars: result.exemplars } : {}),
+    ...(result.mentions?.length ? { mentions: result.mentions } : {}),
     model: result.model,
     steps: result.trace.steps,
     costUsd: result.costUsd,
@@ -384,7 +582,8 @@ export function arcView(session: DmLabSession) {
         id,
         title: s.title,
         current: id === st.currentSceneId,
-        done: st.flags[`beat:${id}`] === 'done',
+        // A beat is DONE whatever way it closed — done/resolved/fled all stamp the flag.
+        done: !!st.flags[`beat:${id}`] && id !== st.currentSceneId,
         reachable: reachable.has(id),
       }))
     : [];
@@ -399,7 +598,134 @@ export function arcView(session: DmLabSession) {
     sceneId: e.sceneId,
     monsters: e.monsters.map((m) => ({ name: st.bestiary?.[m.statBlockId]?.name ?? m.statBlockId, count: m.count })),
   }));
-  return { blueprint: arc.blueprint ?? null, brief: arc.brief ?? null, currentScene: st.currentSceneId, beats, decisions, npcs, genMeta, stale, encounters };
+  // Canon Ledger (P1): entities (with voice + status), live facts, plants — the live "world bible".
+  const L = st.ledger;
+  const ledger = L
+    ? {
+        entities: Object.values(L.entities).map((e) => ({ id: e.id, name: e.name, kind: e.kind, status: e.status ?? 'active', voice: e.voice ?? null, notes: e.notes ?? null })),
+        facts: L.facts.filter((f) => !f.supersededBy).map((f) => ({ subject: f.subject, attribute: f.attribute, value: f.value, turn: f.turn })),
+        plants: Object.values(L.plants).map((p) => ({ id: p.id, what: p.what, status: p.status })),
+      }
+    : null;
+  return { blueprint: arc.blueprint ?? null, brief: arc.brief ?? null, currentScene: st.currentSceneId, beats, decisions, npcs, genMeta, stale, encounters, ledger };
+}
+
+/**
+ * Assemble a full, per-PC CHARACTER SHEET view for the Run-view sheet modal — the immutable sheet + live
+ * combatant pools + progression/economy + resolved inventory + every engine-DERIVED number. Pure read;
+ * the derived values reuse the exact functions the engine uses, so the sheet is a single source of truth
+ * and updates live as play progresses (it's rebuilt from state on every turn response).
+ */
+export function characterSheets(session: DmLabSession) {
+  const st = session.engine.getState();
+  const catalog = st.itemCatalog ?? {};
+  return Object.values(st.combatants)
+    .filter((c) => c.kind === 'pc')
+    .map((c) => {
+      const sheet = st.sheets?.[c.id];
+      const cs = st.characters?.[c.id];
+      const level = cs?.level ?? sheet?.level ?? 1;
+      const prof = deriveProficiencyBonus(level);
+      const exh = c.exhaustion;
+
+      const abilities = sheet
+        ? ABILITIES.map((a: Ability) => ({
+            key: a,
+            score: sheet.abilities[a],
+            mod: abilityMod(sheet.abilities[a]),
+            save: deriveSaveModifier(sheet, cs, a, exh),
+            saveProf: sheet.savingThrowProficiencies.includes(a),
+          }))
+        : [];
+
+      const skills = sheet
+        ? (Object.keys(SKILLS) as Skill[]).map((s) => ({
+            key: s,
+            ability: SKILLS[s],
+            mod: deriveSkillModifier(sheet, cs, s, exh),
+            tier: sheet.skillExpertise?.includes(s) ? 'expertise' : sheet.skillProficiencies.includes(s) ? 'proficient' : sheet.skillHalfProficiency?.includes(s) ? 'half' : 'none',
+          }))
+        : [];
+
+      const equipped = cs?.equipped ?? {};
+      const slotByInstance = new Map(Object.entries(equipped).filter(([, id]) => !!id).map(([slot, id]) => [id as string, slot]));
+      const attuned = new Set(cs?.attunedInstanceIds ?? []);
+      const items = (cs?.items ?? []).map((it) => {
+        const def = catalog[it.defId];
+        return {
+          instanceId: it.instanceId,
+          name: def?.name ?? it.defId,
+          category: def?.category ?? 'item',
+          weightLb: def?.weightLb ?? 0,
+          qty: it.qty ?? 1,
+          equippedSlot: slotByInstance.get(it.instanceId) ?? null,
+          attuned: attuned.has(it.instanceId),
+          identified: it.identified !== false,
+          magic: !!def?.magic,
+          ...(def?.charges ? { charges: { remaining: it.chargesRemaining ?? def.charges.max, max: def.charges.max } } : {}),
+        };
+      });
+      const weight = items.reduce((w, i) => w + i.weightLb * (i.qty ?? 1), 0);
+      const cap = sheet ? deriveCarry(sheet) : 0;
+
+      const slots = (c.slotsMax ?? [])
+        .map((max, lvl) => ({ level: lvl, cur: c.slotsRemaining?.[lvl] ?? 0, max }))
+        .filter((s) => s.level >= 1 && s.max > 0);
+
+      const sc = sheet?.spellcasting;
+      const spellcasting = sc && sheet
+        ? {
+            ability: sc.ability,
+            saveDc: deriveSpellSaveDc(sheet, cs) ?? sc.spellSaveDc,
+            attack: prof + abilityMod(sheet.abilities[sc.ability]),
+            preparedMax: deriveSpellsPreparedMax(sheet, cs) ?? null,
+            prepared: c.preparedSpells ?? sc.prepared,
+            rituals: sc.rituals ?? [],
+            cantrips: sc.cantrips,
+          }
+        : null;
+
+      return {
+        id: c.id,
+        name: c.name,
+        ancestry: sheet?.ancestry ?? '',
+        className: sheet?.className ?? '',
+        level,
+        xp: cs?.xp ?? 0,
+        xpNext: level < 20 ? XP_THRESHOLDS[level + 1] ?? null : null,
+        xpThis: XP_THRESHOLDS[level] ?? 0,
+        hp: { cur: c.currentHitPoints, max: c.maxHitPoints, temp: c.temporaryHitPoints },
+        ac: c.armorClass,
+        speed: sheet?.speedFt ?? 30,
+        prof,
+        initiative: c.initiativeBonus ?? 0,
+        abilities,
+        skills,
+        passives: sheet
+          ? {
+              perception: derivePassive(sheet, cs, 'perception', exh),
+              investigation: derivePassive(sheet, cs, 'investigation', exh),
+              insight: derivePassive(sheet, cs, 'insight', exh),
+            }
+          : null,
+        conditions: c.conditions,
+        exhaustion: c.exhaustion ?? 0,
+        inspiration: !!c.inspiration,
+        concentration: c.concentratingOn?.spell ?? null,
+        hitDice: c.hitDice ?? null,
+        slots,
+        resources: Object.entries(c.resources ?? {}).map(([k, v]) => ({ id: k, current: v.current, max: v.max, recharge: v.recharge })),
+        spellcasting,
+        attacks: sheet?.attacks ?? [],
+        currency: cs?.currency ?? { cp: 0, sp: 0, gp: 0 },
+        carry: { lb: Math.round(weight), cap, over: weight > cap },
+        items,
+        equipped,
+        attunement: { used: attuned.size, max: 3 },
+        features: sheet?.features ?? [],
+        backstory: sheet?.backstory ?? '',
+      };
+    });
 }
 
 /**

@@ -1,12 +1,12 @@
 {
   "means": {
-    "rulesFidelity": 3.625,
-    "sourceFaithfulness": 4.25,
-    "style": 4.875,
-    "pacing": 4.5,
-    "coherence": 4.625,
-    "agency": 4
+    "rulesFidelity": 2.9285714285714284,
+    "sourceFaithfulness": 3.142857142857143,
+    "style": 4.107142857142857,
+    "pacing": 4.107142857142857,
+    "coherence": 3.607142857142857,
+    "agency": 3.357142857142857
   },
-  "runs": 1,
-  "updatedAt": "2026-06-17T10:54:01.482Z"
+  "runs": 2,
+  "updatedAt": "2026-07-27T12:03:33.916Z"
 }

@@ -14,7 +14,16 @@ traces*.jsonl
 
 # Copyrighted source material + extracted corpus — personal use only, NEVER commit/ship.
 raw-data/
+raw-data*.zip
 content/corpus/
+
+# Embedded asset vectors — rebuilt locally via `npm run assets:embed` (needs an embedding key).
+assets/library.vectors.jsonl
+content/exemplars/
+*.zip
+
+# Visual-judge render captures (derived PNGs + score reports) — dev artifacts, never ship.
+apps/server/src/scene-eval/captures/
 
 # Raw third-party asset packs (curated subset extracted into apps/web/public/assets/).
 # CC0: kenney-tiny-* + tiny-creatures. Free-for-commercial: pixel-crawler (kept for cherry-picking).
@@ -23,3 +32,6 @@ raw-packs/
 # Python bytecode (asset extractor / contact-sheet helpers)
 __pycache__/
 *.pyc
+
+# generated DawnLike sprite gallery (regenerate: python3 scripts/build-sprite-index.py)
+apps/web/public/sprite-index.html

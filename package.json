@@ -13,7 +13,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "dev:web": "npm --workspace @mythweaver/web run dev",
-    "dev:server": "npm --workspace @mythweaver/server run dev",
+    "dev:server": "node scripts/dev-server.mjs",
     "db:up": "docker compose up -d db",
     "langfuse:up": "docker compose -f infra/langfuse/docker-compose.yml up -d",
     "langfuse:down": "docker compose -f infra/langfuse/docker-compose.yml down",
@@ -24,8 +24,14 @@
     "compose:demo": "node scripts/compose-demo.mjs",
     "scene:eval": "node scripts/scene-eval.mjs",
     "scene:eval:update": "node scripts/scene-eval.mjs --update",
+    "scene:judge:visual": "node scripts/visual-judge.mjs",
+    "scene:judge:auto": "node scripts/scene-judge-auto.mjs",
+    "scene:sweep": "node scripts/structure-sweep.mjs",
+    "scene:sweep:semantics": "node scripts/semantic-sweep.mjs",
     "assets:extract": "python3 scripts/extract-assets.py",
-    "up": "docker compose up --build"
+    "up": "docker compose up --build",
+    "assets:embed": "node scripts/embed-asset-library.mjs",
+    "dev:server:app": "npm --workspace @mythweaver/server run dev"
   },
   "engines": {
     "node": ">=20"

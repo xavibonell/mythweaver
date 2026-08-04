@@ -18,15 +18,88 @@ and knowing where everything is. Canonical detail lives in `docs/` (see Pointers
 cp .env.example .env        # then fill ANTHROPIC_API_KEY (+ OPENAI_API_KEY for semantic RAG)
 npm install                 # install all workspace deps
 npm run build               # tsc project references — must be clean
-npm test                    # 84 tests; all should pass (engine + orchestrator + scene + rag + rubric)
+npm test                    # 808 tests (1 known flake — see "Catching up" below)
 ```
+
+## CATCHING UP — an existing checkout after `git pull` (READ THIS FIRST if you already have the repo)
+*For a machine that already has this repo and its `.env` keys and just needs to match `main` exactly.
+Do NOT re-clone and do NOT touch `.env` — everything below is idempotent.*
+
+```bash
+git pull                    # or: git fetch origin && git checkout main && git merge --ff-only origin/main
+npm install                 # cheap no-op unless the lockfile moved; run it, don't reason about it
+npm run build               # REQUIRED — the servers run compiled dist/, not src/
+npm test                    # expect 807 passing / 1 failing (see "known failure" below)
+```
+Then **restart any running dev server** (see below) and hard-reload the browser tab.
+
+**What a pull does and does not bring.**
+- **Comes with the pull:** all code, `prompts/*.md` (the DM playbook — persona changes ride git),
+  `content/dev-sessions/*.json` (the instant-load fixtures, incl. `roadside-ambush` = a combat test
+  that opens mid-fight), `docs/*`, `assets/dawnlike-index.json` (the sprite index).
+- **Does NOT come with the pull (gitignored, per-machine):** `.env`, `apps/web/.env.local`,
+  `content/corpus/` + `raw-data/` (rules RAG), `content/exemplars/` (Technique B voice corpus).
+  Missing corpora degrade silently and correctly — `lookupRule` falls back to keyword/none and the
+  style exemplars switch off. **A different voice corpus is the normal reason two machines' DMs sound
+  different; it is not a bug.** Rebuild instructions are in the two corpus sections below.
+
+**Do the embeddings need rebuilding? Three separate lanes — usually only the third.**
+| Lane | On disk | After a pull |
+|---|---|---|
+| Rules RAG | `content/corpus/*.vectors.jsonl` (gitignored) | **No.** No embedding code or corpus format has changed; an existing corpus keeps working. |
+| Voice exemplars | `content/exemplars/*.vectors.jsonl` (gitignored) | **No.** `scripts/ingest-exemplars.mjs` changed (set-prefixed ids, configurable curation provider, canonical moveTypes) but the *reader* did not — an existing corpus loads unchanged. Re-run only to ingest NEW transcripts, which are per-machine and cost ~$3.70. |
+| **Asset retrieval** | `assets/library.vectors.jsonl` (gitignored) | **Usually YES.** `assets/library.json` IS committed and changes with the pull, while the vector cache is local — so it goes stale silently. |
+
+```bash
+npm run assets:embed        # rebuild assets/library.vectors.jsonl (~pennies, needs OPENAI/VOYAGE key)
+```
+Do NOT compare that count to `library.json`'s total — the script embeds only **Director-relevant**
+assets (`directorAssets()` drops `internal`, `tileset`, and terrain edge variants), so a healthy cache
+sits well *below* the library size and looks alarming when it isn't. Compare like for like:
+```bash
+npm run build && node -e "import('@mythweaver/scene').then(async m=>{
+  const n=m.directorAssets(m.loadAssetLibrary()).length;
+  const c=JSON.parse(require('fs').readFileSync('assets/library.vectors.jsonl','utf8').split('\n')[0]).count;
+  console.log('director-relevant:',n,'| embedded:',c, n===c?'✅ current':'⚠️ REBUILD');})"
+```
+Simplest rule: it is idempotent and costs pennies — **just re-run it after any pull that touched
+`assets/library.json`** rather than reasoning about the delta.
+Stale is **safe, not broken**: `loadAssetVectors()` returns null on a missing/corrupt file and semantic
+asset retrieval simply switches off (deterministic `SpecBindings` still picks art). Uncovered assets
+just stop being semantically reachable, which shows up as blander scene art, never as an error.
+
+**Sanity checks after the build (30 seconds, catches the failures that actually happen):**
+```bash
+curl -s localhost:6984/health                       # {"ok":true}
+curl -s localhost:6984/dm/lab/dev-sessions          # lists roadside-ambush + oakhollow-green + …
+grep NEXT_PUBLIC_SERVER_URL apps/web/.env.local     # MUST be http://localhost:6984
+```
+If `apps/web/.env.local` points anywhere else the live table 404s **"session not found"** — Next
+inlines `NEXT_PUBLIC_*` at startup, so **restart the web app** after changing it.
+
+**Known failure (not caused by your pull):** `packages/scene/src/scene-programmer.test.ts › theme is
+inferred from the brief when omitted` is a long-standing flake. 1 failed / 807 passed is the expected
+green. Anything else failing IS new — bisect before building on it.
+
+**Gotchas that have each cost a debugging session:**
+- `npm run dev:server` is now a supervisor (`scripts/dev-server.mjs`): it runs `tsc -b --watch` **and**
+  restarts `apps/server/dist/index.js` whenever any workspace's `dist/` changes. Editing a file in
+  `packages/*` reaches the running server. But anything that launches `dist` directly (an IDE preview,
+  `.claude/launch.json`) has **no watch** — rebuild and restart it by hand.
+- **DM-Lab sessions are in-memory.** Restarting the backend wipes every session; old `?session=` links
+  404. Start a fresh one from the Lab's Generate tab (or load a prerendered dev session — instant, $0).
+- Combat, the Book, and the live table all read the **compiled** server. "Nothing changed on my end"
+  after an edit is almost always a stale `dist` or an unreloaded Phaser canvas.
+- Optional feature flags default to ON and need no `.env` entry: `MYTHWEAVER_SCRIBE` (per-turn journal
+  lines), `MYTHWEAVER_INSIGHTS` (NPC perceived-sheet profiler), `MYTHWEAVER_CHRONICLER` (chapter
+  prose). Set any to `off` to disable its LLM calls ($0, behavior otherwise identical).
 
 ## Run it
 Ports come from `.env`: **backend `:6984`, web `:6985`** (the web app calls the backend at
 `http://localhost:6984` by default — keep `PORT=6984` or set `NEXT_PUBLIC_SERVER_URL` to match).
 
 ```bash
-npm run dev:server          # backend on :6984 (tsx watch — hot-reloads on source edits)
+npm run dev:server          # backend on :6984 (supervisor: tsc -b --watch + auto-restart on dist change)
 npm run dev:web             # web UI on :6985
 npm run db:up               # Postgres+pgvector (loads db/init/001_init.sql). ONLY needed for the
                             # play/session API (/sessions, /sessions/:id/turn). The DM Lab + Scene
@@ -64,6 +137,30 @@ python3 -m venv .venv-pdf && .venv-pdf/bin/pip install pymupdf
 node scripts/embed-corpus.mjs                                     # -> *.vectors.jsonl (needs OPENAI_API_KEY)
 ```
 
+## Style-exemplar corpus — Technique B (also NOT in the repo)
+A **second, independent** RAG namespace (`content/exemplars/`) makes the turn-DM *sound human*: each
+turn retrieves 2 real-DM beats matching the moment's register and injects them into the per-turn prompt
+(voice only — never rules, never visible to `lookupRule`). It's **fully separate from the rules corpus
+above** — the rules RAG is untouched by it and needs no re-embedding. Both `raw-data/transcripts/` (the
+source transcripts) and `content/exemplars/*.{jsonl,vectors.jsonl}` (the built corpus) are **gitignored**,
+so the *code* travels via git but each machine builds its **own** corpus once. Without it the feature is
+silently off (the DM behaves exactly as before — graceful degrade, no errors).
+
+**To build it (one-time, ~$3.70, needs `OPENAI_API_KEY`/`VOYAGE_API_KEY`):** drop speaker-labeled `.txt`
+transcripts into `raw-data/transcripts/` (`DM:` for the DM, `NAME:` for players, `#` lines ignored), then:
+```bash
+npm run build                                  # the script imports from dist/
+node scripts/ingest-exemplars.mjs --dry-run    # FREE: parse->window->tag->sample; prints per-moveType
+                                               #   counts + writes content/exemplars/cr3.candidates.jsonl
+node scripts/ingest-exemplars.mjs              # PAID: LLM curate (keep/drop + anonymize-by-rewrite +
+                                               #   strip mechanics) + embed -> cr3.jsonl + cr3.vectors.jsonl
+```
+Restart the server; confirm the boot log shows `Style exemplars: semantic (N/N exemplars, <model>)`.
+Use the **same embeddings provider** to build the corpus and to run the server (don't mix an
+OpenAI-built corpus with a Voyage-configured server). No key at all → it falls back to offline BM25 ($0).
+Code: `scripts/ingest-exemplars.mjs` + `apps/server/src/exemplar-ingest.ts` (parser/heuristics) +
+`exemplar-corpus.ts` (retriever); design + tickets in `docs/DM-LAYER-TODO.md` §Phase B.
+
 ## Key env vars (see `.env.example` for the full list)
 | Var | Purpose |
 |---|---|
@@ -75,6 +172,7 @@ node scripts/embed-corpus.mjs                                     # -> *.vectors
 | `MYTHWEAVER_SESSION_BUDGET_USD` | Per-session spend cap (off by default). |
 | `MYTHWEAVER_API_TOKEN` | Shared-secret auth (required if `HOST=0.0.0.0`). |
 | `MYTHWEAVER_PLAYBOOK_PATH` | Point the persona at a different playbook (A/B). |
+| `MYTHWEAVER_EXEMPLARS` (`on`/`off`) / `MYTHWEAVER_EXEMPLARS_DIR` | Technique B style exemplars: disable, or relocate `content/exemplars/`. |
 
 ## Architecture in one breath
 Four swappable seams: `LlmProvider` (`packages/llm`), `EmbeddingProvider` (`packages/rag`),

@@ -1,0 +1,1185 @@
+<!doctype html><html><head><meta charset="utf-8"><title>MythWeaver — Asset Forge review</title>
+<style>
+  body { background:#15130f; color:#e8e2d6; font:14px/1.5 ui-sans-serif,-apple-system,sans-serif; margin:0; padding:32px 40px 80px; }
+  h1 { font:600 26px ui-serif,Georgia,serif; color:#c9a227; margin:0 0 4px; }
+  .sub { color:#9a8f7d; margin:0 0 28px; }
+  h2 { font:600 17px ui-serif,Georgia,serif; color:#d9d2c3; border-bottom:1px solid #2b2822; padding-bottom:6px; margin:36px 0 14px; }
+  .count { color:#6b7080; font-size:13px; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:14px; }
+  .card { background:#1c1a15; border:1px solid #2b2822; border-radius:8px; padding:12px; }
+  .frames { display:flex; gap:14px; align-items:flex-end; justify-content:safe center; min-height:96px; padding:8px 0 10px; overflow-x:auto; }
+  .sp { image-rendering:pixelated; background-repeat:no-repeat; flex:none; }
+  .checker { background-color:#26231d; box-shadow:0 0 0 1px #000 inset;
+    background-blend-mode:normal; }
+  .cap { font-size:13px; }
+  .cap .k { color:#6b7080; font-size:11.5px; }
+  .desc { color:#9a8f7d; font-size:12px; margin-top:2px; }
+</style></head><body>
+<h1>Asset Forge — review</h1>
+<p class="sub">298 new procedural assets (DB16 / DawnLike style). Left = 4x, right = 8x. Animated sprites play at their real fps. Tell me which to redraw.</p>
+<h2>Biome foundations — ground families, wall families & floors (batch 2) <span class="count">18</span></h2>
+<div class="grid"><style></style>
+<div class="card" data-tag="ash (9-tile family)">
+  <div class="frames"><div class="sp checker" style="width:192px;height:192px;background-image:url('assets/proc/terrain/_family_ash.png');background-size:192px 192px;"></div><div class="sp checker" style="width:384px;height:384px;background-image:url('assets/proc/terrain/_family_ash.png');background-size:384px 384px;"></div></div>
+  <div class="cap"><b>ash (9-tile family)</b> <span class="k">terrain · 48x48 · walkable</span></div>
+  <div class="desc">volcanic ash and cinders — base + 8 autotile edges, shown knitted</div>
+</div>
+<style></style>
+<div class="card" data-tag="blight (9-tile family)">
+  <div class="frames"><div class="sp checker" style="width:192px;height:192px;background-image:url('assets/proc/terrain/_family_blight.png');background-size:192px 192px;"></div><div class="sp checker" style="width:384px;height:384px;background-image:url('assets/proc/terrain/_family_blight.png');background-size:384px 384px;"></div></div>
+  <div class="cap"><b>blight (9-tile family)</b> <span class="k">terrain · 48x48 · walkable</span></div>
+  <div class="desc">corrupted, cursed ground — base + 8 autotile edges, shown knitted</div>
+</div>
+<style></style>
+<div class="card" data-tag="farmland (9-tile family)">
+  <div class="frames"><div class="sp checker" style="width:192px;height:192px;background-image:url('assets/proc/terrain/_family_farmland.png');background-size:192px 192px;"></div><div class="sp checker" style="width:384px;height:384px;background-image:url('assets/proc/terrain/_family_farmland.png');background-size:384px 384px;"></div></div>
+  <div class="cap"><b>farmland (9-tile family)</b> <span class="k">terrain · 48x48 · walkable</span></div>
+  <div class="desc">tilled furrows, seedlings showing — base + 8 autotile edges, shown knitted</div>
+</div>
+<style></style>
+<div class="card" data-tag="ice (9-tile family)">
+  <div class="frames"><div class="sp checker" style="width:192px;height:192px;background-image:url('assets/proc/terrain/_family_ice.png');background-size:192px 192px;"></div><div class="sp checker" style="width:384px;height:384px;background-image:url('assets/proc/terrain/_family_ice.png');background-size:384px 384px;"></div></div>
+  <div class="cap"><b>ice (9-tile family)</b> <span class="k">terrain · 48x48 · walkable</span></div>
+  <div class="desc">cracked lake ice — base + 8 autotile edges, shown knitted</div>
+</div>
+<style></style>
+<div class="card" data-tag="mud (9-tile family)">
+  <div class="frames"><div class="sp checker" style="width:192px;height:192px;background-image:url('assets/proc/terrain/_family_mud.png');background-size:192px 192px;"></div><div class="sp checker" style="width:384px;height:384px;background-image:url('assets/proc/terrain/_family_mud.png');background-size:384px 384px;"></div></div>
+  <div class="cap"><b>mud (9-tile family)</b> <span class="k">terrain · 48x48 · walkable</span></div>
+  <div class="desc">sucking wet mud — base + 8 autotile edges, shown knitted</div>
+</div>
+<style></style>
+<div class="card" data-tag="sand (9-tile family)">
+  <div class="frames"><div class="sp checker" style="width:192px;height:192px;background-image:url('assets/proc/terrain/_family_sand.png');background-size:192px 192px;"></div><div class="sp checker" style="width:384px;height:384px;background-image:url('assets/proc/terrain/_family_sand.png');background-size:384px 384px;"></div></div>
+  <div class="cap"><b>sand (9-tile family)</b> <span class="k">terrain · 48x48 · walkable</span></div>
+  <div class="desc">wind-rippled desert sand — base + 8 autotile edges, shown knitted</div>
+</div>
+<style></style>
+<div class="card" data-tag="snow (9-tile family)">
+  <div class="frames"><div class="sp checker" style="width:192px;height:192px;background-image:url('assets/proc/terrain/_family_snow.png');background-size:192px 192px;"></div><div class="sp checker" style="width:384px;height:384px;background-image:url('assets/proc/terrain/_family_snow.png');background-size:384px 384px;"></div></div>
+  <div class="cap"><b>snow (9-tile family)</b> <span class="k">terrain · 48x48 · walkable</span></div>
+  <div class="desc">wind-packed snowfield — base + 8 autotile edges, shown knitted</div>
+</div>
+<style></style>
+<div class="card" data-tag="swamp (9-tile family)">
+  <div class="frames"><div class="sp checker" style="width:192px;height:192px;background-image:url('assets/proc/terrain/_family_swamp.png');background-size:192px 192px;"></div><div class="sp checker" style="width:384px;height:384px;background-image:url('assets/proc/terrain/_family_swamp.png');background-size:384px 384px;"></div></div>
+  <div class="cap"><b>swamp (9-tile family)</b> <span class="k">terrain · 48x48 · solid</span></div>
+  <div class="desc">black bog-water — base + 8 autotile edges, shown knitted</div>
+</div>
+<style></style>
+<div class="card" data-tag="wall_bone (9-tile family)">
+  <div class="frames"><div class="sp checker" style="width:192px;height:192px;background-image:url('assets/proc/terrain/_family_wall_bone.png');background-size:192px 192px;"></div><div class="sp checker" style="width:384px;height:384px;background-image:url('assets/proc/terrain/_family_wall_bone.png');background-size:384px 384px;"></div></div>
+  <div class="cap"><b>wall_bone (9-tile family)</b> <span class="k">terrain · 48x48 · solid</span></div>
+  <div class="desc">a wall mortared from stacked bones — base + 8 autotile edges, shown knitted</div>
+</div>
+<style></style>
+<div class="card" data-tag="wall_ice (9-tile family)">
+  <div class="frames"><div class="sp checker" style="width:192px;height:192px;background-image:url('assets/proc/terrain/_family_wall_ice.png');background-size:192px 192px;"></div><div class="sp checker" style="width:384px;height:384px;background-image:url('assets/proc/terrain/_family_wall_ice.png');background-size:384px 384px;"></div></div>
+  <div class="cap"><b>wall_ice (9-tile family)</b> <span class="k">terrain · 48x48 · solid</span></div>
+  <div class="desc">blue glacier ice, cut in blocks — base + 8 autotile edges, shown knitted</div>
+</div>
+<style></style>
+<div class="card" data-tag="wall_moss (9-tile family)">
+  <div class="frames"><div class="sp checker" style="width:192px;height:192px;background-image:url('assets/proc/terrain/_family_wall_moss.png');background-size:192px 192px;"></div><div class="sp checker" style="width:384px;height:384px;background-image:url('assets/proc/terrain/_family_wall_moss.png');background-size:384px 384px;"></div></div>
+  <div class="cap"><b>wall_moss (9-tile family)</b> <span class="k">terrain · 48x48 · solid</span></div>
+  <div class="desc">old stone swallowed by moss — base + 8 autotile edges, shown knitted</div>
+</div>
+<style></style>
+<div class="card" data-tag="wall_obsidian (9-tile family)">
+  <div class="frames"><div class="sp checker" style="width:192px;height:192px;background-image:url('assets/proc/terrain/_family_wall_obsidian.png');background-size:192px 192px;"></div><div class="sp checker" style="width:384px;height:384px;background-image:url('assets/proc/terrain/_family_wall_obsidian.png');background-size:384px 384px;"></div></div>
+  <div class="cap"><b>wall_obsidian (9-tile family)</b> <span class="k">terrain · 48x48 · solid</span></div>
+  <div class="desc">volcanic glass, knapped and mortared — base + 8 autotile edges, shown knitted</div>
+</div>
+<style></style>
+<div class="card" data-tag="wall_sandstone (9-tile family)">
+  <div class="frames"><div class="sp checker" style="width:192px;height:192px;background-image:url('assets/proc/terrain/_family_wall_sandstone.png');background-size:192px 192px;"></div><div class="sp checker" style="width:384px;height:384px;background-image:url('assets/proc/terrain/_family_wall_sandstone.png');background-size:384px 384px;"></div></div>
+  <div class="cap"><b>wall_sandstone (9-tile family)</b> <span class="k">terrain · 48x48 · solid</span></div>
+  <div class="desc">sun-baked sandstone blocks — base + 8 autotile edges, shown knitted</div>
+</div>
+<style></style>
+<div class="card" data-tag="marble">
+  <div class="frames"><div class="sp checker" style="width:64px;height:64px;background-image:url('/assets/proc/terrain/marble.png');background-size:64px 64px;"></div><div class="sp checker" style="width:128px;height:128px;background-image:url('/assets/proc/terrain/marble.png');background-size:128px 128px;"></div></div>
+  <div class="cap"><b>marble</b> <span class="k">terrain · 16x16 · walkable</span></div>
+  <div class="desc">veined white marble</div>
+</div>
+<style></style>
+<div class="card" data-tag="marble_dark">
+  <div class="frames"><div class="sp checker" style="width:64px;height:64px;background-image:url('/assets/proc/terrain/marble_dark.png');background-size:64px 64px;"></div><div class="sp checker" style="width:128px;height:128px;background-image:url('/assets/proc/terrain/marble_dark.png');background-size:128px 128px;"></div></div>
+  <div class="cap"><b>marble_dark</b> <span class="k">terrain · 16x16 · walkable</span></div>
+  <div class="desc">veined black marble</div>
+</div>
+<style></style>
+<div class="card" data-tag="sandstone_floor">
+  <div class="frames"><div class="sp checker" style="width:64px;height:64px;background-image:url('/assets/proc/terrain/sandstone_floor.png');background-size:64px 64px;"></div><div class="sp checker" style="width:128px;height:128px;background-image:url('/assets/proc/terrain/sandstone_floor.png');background-size:128px 128px;"></div></div>
+  <div class="cap"><b>sandstone_floor</b> <span class="k">terrain · 16x16 · walkable</span></div>
+  <div class="desc">worn sandstone paving</div>
+</div>
+<style></style>
+<div class="card" data-tag="obsidian_floor">
+  <div class="frames"><div class="sp checker" style="width:64px;height:64px;background-image:url('/assets/proc/terrain/obsidian_floor.png');background-size:64px 64px;"></div><div class="sp checker" style="width:128px;height:128px;background-image:url('/assets/proc/terrain/obsidian_floor.png');background-size:128px 128px;"></div></div>
+  <div class="cap"><b>obsidian_floor</b> <span class="k">terrain · 16x16 · walkable</span></div>
+  <div class="desc">polished volcanic glass underfoot</div>
+</div>
+<style></style>
+<div class="card" data-tag="moss_floor">
+  <div class="frames"><div class="sp checker" style="width:64px;height:64px;background-image:url('/assets/proc/terrain/moss_floor.png');background-size:64px 64px;"></div><div class="sp checker" style="width:128px;height:128px;background-image:url('/assets/proc/terrain/moss_floor.png');background-size:128px 128px;"></div></div>
+  <div class="cap"><b>moss_floor</b> <span class="k">terrain · 16x16 · walkable</span></div>
+  <div class="desc">flagstones furred with moss</div>
+</div></div><h2>Ruins & structural — arches, fences, bridges, gates <span class="count">17</span></h2>
+<div class="grid"><style></style>
+<div class="card" data-tag="arch_stone">
+  <div class="frames"><div class="sp checker" style="width:128px;height:96px;background-image:url('/assets/proc/props/arch_stone.png');background-size:128px 96px;"></div><div class="sp checker" style="width:256px;height:192px;background-image:url('/assets/proc/props/arch_stone.png');background-size:256px 192px;"></div></div>
+  <div class="cap"><b>arch_stone</b> <span class="k">prop · 32x24 · walk-over · 2x1 feet</span></div>
+  <div class="desc">a freestanding grey stone archway with a keystone — tokens pass beneath</div>
+</div>
+<style></style>
+<div class="card" data-tag="wall_ruin_stub">
+  <div class="frames"><div class="sp checker" style="width:64px;height:64px;background-image:url('/assets/proc/props/wall_ruin_stub.png');background-size:64px 64px;"></div><div class="sp checker" style="width:128px;height:128px;background-image:url('/assets/proc/props/wall_ruin_stub.png');background-size:128px 128px;"></div></div>
+  <div class="cap"><b>wall_ruin_stub</b> <span class="k">prop · 16x16</span></div>
+  <div class="desc">a broken wall stump with a jagged top and mossy masonry</div>
+</div>
+<style></style>
+<div class="card" data-tag="wall_ruin_corner">
+  <div class="frames"><div class="sp checker" style="width:64px;height:64px;background-image:url('/assets/proc/props/wall_ruin_corner.png');background-size:64px 64px;"></div><div class="sp checker" style="width:128px;height:128px;background-image:url('/assets/proc/props/wall_ruin_corner.png');background-size:128px 128px;"></div></div>
+  <div class="cap"><b>wall_ruin_corner</b> <span class="k">prop · 16x16</span></div>
+  <div class="desc">an L-corner wall stub, one arm snapped off jagged</div>
+</div>
+<style></style>
+<div class="card" data-tag="column_intact">
+  <div class="frames"><div class="sp checker" style="width:64px;height:96px;background-image:url('/assets/proc/props/column_intact.png');background-size:64px 96px;"></div><div class="sp checker" style="width:128px;height:192px;background-image:url('/assets/proc/props/column_intact.png');background-size:128px 192px;"></div></div>
+  <div class="cap"><b>column_intact</b> <span class="k">prop · 16x24</span></div>
+  <div class="desc">an intact fluted stone column with capital and stepped base</div>
+</div>
+<style></style>
+<div class="card" data-tag="column_broken">
+  <div class="frames"><div class="sp checker" style="width:64px;height:64px;background-image:url('/assets/proc/props/column_broken.png');background-size:64px 64px;"></div><div class="sp checker" style="width:128px;height:128px;background-image:url('/assets/proc/props/column_broken.png');background-size:128px 128px;"></div></div>
+  <div class="cap"><b>column_broken</b> <span class="k">prop · 16x16</span></div>
+  <div class="desc">a snapped column shaft with a fallen drum fragment</div>
+</div>
+<style></style>
+<div class="card" data-tag="bridge_plank_h">
+  <div class="frames"><div class="sp checker" style="width:64px;height:64px;background-image:url('/assets/proc/props/bridge_plank_h.png');background-size:64px 64px;"></div><div class="sp checker" style="width:128px;height:128px;background-image:url('/assets/proc/props/bridge_plank_h.png');background-size:128px 128px;"></div></div>
+  <div class="cap"><b>bridge_plank_h</b> <span class="k">prop · 16x16 · walk-over</span></div>
+  <div class="desc">a plank footbridge spanning left-right with sagging rope rails</div>
+</div>
+<style></style>
+<div class="card" data-tag="bridge_plank_v">
+  <div class="frames"><div class="sp checker" style="width:64px;height:64px;background-image:url('/assets/proc/props/bridge_plank_v.png');background-size:64px 64px;"></div><div class="sp checker" style="width:128px;height:128px;background-image:url('/assets/proc/props/bridge_plank_v.png');background-size:128px 128px;"></div></div>
+  <div class="cap"><b>bridge_plank_v</b> <span class="k">prop · 16x16 · walk-over</span></div>
+  <div class="desc">a plank footbridge spanning top-bottom with rope rails</div>
+</div>
+<style></style>
+<div class="card" data-tag="stepping_stones">
+  <div class="frames"><div class="sp checker" style="width:64px;height:64px;background-image:url('/assets/proc/props/stepping_stones.png');background-size:64px 64px;"></div><div class="sp checker" style="width:128px;height:128px;background-image:url('/assets/proc/props/stepping_stones.png');background-size:128px 128px;"></div></div>
+  <div class="cap"><b>stepping_stones</b> <span class="k">prop · 16x16 · walk-over</span></div>
+  <div class="desc">three flat stepping stones staggered across the tile</div>
+</div>
+<style></style>
+<div class="card" data-tag="fence_wood_h">
+  <div class="frames"><div class="sp checker" style="width:64px;height:64px;background-image:url('/assets/proc/props/fence_wood_h.png');background-size:64px 64px;"></div><div class="sp checker" style="width:128px;height:128px;background-image:url('/assets/proc/props/fence_wood_h.png');background-size:128px 128px;"></div></div>
+  <div class="cap"><b>fence_wood_h</b> <span class="k">prop · 16x16</span></div>
+  <div class="desc">a split-rail wooden fence running left-right</div>
+</div>
+<style></style>
+<div class="card" data-tag="fence_wood_v">
+  <div class="frames"><div class="sp checker" style="width:64px;height:64px;background-image:url('/assets/proc/props/fence_wood_v.png');background-size:64px 64px;"></div><div class="sp checker" style="width:128px;height:128px;background-image:url('/assets/proc/props/fence_wood_v.png');background-size:128px 128px;"></div></div>
+  <div class="cap"><b>fence_wood_v</b> <span class="k">prop · 16x16</span></div>
+  <div class="desc">a split-rail wooden fence running top-bottom</div>
+</div>
+<style></style>
+<div class="card" data-tag="fence_post">
+  <div class="frames"><div class="sp checker" style="width:64px;height:64px;background-image:url('/assets/proc/props/fence_post.png');background-size:64px 64px;"></div><div class="sp checker" style="width:128px;height:128px;background-image:url('/assets/proc/props/fence_post.png');background-size:128px 128px;"></div></div>
+  <div class="cap"><b>fence_post</b> <span class="k">prop · 16x16</span></div>
+  <div class="desc">a single weathered fence post with knots</div>
+</div>
+<style></style>
+<div class="card" data-tag="gate_wood">
+  <div class="frames"><div class="sp checker" style="width:64px;height:64px;background-image:url('/assets/proc/props/gate_wood.png');background-size:64px 64px;"></div><div class="sp checker" style="width:128px;height:128px;background-image:url('/assets/proc/props/gate_wood.png');background-size:128px 128px;"></div></div>
+  <div class="cap"><b>gate_wood</b> <span class="k">prop · 16x16</span></div>
+  <div class="desc">a hinged double wooden gate set in a post-and-lintel frame</div>
+</div>
+<style></style>
+<div class="card" data-tag="stairs_stone">
+  <div class="frames"><div class="sp checker" style="width:64px;height:64px;background-image:url('/assets/proc/props/stairs_stone.png');background-size:64px 64px;"></div><div class="sp checker" style="width:128px;height:128px;background-image:url('/assets/proc/props/stairs_stone.png');background-size:128px 128px;"></div></div>
+  <div class="cap"><b>stairs_stone</b> <span class="k">prop · 16x16 · walk-over</span></div>
+  <div class="desc">stone steps descending into shadow, lit nosings</div>
+</div>
+<style></style>
+<div class="card" data-tag="ladder_wood">
+  <div class="frames"><div class="sp checker" style="width:64px;height:64px;background-image:url('/assets/proc/props/ladder_wood.png');background-size:64px 64px;"></div><div class="sp checker" style="width:128px;height:128px;background-image:url('/assets/proc/props/ladder_wood.png');background-size:128px 128px;"></div></div>
+  <div class="cap"><b>ladder_wood</b> <span class="k">prop · 16x16 · walk-over</span></div>
+  <div class="desc">a wooden ladder with five rungs</div>
+</div>
+<style></style>
+<div class="card" data-tag="platform_wood">
+  <div class="frames"><div class="sp checker" style="width:64px;height:64px;background-image:url('/assets/proc/props/platform_wood.png');background-size:64px 64px;"></div><div class="sp checker" style="width:128px;height:128px;background-image:url('/assets/proc/props/platform_wood.png');background-size:128px 128px;"></div></div>
+  <div class="cap"><b>platform_wood</b> <span class="k">prop · 16x16 · walk-over</span></div>
+  <div class="desc">raised wooden decking with staggered plank joints and nail heads</div>
+</div>
+<style></style>
+<div class="card" data-tag="rubble_pile">
+  <div class="frames"><div class="sp checker" style="width:64px;height:64px;background-image:url('/assets/proc/props/rubble_pile.png');background-size:64px 64px;"></div><div class="sp checker" style="width:128px;height:128px;background-image:url('/assets/proc/props/rubble_pile.png');background-size:128px 128px;"></div></div>
+  <div class="cap"><b>rubble_pile</b> <span class="k">prop · 16x16</span></div>
+  <div class="desc">a heap of grey and slate masonry chunks with a snapped beam</div>
+</div>
+<style></style>
+<div class="card" data-tag="statue_weathered">
+  <div class="frames"><div class="sp checker" style="width:64px;height:96px;background-image:url('/assets/proc/props/statue_weathered.png');background-size:64px 96px;"></div><div class="sp checker" style="width:128px;height:192px;background-image:url('/assets/proc/props/statue_weathered.png');background-size:128px 192px;"></div></div>
+  <div class="cap"><b>statue_weathered</b> <span class="k">prop · 16x24</span></div>
+  <div class="desc">a weathered hooded stone figure on a plinth, moss-flecked</div>
+</div></div><h2>Arctic & tundra <span class="count">16</span></h2>
+<div class="grid"><style></style>
+<div class="card" data-tag="ice_spike">
+  <div class="frames"><div class="sp checker" style="width:64px;height:96px;background-image:url('/assets/proc/props/ice_spike.png');background-size:64px 96px;"></div><div class="sp checker" style="width:128px;height:192px;background-image:url('/assets/proc/props/ice_spike.png');background-size:128px 192px;"></div></div>
+  <div class="cap"><b>ice_spike</b> <span class="k">prop · 16x24</span></div>
+  <div class="desc">a jagged translucent ice spike, man-high</div>
+</div>
+<style></style>
+<div class="card" data-tag="ice_spikes">
+  <div class="frames"><div class="sp checker" style="width:64px;height:64px;background-image:url('/assets/proc/props/ice_spikes.png');background-size:64px 64px;"></div><div class="sp checker" style="width:128px;height:128px;background-image:url('/assets/proc/props/ice_spikes.png');background-size:128px 128px;"></div></div>
+  <div class="cap"><b>ice_spikes</b> <span class="k">prop · 16x16</span></div>
+  <div class="desc">a cluster of three jagged ice shards</div>
+</div>
+<style></style>
+<div class="card" data-tag="ice_boulder">
+  <div class="frames"><div class="sp checker" style="width:64px;height:64px;background-image:url('/assets/proc/props/ice_boulder.png');background-size:64px 64px;"></div><div class="sp checker" style="width:128px;height:128px;background-image:url('/assets/proc/props/ice_boulder.png');background-size:128px 128px;"></div></div>
+  <div class="cap"><b>ice_boulder</b> <span class="k">prop · 16x16</span></div>
+  <div class="desc">a rounded boulder of cracked glacier ice</div>
+</div>
+<style></style>
+<div class="card" data-tag="snow_drift">
+  <div class="frames"><div class="sp checker" style="width:64px;height:64px;background-image:url('/assets/proc/props/snow_drift.png');background-size:64px 64px;"></div><div class="sp checker" style="width:128px;height:128px;background-image:url('/assets/proc/props/snow_drift.png');background-size:128px 128px;"></div></div>
+  <div class="cap"><b>snow_drift</b> <span class="k">prop · 16x16 · walk-over</span></div>
+  <div class="desc">a low wind-piled snow drift</div>
+</div>
+<style></style>
+<div class="card" data-tag="tree_frozen">
+  <div class="frames"><div class="sp checker" style="width:64px;height:96px;background-image:url('/assets/proc/props/tree_frozen.png');background-size:64px 96px;"></div><div class="sp checker" style="width:128px;height:192px;background-image:url('/assets/proc/props/tree_frozen.png');background-size:128px 192px;"></div></div>
+  <div class="cap"><b>tree_frozen</b> <span class="k">prop · 16x24</span></div>
+  <div class="desc">a dead tree, every bare limb lined with snow</div>
+</div>
+<style></style>
+<div class="card" data-tag="pine_snowy">
+  <div class="frames"><div class="sp checker" style="width:64px;height:96px;background-image:url('/assets/proc/props/pine_snowy.png');background-size:64px 96px;"></div><div class="sp checker" style="width:128px;height:192px;background-image:url('/assets/proc/props/pine_snowy.png');background-size:128px 192px;"></div></div>
+  <div class="cap"><b>pine_snowy</b> <span class="k">prop · 16x24</span></div>
+  <div class="desc">a snow-capped conifer</div>
+</div>
+<style></style>
+<div class="card" data-tag="pine_snowy_tall">
+  <div class="frames"><div class="sp checker" style="width:64px;height:128px;background-image:url('/assets/proc/props/pine_snowy_tall.png');background-size:64px 128px;"></div><div class="sp checker" style="width:128px;height:256px;background-image:url('/assets/proc/props/pine_snowy_tall.png');background-size:128px 256px;"></div></div>
+  <div class="cap"><b>pine_snowy_tall</b> <span class="k">prop · 16x32</span></div>
+  <div class="desc">a tall three-tiered snowy pine</div>
+</div>
+<style></style>
+<div class="card" data-tag="igloo">
+  <div class="frames"><div class="sp checker" style="width:128px;height:96px;background-image:url('/assets/proc/props/igloo.png');background-size:128px 96px;"></div><div class="sp checker" style="width:256px;height:192px;background-image:url('/assets/proc/props/igloo.png');background-size:256px 192px;"></div></div>
+  <div class="cap"><b>igloo</b> <span class="k">prop · 32x24 · 2x1 feet</span></div>
+  <div class="desc">a snow-block igloo with a dark entrance arch</div>
+</div>
+<style></style>
+<div class="card" data-tag="whale_ribs">
+  <div class="frames"><div class="sp checker" style="width:128px;height:96px;background-image:url('/assets/proc/props/whale_ribs.png');background-size:128px 96px;"></div><div class="sp checker" style="width:256px;height:192px;background-image:url('/assets/proc/props/whale_ribs.png');background-size:256px 192px;"></div></div>
+  <div class="cap"><b>whale_ribs</b> <span class="k">prop · 32x24 · walk-over · 2x1 feet</span></div>
+  <div class="desc">a whale ribcage arching out of the snow</div>
+</div>
+<style></style>
+<div class="card" data-tag="sled_wood">
+  <div class="frames"><div class="sp checker" style="width:64px;height:64px;background-image:url('/assets/proc/props/sled_wood.png');background-size:64px 64px;"></div><div class="sp checker" style="width:128px;height:128px;background-image:url('/assets/proc/props/sled_wood.png');background-size:128px 128px;"></div></div>
+  <div class="cap"><b>sled_wood</b> <span class="k">prop · 16x16</span></div>
+  <div class="desc">a wooden sledge on iron-shod runners</div>
+</div>
+<style>@keyframes f4-ice_crystal { to { background-position: -128px 0; } }@keyframes f8-ice_crystal { to { background-position: -256px 0; } }</style>
+<div class="card" data-tag="ice_crystal">
+  <div class="frames"><div class="sp checker" style="width:64px;height:96px;background-image:url('/assets/proc/props/ice_crystal.png');background-size:128px 96px;animation: f4-ice_crystal 1.00s steps(2) infinite;"></div><div class="sp checker" style="width:128px;height:192px;background-image:url('/assets/proc/props/ice_crystal.png');background-size:256px 192px;animation: f8-ice_crystal 1.00s steps(2) infinite;"></div></div>
+  <div class="cap"><b>ice_crystal</b> <span class="k">prop · 16x24 · light · 2f anim</span></div>
+  <div class="desc">a glowing ice crystal rooted in a snow mound</div>
+</div>
+<style></style>
+<div class="card" data-tag="snowman">
+  <div class="frames"><div class="sp checker" style="width:64px;height:96px;background-image:url('/assets/proc/props/snowman.png');background-size:64px 96px;"></div><div class="sp checker" style="width:128px;height:192px;background-image:url('/assets/proc/props/snowman.png');background-size:128px 192px;"></div></div>
+  <div class="cap"><b>snowman</b> <span class="k">prop · 16x24</span></div>
+  <div class="desc">a three-ball snowman with coal eyes and stick arms</div>
+</div>
+<style></style>
+<div class="card" data-tag="cairn_stone">
+  <div class="frames"><div class="sp checker" style="width:64px;height:64px;background-image:url('/assets/proc/props/cairn_stone.png');background-size:64px 64px;"></div><div class="sp checker" style="width:128px;height:128px;background-image:url('/assets/proc/props/cairn_stone.png');background-size:128px 128px;"></div></div>
+  <div class="cap"><b>cairn_stone</b> <span class="k">prop · 16x16</span></div>
+  <div class="desc">a stacked-stone trail cairn dusted with snow</div>
+</div>
+<style>@keyframes f4-hare_snow { to { background-position: -128px 0; } }@keyframes f8-hare_snow { to { background-position: -256px 0; } }</style>
+<div class="card" data-tag="hare_snow">
+  <div class="frames"><div class="sp checker" style="width:64px;height:64px;background-image:url('/assets/proc/char/hare_snow.png');background-size:128px 64px;animation: f4-hare_snow 0.67s steps(2) infinite;"></div><div class="sp checker" style="width:128px;height:128px;background-image:url('/assets/proc/char/hare_snow.png');background-size:256px 128px;animation: f8-hare_snow 0.67s steps(2) infinite;"></div></div>
+  <div class="cap"><b>hare_snow</b> <span class="k">character · 16x16 · 2f anim</span></div>
+  <div class="desc">a snow hare, ears up, mid-crouch</div>
+</div>
+<style>@keyframes f4-owl_snowy { to { background-position: -128px 0; } }@keyframes f8-owl_snowy { to { background-position: -256px 0; } }</style>
+<div class="card" data-tag="owl_snowy">
+  <div class="frames"><div class="sp checker" style="width:64px;height:64px;background-image:url('/assets/proc/char/owl_snowy.png');background-size:128px 64px;animation: f4-owl_snowy 0.67s steps(2) infinite;"></div><div class="sp checker" style="width:128px;height:128px;background-image:url('/assets/proc/char/owl_snowy.png');background-size:256px 128px;animation: f8-owl_snowy 0.67s steps(2) infinite;"></div></div>
+  <div class="cap"><b>owl_snowy</b> <span class="k">character · 16x16 · 2f anim</span></div>
+  <div class="desc">a snowy owl, yellow-eyed, perched</div>
+</div>
+<style>@keyframes f4-wolf_winter { to { background-position: -128px 0; } }@keyframes f8-wolf_winter { to { background-position: -256px 0; } }</style>
+<div class="card" data-tag="wolf_winter">
+  <div class="frames"><div class="sp checker" style="width:64px;height:64px;background-image:url('/assets/proc/char/wolf_winter.png');background-size:128px 64px;animation: f4-wolf_winter 0.67s steps(2) infinite;"></div><div class="sp checker" style="width:128px;height:128px;background-image:url('/assets/proc/char/wolf_winter.png');background-size:256px 128px;animation: f8-wolf_winter 0.67s steps(2) infinite;"></div></div>
+  <div class="cap"><b>wolf_winter</b> <span class="k">character · 16x16 · 2f anim</span></div>
+  <div class="desc">a winter wolf, white-ruffed, yellow-eyed</div>
+</div></div><h2>Desert & badlands <span class="count">16</span></h2>
+<div class="grid"><style></style>
+<div class="card" data-tag="palm">
+  <div class="frames"><div class="sp checker" style="width:64px;height:128px;background-image:url('/assets/proc/props/palm.png');background-size:64px 128px;"></div><div class="sp checker" style="width:128px;height:256px;background-image:url('/assets/proc/props/palm.png');background-size:128px 256px;"></div></div>
+  <div class="cap"><b>palm</b> <span class="k">prop · 16x32</span></div>
+  <div class="desc">a desert palm — curved ringed trunk, frond starburst, two coconuts</div>
+</div>
+<style></style>
+<div class="card" data-tag="palm_bent">
+  <div class="frames"><div class="sp checker" style="width:64px;height:128px;background-image:url('/assets/proc/props/palm_bent.png');background-size:64px 128px;"></div><div class="sp checker" style="width:128px;height:256px;background-image:url('/assets/proc/props/palm_bent.png');background-size:128px 256px;"></div></div>
+  <div class="cap"><b>palm_bent</b> <span class="k">prop · 16x32</span></div>
+  <div class="desc">a wind-bent palm leaning hard over, fronds streaming downwind</div>
+</div>
+<style></style>
+<div class="card" data-tag="cactus_saguaro">
+  <div class="frames"><div class="sp checker" style="width:64px;height:96px;background-image:url('/assets/proc/props/cactus_saguaro.png');background-size:64px 96px;"></div><div class="sp checker" style="width:128px;height:192px;background-image:url('/assets/proc/props/cactus_saguaro.png');background-size:128px 192px;"></div></div>
+  <div class="cap"><b>cactus_saguaro</b> <span class="k">prop · 16x24</span></div>
+  <div class="desc">a two-armed saguaro cactus — ribbed, spined, blooming at the crown</div>
+</div>
+<style></style>
+<div class="card" data-tag="cactus_barrel">
+  <div class="frames"><div class="sp checker" style="width:64px;height:64px;background-image:url('/assets/proc/props/cactus_barrel.png');background-size:64px 64px;"></div><div class="sp checker" style="width:128px;height:128px;background-image:url('/assets/proc/props/cactus_barrel.png');background-size:128px 128px;"></div></div>
+  <div class="cap"><b>cactus_barrel</b> <span class="k">prop · 16x16</span></div>
+  <div class="desc">a squat ribbed barrel cactus with a yellow bloom</div>
+</div>
+<style></style>
+<div class="card" data-tag="agave">
+  <div class="frames"><div class="sp checker" style="width:64px;height:64px;background-image:url('/assets/proc/props/agave.png');background-size:64px 64px;"></div><div class="sp checker" style="width:128px;height:128px;background-image:url('/assets/proc/props/agave.png');background-size:128px 128px;"></div></div>
+  <div class="cap"><b>agave</b> <span class="k">prop · 16x16</span></div>
+  <div class="desc">a spiked agave rosette, pale thorn tips on every leaf</div>
+</div>
+<style>@keyframes f4-tumbleweed { to { background-position: -128px 0; } }@keyframes f8-tumbleweed { to { background-position: -256px 0; } }</style>
+<div class="card" data-tag="tumbleweed">
+  <div class="frames"><div class="sp checker" style="width:64px;height:64px;background-image:url('/assets/proc/props/tumbleweed.png');background-size:128px 64px;animation: f4-tumbleweed 0.67s steps(2) infinite;"></div><div class="sp checker" style="width:128px;height:128px;background-image:url('/assets/proc/props/tumbleweed.png');background-size:256px 128px;animation: f8-tumbleweed 0.67s steps(2) infinite;"></div></div>
+  <div class="cap"><b>tumbleweed</b> <span class="k">prop · 16x16 · 2f anim · walk-over</span></div>
+  <div class="desc">a dry tumbleweed, tangle turning as it rolls</div>
+</div>
+<style></style>
+<div class="card" data-tag="ox_skull">
+  <div class="frames"><div class="sp checker" style="width:64px;height:64px;background-image:url('/assets/proc/props/ox_skull.png');background-size:64px 64px;"></div><div class="sp checker" style="width:128px;height:128px;background-image:url('/assets/proc/props/ox_skull.png');background-size:128px 128px;"></div></div>
+  <div class="cap"><b>ox_skull</b> <span class="k">prop · 16x16 · walk-over</span></div>
+  <div class="desc">a longhorn ox skull, jaw lost in the drifted sand</div>
+</div>
+<style></style>
+<div class="card" data-tag="obelisk">
+  <div class="frames"><div class="sp checker" style="width:64px;height:128px;background-image:url('/assets/proc/props/obelisk.png');background-size:64px 128px;"></div><div class="sp checker" style="width:128px;height:256px;background-image:url('/assets/proc/props/obelisk.png');background-size:128px 256px;"></div></div>
+  <div class="cap"><b>obelisk</b> <span class="k">prop · 16x32</span></div>
+  <div class="desc">a sandstone obelisk, glyph column carved down its face</div>
+</div>
+<style></style>
+<div class="card" data-tag="ruin_sandstone">
+  <div class="frames"><div class="sp checker" style="width:64px;height:64px;background-image:url('/assets/proc/props/ruin_sandstone.png');background-size:64px 64px;"></div><div class="sp checker" style="width:128px;height:128px;background-image:url('/assets/proc/props/ruin_sandstone.png');background-size:128px 128px;"></div></div>
+  <div class="cap"><b>ruin_sandstone</b> <span class="k">prop · 16x16</span></div>
+  <div class="desc">collapsed sandstone blocks, a broken carving in the rubble</div>
+</div>
+<style></style>
+<div class="card" data-tag="dune_crest">
+  <div class="frames"><div class="sp checker" style="width:64px;height:64px;background-image:url('/assets/proc/props/dune_crest.png');background-size:64px 64px;"></div><div class="sp checker" style="width:128px;height:128px;background-image:url('/assets/proc/props/dune_crest.png');background-size:128px 128px;"></div></div>
+  <div class="cap"><b>dune_crest</b> <span class="k">prop · 16x16 · walk-over</span></div>
+  <div class="desc">a low dune crest, sun-bright lip and shadowed lee</div>
+</div>
+<style></style>
+<div class="card" data-tag="urn_clay">
+  <div class="frames"><div class="sp checker" style="width:64px;height:64px;background-image:url('/assets/proc/props/urn_clay.png');background-size:64px 64px;"></div><div class="sp checker" style="width:128px;height:128px;background-image:url('/assets/proc/props/urn_clay.png');background-size:128px 128px;"></div></div>
+  <div class="cap"><b>urn_clay</b> <span class="k">prop · 16x16</span></div>
+  <div class="desc">a clay amphora on a foot ring, plum-painted band</div>
+</div>
+<style></style>
+<div class="card" data-tag="bones_halfburied">
+  <div class="frames"><div class="sp checker" style="width:64px;height:64px;background-image:url('/assets/proc/props/bones_halfburied.png');background-size:64px 64px;"></div><div class="sp checker" style="width:128px;height:128px;background-image:url('/assets/proc/props/bones_halfburied.png');background-size:128px 128px;"></div></div>
+  <div class="cap"><b>bones_halfburied</b> <span class="k">prop · 16x16 · walk-over</span></div>
+  <div class="desc">a ribcage arcing out of the sand, vertebrae poking through</div>
+</div>
+<style>@keyframes f4-camel { to { background-position: -128px 0; } }@keyframes f8-camel { to { background-position: -256px 0; } }</style>
+<div class="card" data-tag="camel">
+  <div class="frames"><div class="sp checker" style="width:64px;height:64px;background-image:url('/assets/proc/char/camel.png');background-size:128px 64px;animation: f4-camel 0.67s steps(2) infinite;"></div><div class="sp checker" style="width:128px;height:128px;background-image:url('/assets/proc/char/camel.png');background-size:256px 128px;animation: f8-camel 0.67s steps(2) infinite;"></div></div>
+  <div class="cap"><b>camel</b> <span class="k">character · 16x16 · 2f anim</span></div>
+  <div class="desc">a dromedary camel, hump high over a lean tan frame</div>
+</div>
+<style>@keyframes f4-scorpion_giant { to { background-position: -128px 0; } }@keyframes f8-scorpion_giant { to { background-position: -256px 0; } }</style>
+<div class="card" data-tag="scorpion_giant">
+  <div class="frames"><div class="sp checker" style="width:64px;height:64px;background-image:url('/assets/proc/char/scorpion_giant.png');background-size:128px 64px;animation: f4-scorpion_giant 0.67s steps(2) infinite;"></div><div class="sp checker" style="width:128px;height:128px;background-image:url('/assets/proc/char/scorpion_giant.png');background-size:256px 128px;animation: f8-scorpion_giant 0.67s steps(2) infinite;"></div></div>
+  <div class="cap"><b>scorpion_giant</b> <span class="k">character · 16x16 · 2f anim</span></div>
+  <div class="desc">a giant scorpion, pincers spread and plum stinger raised</div>
+</div>
+<style>@keyframes f4-vulture { to { background-position: -128px 0; } }@keyframes f8-vulture { to { background-position: -256px 0; } }</style>
+<div class="card" data-tag="vulture">
+  <div class="frames"><div class="sp checker" style="width:64px;height:64px;background-image:url('/assets/proc/char/vulture.png');background-size:128px 64px;animation: f4-vulture 0.67s steps(2) infinite;"></div><div class="sp checker" style="width:128px;height:128px;background-image:url('/assets/proc/char/vulture.png');background-size:256px 128px;animation: f8-vulture 0.67s steps(2) infinite;"></div></div>
+  <div class="cap"><b>vulture</b> <span class="k">character · 16x16 · 2f anim</span></div>
+  <div class="desc">a hunched vulture, bald bone-pale head on slate wings</div>
+</div>
+<style>@keyframes f4-jackal { to { background-position: -128px 0; } }@keyframes f8-jackal { to { background-position: -256px 0; } }</style>
+<div class="card" data-tag="jackal">
+  <div class="frames"><div class="sp checker" style="width:64px;height:64px;background-image:url('/assets/proc/char/jackal.png');background-size:128px 64px;animation: f4-jackal 0.67s steps(2) infinite;"></div><div class="sp checker" style="width:128px;height:128px;background-image:url('/assets/proc/char/jackal.png');background-size:256px 128px;animation: f8-jackal 0.67s steps(2) infinite;"></div></div>
+  <div class="cap"><b>jackal</b> <span class="k">character · 16x16 · 2f anim</span></div>
+  <div class="desc">a lean tan jackal, tall ears and a dark saddle</div>
+</div></div><h2>Swamp & jungle <span class="count">16</span></h2>
+<div class="grid"><style></style>
+<div class="card" data-tag="willow_weeping">
+  <div class="frames"><div class="sp checker" style="width:128px;height:128px;background-image:url('/assets/proc/props/willow_weeping.png');background-size:128px 128px;"></div><div class="sp checker" style="width:256px;height:256px;background-image:url('/assets/proc/props/willow_weeping.png');background-size:256px 256px;"></div></div>
+  <div class="cap"><b>willow_weeping</b> <span class="k">prop · 32x32 · 2x1 feet</span></div>
+  <div class="desc">a weeping willow, its green curtain of fronds trailing to the water</div>
+</div>
+<style></style>
+<div class="card" data-tag="mangrove">
+  <div class="frames"><div class="sp checker" style="width:64px;height:96px;background-image:url('/assets/proc/props/mangrove.png');background-size:64px 96px;"></div><div class="sp checker" style="width:128px;height:192px;background-image:url('/assets/proc/props/mangrove.png');background-size:128px 192px;"></div></div>
+  <div class="cap"><b>mangrove</b> <span class="k">prop · 16x24</span></div>
+  <div class="desc">a mangrove on arched stilt roots, canopy held above the water</div>
+</div>
+<style></style>
+<div class="card" data-tag="jungle_canopy">
+  <div class="frames"><div class="sp checker" style="width:128px;height:128px;background-image:url('/assets/proc/props/jungle_canopy.png');background-size:128px 128px;"></div><div class="sp checker" style="width:256px;height:256px;background-image:url('/assets/proc/props/jungle_canopy.png');background-size:256px 256px;"></div></div>
+  <div class="cap"><b>jungle_canopy</b> <span class="k">prop · 32x32 · 2x1 feet</span></div>
+  <div class="desc">a broad-crowned jungle emergent, layered canopy over a buttressed trunk</div>
+</div>
+<style></style>
+<div class="card" data-tag="lily_pad">
+  <div class="frames"><div class="sp checker" style="width:64px;height:64px;background-image:url('/assets/proc/props/lily_pad.png');background-size:64px 64px;"></div><div class="sp checker" style="width:128px;height:128px;background-image:url('/assets/proc/props/lily_pad.png');background-size:128px 128px;"></div></div>
+  <div class="cap"><b>lily_pad</b> <span class="k">prop · 16x16 · walk-over</span></div>
+  <div class="desc">a broad green lily pad, notched</div>
+</div>
+<style></style>
+<div class="card" data-tag="lily_pad_flower">
+  <div class="frames"><div class="sp checker" style="width:64px;height:64px;background-image:url('/assets/proc/props/lily_pad_flower.png');background-size:64px 64px;"></div><div class="sp checker" style="width:128px;height:128px;background-image:url('/assets/proc/props/lily_pad_flower.png');background-size:128px 128px;"></div></div>
+  <div class="cap"><b>lily_pad_flower</b> <span class="k">prop · 16x16 · walk-over</span></div>
+  <div class="desc">a lily pad with a white water-lily bloom</div>
+</div>
+<style></style>
+<div class="card" data-tag="reeds">
+  <div class="frames"><div class="sp checker" style="width:64px;height:96px;background-image:url('/assets/proc/props/reeds.png');background-size:64px 96px;"></div><div class="sp checker" style="width:128px;height:192px;background-image:url('/assets/proc/props/reeds.png');background-size:128px 192px;"></div></div>
+  <div class="cap"><b>reeds</b> <span class="k">prop · 16x24 · walk-over</span></div>
+  <div class="desc">marsh reeds with tan seed heads</div>
+</div>
+<style></style>
+<div class="card" data-tag="cattails">
+  <div class="frames"><div class="sp checker" style="width:64px;height:96px;background-image:url('/assets/proc/props/cattails.png');background-size:64px 96px;"></div><div class="sp checker" style="width:128px;height:192px;background-image:url('/assets/proc/props/cattails.png');background-size:128px 192px;"></div></div>
+  <div class="cap"><b>cattails</b> <span class="k">prop · 16x24 · walk-over</span></div>
+  <div class="desc">cattails, brown velvet heads on tall stalks</div>
+</div>
+<style></style>
+<div class="card" data-tag="fern_giant">
+  <div class="frames"><div class="sp checker" style="width:64px;height:64px;background-image:url('/assets/proc/props/fern_giant.png');background-size:64px 64px;"></div><div class="sp checker" style="width:128px;height:128px;background-image:url('/assets/proc/props/fern_giant.png');background-size:128px 128px;"></div></div>
+  <div class="cap"><b>fern_giant</b> <span class="k">prop · 16x16 · walk-over</span></div>
+  <div class="desc">a giant fern, fronds arcing from a central crown</div>
+</div>
+<style></style>
+<div class="card" data-tag="vine_curtain">
+  <div class="frames"><div class="sp checker" style="width:64px;height:96px;background-image:url('/assets/proc/props/vine_curtain.png');background-size:64px 96px;"></div><div class="sp checker" style="width:128px;height:192px;background-image:url('/assets/proc/props/vine_curtain.png');background-size:128px 192px;"></div></div>
+  <div class="cap"><b>vine_curtain</b> <span class="k">prop · 16x24 · walk-over</span></div>
+  <div class="desc">a curtain of hanging jungle vines, green at the tips</div>
+</div>
+<style></style>
+<div class="card" data-tag="shroom_cluster">
+  <div class="frames"><div class="sp checker" style="width:64px;height:64px;background-image:url('/assets/proc/props/shroom_cluster.png');background-size:64px 64px;"></div><div class="sp checker" style="width:128px;height:128px;background-image:url('/assets/proc/props/shroom_cluster.png');background-size:128px 128px;"></div></div>
+  <div class="cap"><b>shroom_cluster</b> <span class="k">prop · 16x16 · walk-over</span></div>
+  <div class="desc">a cluster of purple toadstools, white-flecked</div>
+</div>
+<style></style>
+<div class="card" data-tag="log_rotten">
+  <div class="frames"><div class="sp checker" style="width:64px;height:64px;background-image:url('/assets/proc/props/log_rotten.png');background-size:64px 64px;"></div><div class="sp checker" style="width:128px;height:128px;background-image:url('/assets/proc/props/log_rotten.png');background-size:128px 128px;"></div></div>
+  <div class="cap"><b>log_rotten</b> <span class="k">prop · 16x16</span></div>
+  <div class="desc">a rotten fallen log, moss-eaten and hollow at one end</div>
+</div>
+<style></style>
+<div class="card" data-tag="idol_moss">
+  <div class="frames"><div class="sp checker" style="width:64px;height:96px;background-image:url('/assets/proc/props/idol_moss.png');background-size:64px 96px;"></div><div class="sp checker" style="width:128px;height:192px;background-image:url('/assets/proc/props/idol_moss.png');background-size:128px 192px;"></div></div>
+  <div class="cap"><b>idol_moss</b> <span class="k">prop · 16x24</span></div>
+  <div class="desc">a stone idol face half-swallowed by moss — a jungle-temple sentinel</div>
+</div>
+<style>@keyframes f4-swamp_gas { to { background-position: -128px 0; } }@keyframes f8-swamp_gas { to { background-position: -256px 0; } }</style>
+<div class="card" data-tag="swamp_gas">
+  <div class="frames"><div class="sp checker" style="width:64px;height:64px;background-image:url('/assets/proc/props/swamp_gas.png');background-size:128px 64px;animation: f4-swamp_gas 1.00s steps(2) infinite;"></div><div class="sp checker" style="width:128px;height:128px;background-image:url('/assets/proc/props/swamp_gas.png');background-size:256px 128px;animation: f8-swamp_gas 1.00s steps(2) infinite;"></div></div>
+  <div class="cap"><b>swamp_gas</b> <span class="k">prop · 16x16 · 2f anim · walk-over</span></div>
+  <div class="desc">curls of marsh gas seeping from the mire</div>
+</div>
+<style>@keyframes f4-crocodile { to { background-position: -128px 0; } }@keyframes f8-crocodile { to { background-position: -256px 0; } }</style>
+<div class="card" data-tag="crocodile">
+  <div class="frames"><div class="sp checker" style="width:64px;height:64px;background-image:url('/assets/proc/char/crocodile.png');background-size:128px 64px;animation: f4-crocodile 0.67s steps(2) infinite;"></div><div class="sp checker" style="width:128px;height:128px;background-image:url('/assets/proc/char/crocodile.png');background-size:256px 128px;animation: f8-crocodile 0.67s steps(2) infinite;"></div></div>
+  <div class="cap"><b>crocodile</b> <span class="k">character · 16x16 · 2f anim</span></div>
+  <div class="desc">a crocodile — low, long-jawed, ridge-backed</div>
+</div>
+<style>@keyframes f4-frog_giant { to { background-position: -128px 0; } }@keyframes f8-frog_giant { to { background-position: -256px 0; } }</style>
+<div class="card" data-tag="frog_giant">
+  <div class="frames"><div class="sp checker" style="width:64px;height:64px;background-image:url('/assets/proc/char/frog_giant.png');background-size:128px 64px;animation: f4-frog_giant 0.67s steps(2) infinite;"></div><div class="sp checker" style="width:128px;height:128px;background-image:url('/assets/proc/char/frog_giant.png');background-size:256px 128px;animation: f8-frog_giant 0.67s steps(2) infinite;"></div></div>
+  <div class="cap"><b>frog_giant</b> <span class="k">character · 16x16 · 2f anim</span></div>
+  <div class="desc">a giant frog, yellow-throated and squat</div>
+</div>
+<style>@keyframes f4-heron { to { background-position: -128px 0; } }@keyframes f8-heron { to { background-position: -256px 0; } }</style>
+<div class="card" data-tag="heron">
+  <div class="frames"><div class="sp checker" style="width:64px;height:64px;background-image:url('/assets/proc/char/heron.png');background-size:128px 64px;animation: f4-heron 0.67s steps(2) infinite;"></div><div class="sp checker" style="width:128px;height:128px;background-image:url('/assets/proc/char/heron.png');background-size:256px 128px;animation: f8-heron 0.67s steps(2) infinite;"></div></div>
+  <div class="cap"><b>heron</b> <span class="k">character · 16x16 · 2f anim</span></div>
+  <div class="desc">a grey heron poised on one leg, spear-beaked</div>
+</div></div><h2>Volcanic & underdark <span class="count">16</span></h2>
+<div class="grid"><style></style>
+<div class="card" data-tag="obsidian_shard">
+  <div class="frames"><div class="sp checker" style="width:64px;height:96px;background-image:url('/assets/proc/props/obsidian_shard.png');background-size:64px 96px;"></div><div class="sp checker" style="width:128px;height:192px;background-image:url('/assets/proc/props/obsidian_shard.png');background-size:128px 192px;"></div></div>
+  <div class="cap"><b>obsidian_shard</b> <span class="k">prop · 16x24</span></div>
+  <div class="desc">a knapped shard of volcanic glass, edges still razor</div>
+</div>
+<style></style>
+<div class="card" data-tag="obsidian_spire">
+  <div class="frames"><div class="sp checker" style="width:64px;height:128px;background-image:url('/assets/proc/props/obsidian_spire.png');background-size:64px 128px;"></div><div class="sp checker" style="width:128px;height:256px;background-image:url('/assets/proc/props/obsidian_spire.png');background-size:128px 256px;"></div></div>
+  <div class="cap"><b>obsidian_spire</b> <span class="k">prop · 16x32</span></div>
+  <div class="desc">a twin-fanged spire of black volcanic glass</div>
+</div>
+<style></style>
+<div class="card" data-tag="basalt_column">
+  <div class="frames"><div class="sp checker" style="width:64px;height:96px;background-image:url('/assets/proc/props/basalt_column.png');background-size:64px 96px;"></div><div class="sp checker" style="width:128px;height:192px;background-image:url('/assets/proc/props/basalt_column.png');background-size:128px 192px;"></div></div>
+  <div class="cap"><b>basalt_column</b> <span class="k">prop · 16x24</span></div>
+  <div class="desc">stepped hexagonal basalt columns</div>
+</div>
+<style>@keyframes f4-vent_volcanic { to { background-position: -128px 0; } }@keyframes f8-vent_volcanic { to { background-position: -256px 0; } }</style>
+<div class="card" data-tag="vent_volcanic">
+  <div class="frames"><div class="sp checker" style="width:64px;height:64px;background-image:url('/assets/proc/props/vent_volcanic.png');background-size:128px 64px;animation: f4-vent_volcanic 0.67s steps(2) infinite;"></div><div class="sp checker" style="width:128px;height:128px;background-image:url('/assets/proc/props/vent_volcanic.png');background-size:256px 128px;animation: f8-vent_volcanic 0.67s steps(2) infinite;"></div></div>
+  <div class="cap"><b>vent_volcanic</b> <span class="k">prop · 16x16 · light · 2f anim</span></div>
+  <div class="desc">a cracked fumarole cone, magma pulsing in the fissure</div>
+</div>
+<style>@keyframes f4-geyser_sulfur { to { background-position: -128px 0; } }@keyframes f8-geyser_sulfur { to { background-position: -256px 0; } }</style>
+<div class="card" data-tag="geyser_sulfur">
+  <div class="frames"><div class="sp checker" style="width:64px;height:96px;background-image:url('/assets/proc/props/geyser_sulfur.png');background-size:128px 96px;animation: f4-geyser_sulfur 1.00s steps(2) infinite;"></div><div class="sp checker" style="width:128px;height:192px;background-image:url('/assets/proc/props/geyser_sulfur.png');background-size:256px 192px;animation: f8-geyser_sulfur 1.00s steps(2) infinite;"></div></div>
+  <div class="cap"><b>geyser_sulfur</b> <span class="k">prop · 16x24 · 2f anim</span></div>
+  <div class="desc">a sulfur geyser venting a scalding plume</div>
+</div>
+<style>@keyframes f4-crystal_blue { to { background-position: -128px 0; } }@keyframes f8-crystal_blue { to { background-position: -256px 0; } }</style>
+<div class="card" data-tag="crystal_blue">
+  <div class="frames"><div class="sp checker" style="width:64px;height:96px;background-image:url('/assets/proc/props/crystal_blue.png');background-size:128px 96px;animation: f4-crystal_blue 0.67s steps(2) infinite;"></div><div class="sp checker" style="width:128px;height:192px;background-image:url('/assets/proc/props/crystal_blue.png');background-size:256px 192px;animation: f8-crystal_blue 0.67s steps(2) infinite;"></div></div>
+  <div class="cap"><b>crystal_blue</b> <span class="k">prop · 16x24 · light · 2f anim</span></div>
+  <div class="desc">a faceted blue crystal outcrop, softly luminous</div>
+</div>
+<style>@keyframes f4-crystal_purple { to { background-position: -128px 0; } }@keyframes f8-crystal_purple { to { background-position: -256px 0; } }</style>
+<div class="card" data-tag="crystal_purple">
+  <div class="frames"><div class="sp checker" style="width:64px;height:96px;background-image:url('/assets/proc/props/crystal_purple.png');background-size:128px 96px;animation: f4-crystal_purple 0.67s steps(2) infinite;"></div><div class="sp checker" style="width:128px;height:192px;background-image:url('/assets/proc/props/crystal_purple.png');background-size:256px 192px;animation: f8-crystal_purple 0.67s steps(2) infinite;"></div></div>
+  <div class="cap"><b>crystal_purple</b> <span class="k">prop · 16x24 · light · 2f anim</span></div>
+  <div class="desc">a violet crystal outcrop, softly luminous</div>
+</div>
+<style>@keyframes f4-crystal_cluster { to { background-position: -128px 0; } }@keyframes f8-crystal_cluster { to { background-position: -256px 0; } }</style>
+<div class="card" data-tag="crystal_cluster">
+  <div class="frames"><div class="sp checker" style="width:64px;height:64px;background-image:url('/assets/proc/props/crystal_cluster.png');background-size:128px 64px;animation: f4-crystal_cluster 0.67s steps(2) infinite;"></div><div class="sp checker" style="width:128px;height:128px;background-image:url('/assets/proc/props/crystal_cluster.png');background-size:256px 128px;animation: f8-crystal_cluster 0.67s steps(2) infinite;"></div></div>
+  <div class="cap"><b>crystal_cluster</b> <span class="k">prop · 16x16 · light · 2f anim</span></div>
+  <div class="desc">a low bed of mixed blue and violet crystals</div>
+</div>
+<style>@keyframes f4-mushroom_glowcap { to { background-position: -192px 0; } }@keyframes f8-mushroom_glowcap { to { background-position: -384px 0; } }</style>
+<div class="card" data-tag="mushroom_glowcap">
+  <div class="frames"><div class="sp checker" style="width:96px;height:128px;background-image:url('/assets/proc/props/mushroom_glowcap.png');background-size:192px 128px;animation: f4-mushroom_glowcap 1.00s steps(2) infinite;"></div><div class="sp checker" style="width:192px;height:256px;background-image:url('/assets/proc/props/mushroom_glowcap.png');background-size:384px 256px;animation: f8-mushroom_glowcap 1.00s steps(2) infinite;"></div></div>
+  <div class="cap"><b>mushroom_glowcap</b> <span class="k">prop · 24x32 · light · 2f anim · 2x1 feet</span></div>
+  <div class="desc">a giant glowcap mushroom, gills pulsing pale light</div>
+</div>
+<style></style>
+<div class="card" data-tag="mushroom_shelf">
+  <div class="frames"><div class="sp checker" style="width:64px;height:64px;background-image:url('/assets/proc/props/mushroom_shelf.png');background-size:64px 64px;"></div><div class="sp checker" style="width:128px;height:128px;background-image:url('/assets/proc/props/mushroom_shelf.png');background-size:128px 128px;"></div></div>
+  <div class="cap"><b>mushroom_shelf</b> <span class="k">prop · 16x16</span></div>
+  <div class="desc">bracket fungi shelving off a damp boulder</div>
+</div>
+<style></style>
+<div class="card" data-tag="stalagmite_tall">
+  <div class="frames"><div class="sp checker" style="width:64px;height:96px;background-image:url('/assets/proc/props/stalagmite_tall.png');background-size:64px 96px;"></div><div class="sp checker" style="width:128px;height:192px;background-image:url('/assets/proc/props/stalagmite_tall.png');background-size:128px 192px;"></div></div>
+  <div class="cap"><b>stalagmite_tall</b> <span class="k">prop · 16x24</span></div>
+  <div class="desc">a tall drip-banded stalagmite, tip still wet</div>
+</div>
+<style></style>
+<div class="card" data-tag="geode_open">
+  <div class="frames"><div class="sp checker" style="width:64px;height:64px;background-image:url('/assets/proc/props/geode_open.png');background-size:64px 64px;"></div><div class="sp checker" style="width:128px;height:128px;background-image:url('/assets/proc/props/geode_open.png');background-size:128px 128px;"></div></div>
+  <div class="cap"><b>geode_open</b> <span class="k">prop · 16x16</span></div>
+  <div class="desc">a split geode, amethyst teeth glinting inside</div>
+</div>
+<style></style>
+<div class="card" data-tag="sulfur_mound">
+  <div class="frames"><div class="sp checker" style="width:64px;height:64px;background-image:url('/assets/proc/props/sulfur_mound.png');background-size:64px 64px;"></div><div class="sp checker" style="width:128px;height:128px;background-image:url('/assets/proc/props/sulfur_mound.png');background-size:128px 128px;"></div></div>
+  <div class="cap"><b>sulfur_mound</b> <span class="k">prop · 16x16</span></div>
+  <div class="desc">a crusted yellow sulfur mound with a fumarole hole</div>
+</div>
+<style>@keyframes f4-magma_crawler { to { background-position: -128px 0; } }@keyframes f8-magma_crawler { to { background-position: -256px 0; } }</style>
+<div class="card" data-tag="magma_crawler">
+  <div class="frames"><div class="sp checker" style="width:64px;height:64px;background-image:url('/assets/proc/char/magma_crawler.png');background-size:128px 64px;animation: f4-magma_crawler 0.67s steps(2) infinite;"></div><div class="sp checker" style="width:128px;height:128px;background-image:url('/assets/proc/char/magma_crawler.png');background-size:256px 128px;animation: f8-magma_crawler 0.67s steps(2) infinite;"></div></div>
+  <div class="cap"><b>magma_crawler</b> <span class="k">character · 16x16 · 2f anim</span></div>
+  <div class="desc">a magma crawler — cracked basalt shell over a molten core</div>
+</div>
+<style>@keyframes f4-beetle_cave { to { background-position: -128px 0; } }@keyframes f8-beetle_cave { to { background-position: -256px 0; } }</style>
+<div class="card" data-tag="beetle_cave">
+  <div class="frames"><div class="sp checker" style="width:64px;height:64px;background-image:url('/assets/proc/char/beetle_cave.png');background-size:128px 64px;animation: f4-beetle_cave 0.67s steps(2) infinite;"></div><div class="sp checker" style="width:128px;height:128px;background-image:url('/assets/proc/char/beetle_cave.png');background-size:256px 128px;animation: f8-beetle_cave 0.67s steps(2) infinite;"></div></div>
+  <div class="cap"><b>beetle_cave</b> <span class="k">character · 16x16 · 2f anim</span></div>
+  <div class="desc">a cave beetle with a slate carapace and cyan eyes</div>
+</div>
+<style>@keyframes f4-salamander_fire { to { background-position: -128px 0; } }@keyframes f8-salamander_fire { to { background-position: -256px 0; } }</style>
+<div class="card" data-tag="salamander_fire">
+  <div class="frames"><div class="sp checker" style="width:64px;height:64px;background-image:url('/assets/proc/char/salamander_fire.png');background-size:128px 64px;animation: f4-salamander_fire 0.67s steps(2) infinite;"></div><div class="sp checker" style="width:128px;height:128px;background-image:url('/assets/proc/char/salamander_fire.png');background-size:256px 128px;animation: f8-salamander_fire 0.67s steps(2) infinite;"></div></div>
+  <div class="cap"><b>salamander_fire</b> <span class="k">character · 16x16 · 2f anim</span></div>
+  <div class="desc">a fire salamander, ember-red with a yellow belly</div>
+</div></div><h2>Forest & farmland <span class="count">17</span></h2>
+<div class="grid"><style></style>
+<div class="card" data-tag="birch">
+  <div class="frames"><div class="sp checker" style="width:64px;height:96px;background-image:url('/assets/proc/props/birch.png');background-size:64px 96px;"></div><div class="sp checker" style="width:128px;height:192px;background-image:url('/assets/proc/props/birch.png');background-size:128px 192px;"></div></div>
+  <div class="cap"><b>birch</b> <span class="k">prop · 16x24</span></div>
+  <div class="desc">a slender birch — white ticked trunk, light green crown</div>
+</div>
+<style></style>
+<div class="card" data-tag="birch_tall">
+  <div class="frames"><div class="sp checker" style="width:64px;height:128px;background-image:url('/assets/proc/props/birch_tall.png');background-size:64px 128px;"></div><div class="sp checker" style="width:128px;height:256px;background-image:url('/assets/proc/props/birch_tall.png');background-size:128px 256px;"></div></div>
+  <div class="cap"><b>birch_tall</b> <span class="k">prop · 16x32</span></div>
+  <div class="desc">a tall birch, golden-flecked crown high on a white trunk</div>
+</div>
+<style></style>
+<div class="card" data-tag="oak_ancient">
+  <div class="frames"><div class="sp checker" style="width:128px;height:128px;background-image:url('/assets/proc/props/oak_ancient.png');background-size:128px 128px;"></div><div class="sp checker" style="width:256px;height:256px;background-image:url('/assets/proc/props/oak_ancient.png');background-size:256px 256px;"></div></div>
+  <div class="cap"><b>oak_ancient</b> <span class="k">prop · 32x32 · 2x1 feet</span></div>
+  <div class="desc">an ancient oak — gnarled flaring trunk under a vast dark crown</div>
+</div>
+<style></style>
+<div class="card" data-tag="tree_dead">
+  <div class="frames"><div class="sp checker" style="width:64px;height:96px;background-image:url('/assets/proc/props/tree_dead.png');background-size:64px 96px;"></div><div class="sp checker" style="width:128px;height:192px;background-image:url('/assets/proc/props/tree_dead.png');background-size:128px 192px;"></div></div>
+  <div class="cap"><b>tree_dead</b> <span class="k">prop · 16x24</span></div>
+  <div class="desc">a dead tree, bare clawed branches raking the sky</div>
+</div>
+<style></style>
+<div class="card" data-tag="stump">
+  <div class="frames"><div class="sp checker" style="width:64px;height:64px;background-image:url('/assets/proc/props/stump.png');background-size:64px 64px;"></div><div class="sp checker" style="width:128px;height:128px;background-image:url('/assets/proc/props/stump.png');background-size:128px 128px;"></div></div>
+  <div class="cap"><b>stump</b> <span class="k">prop · 16x16</span></div>
+  <div class="desc">a cut stump, growth rings on the sawn face</div>
+</div>
+<style></style>
+<div class="card" data-tag="log_fallen">
+  <div class="frames"><div class="sp checker" style="width:128px;height:64px;background-image:url('/assets/proc/props/log_fallen.png');background-size:128px 64px;"></div><div class="sp checker" style="width:256px;height:128px;background-image:url('/assets/proc/props/log_fallen.png');background-size:256px 128px;"></div></div>
+  <div class="cap"><b>log_fallen</b> <span class="k">prop · 32x16 · 2x1 feet</span></div>
+  <div class="desc">a fallen log, moss draped over the bark</div>
+</div>
+<style></style>
+<div class="card" data-tag="log_pile">
+  <div class="frames"><div class="sp checker" style="width:64px;height:64px;background-image:url('/assets/proc/props/log_pile.png');background-size:64px 64px;"></div><div class="sp checker" style="width:128px;height:128px;background-image:url('/assets/proc/props/log_pile.png');background-size:128px 128px;"></div></div>
+  <div class="cap"><b>log_pile</b> <span class="k">prop · 16x16</span></div>
+  <div class="desc">stacked cut logs, pale ring faces out</div>
+</div>
+<style></style>
+<div class="card" data-tag="bush_berry">
+  <div class="frames"><div class="sp checker" style="width:64px;height:64px;background-image:url('/assets/proc/props/bush_berry.png');background-size:64px 64px;"></div><div class="sp checker" style="width:128px;height:128px;background-image:url('/assets/proc/props/bush_berry.png');background-size:128px 128px;"></div></div>
+  <div class="cap"><b>bush_berry</b> <span class="k">prop · 16x16</span></div>
+  <div class="desc">a berry bush, red fruit in dark leaves</div>
+</div>
+<style></style>
+<div class="card" data-tag="wildflowers">
+  <div class="frames"><div class="sp checker" style="width:64px;height:64px;background-image:url('/assets/proc/props/wildflowers.png');background-size:64px 64px;"></div><div class="sp checker" style="width:128px;height:128px;background-image:url('/assets/proc/props/wildflowers.png');background-size:128px 128px;"></div></div>
+  <div class="cap"><b>wildflowers</b> <span class="k">prop · 16x16 · walk-over</span></div>
+  <div class="desc">scattered wildflowers — yellow, red and white heads</div>
+</div>
+<style></style>
+<div class="card" data-tag="apple_tree">
+  <div class="frames"><div class="sp checker" style="width:64px;height:96px;background-image:url('/assets/proc/props/apple_tree.png');background-size:64px 96px;"></div><div class="sp checker" style="width:128px;height:192px;background-image:url('/assets/proc/props/apple_tree.png');background-size:128px 192px;"></div></div>
+  <div class="cap"><b>apple_tree</b> <span class="k">prop · 16x24</span></div>
+  <div class="desc">an apple tree, red fruit dotting the round crown</div>
+</div>
+<style></style>
+<div class="card" data-tag="scarecrow_field">
+  <div class="frames"><div class="sp checker" style="width:64px;height:96px;background-image:url('/assets/proc/props/scarecrow_field.png');background-size:64px 96px;"></div><div class="sp checker" style="width:128px;height:192px;background-image:url('/assets/proc/props/scarecrow_field.png');background-size:128px 192px;"></div></div>
+  <div class="cap"><b>scarecrow_field</b> <span class="k">prop · 16x24</span></div>
+  <div class="desc">a scarecrow on a cross-pole — sack head, patched coat, straw fringe</div>
+</div>
+<style></style>
+<div class="card" data-tag="hay_bale">
+  <div class="frames"><div class="sp checker" style="width:64px;height:64px;background-image:url('/assets/proc/props/hay_bale.png');background-size:64px 64px;"></div><div class="sp checker" style="width:128px;height:128px;background-image:url('/assets/proc/props/hay_bale.png');background-size:128px 128px;"></div></div>
+  <div class="cap"><b>hay_bale</b> <span class="k">prop · 16x16</span></div>
+  <div class="desc">a rolled hay bale, spiral showing on the cut face</div>
+</div>
+<style></style>
+<div class="card" data-tag="wheat_shock">
+  <div class="frames"><div class="sp checker" style="width:64px;height:64px;background-image:url('/assets/proc/props/wheat_shock.png');background-size:64px 64px;"></div><div class="sp checker" style="width:128px;height:128px;background-image:url('/assets/proc/props/wheat_shock.png');background-size:128px 128px;"></div></div>
+  <div class="cap"><b>wheat_shock</b> <span class="k">prop · 16x16</span></div>
+  <div class="desc">a tied standing sheaf of wheat</div>
+</div>
+<style>@keyframes f4-beehive { to { background-position: -128px 0; } }@keyframes f8-beehive { to { background-position: -256px 0; } }</style>
+<div class="card" data-tag="beehive">
+  <div class="frames"><div class="sp checker" style="width:64px;height:64px;background-image:url('/assets/proc/props/beehive.png');background-size:128px 64px;animation: f4-beehive 1.00s steps(2) infinite;"></div><div class="sp checker" style="width:128px;height:128px;background-image:url('/assets/proc/props/beehive.png');background-size:256px 128px;animation: f8-beehive 1.00s steps(2) infinite;"></div></div>
+  <div class="cap"><b>beehive</b> <span class="k">prop · 16x16 · 2f anim</span></div>
+  <div class="desc">a straw skep beehive, one bee circling</div>
+</div>
+<style>@keyframes f4-stag { to { background-position: -128px 0; } }@keyframes f8-stag { to { background-position: -256px 0; } }</style>
+<div class="card" data-tag="stag">
+  <div class="frames"><div class="sp checker" style="width:64px;height:64px;background-image:url('/assets/proc/char/stag.png');background-size:128px 64px;animation: f4-stag 0.67s steps(2) infinite;"></div><div class="sp checker" style="width:128px;height:128px;background-image:url('/assets/proc/char/stag.png');background-size:256px 128px;animation: f8-stag 0.67s steps(2) infinite;"></div></div>
+  <div class="cap"><b>stag</b> <span class="k">character · 16x16 · 2f anim</span></div>
+  <div class="desc">a wary stag, bone antlers raised</div>
+</div>
+<style>@keyframes f4-hare { to { background-position: -128px 0; } }@keyframes f8-hare { to { background-position: -256px 0; } }</style>
+<div class="card" data-tag="hare">
+  <div class="frames"><div class="sp checker" style="width:64px;height:64px;background-image:url('/assets/proc/char/hare.png');background-size:128px 64px;animation: f4-hare 0.67s steps(2) infinite;"></div><div class="sp checker" style="width:128px;height:128px;background-image:url('/assets/proc/char/hare.png');background-size:256px 128px;animation: f8-hare 0.67s steps(2) infinite;"></div></div>
+  <div class="cap"><b>hare</b> <span class="k">character · 16x16 · 2f anim</span></div>
+  <div class="desc">a brown hare sitting up, ears pricked</div>
+</div>
+<style>@keyframes f4-badger { to { background-position: -128px 0; } }@keyframes f8-badger { to { background-position: -256px 0; } }</style>
+<div class="card" data-tag="badger">
+  <div class="frames"><div class="sp checker" style="width:64px;height:64px;background-image:url('/assets/proc/char/badger.png');background-size:128px 64px;animation: f4-badger 0.67s steps(2) infinite;"></div><div class="sp checker" style="width:128px;height:128px;background-image:url('/assets/proc/char/badger.png');background-size:256px 128px;animation: f8-badger 0.67s steps(2) infinite;"></div></div>
+  <div class="cap"><b>badger</b> <span class="k">character · 16x16 · 2f anim</span></div>
+  <div class="desc">a badger, white face stripe over a slate body</div>
+</div></div><h2>Campaign — the drowned bell & the waterfront <span class="count">11</span></h2>
+<div class="grid"><style></style>
+<div class="card" data-tag="bell_great">
+  <div class="frames"><div class="sp checker" style="width:128px;height:128px;background-image:url('/assets/proc/props/bell_great.png');background-size:128px 128px;"></div><div class="sp checker" style="width:256px;height:256px;background-image:url('/assets/proc/props/bell_great.png');background-size:256px 256px;"></div></div>
+  <div class="cap"><b>bell_great</b> <span class="k">prop · 32x32 · 2x1 feet</span></div>
+  <div class="desc">the great bronze bell — corroded, banded, big enough to seal a man inside</div>
+</div>
+<style>@keyframes f4-lamp_post { to { background-position: -128px 0; } }@keyframes f8-lamp_post { to { background-position: -256px 0; } }</style>
+<div class="card" data-tag="lamp_post">
+  <div class="frames"><div class="sp checker" style="width:64px;height:112px;background-image:url('/assets/proc/props/lamp_post.png');background-size:128px 112px;animation: f4-lamp_post 0.67s steps(2) infinite;"></div><div class="sp checker" style="width:128px;height:224px;background-image:url('/assets/proc/props/lamp_post.png');background-size:256px 224px;animation: f8-lamp_post 0.67s steps(2) infinite;"></div></div>
+  <div class="cap"><b>lamp_post</b> <span class="k">prop · 16x28 · light · 2f anim · walk-over</span></div>
+  <div class="desc">a standing iron lamp post, lit</div>
+</div>
+<style></style>
+<div class="card" data-tag="weir">
+  <div class="frames"><div class="sp checker" style="width:192px;height:64px;background-image:url('/assets/proc/props/weir.png');background-size:192px 64px;"></div><div class="sp checker" style="width:384px;height:128px;background-image:url('/assets/proc/props/weir.png');background-size:384px 128px;"></div></div>
+  <div class="cap"><b>weir</b> <span class="k">prop · 48x16 · 3x1 feet</span></div>
+  <div class="desc">a low stone weir combing the river into a white sill of foam</div>
+</div>
+<style></style>
+<div class="card" data-tag="iron_ring">
+  <div class="frames"><div class="sp checker" style="width:64px;height:64px;background-image:url('/assets/proc/props/iron_ring.png');background-size:64px 64px;"></div><div class="sp checker" style="width:128px;height:128px;background-image:url('/assets/proc/props/iron_ring.png');background-size:128px 128px;"></div></div>
+  <div class="cap"><b>iron_ring</b> <span class="k">prop · 16x16 · walk-over</span></div>
+  <div class="desc">a heavy iron mooring ring bolted through a worn stone block</div>
+</div>
+<style></style>
+<div class="card" data-tag="bell_clapper">
+  <div class="frames"><div class="sp checker" style="width:64px;height:64px;background-image:url('/assets/proc/props/bell_clapper.png');background-size:64px 64px;"></div><div class="sp checker" style="width:128px;height:128px;background-image:url('/assets/proc/props/bell_clapper.png');background-size:128px 128px;"></div></div>
+  <div class="cap"><b>bell_clapper</b> <span class="k">prop · 16x16 · walk-over</span></div>
+  <div class="desc">the great bell's iron clapper, torn loose and left to rust</div>
+</div>
+<style></style>
+<div class="card" data-tag="tomb_door">
+  <div class="frames"><div class="sp checker" style="width:64px;height:96px;background-image:url('/assets/proc/props/tomb_door.png');background-size:64px 96px;"></div><div class="sp checker" style="width:128px;height:192px;background-image:url('/assets/proc/props/tomb_door.png');background-size:128px 192px;"></div></div>
+  <div class="cap"><b>tomb_door</b> <span class="k">prop · 16x24</span></div>
+  <div class="desc">a sealed tomb slab, iron-banded, its wax seal unbroken</div>
+</div>
+<style></style>
+<div class="card" data-tag="net_drying">
+  <div class="frames"><div class="sp checker" style="width:128px;height:96px;background-image:url('/assets/proc/props/net_drying.png');background-size:128px 96px;"></div><div class="sp checker" style="width:256px;height:192px;background-image:url('/assets/proc/props/net_drying.png');background-size:256px 192px;"></div></div>
+  <div class="cap"><b>net_drying</b> <span class="k">prop · 32x24 · 2x1 feet</span></div>
+  <div class="desc">a fishing net strung between posts to dry, weed still caught in it</div>
+</div>
+<style></style>
+<div class="card" data-tag="anchor">
+  <div class="frames"><div class="sp checker" style="width:64px;height:64px;background-image:url('/assets/proc/props/anchor.png');background-size:64px 64px;"></div><div class="sp checker" style="width:128px;height:128px;background-image:url('/assets/proc/props/anchor.png');background-size:128px 128px;"></div></div>
+  <div class="cap"><b>anchor</b> <span class="k">prop · 16x16 · walk-over</span></div>
+  <div class="desc">a ship's anchor stood on its flukes, rope still bent to the ring</div>
+</div>
+<style></style>
+<div class="card" data-tag="buoy">
+  <div class="frames"><div class="sp checker" style="width:64px;height:72px;background-image:url('/assets/proc/props/buoy.png');background-size:64px 72px;"></div><div class="sp checker" style="width:128px;height:144px;background-image:url('/assets/proc/props/buoy.png');background-size:128px 144px;"></div></div>
+  <div class="cap"><b>buoy</b> <span class="k">prop · 16x18 · walk-over</span></div>
+  <div class="desc">a weathered channel buoy riding low at the waterline</div>
+</div>
+<style></style>
+<div class="card" data-tag="well">
+  <div class="frames"><div class="sp checker" style="width:64px;height:80px;background-image:url('/assets/proc/props/well.png');background-size:64px 80px;"></div><div class="sp checker" style="width:128px;height:160px;background-image:url('/assets/proc/props/well.png');background-size:128px 160px;"></div></div>
+  <div class="cap"><b>well</b> <span class="k">prop · 16x20</span></div>
+  <div class="desc">a village well — stone ring, crossbeam, and a waiting bucket</div>
+</div>
+<style></style>
+<div class="card" data-tag="rope_ladder">
+  <div class="frames"><div class="sp checker" style="width:64px;height:128px;background-image:url('/assets/proc/props/rope_ladder.png');background-size:64px 128px;"></div><div class="sp checker" style="width:128px;height:256px;background-image:url('/assets/proc/props/rope_ladder.png');background-size:128px 256px;"></div></div>
+  <div class="cap"><b>rope_ladder</b> <span class="k">prop · 16x32 · walk-over</span></div>
+  <div class="desc">a rope ladder swaying against the trunk, rungs worn smooth</div>
+</div></div><h2>Dungeon & crypt <span class="count">14</span></h2>
+<div class="grid"><style></style>
+<div class="card" data-tag="pillar">
+  <div class="frames"><div class="sp checker" style="width:64px;height:112px;background-image:url('/assets/proc/props/pillar.png');background-size:64px 112px;"></div><div class="sp checker" style="width:128px;height:224px;background-image:url('/assets/proc/props/pillar.png');background-size:128px 224px;"></div></div>
+  <div class="cap"><b>pillar</b> <span class="k">prop · 16x28</span></div>
+  <div class="desc">a fluted stone column holding up the dark</div>
+</div>
+<style></style>
+<div class="card" data-tag="pillar_broken">
+  <div class="frames"><div class="sp checker" style="width:64px;height:72px;background-image:url('/assets/proc/props/pillar_broken.png');background-size:64px 72px;"></div><div class="sp checker" style="width:128px;height:144px;background-image:url('/assets/proc/props/pillar_broken.png');background-size:128px 144px;"></div></div>
+  <div class="cap"><b>pillar_broken</b> <span class="k">prop · 16x18</span></div>
+  <div class="desc">the column snapped at a man's height — rubble where the rest fell</div>
+</div>
+<style></style>
+<div class="card" data-tag="lever">
+  <div class="frames"><div class="sp checker" style="width:64px;height:64px;background-image:url('/assets/proc/props/lever.png');background-size:64px 64px;"></div><div class="sp checker" style="width:128px;height:128px;background-image:url('/assets/proc/props/lever.png');background-size:128px 128px;"></div></div>
+  <div class="cap"><b>lever</b> <span class="k">prop · 16x16 · walk-over</span></div>
+  <div class="desc">a floor lever nobody remembers the purpose of</div>
+</div>
+<style></style>
+<div class="card" data-tag="portcullis">
+  <div class="frames"><div class="sp checker" style="width:64px;height:96px;background-image:url('/assets/proc/props/portcullis.png');background-size:64px 96px;"></div><div class="sp checker" style="width:128px;height:192px;background-image:url('/assets/proc/props/portcullis.png');background-size:128px 192px;"></div></div>
+  <div class="cap"><b>portcullis</b> <span class="k">prop · 16x24</span></div>
+  <div class="desc">an iron grid gate, points hungry for the floor</div>
+</div>
+<style></style>
+<div class="card" data-tag="chains_wall">
+  <div class="frames"><div class="sp checker" style="width:64px;height:64px;background-image:url('/assets/proc/props/chains_wall.png');background-size:64px 64px;"></div><div class="sp checker" style="width:128px;height:128px;background-image:url('/assets/proc/props/chains_wall.png');background-size:128px 128px;"></div></div>
+  <div class="cap"><b>chains_wall</b> <span class="k">prop · 16x16 · walk-over</span></div>
+  <div class="desc">hanging chains — one shackle empty, one broken</div>
+</div>
+<style></style>
+<div class="card" data-tag="shackles">
+  <div class="frames"><div class="sp checker" style="width:64px;height:48px;background-image:url('/assets/proc/props/shackles.png');background-size:64px 48px;"></div><div class="sp checker" style="width:128px;height:96px;background-image:url('/assets/proc/props/shackles.png');background-size:128px 96px;"></div></div>
+  <div class="cap"><b>shackles</b> <span class="k">prop · 16x12 · walk-over</span></div>
+  <div class="desc">a pair of shackles, opened or slipped</div>
+</div>
+<style></style>
+<div class="card" data-tag="spike_trap">
+  <div class="frames"><div class="sp checker" style="width:64px;height:64px;background-image:url('/assets/proc/props/spike_trap.png');background-size:64px 64px;"></div><div class="sp checker" style="width:128px;height:128px;background-image:url('/assets/proc/props/spike_trap.png');background-size:128px 128px;"></div></div>
+  <div class="cap"><b>spike_trap</b> <span class="k">prop · 16x16 · walk-over</span></div>
+  <div class="desc">a floor plate of spikes — two are already stained</div>
+</div>
+<style></style>
+<div class="card" data-tag="coffin_wood">
+  <div class="frames"><div class="sp checker" style="width:64px;height:96px;background-image:url('/assets/proc/props/coffin_wood.png');background-size:64px 96px;"></div><div class="sp checker" style="width:128px;height:192px;background-image:url('/assets/proc/props/coffin_wood.png');background-size:128px 192px;"></div></div>
+  <div class="cap"><b>coffin_wood</b> <span class="k">prop · 16x24</span></div>
+  <div class="desc">a hexagonal pine coffin, nailed shut</div>
+</div>
+<style></style>
+<div class="card" data-tag="coffin_open">
+  <div class="frames"><div class="sp checker" style="width:64px;height:96px;background-image:url('/assets/proc/props/coffin_open.png');background-size:64px 96px;"></div><div class="sp checker" style="width:128px;height:192px;background-image:url('/assets/proc/props/coffin_open.png');background-size:128px 192px;"></div></div>
+  <div class="cap"><b>coffin_open</b> <span class="k">prop · 16x24</span></div>
+  <div class="desc">the same coffin, lid ajar — someone is still home</div>
+</div>
+<style></style>
+<div class="card" data-tag="ritual_circle">
+  <div class="frames"><div class="sp checker" style="width:128px;height:128px;background-image:url('/assets/proc/props/ritual_circle.png');background-size:128px 128px;"></div><div class="sp checker" style="width:256px;height:256px;background-image:url('/assets/proc/props/ritual_circle.png');background-size:256px 256px;"></div></div>
+  <div class="cap"><b>ritual_circle</b> <span class="k">prop · 32x32 · walk-over · 2x2 feet</span></div>
+  <div class="desc">a chalk-and-blood summoning circle, candles still warm</div>
+</div>
+<style>@keyframes f4-crystal_glow { to { background-position: -128px 0; } }@keyframes f8-crystal_glow { to { background-position: -256px 0; } }</style>
+<div class="card" data-tag="crystal_glow">
+  <div class="frames"><div class="sp checker" style="width:64px;height:72px;background-image:url('/assets/proc/props/crystal_glow.png');background-size:128px 72px;animation: f4-crystal_glow 0.67s steps(2) infinite;"></div><div class="sp checker" style="width:128px;height:144px;background-image:url('/assets/proc/props/crystal_glow.png');background-size:256px 144px;animation: f8-crystal_glow 0.67s steps(2) infinite;"></div></div>
+  <div class="cap"><b>crystal_glow</b> <span class="k">prop · 16x18 · light · 2f anim</span></div>
+  <div class="desc">a cluster of cave crystals, lit from inside</div>
+</div>
+<style>@keyframes f4-rune_stone { to { background-position: -128px 0; } }@keyframes f8-rune_stone { to { background-position: -256px 0; } }</style>
+<div class="card" data-tag="rune_stone">
+  <div class="frames"><div class="sp checker" style="width:64px;height:72px;background-image:url('/assets/proc/props/rune_stone.png');background-size:128px 72px;animation: f4-rune_stone 0.67s steps(2) infinite;"></div><div class="sp checker" style="width:128px;height:144px;background-image:url('/assets/proc/props/rune_stone.png');background-size:256px 144px;animation: f8-rune_stone 0.67s steps(2) infinite;"></div></div>
+  <div class="cap"><b>rune_stone</b> <span class="k">prop · 16x18 · light · 2f anim</span></div>
+  <div class="desc">a rough monolith whose rune pulses cold light</div>
+</div>
+<style></style>
+<div class="card" data-tag="iron_maiden">
+  <div class="frames"><div class="sp checker" style="width:64px;height:96px;background-image:url('/assets/proc/props/iron_maiden.png');background-size:64px 96px;"></div><div class="sp checker" style="width:128px;height:192px;background-image:url('/assets/proc/props/iron_maiden.png');background-size:128px 192px;"></div></div>
+  <div class="cap"><b>iron_maiden</b> <span class="k">prop · 16x24</span></div>
+  <div class="desc">an upright iron case shaped like a person — it drips</div>
+</div>
+<style>@keyframes f4-cauldron { to { background-position: -128px 0; } }@keyframes f8-cauldron { to { background-position: -256px 0; } }</style>
+<div class="card" data-tag="cauldron">
+  <div class="frames"><div class="sp checker" style="width:64px;height:64px;background-image:url('/assets/proc/props/cauldron.png');background-size:128px 64px;animation: f4-cauldron 0.67s steps(2) infinite;"></div><div class="sp checker" style="width:128px;height:128px;background-image:url('/assets/proc/props/cauldron.png');background-size:256px 128px;animation: f8-cauldron 0.67s steps(2) infinite;"></div></div>
+  <div class="cap"><b>cauldron</b> <span class="k">prop · 16x16 · 2f anim</span></div>
+  <div class="desc">a witch's cauldron at a slow green boil</div>
+</div></div><h2>The undead house (abandoned interiors) <span class="count">8</span></h2>
+<div class="grid"><style></style>
+<div class="card" data-tag="table_broken">
+  <div class="frames"><div class="sp checker" style="width:64px;height:56px;background-image:url('/assets/proc/props/table_broken.png');background-size:64px 56px;"></div><div class="sp checker" style="width:128px;height:112px;background-image:url('/assets/proc/props/table_broken.png');background-size:128px 112px;"></div></div>
+  <div class="cap"><b>table_broken</b> <span class="k">prop · 16x14</span></div>
+  <div class="desc">a wooden table collapsed at one end, leg snapped to splinters</div>
+</div>
+<style></style>
+<div class="card" data-tag="chair_broken">
+  <div class="frames"><div class="sp checker" style="width:64px;height:56px;background-image:url('/assets/proc/props/chair_broken.png');background-size:64px 56px;"></div><div class="sp checker" style="width:128px;height:112px;background-image:url('/assets/proc/props/chair_broken.png');background-size:128px 112px;"></div></div>
+  <div class="cap"><b>chair_broken</b> <span class="k">prop · 16x14 · walk-over</span></div>
+  <div class="desc">a chair tipped on its side, one leg gone</div>
+</div>
+<style></style>
+<div class="card" data-tag="furniture_shrouded">
+  <div class="frames"><div class="sp checker" style="width:64px;height:72px;background-image:url('/assets/proc/props/furniture_shrouded.png');background-size:64px 72px;"></div><div class="sp checker" style="width:128px;height:144px;background-image:url('/assets/proc/props/furniture_shrouded.png');background-size:128px 144px;"></div></div>
+  <div class="cap"><b>furniture_shrouded</b> <span class="k">prop · 16x18</span></div>
+  <div class="desc">furniture under a dust sheet, waiting like a ghost</div>
+</div>
+<style></style>
+<div class="card" data-tag="mirror_standing">
+  <div class="frames"><div class="sp checker" style="width:64px;height:96px;background-image:url('/assets/proc/props/mirror_standing.png');background-size:64px 96px;"></div><div class="sp checker" style="width:128px;height:192px;background-image:url('/assets/proc/props/mirror_standing.png');background-size:128px 192px;"></div></div>
+  <div class="cap"><b>mirror_standing</b> <span class="k">prop · 16x24</span></div>
+  <div class="desc">an oval standing mirror, cracked corner to corner</div>
+</div>
+<style></style>
+<div class="card" data-tag="clock_grandfather">
+  <div class="frames"><div class="sp checker" style="width:64px;height:112px;background-image:url('/assets/proc/props/clock_grandfather.png');background-size:64px 112px;"></div><div class="sp checker" style="width:128px;height:224px;background-image:url('/assets/proc/props/clock_grandfather.png');background-size:128px 224px;"></div></div>
+  <div class="cap"><b>clock_grandfather</b> <span class="k">prop · 16x28</span></div>
+  <div class="desc">a grandfather clock stopped dead at midnight</div>
+</div>
+<style>@keyframes f4-fireplace { to { background-position: -128px 0; } }@keyframes f8-fireplace { to { background-position: -256px 0; } }</style>
+<div class="card" data-tag="fireplace">
+  <div class="frames"><div class="sp checker" style="width:64px;height:80px;background-image:url('/assets/proc/props/fireplace.png');background-size:128px 80px;animation: f4-fireplace 0.67s steps(2) infinite;"></div><div class="sp checker" style="width:128px;height:160px;background-image:url('/assets/proc/props/fireplace.png');background-size:256px 160px;animation: f8-fireplace 0.67s steps(2) infinite;"></div></div>
+  <div class="cap"><b>fireplace</b> <span class="k">prop · 16x20 · light · 2f anim</span></div>
+  <div class="desc">a stone hearth, logs still burning for no one</div>
+</div>
+<style></style>
+<div class="card" data-tag="portrait_cracked">
+  <div class="frames"><div class="sp checker" style="width:64px;height:64px;background-image:url('/assets/proc/props/portrait_cracked.png');background-size:64px 64px;"></div><div class="sp checker" style="width:128px;height:128px;background-image:url('/assets/proc/props/portrait_cracked.png');background-size:128px 128px;"></div></div>
+  <div class="cap"><b>portrait_cracked</b> <span class="k">prop · 16x16 · walk-over</span></div>
+  <div class="desc">a torn portrait hanging crooked; the sitter still watches</div>
+</div>
+<style></style>
+<div class="card" data-tag="wine_rack">
+  <div class="frames"><div class="sp checker" style="width:64px;height:80px;background-image:url('/assets/proc/props/wine_rack.png');background-size:64px 80px;"></div><div class="sp checker" style="width:128px;height:160px;background-image:url('/assets/proc/props/wine_rack.png');background-size:128px 160px;"></div></div>
+  <div class="cap"><b>wine_rack</b> <span class="k">prop · 16x20</span></div>
+  <div class="desc">a dusty wine rack, two bottles unaccounted for</div>
+</div></div><h2>Wilderness, labyrinth hedges & camp <span class="count">15</span></h2>
+<div class="grid"><style></style>
+<div class="card" data-tag="hedge">
+  <div class="frames"><div class="sp checker" style="width:64px;height:64px;background-image:url('/assets/proc/terrain/hedge.png');background-size:64px 64px;"></div><div class="sp checker" style="width:128px;height:128px;background-image:url('/assets/proc/terrain/hedge.png');background-size:128px 128px;"></div></div>
+  <div class="cap"><b>hedge</b> <span class="k">terrain · 16x16 · solid</span></div>
+  <div class="desc">a wall of clipped labyrinth hedge, dense enough to lose a war in</div>
+</div>
+<style></style>
+<div class="card" data-tag="hedge_t">
+  <div class="frames"><div class="sp checker" style="width:64px;height:64px;background-image:url('/assets/proc/terrain/hedge_t.png');background-size:64px 64px;"></div><div class="sp checker" style="width:128px;height:128px;background-image:url('/assets/proc/terrain/hedge_t.png');background-size:128px 128px;"></div></div>
+  <div class="cap"><b>hedge_t</b> <span class="k">terrain · 16x16 · solid</span></div>
+  <div class="desc">a wall of clipped labyrinth hedge, dense enough to lose a war in (t edge)</div>
+</div>
+<style></style>
+<div class="card" data-tag="hedge_b">
+  <div class="frames"><div class="sp checker" style="width:64px;height:64px;background-image:url('/assets/proc/terrain/hedge_b.png');background-size:64px 64px;"></div><div class="sp checker" style="width:128px;height:128px;background-image:url('/assets/proc/terrain/hedge_b.png');background-size:128px 128px;"></div></div>
+  <div class="cap"><b>hedge_b</b> <span class="k">terrain · 16x16 · solid</span></div>
+  <div class="desc">a wall of clipped labyrinth hedge, dense enough to lose a war in (b edge)</div>
+</div>
+<style></style>
+<div class="card" data-tag="hedge_l">
+  <div class="frames"><div class="sp checker" style="width:64px;height:64px;background-image:url('/assets/proc/terrain/hedge_l.png');background-size:64px 64px;"></div><div class="sp checker" style="width:128px;height:128px;background-image:url('/assets/proc/terrain/hedge_l.png');background-size:128px 128px;"></div></div>
+  <div class="cap"><b>hedge_l</b> <span class="k">terrain · 16x16 · solid</span></div>
+  <div class="desc">a wall of clipped labyrinth hedge, dense enough to lose a war in (l edge)</div>
+</div>
+<style></style>
+<div class="card" data-tag="hedge_r">
+  <div class="frames"><div class="sp checker" style="width:64px;height:64px;background-image:url('/assets/proc/terrain/hedge_r.png');background-size:64px 64px;"></div><div class="sp checker" style="width:128px;height:128px;background-image:url('/assets/proc/terrain/hedge_r.png');background-size:128px 128px;"></div></div>
+  <div class="cap"><b>hedge_r</b> <span class="k">terrain · 16x16 · solid</span></div>
+  <div class="desc">a wall of clipped labyrinth hedge, dense enough to lose a war in (r edge)</div>
+</div>
+<style></style>
+<div class="card" data-tag="hedge_tl">
+  <div class="frames"><div class="sp checker" style="width:64px;height:64px;background-image:url('/assets/proc/terrain/hedge_tl.png');background-size:64px 64px;"></div><div class="sp checker" style="width:128px;height:128px;background-image:url('/assets/proc/terrain/hedge_tl.png');background-size:128px 128px;"></div></div>
+  <div class="cap"><b>hedge_tl</b> <span class="k">terrain · 16x16 · solid</span></div>
+  <div class="desc">a wall of clipped labyrinth hedge, dense enough to lose a war in (tl edge)</div>
+</div>
+<style></style>
+<div class="card" data-tag="hedge_tr">
+  <div class="frames"><div class="sp checker" style="width:64px;height:64px;background-image:url('/assets/proc/terrain/hedge_tr.png');background-size:64px 64px;"></div><div class="sp checker" style="width:128px;height:128px;background-image:url('/assets/proc/terrain/hedge_tr.png');background-size:128px 128px;"></div></div>
+  <div class="cap"><b>hedge_tr</b> <span class="k">terrain · 16x16 · solid</span></div>
+  <div class="desc">a wall of clipped labyrinth hedge, dense enough to lose a war in (tr edge)</div>
+</div>
+<style></style>
+<div class="card" data-tag="hedge_bl">
+  <div class="frames"><div class="sp checker" style="width:64px;height:64px;background-image:url('/assets/proc/terrain/hedge_bl.png');background-size:64px 64px;"></div><div class="sp checker" style="width:128px;height:128px;background-image:url('/assets/proc/terrain/hedge_bl.png');background-size:128px 128px;"></div></div>
+  <div class="cap"><b>hedge_bl</b> <span class="k">terrain · 16x16 · solid</span></div>
+  <div class="desc">a wall of clipped labyrinth hedge, dense enough to lose a war in (bl edge)</div>
+</div>
+<style></style>
+<div class="card" data-tag="hedge_br">
+  <div class="frames"><div class="sp checker" style="width:64px;height:64px;background-image:url('/assets/proc/terrain/hedge_br.png');background-size:64px 64px;"></div><div class="sp checker" style="width:128px;height:128px;background-image:url('/assets/proc/terrain/hedge_br.png');background-size:128px 128px;"></div></div>
+  <div class="cap"><b>hedge_br</b> <span class="k">terrain · 16x16 · solid</span></div>
+  <div class="desc">a wall of clipped labyrinth hedge, dense enough to lose a war in (br edge)</div>
+</div>
+<style></style>
+<div class="card" data-tag="flagstone_flooded">
+  <div class="frames"><div class="sp checker" style="width:64px;height:64px;background-image:url('/assets/proc/terrain/flagstone_flooded.png');background-size:64px 64px;"></div><div class="sp checker" style="width:128px;height:128px;background-image:url('/assets/proc/terrain/flagstone_flooded.png');background-size:128px 128px;"></div></div>
+  <div class="cap"><b>flagstone_flooded</b> <span class="k">terrain · 16x16 · walkable</span></div>
+  <div class="desc">dark flagstones under a hand-span of black-teal floodwater</div>
+</div>
+<style></style>
+<div class="card" data-tag="wood_floor_flooded">
+  <div class="frames"><div class="sp checker" style="width:64px;height:64px;background-image:url('/assets/proc/terrain/wood_floor_flooded.png');background-size:64px 64px;"></div><div class="sp checker" style="width:128px;height:128px;background-image:url('/assets/proc/terrain/wood_floor_flooded.png');background-size:128px 128px;"></div></div>
+  <div class="cap"><b>wood_floor_flooded</b> <span class="k">terrain · 16x16 · walkable</span></div>
+  <div class="desc">warped floor planks drowned in shallow water, ripples catching the light</div>
+</div>
+<style></style>
+<div class="card" data-tag="treehouse">
+  <div class="frames"><div class="sp checker" style="width:192px;height:256px;background-image:url('/assets/proc/props/treehouse.png');background-size:192px 256px;"></div><div class="sp checker" style="width:384px;height:512px;background-image:url('/assets/proc/props/treehouse.png');background-size:384px 512px;"></div></div>
+  <div class="cap"><b>treehouse</b> <span class="k">prop · 48x64 · 3x2 feet</span></div>
+  <div class="desc">a great oak carrying a plank hut in its arms, rope ladder swaying to the ground</div>
+</div>
+<style></style>
+<div class="card" data-tag="standing_stone">
+  <div class="frames"><div class="sp checker" style="width:64px;height:96px;background-image:url('/assets/proc/props/standing_stone.png');background-size:64px 96px;"></div><div class="sp checker" style="width:128px;height:192px;background-image:url('/assets/proc/props/standing_stone.png');background-size:128px 192px;"></div></div>
+  <div class="cap"><b>standing_stone</b> <span class="k">prop · 16x24</span></div>
+  <div class="desc">a weathered menhir older than the road, moss creeping up its feet</div>
+</div>
+<style></style>
+<div class="card" data-tag="tent">
+  <div class="frames"><div class="sp checker" style="width:128px;height:96px;background-image:url('/assets/proc/props/tent.png');background-size:128px 96px;"></div><div class="sp checker" style="width:256px;height:192px;background-image:url('/assets/proc/props/tent.png');background-size:256px 192px;"></div></div>
+  <div class="cap"><b>tent</b> <span class="k">prop · 32x24 · 2x1 feet</span></div>
+  <div class="desc">an A-frame canvas tent, flap open onto the dark inside</div>
+</div>
+<style></style>
+<div class="card" data-tag="scarecrow">
+  <div class="frames"><div class="sp checker" style="width:64px;height:104px;background-image:url('/assets/proc/props/scarecrow.png');background-size:64px 104px;"></div><div class="sp checker" style="width:128px;height:208px;background-image:url('/assets/proc/props/scarecrow.png');background-size:128px 208px;"></div></div>
+  <div class="cap"><b>scarecrow</b> <span class="k">prop · 16x26 · walk-over</span></div>
+  <div class="desc">a cross-framed scarecrow in a ragged red coat, straw bleeding from its wrists</div>
+</div></div><h2>Animals & human foes <span class="count">9</span></h2>
+<div class="grid"><style>@keyframes f4-bear { to { background-position: -128px 0; } }@keyframes f8-bear { to { background-position: -256px 0; } }</style>
+<div class="card" data-tag="bear">
+  <div class="frames"><div class="sp checker" style="width:64px;height:64px;background-image:url('/assets/proc/char/bear.png');background-size:128px 64px;animation: f4-bear 0.67s steps(2) infinite;"></div><div class="sp checker" style="width:128px;height:128px;background-image:url('/assets/proc/char/bear.png');background-size:256px 128px;animation: f8-bear 0.67s steps(2) infinite;"></div></div>
+  <div class="cap"><b>bear</b> <span class="k">character · 16x16 · 2f anim</span></div>
+  <div class="desc">a heavy brown bear, shoulders humped like a hill</div>
+</div>
+<style>@keyframes f4-boar { to { background-position: -128px 0; } }@keyframes f8-boar { to { background-position: -256px 0; } }</style>
+<div class="card" data-tag="boar">
+  <div class="frames"><div class="sp checker" style="width:64px;height:64px;background-image:url('/assets/proc/char/boar.png');background-size:128px 64px;animation: f4-boar 0.67s steps(2) infinite;"></div><div class="sp checker" style="width:128px;height:128px;background-image:url('/assets/proc/char/boar.png');background-size:256px 128px;animation: f8-boar 0.67s steps(2) infinite;"></div></div>
+  <div class="cap"><b>boar</b> <span class="k">character · 16x16 · 2f anim</span></div>
+  <div class="desc">a bristle-backed wild boar, tusks worn white</div>
+</div>
+<style>@keyframes f4-snake { to { background-position: -128px 0; } }@keyframes f8-snake { to { background-position: -256px 0; } }</style>
+<div class="card" data-tag="snake">
+  <div class="frames"><div class="sp checker" style="width:64px;height:64px;background-image:url('/assets/proc/char/snake.png');background-size:128px 64px;animation: f4-snake 0.67s steps(2) infinite;"></div><div class="sp checker" style="width:128px;height:128px;background-image:url('/assets/proc/char/snake.png');background-size:256px 128px;animation: f8-snake 0.67s steps(2) infinite;"></div></div>
+  <div class="cap"><b>snake</b> <span class="k">character · 16x16 · 2f anim</span></div>
+  <div class="desc">a coiled green snake, head raised to strike</div>
+</div>
+<style>@keyframes f4-raven { to { background-position: -128px 0; } }@keyframes f8-raven { to { background-position: -256px 0; } }</style>
+<div class="card" data-tag="raven">
+  <div class="frames"><div class="sp checker" style="width:64px;height:64px;background-image:url('/assets/proc/char/raven.png');background-size:128px 64px;animation: f4-raven 0.67s steps(2) infinite;"></div><div class="sp checker" style="width:128px;height:128px;background-image:url('/assets/proc/char/raven.png');background-size:256px 128px;animation: f8-raven 0.67s steps(2) infinite;"></div></div>
+  <div class="cap"><b>raven</b> <span class="k">character · 16x16 · 2f anim</span></div>
+  <div class="desc">a black raven, watching with one pale eye</div>
+</div>
+<style>@keyframes f4-bat { to { background-position: -128px 0; } }@keyframes f8-bat { to { background-position: -256px 0; } }</style>
+<div class="card" data-tag="bat">
+  <div class="frames"><div class="sp checker" style="width:64px;height:64px;background-image:url('/assets/proc/char/bat.png');background-size:128px 64px;animation: f4-bat 0.67s steps(2) infinite;"></div><div class="sp checker" style="width:128px;height:128px;background-image:url('/assets/proc/char/bat.png');background-size:256px 128px;animation: f8-bat 0.67s steps(2) infinite;"></div></div>
+  <div class="cap"><b>bat</b> <span class="k">character · 16x16 · 2f anim</span></div>
+  <div class="desc">a cave bat mid-flight, wings spread wide</div>
+</div>
+<style>@keyframes f4-fox { to { background-position: -128px 0; } }@keyframes f8-fox { to { background-position: -256px 0; } }</style>
+<div class="card" data-tag="fox">
+  <div class="frames"><div class="sp checker" style="width:64px;height:64px;background-image:url('/assets/proc/char/fox.png');background-size:128px 64px;animation: f4-fox 0.67s steps(2) infinite;"></div><div class="sp checker" style="width:128px;height:128px;background-image:url('/assets/proc/char/fox.png');background-size:256px 128px;animation: f8-fox 0.67s steps(2) infinite;"></div></div>
+  <div class="cap"><b>fox</b> <span class="k">character · 16x16 · 2f anim</span></div>
+  <div class="desc">a red fox, ears pricked, tail tipped white</div>
+</div>
+<style>@keyframes f4-drowned_dead { to { background-position: -128px 0; } }@keyframes f8-drowned_dead { to { background-position: -256px 0; } }</style>
+<div class="card" data-tag="drowned_dead">
+  <div class="frames"><div class="sp checker" style="width:64px;height:64px;background-image:url('/assets/proc/char/drowned_dead.png');background-size:128px 64px;animation: f4-drowned_dead 0.67s steps(2) infinite;"></div><div class="sp checker" style="width:128px;height:128px;background-image:url('/assets/proc/char/drowned_dead.png');background-size:256px 128px;animation: f8-drowned_dead 0.67s steps(2) infinite;"></div></div>
+  <div class="cap"><b>drowned_dead</b> <span class="k">character · 16x16 · 2f anim</span></div>
+  <div class="desc">a waterlogged walker trailing kelp, still dripping</div>
+</div>
+<style>@keyframes f4-cultist { to { background-position: -128px 0; } }@keyframes f8-cultist { to { background-position: -256px 0; } }</style>
+<div class="card" data-tag="cultist">
+  <div class="frames"><div class="sp checker" style="width:64px;height:64px;background-image:url('/assets/proc/char/cultist.png');background-size:128px 64px;animation: f4-cultist 0.67s steps(2) infinite;"></div><div class="sp checker" style="width:128px;height:128px;background-image:url('/assets/proc/char/cultist.png');background-size:256px 128px;animation: f8-cultist 0.67s steps(2) infinite;"></div></div>
+  <div class="cap"><b>cultist</b> <span class="k">character · 16x16 · 2f anim</span></div>
+  <div class="desc">a blood-robed cultist, dagger clasped, face in shadow</div>
+</div>
+<style>@keyframes f4-witch { to { background-position: -128px 0; } }@keyframes f8-witch { to { background-position: -256px 0; } }</style>
+<div class="card" data-tag="witch">
+  <div class="frames"><div class="sp checker" style="width:64px;height:64px;background-image:url('/assets/proc/char/witch.png');background-size:128px 64px;animation: f4-witch 0.67s steps(2) infinite;"></div><div class="sp checker" style="width:128px;height:128px;background-image:url('/assets/proc/char/witch.png');background-size:256px 128px;animation: f8-witch 0.67s steps(2) infinite;"></div></div>
+  <div class="cap"><b>witch</b> <span class="k">character · 16x16 · 2f anim</span></div>
+  <div class="desc">a swamp witch with broom and belt-hung potion</div>
+</div></div><h2>Bosses & big foes <span class="count">12</span></h2>
+<div class="grid"><style>@keyframes f4-dragon_red { to { background-position: -384px 0; } }@keyframes f8-dragon_red { to { background-position: -768px 0; } }</style>
+<div class="card" data-tag="dragon_red">
+  <div class="frames"><div class="sp checker" style="width:192px;height:192px;background-image:url('/assets/proc/char/dragon_red.png');background-size:384px 192px;animation: f4-dragon_red 0.67s steps(2) infinite;"></div><div class="sp checker" style="width:384px;height:384px;background-image:url('/assets/proc/char/dragon_red.png');background-size:768px 384px;animation: f8-dragon_red 0.67s steps(2) infinite;"></div></div>
+  <div class="cap"><b>dragon_red</b> <span class="k">character · 48x48 · 2f anim · 3x2 feet</span></div>
+  <div class="desc">the red wyrm, wings raised — furnace breath and hoarded wrath</div>
+</div>
+<style>@keyframes f4-dragon_black { to { background-position: -384px 0; } }@keyframes f8-dragon_black { to { background-position: -768px 0; } }</style>
+<div class="card" data-tag="dragon_black">
+  <div class="frames"><div class="sp checker" style="width:192px;height:192px;background-image:url('/assets/proc/char/dragon_black.png');background-size:384px 192px;animation: f4-dragon_black 0.67s steps(2) infinite;"></div><div class="sp checker" style="width:384px;height:384px;background-image:url('/assets/proc/char/dragon_black.png');background-size:768px 384px;animation: f8-dragon_black 0.67s steps(2) infinite;"></div></div>
+  <div class="cap"><b>dragon_black</b> <span class="k">character · 48x48 · 2f anim · 3x2 feet</span></div>
+  <div class="desc">the black dragon in a low predatory crouch, acid at the jaw</div>
+</div>
+<style>@keyframes f4-dragon_bone { to { background-position: -384px 0; } }@keyframes f8-dragon_bone { to { background-position: -768px 0; } }</style>
+<div class="card" data-tag="dragon_bone">
+  <div class="frames"><div class="sp checker" style="width:192px;height:192px;background-image:url('/assets/proc/char/dragon_bone.png');background-size:384px 192px;animation: f4-dragon_bone 0.67s steps(2) infinite;"></div><div class="sp checker" style="width:384px;height:384px;background-image:url('/assets/proc/char/dragon_bone.png');background-size:768px 384px;animation: f8-dragon_bone 0.67s steps(2) infinite;"></div></div>
+  <div class="cap"><b>dragon_bone</b> <span class="k">character · 48x48 · 2f anim · 3x2 feet</span></div>
+  <div class="desc">a dracolich — bare spars, tattered wings, cold pinprick eyes</div>
+</div>
+<style>@keyframes f4-demon { to { background-position: -256px 0; } }@keyframes f8-demon { to { background-position: -512px 0; } }</style>
+<div class="card" data-tag="demon">
+  <div class="frames"><div class="sp checker" style="width:128px;height:128px;background-image:url('/assets/proc/char/demon.png');background-size:256px 128px;animation: f4-demon 0.67s steps(2) infinite;"></div><div class="sp checker" style="width:256px;height:256px;background-image:url('/assets/proc/char/demon.png');background-size:512px 256px;animation: f8-demon 0.67s steps(2) infinite;"></div></div>
+  <div class="cap"><b>demon</b> <span class="k">character · 32x32 · 2f anim · 2x1 feet</span></div>
+  <div class="desc">a horned demon, embers cracking through its hide</div>
+</div>
+<style>@keyframes f4-treant { to { background-position: -256px 0; } }@keyframes f8-treant { to { background-position: -512px 0; } }</style>
+<div class="card" data-tag="treant">
+  <div class="frames"><div class="sp checker" style="width:128px;height:128px;background-image:url('/assets/proc/char/treant.png');background-size:256px 128px;animation: f4-treant 0.67s steps(2) infinite;"></div><div class="sp checker" style="width:256px;height:256px;background-image:url('/assets/proc/char/treant.png');background-size:512px 256px;animation: f8-treant 0.67s steps(2) infinite;"></div></div>
+  <div class="cap"><b>treant</b> <span class="k">character · 32x32 · 2f anim · 2x1 feet</span></div>
+  <div class="desc">a walking tree with a club arm and hollow eyes</div>
+</div>
+<style>@keyframes f4-serpent_giant { to { background-position: -256px 0; } }@keyframes f8-serpent_giant { to { background-position: -512px 0; } }</style>
+<div class="card" data-tag="serpent_giant">
+  <div class="frames"><div class="sp checker" style="width:128px;height:96px;background-image:url('/assets/proc/char/serpent_giant.png');background-size:256px 96px;animation: f4-serpent_giant 0.67s steps(2) infinite;"></div><div class="sp checker" style="width:256px;height:192px;background-image:url('/assets/proc/char/serpent_giant.png');background-size:512px 192px;animation: f8-serpent_giant 0.67s steps(2) infinite;"></div></div>
+  <div class="cap"><b>serpent_giant</b> <span class="k">character · 32x24 · 2f anim · 2x1 feet</span></div>
+  <div class="desc">a giant serpent rearing from its coils, fangs bared</div>
+</div>
+<style>@keyframes f4-banshee { to { background-position: -128px 0; } }@keyframes f8-banshee { to { background-position: -256px 0; } }</style>
+<div class="card" data-tag="banshee">
+  <div class="frames"><div class="sp checker" style="width:64px;height:96px;background-image:url('/assets/proc/char/banshee.png');background-size:128px 96px;animation: f4-banshee 0.67s steps(2) infinite;"></div><div class="sp checker" style="width:128px;height:192px;background-image:url('/assets/proc/char/banshee.png');background-size:256px 192px;animation: f8-banshee 0.67s steps(2) infinite;"></div></div>
+  <div class="cap"><b>banshee</b> <span class="k">character · 16x24 · 2f anim</span></div>
+  <div class="desc">a wailing spectre trailing into mist</div>
+</div>
+<style>@keyframes f4-vampire { to { background-position: -128px 0; } }@keyframes f8-vampire { to { background-position: -256px 0; } }</style>
+<div class="card" data-tag="vampire">
+  <div class="frames"><div class="sp checker" style="width:64px;height:64px;background-image:url('/assets/proc/char/vampire.png');background-size:128px 64px;animation: f4-vampire 0.67s steps(2) infinite;"></div><div class="sp checker" style="width:128px;height:128px;background-image:url('/assets/proc/char/vampire.png');background-size:256px 128px;animation: f8-vampire 0.67s steps(2) infinite;"></div></div>
+  <div class="cap"><b>vampire</b> <span class="k">character · 16x16 · 2f anim</span></div>
+  <div class="desc">a pale lord in a high-collared cloak, red silk beneath</div>
+</div>
+<style>@keyframes f4-werewolf { to { background-position: -128px 0; } }@keyframes f8-werewolf { to { background-position: -256px 0; } }</style>
+<div class="card" data-tag="werewolf">
+  <div class="frames"><div class="sp checker" style="width:64px;height:64px;background-image:url('/assets/proc/char/werewolf.png');background-size:128px 64px;animation: f4-werewolf 0.67s steps(2) infinite;"></div><div class="sp checker" style="width:128px;height:128px;background-image:url('/assets/proc/char/werewolf.png');background-size:256px 128px;animation: f8-werewolf 0.67s steps(2) infinite;"></div></div>
+  <div class="cap"><b>werewolf</b> <span class="k">character · 16x16 · 2f anim</span></div>
+  <div class="desc">a hunched wolf-man, claws out, one red eye</div>
+</div>
+<style>@keyframes f4-skeleton_king { to { background-position: -128px 0; } }@keyframes f8-skeleton_king { to { background-position: -256px 0; } }</style>
+<div class="card" data-tag="skeleton_king">
+  <div class="frames"><div class="sp checker" style="width:64px;height:64px;background-image:url('/assets/proc/char/skeleton_king.png');background-size:128px 64px;animation: f4-skeleton_king 0.67s steps(2) infinite;"></div><div class="sp checker" style="width:128px;height:128px;background-image:url('/assets/proc/char/skeleton_king.png');background-size:256px 128px;animation: f8-skeleton_king 0.67s steps(2) infinite;"></div></div>
+  <div class="cap"><b>skeleton_king</b> <span class="k">character · 16x16 · 2f anim</span></div>
+  <div class="desc">a crowned skeleton with a raised black sword</div>
+</div>
+<style>@keyframes f4-necromancer { to { background-position: -128px 0; } }@keyframes f8-necromancer { to { background-position: -256px 0; } }</style>
+<div class="card" data-tag="necromancer">
+  <div class="frames"><div class="sp checker" style="width:64px;height:64px;background-image:url('/assets/proc/char/necromancer.png');background-size:128px 64px;animation: f4-necromancer 0.67s steps(2) infinite;"></div><div class="sp checker" style="width:128px;height:128px;background-image:url('/assets/proc/char/necromancer.png');background-size:256px 128px;animation: f8-necromancer 0.67s steps(2) infinite;"></div></div>
+  <div class="cap"><b>necromancer</b> <span class="k">character · 16x16 · 2f anim</span></div>
+  <div class="desc">a purple-robed necromancer, orb-tipped bone staff</div>
+</div>
+<style>@keyframes f4-mimic { to { background-position: -128px 0; } }@keyframes f8-mimic { to { background-position: -256px 0; } }</style>
+<div class="card" data-tag="mimic">
+  <div class="frames"><div class="sp checker" style="width:64px;height:64px;background-image:url('/assets/proc/char/mimic.png');background-size:128px 64px;animation: f4-mimic 0.67s steps(2) infinite;"></div><div class="sp checker" style="width:128px;height:128px;background-image:url('/assets/proc/char/mimic.png');background-size:256px 128px;animation: f8-mimic 0.67s steps(2) infinite;"></div></div>
+  <div class="cap"><b>mimic</b> <span class="k">character · 16x16 · 2f anim</span></div>
+  <div class="desc">just a wooden chest — until it is not</div>
+</div></div><h2>Blood, webs & magic <span class="count">9</span></h2>
+<div class="grid"><style></style>
+<div class="card" data-tag="blood_pool">
+  <div class="frames"><div class="sp checker" style="width:64px;height:64px;background-image:url('/assets/proc/props/blood_pool.png');background-size:64px 64px;"></div><div class="sp checker" style="width:128px;height:128px;background-image:url('/assets/proc/props/blood_pool.png');background-size:128px 128px;"></div></div>
+  <div class="cap"><b>blood_pool</b> <span class="k">prop · 16x16 · walk-over</span></div>
+  <div class="desc">a dark pool of blood, still wet at the edge</div>
+</div>
+<style></style>
+<div class="card" data-tag="blood_splatter">
+  <div class="frames"><div class="sp checker" style="width:64px;height:64px;background-image:url('/assets/proc/props/blood_splatter.png');background-size:64px 64px;"></div><div class="sp checker" style="width:128px;height:128px;background-image:url('/assets/proc/props/blood_splatter.png');background-size:128px 128px;"></div></div>
+  <div class="cap"><b>blood_splatter</b> <span class="k">prop · 16x16 · walk-over</span></div>
+  <div class="desc">a violent spray of blood fanning across the stones</div>
+</div>
+<style></style>
+<div class="card" data-tag="blood_trail">
+  <div class="frames"><div class="sp checker" style="width:64px;height:64px;background-image:url('/assets/proc/props/blood_trail.png');background-size:64px 64px;"></div><div class="sp checker" style="width:128px;height:128px;background-image:url('/assets/proc/props/blood_trail.png');background-size:128px 128px;"></div></div>
+  <div class="cap"><b>blood_trail</b> <span class="k">prop · 16x16 · walk-over</span></div>
+  <div class="desc">smeared drag-marks — something was hauled away, bleeding</div>
+</div>
+<style></style>
+<div class="card" data-tag="web_floor">
+  <div class="frames"><div class="sp checker" style="width:64px;height:64px;background-image:url('/assets/proc/props/web_floor.png');background-size:64px 64px;"></div><div class="sp checker" style="width:128px;height:128px;background-image:url('/assets/proc/props/web_floor.png');background-size:128px 128px;"></div></div>
+  <div class="cap"><b>web_floor</b> <span class="k">prop · 16x16 · walk-over</span></div>
+  <div class="desc">a dusty floor cobweb strung between two corners, one fly past caring</div>
+</div>
+<style></style>
+<div class="card" data-tag="scorch_mark">
+  <div class="frames"><div class="sp checker" style="width:64px;height:64px;background-image:url('/assets/proc/props/scorch_mark.png');background-size:64px 64px;"></div><div class="sp checker" style="width:128px;height:128px;background-image:url('/assets/proc/props/scorch_mark.png');background-size:128px 128px;"></div></div>
+  <div class="cap"><b>scorch_mark</b> <span class="k">prop · 16x16 · walk-over</span></div>
+  <div class="desc">a blast-burn seared into the floor, ash fanning outward</div>
+</div>
+<style></style>
+<div class="card" data-tag="slime_puddle">
+  <div class="frames"><div class="sp checker" style="width:64px;height:64px;background-image:url('/assets/proc/props/slime_puddle.png');background-size:64px 64px;"></div><div class="sp checker" style="width:128px;height:128px;background-image:url('/assets/proc/props/slime_puddle.png');background-size:128px 128px;"></div></div>
+  <div class="cap"><b>slime_puddle</b> <span class="k">prop · 16x16 · walk-over</span></div>
+  <div class="desc">a glistening smear of green ooze, one blob crawling off on its own</div>
+</div>
+<style>@keyframes f4-magic_circle { to { background-position: -256px 0; } }@keyframes f8-magic_circle { to { background-position: -512px 0; } }</style>
+<div class="card" data-tag="magic_circle">
+  <div class="frames"><div class="sp checker" style="width:128px;height:128px;background-image:url('/assets/proc/props/magic_circle.png');background-size:256px 128px;animation: f4-magic_circle 0.67s steps(2) infinite;"></div><div class="sp checker" style="width:256px;height:256px;background-image:url('/assets/proc/props/magic_circle.png');background-size:512px 256px;animation: f8-magic_circle 0.67s steps(2) infinite;"></div></div>
+  <div class="cap"><b>magic_circle</b> <span class="k">prop · 32x32 · light · 2f anim · walk-over · 2x2 feet</span></div>
+  <div class="desc">an arcane summoning circle, runes crawling along the band</div>
+</div>
+<style>@keyframes f4-smoke_plume { to { background-position: -128px 0; } }@keyframes f8-smoke_plume { to { background-position: -256px 0; } }</style>
+<div class="card" data-tag="smoke_plume">
+  <div class="frames"><div class="sp checker" style="width:64px;height:112px;background-image:url('/assets/proc/props/smoke_plume.png');background-size:128px 112px;animation: f4-smoke_plume 0.67s steps(2) infinite;"></div><div class="sp checker" style="width:128px;height:224px;background-image:url('/assets/proc/props/smoke_plume.png');background-size:256px 224px;animation: f8-smoke_plume 0.67s steps(2) infinite;"></div></div>
+  <div class="cap"><b>smoke_plume</b> <span class="k">prop · 16x28 · 2f anim · walk-over</span></div>
+  <div class="desc">a column of smoke rolling up from something still burning</div>
+</div>
+<style>@keyframes f4-fire_small { to { background-position: -128px 0; } }@keyframes f8-fire_small { to { background-position: -256px 0; } }</style>
+<div class="card" data-tag="fire_small">
+  <div class="frames"><div class="sp checker" style="width:64px;height:64px;background-image:url('/assets/proc/props/fire_small.png');background-size:128px 64px;animation: f4-fire_small 0.67s steps(2) infinite;"></div><div class="sp checker" style="width:128px;height:128px;background-image:url('/assets/proc/props/fire_small.png');background-size:256px 128px;animation: f8-fire_small 0.67s steps(2) infinite;"></div></div>
+  <div class="cap"><b>fire_small</b> <span class="k">prop · 16x16 · light · 2f anim · walk-over</span></div>
+  <div class="desc">a small crackling ground fire on blackened logs</div>
+</div></div>
+</body></html>

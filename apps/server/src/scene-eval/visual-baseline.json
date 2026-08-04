@@ -1,0 +1,21 @@
+{
+  "building-house": {
+    "scores": {
+      "wallIntegrity": 3,
+      "openingSanity": 2.33,
+      "furnitureCoherence": 3,
+      "assetRichness": 4,
+      "overallFidelity": 3
+    },
+    "meanScore": 3.07,
+    "spread": {
+      "wallIntegrity": 0,
+      "openingSanity": 1,
+      "furnitureCoherence": 0,
+      "assetRichness": 0,
+      "overallFidelity": 0
+    },
+    "runs": 3,
+    "updatedAt": "2026-06-22T11:49:01.894Z"
+  }
+}

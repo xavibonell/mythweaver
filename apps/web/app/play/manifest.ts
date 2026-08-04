@@ -62,7 +62,7 @@ let loaded = false;
 // Cache-bust for served art. Browsers cache PNGs by URL; when we re-extract a tile in place the
 // URL is unchanged, so the stale cached image is served and asset swaps appear to do nothing.
 // Bump this whenever the extracted art changes to force a fresh fetch.
-const ASSET_VER = '12-shore-decals';
+const ASSET_VER = '49-polish'
 const bust = (u: string): string => `${u}?v=${ASSET_VER}`;
 
 /** Fetch assets/library.json from the server and fill the art tables. Idempotent. */
@@ -98,13 +98,24 @@ export function terrainSrcs(tag: string): string[] {
   return TERRAIN_SRCS[tag] ?? TERRAIN_SRCS[base] ?? TERRAIN_SRCS['grass'] ?? Object.values(TERRAIN_SRCS)[0] ?? [];
 }
 
+/** Fraction of cells that get a NON-base variant (variants[1..]). A field stays mostly its base
+ *  tile (variants[0]) with this share sprinkled as accents — natural break-up, not a 50/50
+ *  checkerboard. Equal-weight modulo of two contrasting fills reads as a regular pattern; a
+ *  base-dominant scatter reads as worn/patchy ground. */
+const ACCENT_SHARE = 0.22;
+
 /** The terrain tile image (texture key) for a cell, chosen among VARIANTS by seeded noise so a
- *  field of grass isn't one frame repeated (the checkerboard). The key IS the art src path. */
+ *  field of grass isn't one frame repeated (the checkerboard). variants[0] is the dominant base;
+ *  any further variants are sparse accents (≈ACCENT_SHARE of cells, split evenly). The key IS the
+ *  art src path. Single-variant terrains (the common case) always return that one tile. */
 export function terrainTileVariant(tag: string, col: number, row: number, seed: number): string {
   const srcs = terrainSrcs(tag);
   if (!srcs.length) {
     if (typeof console !== 'undefined') console.warn(`[manifest] no art for terrain '${tag}'`);
     return '';
   }
-  return srcs[cellHash(col, row, seed) % srcs.length]!;
+  if (srcs.length === 1) return srcs[0]!;
+  const h = cellHash(col, row, seed);
+  if ((h % 1000) / 1000 >= ACCENT_SHARE) return srcs[0]!; // base dominates
+  return srcs[1 + ((h >>> 10) % (srcs.length - 1))]!; // pick an accent (use higher bits than the gate)
 }

@@ -16,7 +16,13 @@
     "clean": "rm -rf dist *.tsbuildinfo"
   },
   "dependencies": {
+    "@mythweaver/llm": "*",
     "@mythweaver/shared": "*",
-    "@mythweaver/llm": "*"
+    "d3-delaunay": "^6.0.4",
+    "pngjs": "^7.0.0"
+  },
+  "devDependencies": {
+    "@types/d3-delaunay": "^6.0.4",
+    "@types/pngjs": "^6.0.5"
   }
 }

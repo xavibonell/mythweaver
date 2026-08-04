@@ -5,22 +5,64 @@
     "ancestry": "Human",
     "className": "Fighter",
     "level": 1,
-    "abilities": { "str": 16, "dex": 14, "con": 15, "int": 11, "wis": 13, "cha": 9 },
+    "abilities": {
+      "str": 16,
+      "dex": 14,
+      "con": 15,
+      "int": 11,
+      "wis": 13,
+      "cha": 9
+    },
     "proficiencyBonus": 2,
     "armorClass": 19,
     "maxHitPoints": 12,
     "speedFt": 30,
-    "skillProficiencies": ["athletics", "perception", "intimidation"],
-    "savingThrowProficiencies": ["str", "con"],
+    "skillProficiencies": [
+      "athletics",
+      "perception",
+      "intimidation"
+    ],
+    "savingThrowProficiencies": [
+      "str",
+      "con"
+    ],
     "attacks": [
-      { "name": "Longsword", "attackBonus": 5, "damage": "1d8+3", "damageType": "slashing", "reachOrRangeFt": 5, "notes": "Versatile (1d10) two-handed — forgoing the shield drops AC to 17." },
-      { "name": "Javelin", "attackBonus": 5, "damage": "1d6+3", "damageType": "piercing", "reachOrRangeFt": 30 }
+      {
+        "name": "Longsword",
+        "attackBonus": 5,
+        "damage": "1d8+3",
+        "damageType": "slashing",
+        "reachOrRangeFt": 5,
+        "notes": "Versatile (1d10) two-handed \u2014 forgoing the shield drops AC to 17."
+      },
+      {
+        "name": "Javelin",
+        "attackBonus": 5,
+        "damage": "1d6+3",
+        "damageType": "piercing",
+        "reachOrRangeFt": 30
+      }
     ],
     "features": [
-      { "name": "Fighting Style: Defense", "text": "+1 AC while wearing armor (already in AC 19)." },
-      { "name": "Second Wind", "text": "Bonus action, 1/short rest: regain 1d10+1 hit points." }
+      {
+        "name": "Fighting Style: Defense",
+        "text": "+1 AC while wearing armor (already in AC 19)."
+      },
+      {
+        "name": "Second Wind",
+        "text": "Bonus action, 1/short rest: regain 1d10+1 hit points."
+      }
     ],
-    "inventory": ["Chain mail", "Shield", "Longsword", "4 javelins", "Explorer's pack"]
+    "inventory": [
+      "Chain mail",
+      "Shield",
+      "Longsword",
+      "4 javelins",
+      "Explorer's pack"
+    ],
+    "startingCurrency": {
+      "gp": 15
+    }
   },
   {
     "id": "cleric",
@@ -28,30 +70,88 @@
     "ancestry": "Hill Dwarf",
     "className": "Cleric (Life Domain)",
     "level": 1,
-    "abilities": { "str": 13, "dex": 10, "con": 16, "int": 8, "wis": 16, "cha": 12 },
+    "abilities": {
+      "str": 13,
+      "dex": 10,
+      "con": 16,
+      "int": 8,
+      "wis": 16,
+      "cha": 12
+    },
     "proficiencyBonus": 2,
     "armorClass": 16,
     "maxHitPoints": 12,
     "speedFt": 25,
-    "skillProficiencies": ["insight", "medicine", "religion", "persuasion"],
-    "savingThrowProficiencies": ["wis", "cha"],
+    "skillProficiencies": [
+      "insight",
+      "medicine",
+      "religion",
+      "persuasion"
+    ],
+    "savingThrowProficiencies": [
+      "wis",
+      "cha"
+    ],
     "attacks": [
-      { "name": "Mace", "attackBonus": 3, "damage": "1d6+1", "damageType": "bludgeoning", "reachOrRangeFt": 5 },
-      { "name": "Light Crossbow", "attackBonus": 2, "damage": "1d8", "damageType": "piercing", "reachOrRangeFt": 80 }
+      {
+        "name": "Mace",
+        "attackBonus": 3,
+        "damage": "1d6+1",
+        "damageType": "bludgeoning",
+        "reachOrRangeFt": 5
+      },
+      {
+        "name": "Light Crossbow",
+        "attackBonus": 2,
+        "damage": "1d8",
+        "damageType": "piercing",
+        "reachOrRangeFt": 80
+      }
     ],
     "spellcasting": {
       "ability": "wis",
       "spellSaveDc": 13,
       "spellAttackBonus": 5,
-      "slots": [0, 2],
-      "cantrips": ["Sacred Flame", "Guidance", "Light"],
-      "prepared": ["Cure Wounds", "Healing Word", "Bless", "Guiding Bolt"]
+      "slots": [
+        0,
+        2
+      ],
+      "cantrips": [
+        "Sacred Flame",
+        "Guidance",
+        "Light"
+      ],
+      "prepared": [
+        "Cure Wounds",
+        "Healing Word",
+        "Bless",
+        "Guiding Bolt"
+      ],
+      "rituals": [
+        "Detect Magic",
+        "Purify Food and Drink"
+      ]
     },
     "features": [
-      { "name": "Disciple of Life", "text": "A healing spell of 1st level or higher restores +2 + the spell's level extra HP." },
-      { "name": "Dwarven Resilience", "text": "Advantage on saves vs. poison; resistance to poison damage." }
+      {
+        "name": "Disciple of Life",
+        "text": "A healing spell of 1st level or higher restores +2 + the spell's level extra HP."
+      },
+      {
+        "name": "Dwarven Resilience",
+        "text": "Advantage on saves vs. poison; resistance to poison damage."
+      }
     ],
-    "inventory": ["Chain mail", "Mace", "Light crossbow + 20 bolts", "Holy symbol", "Priest's pack"]
+    "inventory": [
+      "Chain mail",
+      "Mace",
+      "Light crossbow + 20 bolts",
+      "Holy symbol",
+      "Priest's pack"
+    ],
+    "startingCurrency": {
+      "gp": 15
+    }
   },
   {
     "id": "rogue",
@@ -59,22 +159,66 @@
     "ancestry": "Lightfoot Halfling",
     "className": "Rogue",
     "level": 1,
-    "abilities": { "str": 8, "dex": 17, "con": 13, "int": 12, "wis": 10, "cha": 15 },
+    "abilities": {
+      "str": 8,
+      "dex": 17,
+      "con": 13,
+      "int": 12,
+      "wis": 10,
+      "cha": 15
+    },
     "proficiencyBonus": 2,
     "armorClass": 14,
     "maxHitPoints": 9,
     "speedFt": 25,
-    "skillProficiencies": ["stealth", "perception", "investigation", "acrobatics", "deception"],
-    "savingThrowProficiencies": ["dex", "int"],
+    "skillProficiencies": [
+      "stealth",
+      "perception",
+      "investigation",
+      "acrobatics",
+      "deception"
+    ],
+    "savingThrowProficiencies": [
+      "dex",
+      "int"
+    ],
     "attacks": [
-      { "name": "Shortbow", "attackBonus": 5, "damage": "1d6+3", "damageType": "piercing", "reachOrRangeFt": 80 },
-      { "name": "Shortsword", "attackBonus": 5, "damage": "1d6+3", "damageType": "piercing", "reachOrRangeFt": 5, "notes": "Finesse." }
+      {
+        "name": "Shortbow",
+        "attackBonus": 5,
+        "damage": "1d6+3",
+        "damageType": "piercing",
+        "reachOrRangeFt": 80
+      },
+      {
+        "name": "Shortsword",
+        "attackBonus": 5,
+        "damage": "1d6+3",
+        "damageType": "piercing",
+        "reachOrRangeFt": 5,
+        "notes": "Finesse."
+      }
     ],
     "features": [
-      { "name": "Sneak Attack (1d6)", "text": "Once per turn, +1d6 damage on a hit with advantage, or when an ally is adjacent to the target." },
-      { "name": "Expertise", "text": "Double proficiency on Stealth and Investigation." }
+      {
+        "name": "Sneak Attack (1d6)",
+        "text": "Once per turn, +1d6 damage on a hit with advantage, or when an ally is adjacent to the target."
+      },
+      {
+        "name": "Expertise",
+        "text": "Double proficiency on Stealth and Investigation."
+      }
     ],
-    "inventory": ["Leather armor", "Shortbow + 20 arrows", "Two shortswords", "Thieves' tools", "Burglar's pack"]
+    "inventory": [
+      "Leather armor",
+      "Shortbow + 20 arrows",
+      "Two shortswords",
+      "Thieves' tools",
+      "Burglar's pack"
+    ],
+    "startingCurrency": {
+      "gp": 12
+    }
   },
   {
     "id": "wizard",
@@ -82,29 +226,86 @@
     "ancestry": "High Elf",
     "className": "Wizard",
     "level": 1,
-    "abilities": { "str": 8, "dex": 14, "con": 13, "int": 16, "wis": 11, "cha": 10 },
+    "abilities": {
+      "str": 8,
+      "dex": 14,
+      "con": 13,
+      "int": 16,
+      "wis": 11,
+      "cha": 10
+    },
     "proficiencyBonus": 2,
     "armorClass": 12,
     "maxHitPoints": 8,
     "speedFt": 30,
-    "skillProficiencies": ["arcana", "history", "investigation"],
-    "savingThrowProficiencies": ["int", "wis"],
+    "skillProficiencies": [
+      "arcana",
+      "history",
+      "investigation"
+    ],
+    "savingThrowProficiencies": [
+      "int",
+      "wis"
+    ],
     "attacks": [
-      { "name": "Fire Bolt", "attackBonus": 5, "damage": "1d10", "damageType": "fire", "reachOrRangeFt": 120, "notes": "Cantrip." },
-      { "name": "Dagger", "attackBonus": 4, "damage": "1d4+2", "damageType": "piercing", "reachOrRangeFt": 20, "notes": "Finesse, thrown." }
+      {
+        "name": "Fire Bolt",
+        "attackBonus": 5,
+        "damage": "1d10",
+        "damageType": "fire",
+        "reachOrRangeFt": 120,
+        "notes": "Cantrip."
+      },
+      {
+        "name": "Dagger",
+        "attackBonus": 4,
+        "damage": "1d4+2",
+        "damageType": "piercing",
+        "reachOrRangeFt": 20,
+        "notes": "Finesse, thrown."
+      }
     ],
     "spellcasting": {
       "ability": "int",
       "spellSaveDc": 13,
       "spellAttackBonus": 5,
-      "slots": [0, 2],
-      "cantrips": ["Fire Bolt", "Mage Hand", "Light"],
-      "prepared": ["Magic Missile", "Shield", "Sleep", "Burning Hands"]
+      "slots": [
+        0,
+        2
+      ],
+      "cantrips": [
+        "Fire Bolt",
+        "Mage Hand",
+        "Light"
+      ],
+      "prepared": [
+        "Magic Missile",
+        "Shield",
+        "Sleep",
+        "Burning Hands"
+      ],
+      "rituals": [
+        "Detect Magic",
+        "Identify",
+        "Comprehend Languages"
+      ]
     },
     "features": [
-      { "name": "Arcane Recovery", "text": "Once/day on a short rest, recover spell slots totaling up to half your wizard level (rounded up)." }
+      {
+        "name": "Arcane Recovery",
+        "text": "Once/day on a short rest, recover spell slots totaling up to half your wizard level (rounded up)."
+      }
     ],
-    "inventory": ["Spellbook", "Quarterstaff", "Two daggers", "Component pouch", "Scholar's pack"]
+    "inventory": [
+      "Spellbook",
+      "Quarterstaff",
+      "Two daggers",
+      "Component pouch",
+      "Scholar's pack"
+    ],
+    "startingCurrency": {
+      "gp": 10
+    }
   },
   {
     "id": "ranger",
@@ -112,22 +313,64 @@
     "ancestry": "Wood Elf",
     "className": "Ranger",
     "level": 1,
-    "abilities": { "str": 12, "dex": 16, "con": 14, "int": 10, "wis": 14, "cha": 10 },
+    "abilities": {
+      "str": 12,
+      "dex": 16,
+      "con": 14,
+      "int": 10,
+      "wis": 14,
+      "cha": 10
+    },
     "proficiencyBonus": 2,
     "armorClass": 15,
     "maxHitPoints": 12,
     "speedFt": 35,
-    "skillProficiencies": ["survival", "perception", "stealth", "nature"],
-    "savingThrowProficiencies": ["str", "dex"],
+    "skillProficiencies": [
+      "survival",
+      "perception",
+      "stealth",
+      "nature"
+    ],
+    "savingThrowProficiencies": [
+      "str",
+      "dex"
+    ],
     "attacks": [
-      { "name": "Longbow", "attackBonus": 5, "damage": "1d8+3", "damageType": "piercing", "reachOrRangeFt": 150 },
-      { "name": "Shortsword", "attackBonus": 5, "damage": "1d6+3", "damageType": "piercing", "reachOrRangeFt": 5, "notes": "Finesse." }
+      {
+        "name": "Longbow",
+        "attackBonus": 5,
+        "damage": "1d8+3",
+        "damageType": "piercing",
+        "reachOrRangeFt": 150
+      },
+      {
+        "name": "Shortsword",
+        "attackBonus": 5,
+        "damage": "1d6+3",
+        "damageType": "piercing",
+        "reachOrRangeFt": 5,
+        "notes": "Finesse."
+      }
     ],
     "features": [
-      { "name": "Favored Enemy", "text": "Advantage on Survival to track and Intelligence checks to recall info about the chosen enemy type." },
-      { "name": "Natural Explorer", "text": "Doubled proficiency on Intelligence/Wisdom checks tied to favored terrain." }
+      {
+        "name": "Favored Enemy",
+        "text": "Advantage on Survival to track and Intelligence checks to recall info about the chosen enemy type."
+      },
+      {
+        "name": "Natural Explorer",
+        "text": "Doubled proficiency on Intelligence/Wisdom checks tied to favored terrain."
+      }
     ],
-    "inventory": ["Studded leather", "Longbow + 20 arrows", "Two shortswords", "Explorer's pack"]
+    "inventory": [
+      "Studded leather",
+      "Longbow + 20 arrows",
+      "Two shortswords",
+      "Explorer's pack"
+    ],
+    "startingCurrency": {
+      "gp": 12
+    }
   },
   {
     "id": "barbarian",
@@ -135,22 +378,61 @@
     "ancestry": "Half-Orc",
     "className": "Barbarian",
     "level": 1,
-    "abilities": { "str": 16, "dex": 14, "con": 16, "int": 8, "wis": 10, "cha": 9 },
+    "abilities": {
+      "str": 16,
+      "dex": 14,
+      "con": 16,
+      "int": 8,
+      "wis": 10,
+      "cha": 9
+    },
     "proficiencyBonus": 2,
     "armorClass": 15,
     "maxHitPoints": 15,
     "speedFt": 30,
-    "skillProficiencies": ["athletics", "intimidation", "survival"],
-    "savingThrowProficiencies": ["str", "con"],
+    "skillProficiencies": [
+      "athletics",
+      "intimidation",
+      "survival"
+    ],
+    "savingThrowProficiencies": [
+      "str",
+      "con"
+    ],
     "attacks": [
-      { "name": "Greataxe", "attackBonus": 5, "damage": "1d12+3", "damageType": "slashing", "reachOrRangeFt": 5 },
-      { "name": "Javelin", "attackBonus": 5, "damage": "1d6+3", "damageType": "piercing", "reachOrRangeFt": 30 }
+      {
+        "name": "Greataxe",
+        "attackBonus": 5,
+        "damage": "1d12+3",
+        "damageType": "slashing",
+        "reachOrRangeFt": 5
+      },
+      {
+        "name": "Javelin",
+        "attackBonus": 5,
+        "damage": "1d6+3",
+        "damageType": "piercing",
+        "reachOrRangeFt": 30
+      }
     ],
     "features": [
-      { "name": "Rage", "text": "Bonus action, 2/day: advantage on Strength checks/saves, +2 melee damage, resistance to bludgeoning/piercing/slashing." },
-      { "name": "Unarmored Defense", "text": "AC = 10 + Dex mod + Con mod when not wearing armor (AC 15)." }
+      {
+        "name": "Rage",
+        "text": "Bonus action, 2/day: advantage on Strength checks/saves, +2 melee damage, resistance to bludgeoning/piercing/slashing."
+      },
+      {
+        "name": "Unarmored Defense",
+        "text": "AC = 10 + Dex mod + Con mod when not wearing armor (AC 15)."
+      }
     ],
-    "inventory": ["Greataxe", "Four javelins", "Explorer's pack"]
+    "inventory": [
+      "Greataxe",
+      "Four javelins",
+      "Explorer's pack"
+    ],
+    "startingCurrency": {
+      "gp": 10
+    }
   },
   {
     "id": "bard",

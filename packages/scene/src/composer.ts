@@ -44,6 +44,45 @@ const LIGHTINGS = new Set<Lighting>(['day', 'dusk', 'night']);
 
 /** Map a free-text NPC/creature look to a catalog character tag. Animals + monsters + people. */
 const LOOK_SYNONYMS: [RegExp, string][] = [
+  // FORGE additions — most specific first so they beat the older generic rows below.
+  // batch-2 biome beasts (before the generic deer/rabbit/frog/wolf buckets):
+  [/winter wolf|frost wolf|white wolf/, 'wolf_winter'],
+  [/snow hare|arctic hare/, 'hare_snow'],
+  [/snowy owl|\bowl\b/, 'owl_snowy'],
+  [/\bcamel\b|dromedary/, 'camel'],
+  [/\bjackal\b/, 'jackal'],
+  [/\bvulture\b|carrion bird/, 'vulture'],
+  [/scorpion/, 'scorpion_giant'],
+  [/crocodile|alligator|\bgator\b/, 'crocodile'],
+  [/giant frog|bullfrog/, 'frog_giant'],
+  [/\bheron\b|\bcrane\b|\begret\b/, 'heron'],
+  [/fire salamander|\bsalamander\b/, 'salamander_fire'],
+  [/magma crawler|lava crawler/, 'magma_crawler'],
+  [/cave beetle|giant beetle|\bbeetle\b/, 'beetle_cave'],
+  [/\bstag\b|\belk\b/, 'stag'],
+  [/\bhare\b/, 'hare'],
+  [/\bbadger\b|wolverine/, 'badger'],
+  [/dracolich|bone.?dragon|skeletal dragon|undead dragon/, 'dragon_bone'],
+  [/black dragon|swamp dragon|acid dragon/, 'dragon_black'],
+  [/red dragon|great dragon|ancient dragon|fire dragon|wyrm|drake\b/, 'dragon_red'],
+  [/drowned|waterlogged|risen from the (water|lake|reservoir)/, 'drowned_dead'],
+  [/banshee|wailing (spirit|woman)/, 'banshee'],
+  [/vampire|nosferatu/, 'vampire'],
+  [/werewolf|wolf.?man|lycan/, 'werewolf'],
+  [/skeleton king|skeletal (king|lord)|crowned skeleton/, 'skeleton_king'],
+  [/necromancer/, 'necromancer'],
+  [/mimic/, 'mimic'],
+  [/\bdemon\b|\bfiend\b/, 'demon'],
+  [/treant|tree.?man|walking tree|ent\b/, 'treant'],
+  [/giant (snake|serpent)|serpent/, 'serpent_giant'],
+  [/cultist|hooded (figure|acolyte)/, 'cultist'],
+  [/witch|hag\b/, 'witch'],
+  [/\bbear\b|grizzly/, 'bear'],
+  [/\bboar\b|wild pig/, 'boar'],
+  [/\bsnake\b|adder|viper/, 'snake'],
+  [/raven|crow\b|blackbird/, 'raven'],
+  [/\bbat\b/, 'bat'],
+  [/\bfox\b|vixen/, 'fox'],
   // animals
   [/chicken|hen|rooster|fowl|poultry/, 'chicken'],
   [/duck|goose|geese|gull|waterfowl/, 'duck'],
@@ -57,24 +96,50 @@ const LOOK_SYNONYMS: [RegExp, string][] = [
   [/deer|stag|doe|elk|fawn/, 'deer'],
   [/rabbit|hare|bunny/, 'rabbit'],
   [/crab|lobster|crayfish/, 'crab'],
-  // monsters
+  // monsters — SPECIFIC new-roster tags FIRST (first match wins, so multiword/qualified forms must
+  // precede the generic buckets below; this is what makes "a hulking ogre" / "a town guard" resolve to
+  // the exact sprite instead of collapsing into goblin/knight the way the old table did).
+  [/orc shaman|orc witch|orc priest|orc wizard|orc warlock/, 'orc_shaman'],
+  [/hobgoblin/, 'hobgoblin'],
+  [/bugbear/, 'bugbear'],
+  [/kobold/, 'kobold'],
+  [/\bimp\b/, 'imp'],
+  [/bone devil|\bdevil\b/, 'devil_bone'],
+  [/ogre/, 'ogre'],
+  [/troll/, 'troll'],
+  [/minotaur/, 'minotaur'],
+  [/cyclops/, 'cyclops'],
+  [/ettin/, 'ettin'],
+  [/giant spider|dire spider/, 'spider_giant'],
+  [/giant rat|dire rat|giant vermin|sewer rat|\brat\b/, 'rat_giant'],
+  [/frost giant|ice giant|snow giant/, 'giant_frost'],
+  [/stone giant|earth giant|rock giant/, 'giant_stone'],
+  [/giants?|hill giant|fire giant|storm giant|cloud giant/, 'giant_hill'],
+  [/lich/, 'lich'],
+  [/mummy|mummified/, 'mummy'],
+  [/ghoul/, 'ghoul'],
+  [/wraith|\bwight\b|revenant|specter|spectre/, 'wraith'],
+  [/ghost|phantom|apparition|spectral|poltergeist|banshee|\bspirit\b/, 'ghost'],
+  // generic monster buckets (fallbacks reached only when no specific tag above matched)
   [/orc/, 'orc'],
-  [/goblin|kobold|imp/, 'goblin'],
+  [/goblin/, 'goblin'],
   [/skeleton|skeletal|bones/, 'skeleton'],
-  [/zombie|undead|ghoul|corpse|drowned|risen|wight/, 'zombie'],
+  [/zombie|undead|corpse|drowned|risen/, 'zombie'],
   [/slime|ooze|jelly|blob/, 'slime'],
   [/wolf|warg|jackal|hyena/, 'wolf'],
   [/spider|arachnid/, 'spider'],
   [/dragon|wyrm|drake|wyvern/, 'dragon'],
-  // people / adventurers
+  // people / adventurers (guard & bandit split out to their own sprites; both precede knight/rogue)
   [/dwarf|dwarves|dwarven/, 'dwarf'],
-  [/knight|guard|soldier|warrior|fighter|paladin|sentry|sentinel|militia|man-at-arms/, 'knight'],
+  [/town guard|city guard|\bguard\b|sentry|sentinel|watchman|watchmen|warden|gatekeeper|militia/, 'guard'],
+  [/bandit|brigand|outlaw|highwayman|highwaywoman|marauder|footpad/, 'bandit'],
+  [/knight|soldier|warrior|fighter|paladin|man-at-arms/, 'knight'],
   [/wizard|mage|witch|sorcer|priest|cleric|druid|shaman|enchant|conjur|warlock/, 'wizard'],
   [/ranger|hunter|scout|elf|archer|woodsman|forester/, 'ranger'],
-  [/rogue|thief|spy|assassin|robber|bandit|smuggler|brigand|cutpurse|burglar/, 'rogue'],
+  [/rogue|thief|spy|assassin|robber|smuggler|cutpurse|burglar/, 'rogue'],
   [/woman|girl|lady|matron|maiden|fisherwoman|maid|wife|widow|crone|grandmother/, 'villager_woman'],
 ];
-function lookToSprite(look: string): string {
+export function lookToSprite(look: string): string {
   const r = look.toLowerCase();
   for (const [re, tag] of LOOK_SYNONYMS) if (re.test(r) && isCharacter(tag)) return tag;
   return 'villager';
@@ -88,9 +153,9 @@ function lookToSprite(look: string): string {
  *   settlement — a built-up place with structures (village, town, market, plaza)
  *   wild       — open nature (forest, coast, beach, plains, meadow, desert, swamp, …) ← the default
  */
-type SceneKind = 'interior' | 'settlement' | 'wild';
+export type SceneKind = 'interior' | 'settlement' | 'wild';
 const GRAMMAR_BY_KIND: Record<SceneKind, LayoutGrammar> = { interior: 'enclosed-interior', settlement: 'town-square', wild: 'open-outdoor' };
-function sceneKindOf(e: CompositionRequest['establish']): SceneKind {
+export function sceneKindOf(e: CompositionRequest['establish']): SceneKind {
   const biome = (e.brief.biome ?? '').toLowerCase();
   const setting = (e.brief.setting ?? '').toLowerCase();
   // Interior is the one kind the biome enum names reliably (cave/dungeon), so read biome + setting.
@@ -284,11 +349,28 @@ function clampInt(v: unknown, min: number, max: number, dflt: number): number {
  * matters — the specific types (tavern/smithy/temple/shop) win over the generic 'house'.
  */
 const BUILDING_TAG_TYPE: [RegExp, BuildingType][] = [
-  [/tavern|inn|alehouse|pub|brewery|lodge/, 'tavern'],
-  [/smith|forge|foundry|blacksmith|workshop/, 'smithy'],
-  [/temple|shrine|church|chapel|cathedral|sanctuary|abbey|monastery/, 'temple'],
-  [/shop|store|market.?house|emporium|trading.?post|apothecary|bakery|butcher|tailor|bank|guildhall|general.?store/, 'shop'],
-  [/house|home|cottage|hut|cabin|hovel|shack|dwelling|residence|longhouse|manor|hall|farmhouse|barn|mill|tower/, 'house'],
+  // specific NEW types first (first match wins) so they don't get swallowed by the generic tavern/temple/shop lines.
+  [/\b(inn|lodging|hostel)\b/, 'inn'],
+  [/tavern|alehouse|pub|brewery|tap.?house|lodge/, 'tavern'],
+  [/smith|forge|foundry|blacksmith|anvil/, 'smithy'],
+  [/cathedral|minster|basilica|abbey|monastery/, 'cathedral'],
+  [/temple|shrine|church|chapel|sanctuary/, 'temple'],
+  [/jail|gaol|prison|cell.?block|gallows/, 'jail'],
+  [/vault|treasury|strong.?room|hoard|reliquary/, 'vault'],
+  [/keep|castle|fortress|citadel|great.?hall|throne/, 'keep'],
+  [/library|archive|scriptorium|bookshop/, 'library'],
+  [/armou?ry|arsenal|guard.?house|watch.?post/, 'armory'],
+  [/barracks|garrison|dormitory|bunk/, 'barracks'],
+  [/guild.?hall|guild.?house/, 'guildhall'],
+  [/goblin|warren|kobold|monster.?(lair|den)|lair|den/, 'goblin_warren'],
+  [/manor|estate|mansion|villa|chateau/, 'manor'],
+  [/tomb|mausoleum|crypt|sepulchre|sepulcher|barrow|catacomb/, 'tomb'],
+  [/court.?house|court.?room|moot.?hall|town.?hall|magistrate/, 'courthouse'],
+  [/workshop|carpenter|joiner|cooper|wright|fletcher/, 'workshop'],
+  [/curio|pawn.?shop|oddities|curiosity|fence/, 'curio'],
+  [/general.?store|provisioner|trading.?post|apothecary|emporium|sundr/, 'general_store'],
+  [/shop|store|market.?house|bakery|butcher|tailor|bank/, 'shop'],
+  [/house|home|cottage|hut|cabin|hovel|shack|dwelling|residence|longhouse|farmhouse|barn|mill|tower/, 'house'],
 ];
 function buildingTypeOf(tag: string): BuildingType | null {
   const r = tag.toLowerCase().replace(/_/g, ' ');
@@ -440,6 +522,13 @@ function buildComposition(req: CompositionRequest, hints: CompositionHints): Sce
   if (grammar === 'town-square') {
     gridCols = Math.min(GRID_LIMITS.maxCols, Math.max(24, gridCols));
     gridRows = Math.min(GRID_LIMITS.maxRows, Math.max(16, gridRows));
+  }
+  // LARGE (Lab/perf): floor to a big grid so the renderer + pan/zoom camera exercise at scale. The
+  // Director's small painted blockout fills the top-left; the Cartographer fills the rest with base
+  // terrain + spreads buildings/greenery across it. (Stepping-stone toward the district city.)
+  if (req.large) {
+    gridCols = Math.min(GRID_LIMITS.maxCols, Math.max(gridCols, 60));
+    gridRows = Math.min(GRID_LIMITS.maxRows, Math.max(gridRows, 40));
   }
 
   // BUILDINGS: in a settlement, a fixture whose tag names a STRUCTURE (smithy/tavern/cottage/…)

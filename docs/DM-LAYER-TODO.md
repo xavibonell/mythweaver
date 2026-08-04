@@ -15,6 +15,84 @@ knob, and a **Distill** tab. CLI mirror: `npm run dm:lab`. Regression gate: `npm
 
 ---
 
+## ★ Architecture review verdict (2026-07-05) — "right chassis, thin payload"
+
+A 16-agent research review (tabletop craft theory · academic drama managers · commercial AI GMs ·
+LLM narrative-consistency research; three adversarial critiques; three candidate architectures;
+three judges) asked: **is the current layered stack the optimal path to a hand-crafted, organic,
+turn-by-turn-coherent tabletop experience?** Verdict: **yes — do NOT change the skeleton.** The whole
+field independently converged on our exact shape (engine owns every number; narrator DM re-grounded
+each turn from external state; offers-only Director behind coercion-hardened seams; persona-as-data;
+Fake fallbacks; lab trace). Commercial survivors (Hidden Door, Friends & Fables) ship the same
+engine-authoritative split as their moat; the drift literature (~39% multi-turn degradation across
+all frontier models, arXiv:2505.06120) proves consistency **must** live in deterministic scaffolding
+outside the model — which we already have.
+
+**The gap is the PAYLOAD, not the architecture.** Hand-crafted feel = three signals players detect
+within a session, and the current content model structurally deletes all three:
+- **Persistence** — NPC voices, gifted items, sworn promises, player-coined facts evaporate past the
+  12-line transcript window (no legal home in state; `setArcFlag` admits only `decision|beat|npc`).
+- **Pressure** — "clocks" are advisory prose that nothing ticks, so the world provably freezes when
+  players idle.
+- **Payoff** — `decision:` flags are written but **nothing ever consumes them**, so the ending
+  (fixed before turn 1) cannot echo the table's own play.
+
+### The program (each phase independently valuable; deterministic eval gates ride EVERY phase)
+
+- **P0 — State-truth sprint (days).** Fix the blocks that already lie, before stacking new "never
+  contradict" context beside them. `endCombat` lifecycle (`combat.active` is set in `startCombat` and
+  **never cleared** — verified bug; post-fight turns assert phantom combat with dead foes "present"
+  AND route every turn to the expensive `adjudication` model); despawn defeated foes; render the
+  write-only `npc:*` flags into steering; replan on decision *value* flips (not just key-count);
+  stamp beat outcome (`resolved`/`fled`); empty-exits ⇒ terminal; filter roll-traffic from the recent
+  window; **roll-resume rebuilds fresh steering/state instead of replaying frozen history** (subtle —
+  its own careful pass). Re-pin the stale eval baseline first.
+- **P1 — Canon Ledger (1–2 wks, transformative).** `EntityCard {id, kind, aliases, voice{tic,want,
+  fear}, status (absorbing states)}` + append-only `FactRow`s with a contradiction gate + `Plant`s
+  (planted→echoed→fired). Deterministic keyword/alias CANON injection per turn (≤600 tok, $0). Sync
+  DM tools `recordFact`/`upsertNpc`. Composer seeds cast (every NPC named in beat prose) + 2–4 plants.
+  **No async archivist yet** — a wrong fact rendered as canon is gaslighting, worse than forgetting;
+  it ships last, gated on a precision eval. This is also the §7 memory tier + the D3 (cross-session)
+  substrate. *Exit: NPC introduced turn 3 returns turn 18 with the same voice; the silver key from
+  turn 5 opens the door at turn 30.*
+- **P2 — Fronts + engine-owned ticks (1 wk).** Composer emits 1–2 fronts {danger, impulse, portents,
+  doom = north-star's failure shading}; the **engine** advances a `front:<id>:step` counter on
+  deterministic triggers (advanceScene; turnsInScene ≥ K, suppressed when ledger facts show the party
+  engaging the front's cast); portent prose renders as established WORLD truth. Delete advisory
+  `ArcBrief.clocks[]`. Kills the frozen-world tell (the field's prescribed fix for a hint-only
+  Director, measured near-zero-effect: Nelson & Mateas 2008).
+- **P3 — Storylets + PC hooks + situation-beats (1–2 wks).** A pool of 10–16 flag-gated situation
+  fragments (side scenes, NPC beats, foreshadowing, downtime, PC-hook scenes); engine-side eligibility
+  as a pure fn over flags; planner salience-picks ≤2 as offers via the candidate-id filter (the
+  `exitIds` pattern); payoffs applied deterministically on `storylet:<id>=played`. Party sheets gain
+  `bondNpc`/`personalSecret`/`desiredItem`, cross-wired by the Composer/validator. Beats become
+  situations: `cast` refs + `tension` + `ifIdle`; summaries reframed to stakes + terrain; playbook
+  "narrate from actor goals, not from a beat summary." *The spared goblin returns because a storylet
+  was gated on `decision:goblin=spared` — the cheapest "authored-for-us" move.*
+- **P4 — Living endings + variety.** Replace the single `intendedEnding` with `{doom + 2–3 intercept
+  endings}` keyed to how players engaged; the Planner may rewrite **UNVISITED** beats/exits only
+  (never anything `done`, ledgered, or transcript-named); three-clue revelation validator (a
+  gate-load-bearing fact needs ≥3 clues across ≥2 holders); Composer variety axes + motif palette +
+  "leave-blanks" preference so the 2nd/3rd generated campaign doesn't share one skeleton.
+
+**Cross-cutting:** deterministic eval gates ride each phase (re-pin the stale baseline *first*); a
+single **prompt-budget arbiter** owns per-turn block order + caps (required ≤~70%, CANON ~600 tok,
+≤3 NPC cards, total ≤ current +~900 input tokens). Whole program ≈ **+$0.01/turn**, zero locked
+constraints touched.
+
+**Deliberately REJECTED** (with reasons): full NPC agent-simulation (cost + drift for marginal gain —
+the lesson is the ledger *shape*, not 25 simulated minds); MemGPT/Letta memory-OS (measured worse:
+48% vs simple extract-validate-write 67% on LoCoMo); embeddings-first retrieval as v1 (keyword/alias
+beats semantic for game facts — Franz's production finding); bigger context windows (story text always
+outgrows any window — the AI Dungeon lesson); option-menu input (violates free agency); online
+drama-manager search (15 yrs of negative results; keep only the offline eval function); fine-tuning
+(locked); party-splitting (deferred non-goal); building D3 before the ledger exists.
+
+Full report archived at
+`tasks/w5o4xwpgb.output` (this session's scratch); see [[game-director-arc-design]] memory.
+
+---
+
 ## ✅ Phase A — Foundation + the tuning loop (DONE)
 
 - [x] **Orchestrator turn-loop** (`apps/server/src/orchestrator.ts`): cacheable playbook system prompt + per-turn state/adventure block; tools `getState` / `requestRoll` / `lookupRule` / `setScene`; physical-dice suspend/resume. Rules fidelity is **structural** — the engine decides success via `validateDeclaredRoll(dc)`; the DM cannot fabricate an outcome.
@@ -126,11 +204,32 @@ namespace is **never** merged with the quotable rules corpus and is **never** re
 - **Leakage check:** assert retrieved-exemplar proper nouns don't appear in the narration.
 
 ### Tickets (checklist for when we pick this up)
-- [ ] **B1** — `scripts/ingest-exemplars.mjs`: parse → filter → tag → anonymize → chunk → embed → write `content/exemplars/*.{jsonl,vectors.jsonl}`.
-- [ ] **B2** — `exemplar-corpus.ts` loader + retriever; `MYTHWEAVER_EXEMPLARS` env + dir.
-- [ ] **B3** — orchestrator injection (`OrchestratorDeps.exemplarRetriever`; retrieve from `sceneSummary+playerInput`; inject under the guarded header). Wire in `index.ts`, `dm-lab.ts`, `eval/runner.ts`.
-- [ ] **B4** — playbook directive + DM Lab trace shows retrieved exemplars + on/off toggle.
-- [ ] **B5** — eval A/B (exemplars on/off) + leakage check; re-pin baseline.
+- [x] **B1** (2026-07-07) — `scripts/ingest-exemplars.mjs`: parse → exchange windows (player `cue` + DM
+      beat — the rhythm is half the lesson) → heuristic tag → deterministic sample → LLM curation
+      (keep/drop + anonymize-BY-REWRITE, never placeholders + strip verdicts) → embed. Testable core in
+      `apps/server/src/exemplar-ingest.ts`; `--dry-run` = $0. First run: 18 CR3 episodes → 7,493 clean
+      beats → 1,914 candidates → **1,087 curated exemplars** (~$3.65), 0 proper-noun leaks spot-checked.
+      Corpus gitignored (`content/exemplars/`).
+- [x] **B2** — `exemplar-corpus.ts`: `ExemplarRetriever.retrieve(query, k, moveType?, exclude?)` —
+      semantic cosine with BM25 fallback; separate namespace (never lookupRule); `MYTHWEAVER_EXEMPLARS(=off)` + `_DIR`.
+- [x] **B3** — orchestrator injection: `deps.exemplars` + deterministic `predictMoveType` (opening→scene-set,
+      combat→combat-beat, short "?"→short-answer), k=2 in the per-turn block under the guarded header;
+      session de-dup via `excludeExemplarIds`; `TurnResult.exemplars`. Wired in `index.ts` (lab + play
+      API), `dm-lab.ts`, `eval/runner.ts`. NOTE: message/opening branch only — roll-RESUME turns replay
+      opaque history; injecting there is a deferred refinement.
+- [x] **B4** — playbook directive (+ a Technique-A distilled `## VOICE` refresh from E1–E2) + lab
+      per-turn 🎭 trace + session on/off toggle. Live A/B verified: same question — OFF = 4-paragraph
+      LLM shape; ON (2× short-answer exemplars fired) = "Thin at this hour." — the human register.
+- [x] **B5** (2026-07-07, ~$3.5) — A/B run + rubric realigned + baseline re-pinned. Findings: (1) the OLD
+      rubric rewarded "vivid" prose and penalized the human register — style/pacing descriptors rewritten
+      to "length matched to the beat / terse IS good pacing"; (2) exemplars occasionally crowded out tool
+      discipline (skipped lookupRule / requestRoll) — fixed by the injection header subordinating them
+      ("PROSE ONLY… tools FIRST"), after which those flakes cleared (15/16 across 2 runs; the 1 remaining
+      fail is a pre-existing combat-setup variance, startEncounter without the follow-up attack roll).
+      Baseline re-pinned under the new rubric, exemplars ON, EVAL_RUNS=2: rules 3.13 · source 3.69 ·
+      style 3.06 · pacing 2.75 · coherence 4.00 · agency 3.63 (reference under a stricter yardstick, not a
+      grade — gate = >0.4 drop). Leakage: corpus-level check (0 CR proper nouns in 1,087 exemplars) stands
+      in for a runtime assertion; a per-run narration leak-grep is a cheap future add.
 
 ### Dependencies / notes
 Needs an embeddings key (OpenAI/Voyage — already configured for the rules RAG). Reuses the

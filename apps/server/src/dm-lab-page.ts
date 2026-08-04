@@ -14,7 +14,7 @@
 import type { LabTurn } from './dm-lab.js';
 
 /** Render the page. `transcripts` are injected so the UI can offer one-click presets. */
-export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string {
+export function renderDmLabPage(transcripts: Record<string, LabTurn[]>, liveTableBase = 'http://localhost:6985'): string {
   const transcriptsJson = JSON.stringify(transcripts);
   return `<!doctype html>
 <html lang="en">
@@ -156,10 +156,12 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
   .pill.stale { background: #38301a; color: #e8c98a; border: 1px solid #7b6a2e; }
   .pill.fallback { background: #38141d; color: #f0a6b0; border: 1px solid #5a2630; }
   .gen-badge .det { color: #8b90a0; }
-  .prow { display: flex; gap: 6px; align-items: center; margin-bottom: 6px; }
-  .prow select { flex: 0 0 116px; }
-  .prow input { flex: 1; min-width: 0; }
+  .prow { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; }
+  .prow-top { display: flex; gap: 6px; align-items: center; }
+  .prow-top select { flex: 0 0 116px; }
+  .prow-top .pname { flex: 1; min-width: 0; }
   .prow .premove { padding: 6px 9px; color: #c08; }
+  .prow .pback { width: 100%; min-height: 30px; resize: vertical; font: 12px/1.4 ui-sans-serif, system-ui; }
   .radiorow, .ckrow { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: #c7ccda; margin: 0; cursor: pointer; }
   .ckrow { margin-top: 6px; }
   .mon-lib { display: flex; flex-wrap: wrap; gap: 6px; max-height: 150px; overflow: auto; }
@@ -186,6 +188,55 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
   .empty-state { color: #6b7080; padding: 40px 0; text-align: center; }
   .spin { display: inline-block; width: 13px; height: 13px; border: 2px solid #ffffff60; border-top-color: #fff; border-radius: 50%; animation: s .7s linear infinite; vertical-align: -2px; margin-right: 7px; }
   @keyframes s { to { transform: rotate(360deg); } }
+
+  /* --- Character sheets (Run view party panel + modal) --- */
+  .party-panel { margin-bottom: 12px; }
+  .party-panel .ph { color: #8a90a0; font-size: 10px; text-transform: uppercase; letter-spacing: .06em; margin: 4px 0 6px; }
+  .pc-row { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid #23262e; border-radius: 9px; background: #0c0e12; margin-bottom: 6px; cursor: pointer; }
+  .pc-row:hover { border-color: #3a4560; background: #11141b; }
+  .pc-row .nm { font-weight: 600; color: #e6e8ee; font-size: 13px; }
+  .pc-row .sub { color: #8a90a0; font-size: 11px; }
+  .pc-row .right { margin-left: auto; text-align: right; font-size: 11px; color: #9aa0b0; white-space: nowrap; }
+  .pc-row .sheetbtn { color: #6ab0ff; }
+  .hpbar { height: 5px; border-radius: 3px; background: #23262e; overflow: hidden; margin-top: 4px; }
+  .hpbar > i { display: block; height: 100%; background: #8fd6a2; }
+
+  .modal-backdrop { position: fixed; inset: 0; background: rgba(6,7,10,.74); display: none; align-items: flex-start; justify-content: center; z-index: 50; overflow: auto; padding: 26px 16px; }
+  .modal-backdrop.open { display: flex; }
+  .sheet { width: min(940px, 100%); background: #0e1014; border: 1px solid #2b2f3a; border-radius: 14px; box-shadow: 0 24px 70px rgba(0,0,0,.55); }
+  .sheet-head { display: flex; align-items: flex-start; gap: 14px; padding: 16px 20px; border-bottom: 1px solid #23262e; position: sticky; top: 0; background: #0e1014; border-radius: 14px 14px 0 0; z-index: 1; }
+  .sheet-head .nm { font-size: 20px; font-weight: 700; color: #fff; }
+  .sheet-head .cls { color: #9aa0b0; font-size: 13px; margin-top: 2px; }
+  .sheet-head .x { margin-left: auto; background: #1b1f29; border: 1px solid #2b2f3a; color: #c7ccda; border-radius: 8px; width: 30px; height: 30px; cursor: pointer; font-size: 14px; }
+  .xpbar { height: 6px; background: #23262e; border-radius: 4px; overflow: hidden; margin-top: 7px; }
+  .xpbar > i { display: block; height: 100%; background: #4c6ef5; }
+  .sheet-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(232px, 1fr)); gap: 12px; padding: 16px 20px; }
+  .sheet-section { border: 1px solid #23262e; border-radius: 10px; background: #0c0e12; padding: 11px 13px; }
+  .sheet-section.wide { grid-column: 1 / -1; }
+  .sheet-section h4 { margin: 0 0 9px; font-size: 10px; text-transform: uppercase; letter-spacing: .07em; color: #8a90a0; font-weight: 700; }
+  .stat { display: flex; justify-content: space-between; gap: 8px; padding: 2px 0; font-size: 13px; }
+  .stat .k { color: #9aa0b0; } .stat b { color: #e6e8ee; }
+  .abil-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .abil { border: 1px solid #23262e; border-radius: 8px; padding: 7px 4px; text-align: center; background: #0e1014; }
+  .abil.prof { border-color: #3a5bd0; }
+  .abil .ab { font-size: 10px; text-transform: uppercase; color: #8a90a0; }
+  .abil .mod { font-size: 19px; font-weight: 700; color: #e6e8ee; }
+  .abil .sc { font-size: 11px; color: #9aa0b0; }
+  .abil .sv { font-size: 10px; color: #6b7080; }
+  .skill-row { display: flex; align-items: center; gap: 6px; font-size: 12px; padding: 2px 0; }
+  .skill-row .tier { width: 12px; text-align: center; color: #e8a13a; }
+  .skill-row .sk { flex: 1; color: #9aa0b0; }
+  .skill-row.p .sk { color: #e6e8ee; }
+  .skill-row .ab { color: #6b7080; font-size: 10px; text-transform: uppercase; }
+  .skill-row .m { color: #e6e8ee; font-weight: 600; width: 30px; text-align: right; }
+  .item-row { display: flex; align-items: center; gap: 8px; font-size: 12px; padding: 4px 0; border-bottom: 1px solid #171a20; }
+  .badge { display: inline-block; font-size: 10px; padding: 1px 6px; border-radius: 999px; border: 1px solid #2b2f3a; color: #9aa0b0; margin-left: 5px; }
+  .badge.eq { color: #8fd6a2; border-color: #2a6b40; }
+  .badge.at { color: #c08ae8; border-color: #5a3d78; }
+  .badge.un { color: #e8a13a; border-color: #7a5a1e; }
+  .pill-sm { display: inline-block; font-size: 11px; padding: 2px 7px; border-radius: 6px; background: #161922; border: 1px solid #2b2f3a; color: #c7ccda; margin: 2px 4px 2px 0; }
+  .coin { display: inline-block; margin-right: 12px; color: #9aa0b0; } .coin b { color: #e8c14a; }
+  .over { color: #f0a6b0 !important; }
 </style>
 </head>
 <body>
@@ -209,6 +260,7 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
       <input id="scenario" type="hidden" value="the-sunken-bell" />
       <select id="startScene" style="display:none"></select>
       <div id="nowplaying" class="nowplaying" style="display:none"></div>
+      <div id="party-panel" class="party-panel"></div>
       <details id="director-wrap" class="director-wrap" style="display:none">
         <summary>🎬 Director (live) — what the Showrunner is steering this turn</summary>
         <div class="arc-body" id="director-panel"></div>
@@ -219,12 +271,26 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
         <input id="temp" type="range" min="0" max="1" step="0.05" value="1" />
         <span class="val" id="tempVal">1.00</span>
       </div>
+      <label style="display:flex;align-items:center;gap:6px;margin-bottom:4px;cursor:pointer">
+        <input id="sceneEngine" type="checkbox" checked />
+        <span>Real scene engine <span style="color:#6b7080">— programmer-generated maps (~$0.01-0.05/place; off = $0 deterministic)</span></span>
+      </label>
+      <label style="display:flex;align-items:center;gap:6px;margin-bottom:4px;cursor:pointer">
+        <input id="exemplars" type="checkbox" checked />
+        <span>Style exemplars <span style="color:#6b7080">— real-DM voice beats injected per turn (off = A/B baseline)</span></span>
+      </label>
       <div class="hint" style="margin-bottom:10px">Captured when you start a session from the Generate tab.</div>
+      <button class="ghost" id="freeze-btn" style="margin-bottom:10px;font-size:12px" title="Save this session (scene already rendered) as a prerendered dev session for instant $0 reloads">❄ Freeze this session</button>
       <label>Suggested actions <span style="color:#6b7080">— adventure-aware; click to prefill, then tweak &amp; send</span></label>
       <div class="row" id="presets"><span class="hint">start an adventure to see suggestions</span></div>
       <div class="hint" id="status" style="margin-top:10px">Generate an adventure to begin.</div>
     </div>
     <div class="right-wrap">
+      <details id="scene-panel" style="display:none;margin-bottom:8px;border:1px solid #23262f;border-radius:8px;background:#0f1116">
+        <summary style="cursor:pointer;padding:7px 10px;color:#c9a227;font-size:13px">Scene — the story made real <span style="color:#6b7080">(click to expand · re-renders as the DM sets scenes)</span></summary>
+        <div style="padding:8px"><img id="scene-img" alt="current scene" style="width:100%;image-rendering:pixelated;border-radius:4px;display:block" /></div>
+      </details>
+      <div id="beatstrip" style="display:none;flex-wrap:wrap;gap:4px;margin-bottom:6px"></div>
       <div class="convo" id="convo"><div class="empty-state">No live adventure yet — head to the <b>Generate</b> tab, build your party, and generate an adventure. Play begins here.</div></div>
       <div class="inputbar">
         <div class="row" id="msgbar">
@@ -241,6 +307,8 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
       </div>
     </div>
   </section>
+
+  <div id="sheet-modal" class="modal-backdrop"><div class="sheet" id="sheet-body"></div></div>
 
   <section class="view editor" id="view-playbook">
     <div class="ed-toolbar">
@@ -297,6 +365,16 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
 
   <section class="view generate active" id="view-generate">
     <div class="panel left gen-form">
+      <div id="dev-box" style="display:none;border:1px solid #3a5a8a;background:#0f1622;border-radius:8px;padding:8px 10px;margin-bottom:14px">
+        <div style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#8fb8e6;font-weight:700;margin-bottom:6px">⚡ Prerendered dev sessions — instant, $0 (scene already drawn)</div>
+        <div id="dev-list" style="display:flex;flex-direction:column;gap:4px"></div>
+        <div class="hint" style="margin-top:4px">Loads a captured session straight into the Run tab with the scene already rendered — no arc-gen, no scene render. The fast path for iterating on DM live interaction. Freeze the current session anytime with the ❄ button on the Run tab.</div>
+      </div>
+      <div id="pregen-box" style="display:none;border:1px solid #2a6b40;background:#0f1f15;border-radius:8px;padding:8px 10px;margin-bottom:14px">
+        <div style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#8fd6a2;font-weight:700;margin-bottom:6px">⚡ Pregenerated campaigns — load frozen, $0</div>
+        <div id="pregen-list" style="display:flex;flex-direction:column;gap:4px"></div>
+        <div class="hint" style="margin-top:4px">Skips arc generation AND the architect. Loads into the preview + Arc tab (hand-editable) — Start session as usual, then iterate briefs/scenes per beat below.</div>
+      </div>
       <label>1 · Your party <span style="color:#6b7080">— add Player Characters, pick a class</span></label>
       <div id="party-list"></div>
       <button class="ghost" id="party-add" style="margin-top:6px">+ Add Player Character</button>
@@ -428,6 +506,7 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
 
   // --- interactive session (turn by turn, accumulating context) ---
   var sessionId = null;
+  var dmKey = null; // DM-grade credential from session create — the sessionId alone only opens /player-view
   var pendingRoll = null;
   function convo() { return $('convo'); }
   function scrollConvo() { var c = $('convo'); c.scrollTop = c.scrollHeight; }
@@ -443,14 +522,57 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
       return '<div class="tool"><span class="name">' + esc(c.name) + '</span><span class="inp">(' + esc(JSON.stringify(c.input)) + ')</span>' + res + '</div>';
     }).join('');
     var diff = (t.diff && t.diff.length) ? '<div class="diff"><b>state Δ</b> ' + t.diff.map(esc).join('  |  ') + '</div>' : '';
-    var details = (tools || diff) ? ('<details><summary>tools + state Δ</summary>' + tools + diff + '</details>') : '';
+    var exs = (t.exemplars && t.exemplars.length)
+      ? '<div class="diff"><b>🎭 style exemplars</b> ' + t.exemplars.map(function (e) { return esc(e.moveType) + ' (' + esc(e.source) + ')'; }).join('  |  ') + '</div>'
+      : '';
+    var details = (tools || diff || exs) ? ('<details><summary>tools + state Δ</summary>' + tools + diff + exs + '</details>') : '';
     var roll = t.rollRequest ? '<div class="roll-pending">⏸ needs a roll: ' + esc(t.rollRequest.expr) + ' — ' + esc(t.rollRequest.reason) + '</div>' : '';
     var bf = (brief && brief.activeBeatIntent) ? '<div class="brief">🎬 steering: ' + esc(brief.activeBeatIntent) + (brief.reachable && brief.reachable.length ? '  ·  → ' + brief.reachable.map(function (r) { return esc(r.sceneId); }).join(', ') : '') + '</div>' : '';
     var narr = t.narration ? '<div class="narr">' + esc(t.narration) + '</div>' : '<div class="narr" style="color:#6b7080;font-style:italic">(no narration — awaiting your roll)</div>';
     var meta = esc(t.model || '?') + ' · ' + t.steps + ' step(s) · ' + fmtTime(t.latencyMs) + ' · ' + fmtCost(t.costUsd);
+    var beat = t.beat ? '<div class="brief" style="color:#c9a227">🎬 beat: ' + esc(t.beat.from) + ' → <b>' + esc(t.beat.title || t.beat.to) + '</b>' + (t.beat.outcome ? ' <span style="color:#6b7080">(' + esc(t.beat.outcome) + ')</span>' : '') + '</div>' : '';
     var d = document.createElement('div'); d.className = 'bubble dm';
-    d.innerHTML = '<div class="who">Dungeon Master</div>' + narr + roll + bf + '<div class="meta">' + meta + '</div>' + details;
+    d.innerHTML = '<div class="who">Dungeon Master</div>' + narr + roll + bf + beat + sceneProvHtml(t) + deltaChips(t) + '<div class="meta">' + meta + '</div>' + details;
     convo().appendChild(d); scrollConvo();
+  }
+  // Scene-Δ chips — the map MOVED this turn (updateScene / combat sync): one chip per applied op.
+  function deltaChips(t) {
+    if (!t.deltas || !t.deltas.length) return '';
+    var chips = t.deltas.map(function (d) {
+      var txt = d.op === 'move' ? d.id + ' → ' + d.to.col + ',' + d.to.row
+        : d.op === 'spawn' ? '+ ' + (d.name || d.id) + (d.at ? ' @ ' + d.at.col + ',' + d.at.row : '')
+        : d.op === 'despawn' ? '− ' + d.id
+        : d.op + ' ' + d.id;
+      return '<span style="display:inline-block;background:#1d2530;border:1px solid #2b3542;border-radius:10px;padding:1px 8px;margin:1px 3px 1px 0;font-size:11px;color:#8fb8e0">Δ ' + esc(txt) + '</span>';
+    }).join('');
+    return '<div style="margin:3px 0">' + chips + '</div>';
+  }
+  // Scene provenance — the glass pipeline: exactly what the DM asked, what the generator was given,
+  // and every intervention the safety nets made. Rendered on any turn that established a scene.
+  function sceneProvHtml(t) {
+    if (!t.sceneChanged) return '';
+    var p = t.sceneProvenance;
+    var loc = p && p.locationId ? esc(p.locationId) : 'scene';
+    var line = '<div class="brief">📍 scene ' + (p && p.reused ? 'reused' : 'established') + ': ' + loc + '</div>';
+    if (!p) return line;
+    var badgeColor = { modern: '#3fa34d', classic: '#b8862d', fake: '#6b7080', frozen: '#4a7fb5' }[p.engine] || '#6b7080';
+    var h = '<div style="margin:2px 0 4px"><span style="background:' + badgeColor + ';color:#0b0c10;border-radius:3px;padding:1px 6px;font-size:11px;font-weight:600">' + esc(p.engine) + '</span>';
+    if (p.reused) h += ' <span style="color:#6b7080;font-size:11px">frozen map reused verbatim — nothing regenerated</span>';
+    h += '</div>';
+    if (p.moodText || p.lightingReason) {
+      var lit = p.program && p.program.lighting ? p.program.lighting : '';
+      h += '<div class="kv" style="font-size:12px"><b>mood → lighting:</b> ' + (p.moodText ? '“' + esc(p.moodText.slice(0, 160)) + (p.moodText.length > 160 ? '…' : '') + '”' : '—')
+        + (lit ? ' → <b>' + esc(lit) + '</b>' : '') + (p.lightingReason ? ' <span style="color:#6b7080">(' + esc(p.lightingReason) + ')</span>' : '') + '</div>';
+    }
+    if (p.beat) h += '<div class="kv" style="font-size:12px"><b>beat:</b> ' + esc(p.beat.id + (p.beat.title ? ' — ' + p.beat.title : '')) + '</div>';
+    if (p.enrichedBrief) h += '<div class="kv" style="font-size:12px"><b>brief sent to the generator:</b><pre style="white-space:pre-wrap;margin:2px 0;padding:6px;background:#0b0c10;border-radius:4px;font-size:11px;max-height:140px;overflow:auto">' + esc(p.enrichedBrief) + '</pre></div>';
+    if (p.program) {
+      var pg = p.program;
+      h += '<div class="kv" style="font-size:12px"><b>program:</b> ' + esc(pg.grammar || '?') + ' · ' + esc(String(pg.cols)) + '×' + esc(String(pg.rows)) + (pg.theme ? ' · theme ' + esc(pg.theme) : '') + ' · ' + (pg.ops ? pg.ops.length : 0) + ' op(s)</div>';
+      if (pg.notes && pg.notes.length) h += '<div class="kv" style="font-size:12px"><b>interventions:</b><ul style="margin:2px 0 2px 16px;padding:0">' + pg.notes.map(function (n) { return '<li>' + esc(n) + '</li>'; }).join('') + '</ul></div>';
+      if (pg.ops && pg.ops.length) h += '<pre style="white-space:pre-wrap;margin:2px 0;padding:6px;background:#0b0c10;border-radius:4px;font-size:10px;max-height:160px;overflow:auto">' + esc(pg.ops.map(function (o) { return JSON.stringify(o); }).join('\\n')) + '</pre>';
+    }
+    return line + '<details style="margin:2px 0"><summary style="cursor:pointer;color:#c9a227;font-size:12px">scene provenance — what the Director was told</summary>' + h + '</details>';
   }
 
   // --- Arc tab (Game Director plan) ---
@@ -476,9 +598,27 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
     return pill + '<span class="det">' + bits.join(' · ') + '</span>';
   }
 
+  // The always-visible beat strip above the convo — where the story IS (✓ done · ● here · → reachable).
+  function renderBeatStrip() {
+    var el = $('beatstrip');
+    if (!el) return;
+    var beats = (latestArc && latestArc.beats) || [];
+    if (!beats.length) { el.style.display = 'none'; return; }
+    el.style.display = 'flex';
+    el.innerHTML = beats.map(function (b) {
+      var bg = b.current ? '#c9a227' : b.done ? '#1d2a1f' : '#14161c';
+      var fg = b.current ? '#141414' : b.done ? '#7fb389' : b.reachable ? '#8fb8e0' : '#565b66';
+      var mark = b.done ? '✓ ' : b.current ? '● ' : b.reachable ? '→ ' : '';
+      return '<span style="font-size:11px;padding:2px 9px;border-radius:10px;background:' + bg + ';color:' + fg + (b.current ? ';font-weight:700' : '') + '">' + mark + esc(b.title) + '</span>';
+    }).join('') + ((latestArc.brief && latestArc.brief.clocks) || []).map(function (c) {
+      return '<span style="font-size:11px;padding:2px 9px;border-radius:10px;background:#2a1d1d;color:#d08f7f">⏱ ' + esc(c) + '</span>';
+    }).join('');
+  }
+
   // The LIVE Director state on the Run tab (the frozen blueprint lives in the Arc/Generate tabs).
   function renderDirectorPanel() {
     var wrap = $('director-wrap'); var el = $('director-panel');
+    renderBeatStrip(); // the strip rides every arc refresh
     if (!el) return;
     var a = latestArc;
     if (!a || (!a.brief && (!a.beats || !a.beats.length))) { wrap.style.display = 'none'; return; }
@@ -507,6 +647,28 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
       if (a.npcs && a.npcs.length) h += '<div class="kv"><b>NPCs:</b> ' + a.npcs.map(function (n) { return esc(n.key + '=' + n.value); }).join(', ') + '</div>';
       h += '</div>';
     }
+    var L = a.ledger;
+    if (L) {
+      var pcs = (L.entities || []).filter(function (e) { return e.kind === 'pc'; });
+      var cast = (L.entities || []).filter(function (e) { return e.kind !== 'pc'; });
+      if (pcs.length) {
+        h += '<div class="arc-sec"><h3>Party (backstories)</h3>' + pcs.map(function (e) {
+          return '<div class="kv"><b>' + esc(e.name) + '</b>' + (e.notes ? ' — <span style="color:#9aa0b0">' + esc(e.notes) + '</span>' : '') + '</div>';
+        }).join('') + '</div>';
+      }
+      if (cast.length) {
+        h += '<div class="arc-sec"><h3>Canon — cast</h3>' + cast.map(function (e) {
+          var v = e.voice ? [e.voice.tic, e.voice.want && 'wants ' + e.voice.want, e.voice.fear && 'fears ' + e.voice.fear].filter(Boolean).join('; ') : '';
+          return '<div class="kv"><b>' + esc(e.name) + '</b> <span style="color:#6b7080">' + esc(e.status) + '</span>' + (v ? ' — <span style="color:#9aa0b0">' + esc(v) + '</span>' : '') + '</div>';
+        }).join('') + '</div>';
+      }
+      if (L.facts && L.facts.length) {
+        h += '<div class="arc-sec"><h3>Canon — facts</h3>' + L.facts.map(function (f) { return '<div class="kv">' + esc(f.subject) + ' · ' + esc(f.attribute) + ': ' + esc(f.value) + '</div>'; }).join('') + '</div>';
+      }
+      if (L.plants && L.plants.length) {
+        h += '<div class="arc-sec"><h3>Plants</h3>' + L.plants.map(function (p) { return '<div class="kv">' + esc(p.what) + ' <span style="color:#6b7080">[' + esc(p.status) + ']</span></div>'; }).join('') + '</div>';
+      }
+    }
     el.innerHTML = h;
   }
   function setPending(rr) {
@@ -521,17 +683,30 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
   var partyNames = []; // party of the live session (for adventure-aware suggestions)
 
   // Shared success handler for a session start (campaigns now always start from the Generate tab).
+  /** DM-grade fetch: same as fetch() but carries the session's DM key (see the dmKeyOk gate). */
+  function dmFetch(url, opts) {
+    opts = opts || {};
+    opts.headers = Object.assign({}, opts.headers || {}, dmKey ? { 'x-dm-key': dmKey } : {});
+    return fetch(url, opts);
+  }
+
   function sessionStarted(b) {
-    sessionId = b.sessionId; pendingRoll = null;
+    sessionId = b.sessionId; dmKey = b.dmKey || null; pendingRoll = null;
     partyNames = (b.party || []).map(function (p) { return p.name; });
     convo().innerHTML = '';
     addSys('Session started · scene "' + b.scene + '" · party: ' + partyNames.join(', '));
+    // The animated play surface (Phaser: tweened tokens, live lighting) joins THIS session by id.
+    var lt = document.createElement('div');
+    lt.innerHTML = '<a href="${liveTableBase}/dm?session=' + encodeURIComponent(b.sessionId) + '" target="_blank" style="color:#3fa34d;font-weight:600">Open live table → (animated)</a>';
+    lt.style.cssText = 'text-align:center;margin:4px 0';
+    convo().appendChild(lt);
     var sp = $('speaker'); sp.innerHTML = '';
     var party = b.party || [];
     // "The party" only makes sense with 2+ PCs; a solo party auto-selects its lone character.
     if (party.length > 1) { var grp = document.createElement('option'); grp.value = 'The party'; grp.textContent = 'The party'; sp.appendChild(grp); }
     party.forEach(function (p) { var o = document.createElement('option'); o.value = p.name; o.textContent = p.name; sp.appendChild(o); });
     latestArc = b.arc || null; renderDirectorPanel();
+    latestCharacters = b.characters || []; renderCharacterSheets();
     renderNowPlaying(b);
     renderSuggestions();
     $('run-empty').style.display = 'none';
@@ -553,6 +728,124 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
       '<div class="np-row"><b>Party:</b> ' + esc((b.party || []).map(function (p) { return p.name; }).join(', ')) + '</div>';
     el.style.display = '';
   }
+
+  // --- Character sheets: compact party rows in the Run left panel + a full per-PC modal, both live. ---
+  var latestCharacters = [];
+  var openSheetId = null;
+  function signed(n) { return (n >= 0 ? '+' : '') + n; }
+  function tierMark(t) { return t === 'expertise' ? '★' : t === 'proficient' ? '●' : t === 'half' ? '◐' : '·'; }
+  function skillName(k) { return k.replace(/([A-Z])/g, ' $1').replace(/^./, function (c) { return c.toUpperCase(); }); }
+  function sec(title, body, wide) { return '<div class="sheet-section' + (wide ? ' wide' : '') + '"><h4>' + esc(title) + '</h4>' + body + '</div>'; }
+  function st(k, v) { return '<div class="stat"><span class="k">' + k + '</span><b>' + v + '</b></div>'; }
+  function pcById(id) { return latestCharacters.filter(function (p) { return p.id === id; })[0] || null; }
+
+  function renderCharacterSheets() {
+    var box = $('party-panel'); if (!box) return;
+    if (!latestCharacters.length) { box.innerHTML = ''; return; }
+    var html = '<div class="ph">Party — click a character for the full sheet</div>';
+    latestCharacters.forEach(function (pc) {
+      var pct = pc.hp.max ? Math.max(0, Math.min(100, Math.round(100 * pc.hp.cur / pc.hp.max))) : 0;
+      var tags = [];
+      if (pc.concentration) tags.push('◎ ' + esc(pc.concentration));
+      if (pc.inspiration) tags.push('★ insp');
+      if (pc.exhaustion) tags.push('exh ' + pc.exhaustion);
+      if (pc.conditions && pc.conditions.length) tags.push(esc(pc.conditions.join(', ')));
+      html += '<div class="pc-row" data-id="' + esc(pc.id) + '">'
+        + '<div style="flex:1;min-width:0">'
+        + '<div class="nm">' + esc(pc.name) + ' <span class="sub">L' + pc.level + ' ' + esc(pc.className) + '</span></div>'
+        + '<div class="hpbar"><i style="width:' + pct + '%"></i></div>'
+        + (tags.length ? '<div class="sub" style="margin-top:4px">' + tags.join(' · ') + '</div>' : '')
+        + '</div>'
+        + '<div class="right">' + pc.hp.cur + '/' + pc.hp.max + ' HP<br>AC ' + pc.ac + ' · <span class="sheetbtn">Sheet ›</span></div>'
+        + '</div>';
+    });
+    box.innerHTML = html;
+    Array.prototype.forEach.call(box.querySelectorAll('.pc-row'), function (row) {
+      row.onclick = function () { openSheet(row.getAttribute('data-id')); };
+    });
+  }
+
+  function openSheet(id) {
+    openSheetId = id; renderSheet(id); $('sheet-modal').classList.add('open');
+    // Refresh from the server in the background so an opened sheet reflects the very latest state.
+    if (sessionId) dmFetch('/dm/lab/session/' + sessionId + '/characters').then(function (r) { return r.json(); })
+      .then(function (b) { if (b && b.characters) { latestCharacters = b.characters; renderCharacterSheets(); if (openSheetId) renderSheet(openSheetId); } }).catch(function () {});
+  }
+  function closeSheet() { openSheetId = null; $('sheet-modal').classList.remove('open'); }
+
+  function renderSheet(id) {
+    var pc = pcById(id); var b = $('sheet-body'); if (!pc || !b) return;
+    var xpPct = 100, xpLabel = pc.xp + ' XP (max level)';
+    if (pc.xpNext) { var span = pc.xpNext - pc.xpThis; xpPct = span > 0 ? Math.max(0, Math.min(100, Math.round(100 * (pc.xp - pc.xpThis) / span))) : 100; xpLabel = pc.xp + ' / ' + pc.xpNext + ' XP'; }
+    var head = '<div class="sheet-head"><div style="flex:1">'
+      + '<div class="nm">' + esc(pc.name) + '</div>'
+      + '<div class="cls">' + esc(pc.ancestry) + ' · ' + esc(pc.className) + ' · Level ' + pc.level + (pc.inspiration ? ' · ★ Inspiration' : '') + (pc.exhaustion ? ' · Exhaustion ' + pc.exhaustion : '') + '</div>'
+      + '<div class="xpbar"><i style="width:' + xpPct + '%"></i></div>'
+      + '<div class="sub" style="font-size:11px;color:#6b7080;margin-top:4px">' + xpLabel + '</div>'
+      + '</div><button class="x" id="sheet-x">✕</button></div>';
+
+    var sections = [];
+    sections.push(sec('Core',
+      st('Hit Points', pc.hp.cur + ' / ' + pc.hp.max + (pc.hp.temp ? (' (+' + pc.hp.temp + ' temp)') : ''))
+      + st('Armor Class', pc.ac) + st('Speed', pc.speed + ' ft') + st('Initiative', signed(pc.initiative)) + st('Proficiency', signed(pc.prof))
+      + (pc.hitDice ? st('Hit Dice', pc.hitDice.remaining + ' / ' + pc.hitDice.max + ' d' + pc.hitDice.size) : '')
+      + (pc.passives ? st('Passive Per / Inv / Ins', pc.passives.perception + ' / ' + pc.passives.investigation + ' / ' + pc.passives.insight) : '')
+      + (pc.conditions && pc.conditions.length ? st('Conditions', esc(pc.conditions.join(', '))) : '')
+      + (pc.concentration ? st('Concentrating on', esc(pc.concentration)) : '')));
+
+    sections.push(sec('Abilities', '<div class="abil-grid">' + pc.abilities.map(function (a) {
+      return '<div class="abil' + (a.saveProf ? ' prof' : '') + '"><div class="ab">' + esc(a.key) + '</div><div class="mod">' + signed(a.mod) + '</div><div class="sc">' + a.score + '</div><div class="sv">save ' + signed(a.save) + '</div></div>';
+    }).join('') + '</div>'));
+
+    sections.push(sec('Skills', pc.skills.map(function (s) {
+      return '<div class="skill-row' + (s.tier !== 'none' ? ' p' : '') + '"><span class="tier">' + tierMark(s.tier) + '</span><span class="sk">' + skillName(s.key) + '</span><span class="ab">' + esc(s.ability) + '</span><span class="m">' + signed(s.mod) + '</span></div>';
+    }).join('')));
+
+    if (pc.attacks && pc.attacks.length) {
+      sections.push(sec('Attacks', pc.attacks.map(function (at) { return st(esc(at.name), signed(at.attackBonus) + ' · ' + esc(at.damage) + ' ' + esc(at.damageType)); }).join('')));
+    }
+
+    if (pc.spellcasting) {
+      var sc = pc.spellcasting;
+      var chips = function (arr) { return (arr && arr.length) ? arr.map(function (x) { return '<span class="pill-sm">' + esc(x) + '</span>'; }).join('') : '<span class="sub">—</span>'; };
+      var slotHtml = pc.slots.length ? pc.slots.map(function (s) { return '<span class="pill-sm">L' + s.level + ' ' + s.cur + '/' + s.max + '</span>'; }).join('') : '<span class="sub">no slots</span>';
+      sections.push(sec('Spellcasting',
+        st('Spell Save DC', sc.saveDc) + st('Spell Attack', signed(sc.attack)) + (sc.preparedMax != null ? st('Prepared', (sc.prepared ? sc.prepared.length : 0) + ' / ' + sc.preparedMax) : '')
+        + '<div class="sub" style="margin:7px 0 3px">Slots</div>' + slotHtml
+        + '<div class="sub" style="margin:7px 0 3px">Cantrips</div>' + chips(sc.cantrips)
+        + '<div class="sub" style="margin:7px 0 3px">Prepared</div>' + chips(sc.prepared)
+        + (sc.rituals && sc.rituals.length ? '<div class="sub" style="margin:7px 0 3px">Rituals <span style="color:#6b7080">(no slot)</span></div>' + chips(sc.rituals) : '')));
+    }
+
+    if (pc.resources && pc.resources.length) {
+      sections.push(sec('Class Resources', pc.resources.map(function (r) { return st(esc(r.id) + ' <span style="color:#6b7080">(' + r.recharge + ' rest)</span>', r.current + ' / ' + r.max); }).join('')));
+    }
+
+    var coins = '<div style="margin-bottom:8px"><span class="coin"><b>' + pc.currency.gp + '</b> gp</span><span class="coin"><b>' + pc.currency.sp + '</b> sp</span><span class="coin"><b>' + pc.currency.cp + '</b> cp</span></div>';
+    var carry = '<div class="sub' + (pc.carry.over ? ' over' : '') + '" style="margin-bottom:7px">Carry ' + pc.carry.lb + ' / ' + pc.carry.cap + ' lb' + (pc.carry.over ? ' — OVERLOADED' : '') + ' · Attuned ' + pc.attunement.used + '/' + pc.attunement.max + '</div>';
+    var itemsHtml = pc.items.length ? pc.items.map(function (it) {
+      var badges = '';
+      if (it.equippedSlot) badges += '<span class="badge eq">' + esc(it.equippedSlot) + '</span>';
+      if (it.attuned) badges += '<span class="badge at">attuned</span>';
+      if (it.magic && !it.identified) badges += '<span class="badge un">unidentified</span>';
+      if (it.charges) badges += '<span class="badge">' + it.charges.remaining + '/' + it.charges.max + ' chg</span>';
+      return '<div class="item-row"><span style="flex:1">' + esc(it.name) + (it.qty > 1 ? ' ×' + it.qty : '') + badges + '</span><span class="sub">' + it.weightLb + ' lb</span></div>';
+    }).join('') : '<span class="sub">(nothing carried)</span>';
+    sections.push(sec('Inventory', coins + carry + itemsHtml, true));
+
+    var story = (pc.backstory ? '<div style="white-space:pre-wrap;color:#c7ccda;font-size:13px;line-height:1.5;margin-bottom:8px">' + esc(pc.backstory) + '</div>' : '<span class="sub">No backstory recorded.</span>')
+      + (pc.features && pc.features.length ? '<div class="sub" style="margin:8px 0 4px">Features</div>' + pc.features.map(function (f) { return '<div class="stat"><span class="k">' + esc(f.name) + '</span></div>'; }).join('') : '');
+    sections.push(sec('Story & Features', story, true));
+
+    b.innerHTML = head + '<div class="sheet-grid">' + sections.join('') + '</div>';
+    $('sheet-x').onclick = closeSheet;
+  }
+
+  (function () {
+    var m = $('sheet-modal');
+    if (m) m.addEventListener('click', function (e) { if (e.target === m) closeSheet(); });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && openSheetId) closeSheet(); });
+  })();
 
   // Arc-aware quick-starts: derive a few suggested player actions from the LIVE arc (current scene +
   // steering brief + party), prefill the input on click so the tester can tweak & send.
@@ -593,36 +886,63 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
     if (!sessionId) return Promise.resolve();
     setBusy(true);
     $('status').innerHTML = '<span class="spin"></span>DM is setting the scene…';
-    return fetch('/dm/lab/session/' + sessionId + '/turn', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ open: true }) })
+    return dmFetch('/dm/lab/session/' + sessionId + '/turn', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ open: true }) })
       .then(function (r) { return r.json().then(function (b) { return { ok: r.ok, body: b }; }); })
       .then(function (x) {
         if (!x.ok) { addSys('(opening narration skipped: ' + (x.body.error || 'failed') + ')'); setBusy(false); $('status').textContent = 'session live — what do you do?'; return; }
         var t = x.body.turn;
         if (x.body.arc) { latestArc = x.body.arc; renderDirectorPanel(); }
+        if (x.body.characters) { latestCharacters = x.body.characters; renderCharacterSheets(); if (openSheetId) renderSheet(openSheetId); }
         addDm(t, latestArc && latestArc.brief);
         setPending(x.body.pendingRoll);
         renderSuggestions();
         setBusy(false);
         $('status').textContent = 'the scene is set — what do you do?';
+        if (t.sceneChanged) { refreshScene(); $('scene-panel').open = true; } // only if the opening actually set one
       })
       .catch(function (e) { addSys('(opening narration skipped: ' + (e.message || e) + ')'); setBusy(false); $('status').textContent = 'session live — what do you do?'; });
+  }
+
+  // The playable view's SCENE panel: probe the server-side headless render of the current location and
+  // show it when the DM has established one (404 until then). Called after every turn.
+  function refreshScene() {
+    if (!sessionId) return;
+    var probe = new Image();
+    probe.onload = function () {
+      $('scene-img').src = probe.src;
+      var p = $('scene-panel');
+      p.style.display = '';
+      // Collapsed by DEFAULT (the transcript is the working surface; the render is a spot-check), but
+      // remember the choice — once you open it, it stays open across turns and reloads.
+      if (!p.dataset.wired) {
+        p.dataset.wired = '1';
+        try { p.open = localStorage.getItem('mw-scene-open') === '1'; } catch (e) { /* private mode */ }
+        p.addEventListener('toggle', function () {
+          try { localStorage.setItem('mw-scene-open', p.open ? '1' : '0'); } catch (e) { /* ignore */ }
+        });
+      }
+    };
+    probe.src = '/dm/lab/session/' + sessionId + '/scene.png?v=' + Date.now();
   }
 
   function submitTurn(payload) {
     if (!sessionId) return Promise.resolve();
     setBusy(true);
     $('status').innerHTML = '<span class="spin"></span>DM thinking…';
-    return fetch('/dm/lab/session/' + sessionId + '/turn', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload) })
+    return dmFetch('/dm/lab/session/' + sessionId + '/turn', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload) })
       .then(function (r) { return r.json().then(function (b) { return { ok: r.ok, body: b }; }); })
       .then(function (x) {
         if (!x.ok) { addSys('error: ' + (x.body.error || 'failed')); setBusy(false); $('status').textContent = ''; return; }
         var t = x.body.turn;
         if (x.body.arc) { latestArc = x.body.arc; renderDirectorPanel(); } // Director may have re-planned this turn
+        if (x.body.characters) { latestCharacters = x.body.characters; renderCharacterSheets(); if (openSheetId) renderSheet(openSheetId); } // live sheet update
         if (t.kind !== 'message') addPlayer('roll', t.input); // show the actual declared/auto total
         addDm(t, latestArc && latestArc.brief);
         setPending(x.body.pendingRoll);
         renderSuggestions(); // keep quick-starts adventure-aware as the scene advances
         setBusy(false);
+        if (t.sceneChanged) { refreshScene(); $('scene-panel').open = true; } // re-render ONLY when the scene actually changed
+        else if (t.deltas && t.deltas.length) refreshScene(); // …or when tokens moved on it
         $('status').textContent = 'turn ' + t.index + ' · total ' + fmtCost(x.body.totalCostUsd) + ' · ' + fmtTime(x.body.totalLatencyMs);
       }).catch(function (e) { addSys('error: ' + (e.message || e)); setBusy(false); $('status').textContent = ''; });
   }
@@ -681,6 +1001,7 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
   $('msg').addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); sendMsg(); } });
   $('declare').onclick = declareRoll;
   $('autoroll').onclick = autoRoll;
+  $('freeze-btn').onclick = freezeSession;
   $('rollval').addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); declareRoll(); } });
 
   // --- Generate tab (build a party → compose a fresh adventure from a seed → start a session) ---
@@ -705,9 +1026,10 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
   }
   function addPartyMember(role, name) {
     var row = document.createElement('div'); row.className = 'prow';
-    row.innerHTML = '<select class="seg prole">' + roleOptions(role) + '</select>' +
+    row.innerHTML = '<div class="prow-top"><select class="seg prole">' + roleOptions(role) + '</select>' +
       '<input class="pname" type="text" placeholder="name (optional)" value="' + esc(name || '') + '" />' +
-      '<button class="ghost premove" title="remove">×</button>';
+      '<button class="ghost premove" title="remove">×</button></div>' +
+      '<textarea class="pback" rows="1" placeholder="backstory (optional — blank = the Director invents one)"></textarea>';
     row.querySelector('.premove').onclick = function () { row.remove(); };
     $('party-list').appendChild(row);
   }
@@ -715,7 +1037,11 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
     return [].slice.call(document.querySelectorAll('#party-list .prow')).map(function (row) {
       var role = row.querySelector('.prole').value;
       var name = row.querySelector('.pname').value.trim();
-      return name ? { role: role, name: name } : { role: role };
+      var backstory = row.querySelector('.pback').value.trim();
+      var p = { role: role };
+      if (name) p.name = name;
+      if (backstory) p.backstory = backstory;
+      return p;
     }).filter(function (p) { return p.role; });
   }
   function monsterConfig() {
@@ -749,6 +1075,11 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
     }
     var h = '';
     h += '<div class="arc-sec"><h3>Premise</h3><div class="kv">' + esc(bp.premise || '—') + '</div></div>';
+    if (arc.party && arc.party.length) {
+      h += '<div class="arc-sec"><h3>Party <span style="color:#6b7080">— backstories (authored or Director-invented)</span></h3>' + arc.party.map(function (p) {
+        return '<div class="kv"><b>' + esc(p.name) + '</b> <span style="color:#6b7080">L' + esc(p.level) + ' ' + esc(p.className) + '</span>' + (p.backstory ? ' — <span style="color:#9aa0b0">' + esc(p.backstory) + '</span>' : ' <span style="color:#6b7080">(no backstory)</span>') + '</div>';
+      }).join('') + '</div>';
+    }
     h += '<div class="arc-sec"><h3>Central problem</h3><div class="kv arc-problem">' + esc(bp.centralProblem || '—') + '</div></div>';
     h += '<div class="arc-sec"><h3>Intended ending — north star</h3><div class="arc-ending">' + esc(bp.intendedEnding || '—') + '</div></div>';
     h += '<div class="arc-sec"><h3>Opening</h3><div class="kv">' + esc(bp.opening || '—') + '</div></div>';
@@ -763,7 +1094,21 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
       h += '<div class="arc-sec"><h3>Scenes</h3><ul class="spine">' + ids.map(function (id) {
         var s = scenes[id];
         var ex = (s.exits && s.exits.length) ? ' <span style="color:#6b7080">→ ' + s.exits.map(esc).join(', ') + '</span>' : '';
-        return '<li><div class="ms">' + esc(s.title) + ' <span style="color:#6b7080">[' + esc(id) + ']</span>' + ex + monLine(encBySceneId[id]) + '</div><div class="mi">' + esc(s.summary || '') + '</div></li>';
+        var plan = s.scenePlan
+          ? '<div class="mi" style="color:#7fa8d0">🎨 ' + esc(s.scenePlan.look || '') + ' <span style="color:#6b7080">[' + esc(s.scenePlan.kind || '?') + (s.scenePlan.mood ? ' · ' + esc(s.scenePlan.mood) : '') + (s.scenePlan.features && s.scenePlan.features.length ? ' · ' + s.scenePlan.features.map(esc).join(', ') : '') + ']</span></div>'
+          : '<div class="mi" style="color:#6b7080">🎨 (no scene plan — the DM improvises the look)</div>';
+        // The FUNCTIONAL contract (S1): features + relations, compact. This is what the compiler consumes.
+        var spec = s.scenePlan && s.scenePlan.spec;
+        var specLine = spec
+          ? '<div class="mi" style="color:#a0c8a0">&#128208; ' + (spec.features || []).map(function (f) { return esc(f.kind) + (f.count ? '&times;' + f.count : ''); }).join(', ')
+            + (spec.constraints && spec.constraints.length ? ' <span style="color:#6b7080">| ' + spec.constraints.map(function (c) { return esc(c.c + '(' + [c.f, c.a, c.b, c.region, c.via].filter(Boolean).join(',') + ')' + (c.w === 'hard' ? '!' : c.w === 'story' ? '~' : '')); }).join(' &middot; ') + '</span>' : '')
+            + (spec.frame && spec.frame.entry ? ' <span style="color:#6b7080">| entry: ' + esc(spec.frame.entry.edge || '?') + '</span>' : '') + '</div>'
+          : '<div class="mi" style="color:#6b7080">&#128208; (no spec &mdash; prose-only handoff)</div>';
+        var pv = '<div class="mi" style="margin-top:3px">'
+          + '<button class="ghost bp-btn" data-scene="' + esc(id) + '" data-mode="brief" style="font-size:11px;padding:1px 8px">brief → generator · $0</button> '
+          + '<button class="ghost bp-btn" data-scene="' + esc(id) + '" data-mode="scene" style="font-size:11px;padding:1px 8px">render scene · ~2¢</button>'
+          + '</div><div class="mi" id="bp-' + esc(id) + '"></div>';
+        return '<li><div class="ms">' + esc(s.title) + ' <span style="color:#6b7080">[' + esc(id) + ']</span>' + ex + monLine(encBySceneId[id]) + '</div><div class="mi">' + esc(s.summary || '') + '</div>' + plan + specLine + pv + '</li>';
       }).join('') + '</ul></div>';
     }
     var commissioned = Object.keys(arc.bestiary || {}).map(function (k) { return arc.bestiary[k]; }).filter(function (b) { return b.source === 'commissioned' || b.source === 'generated'; });
@@ -773,7 +1118,133 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
       }).join('') + '</ul></div>';
     }
     $('gen-preview').innerHTML = h;
+    // Per-beat cheap-iteration buttons: $0 brief preview / programmer-only scene render.
+    document.querySelectorAll('#gen-preview .bp-btn').forEach(function (b) {
+      b.onclick = function () { beatPreview(b.getAttribute('data-scene'), b.getAttribute('data-mode')); };
+    });
   }
+
+  // --- The cheap iteration loop: pregen campaigns + per-beat previews ---
+  function loadPregenList() {
+    fetch('/dm/lab/pregens').then(function (r) { return r.json(); }).then(function (b) {
+      var list = (b && b.pregens) || [];
+      if (!list.length) return;
+      $('pregen-box').style.display = '';
+      $('pregen-list').innerHTML = '';
+      list.forEach(function (p) {
+        var btn = document.createElement('button');
+        btn.className = 'ghost';
+        btn.style.cssText = 'text-align:left;font-size:12px';
+        btn.textContent = p.slug + ' — ' + p.beats + ' beats · ' + (p.party || []).join(', ');
+        btn.title = p.title;
+        btn.onclick = function () { loadPregen(p.slug); };
+        $('pregen-list').appendChild(btn);
+      });
+    }).catch(function () { /* pregens are optional */ });
+  }
+  // Prerendered dev sessions — captured full GameStates (scene already drawn). Load = instant, $0 play.
+  function loadDevSessionList() {
+    fetch('/dm/lab/dev-sessions').then(function (r) { return r.json(); }).then(function (b) {
+      var list = (b && b.devSessions) || [];
+      if (!list.length) return;
+      $('dev-box').style.display = '';
+      $('dev-list').innerHTML = '';
+      list.forEach(function (d) {
+        var btn = document.createElement('button');
+        btn.className = 'ghost';
+        btn.style.cssText = 'text-align:left;font-size:12px';
+        btn.textContent = '▶ ' + d.slug + (d.scene ? ' · ' + d.scene : '');
+        btn.title = d.title;
+        btn.onclick = function () { startFrozenSession(d.slug); };
+        $('dev-list').appendChild(btn);
+      });
+    }).catch(function () { /* dev sessions are optional */ });
+  }
+  function startFrozenSession(slug) {
+    $('gen-status').innerHTML = '<span class="spin"></span>loading prerendered session…';
+    fetch('/dm/lab/session', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        frozenSession: slug,
+        temperature: Number($('temp').value),
+        playbook: $('ed-playbook').value,
+        exemplars: $('exemplars') ? $('exemplars').checked : true,
+      }),
+    }).then(function (r) { return r.json().then(function (b) { return { ok: r.ok, body: b }; }); }).then(function (x) {
+      if (!x.ok) { $('gen-status').textContent = 'error: ' + (x.body.error || 'failed'); return; }
+      sessionStarted(x.body);
+      addSys('⚡ Prerendered scene loaded ($0) — the DM is ready. What do you do?');
+      showTab('run');
+      $('gen-status').textContent = '✓ prerendered session loaded — switched to the Run tab';
+      refreshScene(); $('scene-panel').open = true; // the scene is already established → show it now (NO autoOpen)
+      $('status').textContent = 'the scene is set — what do you do?';
+      try { $('msg').focus(); } catch (e) {}
+    }).catch(function (e) { $('gen-status').textContent = 'error: ' + (e.message || e); });
+  }
+  function freezeSession() {
+    var st = function (t) { $('status').textContent = t; };
+    if (!sessionId) { st('start a session first'); return; }
+    var slug = (window.prompt('Freeze this session as a prerendered dev session.\\nSlug (lowercase kebab-case):', 'the-drowned-bell') || '').trim();
+    if (!slug) return;
+    $('status').innerHTML = '<span class="spin"></span>freezing…';
+    dmFetch('/dm/lab/session/' + sessionId + '/freeze', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ slug: slug }),
+    }).then(function (r) { return r.json().then(function (b) { return { ok: r.ok, body: b }; }); }).then(function (x) {
+      if (!x.ok) { st('freeze failed: ' + (x.body.error || 'failed')); return; }
+      st('❄ frozen as "' + x.body.slug + '" — load it anytime from the Generate tab ($0)');
+      loadDevSessionList();
+    }).catch(function (e) { st('freeze failed: ' + (e.message || e)); });
+  }
+  function loadPregen(slug) {
+    $('gen-status').innerHTML = '<span class="spin"></span>loading pregenerated campaign…';
+    fetch('/dm/lab/pregen/' + encodeURIComponent(slug)).then(function (r) { return r.json().then(function (b) { return { ok: r.ok, body: b }; }); }).then(function (x) {
+      if (!x.ok) { $('gen-status').textContent = 'error: ' + (x.body.error || 'failed'); return; }
+      // Exactly the post-generate flow: preview + editable Arc-tab JSON + Start enabled. $0.
+      lastGeneratedArc = x.body.arc;
+      $('ed-arc').value = JSON.stringify(x.body.arc, null, 2);
+      $('gen-badge').style.display = 'flex';
+      $('gen-badge').innerHTML = '<span class="pill fresh">pregenerated — frozen, $0</span><span class="det">' + esc(slug) + '</span>';
+      renderGenPreview(x.body.arc);
+      $('gen-start').disabled = false;
+      $('gen-status').textContent = 'pregen "' + slug + '" loaded — iterate briefs/scenes per beat below, or Start session';
+    }).catch(function (e) { $('gen-status').textContent = 'error: ' + (e.message || e); });
+  }
+  // $0 brief preview / ~2¢ scene render for ONE beat — no DM turn, no session. Uses the (possibly
+  // hand-edited) arc from the Arc tab, so editing a scenePlan and re-clicking iterates instantly.
+  function beatPreview(sceneId, mode) {
+    var arc = currentArc();
+    if (!arc || arc.__parseError) { $('gen-status').textContent = 'no valid arc loaded'; return; }
+    var box = document.getElementById('bp-' + sceneId);
+    box.innerHTML = '<span class="spin"></span>' + (mode === 'scene' ? 'composing scene (one programmer call)…' : 'assembling brief…');
+    fetch(mode === 'scene' ? '/dm/lab/scene-preview' : '/dm/lab/brief-preview', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ generatedArc: arc, sceneId: sceneId }),
+    }).then(function (r) { return r.json().then(function (b) { return { ok: r.ok, body: b }; }); }).then(function (x) {
+      box.innerHTML = '';
+      if (!x.ok) { box.textContent = 'error: ' + (x.body.error || 'failed'); return; }
+      var d = x.body;
+      if (mode === 'brief') {
+        var head = document.createElement('div');
+        head.style.cssText = 'font-size:11px;color:#8fb8e0;margin-top:2px';
+        head.textContent = 'kind: ' + (d.inputs.kind || '(programmer decides)') + ' · declared light: ' + (d.inputs.lightingDeclared || '(none — mood decides)');
+        var pre = document.createElement('pre');
+        pre.style.cssText = 'white-space:pre-wrap;margin:2px 0;padding:6px;background:#0b0c10;border-radius:4px;font-size:11px;max-height:180px;overflow:auto';
+        pre.textContent = 'BRIEF → generator:' + String.fromCharCode(10) + d.inputs.enrichedBrief + String.fromCharCode(10, 10) + 'MOOD text: ' + d.inputs.moodText;
+        box.appendChild(head); box.appendChild(pre);
+      } else {
+        var p = d.provenance || {};
+        var meta = document.createElement('div');
+        meta.style.cssText = 'font-size:11px;color:#8fb8e0;margin-top:2px';
+        meta.textContent = (p.program ? p.program.grammar + ' · ' + p.program.cols + 'x' + p.program.rows + ' · ' + p.program.lighting + ' (' + (p.lightingReason || '?') + ')' : '') + ((p.program && p.program.notes) ? ' · ' + p.program.notes.join(' · ') : '');
+        var img = document.createElement('img');
+        img.src = d.png;
+        img.style.cssText = 'width:100%;image-rendering:pixelated;border-radius:4px;margin-top:3px';
+        box.appendChild(meta); box.appendChild(img);
+      }
+    }).catch(function (e) { box.textContent = 'error: ' + (e.message || e); });
+  }
+
   function generateArc() {
     if (!composerOn) { $('gen-status').textContent = 'adventure generation is OFF — set MYTHWEAVER_ARC_COMPOSER=llm and restart'; return; }
     var seed = collectSeed();
@@ -815,6 +1286,8 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
         temperature: Number($('temp').value), // DM narration temp (Run tab)
         arcTemperature: Number($('gen-temp').value), // Director temp (Generate tab)
         playbook: $('ed-playbook').value,
+        sceneEngine: $('sceneEngine').checked ? 'modern' : 'fake', // real programmer scenes vs $0 fake
+        exemplars: $('exemplars') ? $('exemplars').checked : true, // Technique B A/B knob (captured at start)
       }),
     }).then(function (r) { return r.json().then(function (b) { return { ok: r.ok, body: b }; }); }).then(function (x) {
       $('gen-start').disabled = false; $('gen-run').disabled = false; $('arc-start').disabled = false;
@@ -1017,6 +1490,8 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>): string 
   $('view-block').onclick = function () { showDistillView('block'); };
   $('view-diff').onclick = function () { showDistillView('diff'); };
   loadFiles();
+  loadPregenList(); // frozen $0 campaigns for cheap iteration
+  loadDevSessionList(); // prerendered dev sessions — instant $0 play over an already-drawn scene
   setBusy(false); // gates the Run input off until a session is started from Generate
 </script>
 </body>

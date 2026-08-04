@@ -16,6 +16,7 @@
  */
 
 import type { Facing, Lighting } from './scene.js';
+import type { SceneSpec } from './scene-spec.js';
 
 // ---------------------------------------------------------------------------
 // Identity
@@ -109,13 +110,77 @@ export interface NpcDecl {
   disposition?: 'friendly' | 'neutral' | 'hostile' | 'unknown';
 }
 
+/** Structural layout family — the DM's explicit routing declaration (beats keyword inference). */
+export type SceneKindHint = 'settlement' | 'interior' | 'wild';
+
 /** The DM's tool call to stand up a brand-new location (the fiction, semantic only). */
 export interface EstablishScene {
   locationId: LocationId;
   brief: { setting: string; biome: string; timeOfDay: Lighting; mood?: string };
+  /** DM-declared structural kind. When present it FORCES the layout grammar (settlement =
+   *  buildings+streets, interior = enclosed, wild = open nature); absent → the generator infers. */
+  kind?: SceneKindHint;
+  /** true when the DM explicitly declared timeOfDay — the parser's coerced 'day' default does NOT
+   *  count. Declared time beats mood-inferred lighting (declared > mood > day). */
+  timeOfDayExplicit?: boolean;
   fixtures: FixtureDecl[];
   npcs: NpcDecl[];
   size?: 'small' | 'medium' | 'large';
+}
+
+/** A per-beat scene design authored at ARC-GENERATION time, when the full campaign premise is in
+ *  context — the Director-quality brief the DM inherits instead of improvising one mid-turn. */
+export interface ScenePlan {
+  /** 1-3 sentences: what the place LOOKS like top-down — terrain, structures, water/edges. */
+  look: string;
+  kind: SceneKindHint;
+  /** Lighting/weather intent in plain words ("predawn fog", "grim, drowned dusk"). */
+  mood: string;
+  /** Must-exist landmark concepts (the generator's completeness nets pick them up). */
+  features?: string[];
+  /** The FUNCTIONAL contract (Weave L0): features + relations + entry staging, emitted by the scene
+   *  architect at arc time and consumed deterministically by the spec compiler — positions come from
+   *  here, never from prose. Validated by validateSceneSpec before it is stored. */
+  spec?: SceneSpec;
+}
+
+/** Campaign fiction the live orchestrator hands the modern realizer alongside the DM's declaration —
+ *  the context a setScene tool call cannot carry (the premise/beat live in GameState, not the tool). */
+export interface SceneRealizeContext {
+  /** Campaign premise (arc blueprint premise, falling back to the adventure pitch). */
+  premise?: string;
+  /** The current arc beat this scene realizes. */
+  beat?: { id: string; title?: string; summary?: string };
+  /** The beat's authored scene design, when the arc composer produced one. */
+  scenePlan?: ScenePlan;
+}
+
+/** Where a rendered scene came from — attached to the turn (response-only, never persisted) so the
+ *  lab can show exactly what the DM asked, what the generator was given, and what it decided. */
+export interface SceneProvenance {
+  locationId: LocationId;
+  /** modern = programmer path · classic = zone composer · fake = deterministic test composer ·
+   *  frozen = an already-generated location was reused verbatim. */
+  engine: 'modern' | 'classic' | 'fake' | 'frozen';
+  reused: boolean;
+  toolInput?: Record<string, unknown>;
+  establish?: EstablishScene;
+  beat?: { id: string; title?: string };
+  scenePlan?: ScenePlan;
+  /** The exact brief handed to the scene programmer. */
+  enrichedBrief?: string;
+  /** The text lighting was inferred from + why the final lighting won. */
+  moodText?: string;
+  lightingReason?: 'declared' | 'mood' | 'default';
+  /** The composed program (structural shape only — the scene package owns the real SceneProgram type;
+   *  `notes` records what the safety nets injected/rerouted, so the lab can show every intervention). */
+  program?: { cols: number; rows: number; biome: string; lighting: string; weather?: string; grammar: string; theme?: string; ops: unknown[]; notes?: string[] };
+}
+
+/** What the modern realizer returns: the frozen map + the record of how it came to be. */
+export interface RealizeSceneResult {
+  sceneMap: SceneMap;
+  provenance: SceneProvenance;
 }
 
 /** The Director's input = the DM's fiction + engine-authoritative party + the deterministic seed. */
@@ -135,6 +200,10 @@ export interface CompositionRequest {
    * straight to the Director so it can honor composition the DM couldn't encode. Optional.
    */
   directive?: string;
+  /** Lab/perf flag: floor the grid to a LARGE size (a big single settlement) so the renderer +
+   *  pan/zoom camera can be exercised at scale. The Director still paints small; the extra margin
+   *  fills with base terrain + spread buildings/greenery. (Stepping-stone toward district cities.) */
+  large?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -214,7 +283,7 @@ export interface ObjectField {
  * out), furnishes the interior from a per-type template, and seats an occupant. One per declared
  * building fixture (tavern/smithy/shop/temple/cottage…).
  */
-export const BUILDING_TYPES = ['house', 'shop', 'tavern', 'temple', 'smithy'] as const;
+export const BUILDING_TYPES = ['house', 'shop', 'tavern', 'temple', 'smithy', 'inn', 'general_store', 'cathedral', 'jail', 'vault', 'keep', 'library', 'armory', 'barracks', 'guildhall', 'goblin_warren', 'manor', 'tomb', 'courthouse', 'workshop', 'curio'] as const;
 export type BuildingType = (typeof BUILDING_TYPES)[number];
 export interface Building {
   id: EntityId;
@@ -248,7 +317,11 @@ export interface SceneComposition {
 }
 
 /** Grid bounds the Director must stay within (also enforced by validation). */
-export const GRID_LIMITS = { minCols: 12, maxCols: 40, minRows: 8, maxRows: 28 } as const;
+// Cap raised for the city-scope work (V1): allows LARGE single settlements (and headroom toward the
+// district city later). The Director still PAINTS small (~24×28 per its prompt) and parseBlockout
+// clamps to the painted grid, so normal scenes are unaffected — only an explicit `large` request
+// floors the grid bigger (buildComposition). The eventual full city will add a separate CITY limit.
+export const GRID_LIMITS = { minCols: 12, maxCols: 96, minRows: 8, maxRows: 64 } as const;
 /** Bounds on object fields (expansion caps — keeps a sloppy model from flooding the map). */
 export const FIELD_LIMITS = { maxFields: 12, maxCount: 40, minSpacing: 1, maxSpacing: 6 } as const;
 
@@ -298,12 +371,32 @@ export interface Entrance {
   fixtureId?: EntityId;
 }
 
+/** A roof-cover tile — the "closed building" layer. Drawn ON TOP of the walls + interior so a player sees
+ *  only rooftops from outside; hidden per-building when the party enters (reveal), or globally via the lab
+ *  Roofs switch. Computed from building footprints in the tiler, so both renderers stay pixel-identical. */
+/** A roof is emitted as VECTOR geometry (not tiles): gradient-filled polygon FACES, crisp hip/ridge/rim
+ *  LINES, and chimney/dormer SPRITES. Both renderers rasterise the same ops and apply the day/night tint,
+ *  so a clean 45° hip and a solid rim are actually drawn, not approximated by shaded squares. Coordinates
+ *  are in SCENE PIXELS (col*16 …). Colours are packed 0xRRGGBB (the builder does all the shading math). */
+export interface RoofFace { pts: number[]; top: number; bot: number } // flat [x0,y0,x1,y1,…]; vertical gradient top→bot
+export interface RoofLine { x1: number; y1: number; x2: number; y2: number; c: number; w: number } // hips, ridge, rim
+export interface RoofSprite { x: number; y: number; tag: string } // 'roof_chimney' | 'roof_dormer', drawn centred
+export interface RoofBuilding {
+  id: string; // buildingId — so play can reveal one building at a time
+  faces: RoofFace[];
+  lines: RoofLine[];
+  sprites: RoofSprite[];
+}
+
 /** The frozen, canonical scene — the single source of truth for renderer AND DM digest. */
 export interface SceneMap {
   locationId: LocationId;
   seed: number;
   biome: string;
   lighting: Lighting;
+  /** WEATHER, composable with time-of-day (dusk + fog is a real sky). Absent = clear. The legacy
+   *  lighting value 'fog' is still honored by renderers, but new scenes emit time + weather. */
+  weather?: 'fog' | 'clear';
   grammar: LayoutGrammar;
   grid: { cols: number; rows: number; feetPerTile: number };
   tiles: string[][]; // terrain tag per cell; tiles[row][col]
@@ -311,6 +404,8 @@ export interface SceneMap {
   objects: MapObject[]; // the object_map (id-addressed registry)
   ambiance: AmbianceItem[];
   entrances: Entrance[];
+  /** Rooftop cover as vector geometry, one entry per building (optional; absent = no roofs). */
+  roofs?: RoofBuilding[];
 }
 
 // ---------------------------------------------------------------------------
@@ -337,7 +432,10 @@ export interface WorldState {
 export type MoveTarget = { anchor: SemanticAnchor } | { col: number; row: number };
 
 export type SceneDelta =
-  | { op: 'move'; id: EntityId; to: MoveTarget }
+  | { op: 'move'; id: EntityId; to: MoveTarget;
+      /** The actual path walked (travel gate output) — renderers tween THROUGH these waypoints so
+       *  a long walk looks like walking, not teleporting. Display-only; `to` stays authoritative. */
+      via?: { col: number; row: number }[] }
   | { op: 'face'; id: EntityId; facing: Facing }
   | { op: 'reveal'; id: EntityId }
   | { op: 'hide'; id: EntityId }
@@ -352,6 +450,9 @@ export type SceneDelta =
       name?: string;
       anchor: SemanticAnchor;
       visible?: boolean;
+      /** The concrete tile the applier resolved the anchor to — filled on APPLIED deltas so the
+       *  renderer places the sprite without re-resolving. Absent on proposals. */
+      at?: { col: number; row: number };
     }
   | { op: 'enter'; id: EntityId; toLocationId: LocationId; via?: EntityId };
 

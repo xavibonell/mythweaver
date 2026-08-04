@@ -39,6 +39,18 @@ describe('parseJudgeScores', () => {
   it('throws on no JSON at all', () => {
     expect(() => parseJudgeScores('no json here')).toThrow();
   });
+
+  it('recovers the six scores from a reply truncated mid-rationale (no closing brace)', () => {
+    // Exactly the maxTokens-truncation that once crashed a paid run: numbers present, object never closes.
+    const truncated = '{"rulesFidelity":2,"sourceFaithfulness":3,"style":4,"pacing":5,"coherence":4,"agency":4,"rationale":"The narration is co';
+    const s = parseJudgeScores(truncated);
+    expect(s).toEqual({ rulesFidelity: 2, sourceFaithfulness: 3, style: 4, pacing: 5, coherence: 4, agency: 4 });
+  });
+
+  it('still throws when a truncated reply is missing a score entirely', () => {
+    const truncated = '{"rulesFidelity":2,"sourceFaithfulness":3,"style":4,"pacing":5,"coherence":4,"rationa'; // agency never arrived
+    expect(() => parseJudgeScores(truncated)).toThrow();
+  });
 });
 
 describe('buildJudgePrompt', () => {

@@ -63,6 +63,20 @@ def gen_water_deep(dst: str, frm: dict) -> None:
     im.save(dst)
 
 
+def gen_lava(dst: str, frm: dict) -> None:
+    """A molten lava tile: dark-red crust with glowing orange cracks + yellow-hot flecks."""
+    im = Image.new("RGBA", (16, 16), (90, 24, 12, 255))  # dark crust
+    glow = (230, 120, 30, 255)  # orange crack
+    hot = (250, 210, 70, 255)  # yellow-hot
+    for y in range(16):
+        for x in range(16):
+            if (x * 3 + y * 5) % 16 in (0, 1) or (x + y * 2) % 13 == 0:
+                im.putpixel((x, y), glow)
+            elif (x * 5 + y * 3) % 17 == 0:
+                im.putpixel((x, y), hot)
+    im.save(dst)
+
+
 def gen_sand(dst: str, frm: dict) -> None:
     """A flat sandy/beach tile: warm tan with a few lighter + darker grains (Kenney-ish speckle)."""
     im = Image.new("RGBA", (16, 16), (214, 192, 138, 255))
@@ -279,10 +293,75 @@ def gen_stall(dst: str, frm: dict) -> None:
     im.save(dst)
 
 
+def gen_counter(dst: str, frm: dict) -> None:
+    """A wooden bar / service counter tile: a warm plank top with vertical seams, a bright top lip (the edge
+    facing the patrons) and a dark base shadow — so a ROW of them reads as one continuous counter."""
+    from PIL import ImageDraw
+
+    im = Image.new("RGBA", (16, 16), (0, 0, 0, 0))
+    d = ImageDraw.Draw(im)
+    top, seam, hi, base = _db("brown"), _db("maroon"), _db("orange"), _db("black")
+    d.rectangle([0, 2, 15, 15], fill=top)
+    for x in range(0, 16, 4):  # vertical plank seams
+        d.line([(x, 3), (x, 13)], fill=seam)
+    d.rectangle([0, 1, 15, 2], fill=hi)  # bright top lip (counter edge)
+    d.rectangle([0, 14, 15, 15], fill=base)  # dark base shadow
+    im.save(dst)
+
+
+def gen_anvil(dst: str, frm: dict) -> None:
+    """A blacksmith's anvil: iron-grey, a flat top face with a horn on the right, a narrow waist, a wide base.
+    The iconic smithy work-object (DB16 palette so it sits beside the gen forge/counter)."""
+    from PIL import ImageDraw
+
+    im = Image.new("RGBA", (16, 16), (0, 0, 0, 0))
+    d = ImageDraw.Draw(im)
+    body, dark, hi, base = _db("grey"), _db("dgrey"), _db("lgrey"), _db("black")
+    d.rectangle([3, 4, 11, 7], fill=body)  # top face
+    d.polygon([(11, 4), (15, 5), (15, 6), (11, 7)], fill=body)  # horn (points right)
+    d.line([(3, 4), (11, 4)], fill=hi)  # top highlight
+    d.rectangle([6, 7, 9, 10], fill=dark)  # waist
+    d.rectangle([4, 10, 11, 13], fill=body)  # base
+    d.rectangle([3, 13, 12, 14], fill=base)  # ground shadow
+    im.save(dst)
+
+
+def gen_forge(dst: str, frm: dict) -> None:
+    """A lit blacksmith's forge: a stone hearth with glowing coals + flame on top — the smithy focal (brighter
+    and more 'fire' than a brazier). DB16 palette."""
+    from PIL import ImageDraw
+
+    im = Image.new("RGBA", (16, 16), (0, 0, 0, 0))
+    d = ImageDraw.Draw(im)
+    stone, dstone, fire, hot, ember, black = _db("grey"), _db("dgrey"), _db("orange"), _db("yellow"), _db("red"), _db("black")
+    d.rectangle([1, 7, 14, 15], fill=stone)  # stone hearth base
+    d.rectangle([1, 7, 14, 8], fill=dstone)
+    for x in range(3, 14, 3):  # brick seams
+        d.line([(x, 9), (x, 14)], fill=dstone)
+    d.rectangle([3, 3, 12, 7], fill=black)  # firebox opening
+    d.rectangle([4, 5, 11, 7], fill=ember)  # glowing coals
+    d.polygon([(5, 6), (7, 2), (8, 6)], fill=fire)  # flame
+    d.polygon([(8, 6), (10, 3), (11, 6)], fill=fire)  # flame 2
+    d.point([(7, 3), (10, 4), (9, 5)], fill=hot)  # hot flecks
+    im.save(dst)
+
+
+def gen_cliff_shadow(dst: str, frm: dict) -> None:
+    """A soft cast shadow for a cliff foot: darkest on the cliff (left) side, fading to transparent."""
+    im = Image.new("RGBA", (16, 16), (0, 0, 0, 0))
+    for x in range(16):
+        a = int(150 * max(0.0, 1.0 - x / 13.0))
+        for y in range(16):
+            im.putpixel((x, y), (20, 12, 28, a))
+    im.save(dst)
+
+
 GENERATORS = {
-    "water": gen_water, "water_deep": gen_water_deep, "sand": gen_sand, "boat": gen_boat,
+    "cliff_shadow": gen_cliff_shadow,
+    "anvil": gen_anvil, "forge": gen_forge,
+    "water": gen_water, "water_deep": gen_water_deep, "lava": gen_lava, "sand": gen_sand, "boat": gen_boat,
     "house": gen_house, "fountain": gen_fountain, "dlhouse": gen_dlhouse, "stall": gen_stall, "wall": gen_wall, "flowers": gen_flowers,
-    "pebble": gen_pebble, "tuft": gen_tuft,
+    "pebble": gen_pebble, "tuft": gen_tuft, "counter": gen_counter,
 }
 
 
@@ -306,6 +385,12 @@ def extract_one(art: str, frm: dict) -> tuple[bool, str]:
         return True, f"{w}x{h}"
     x, y, cw, ch = frm["rect"]
     f0 = Image.open(src).convert("RGBA").crop((x, y, x + cw, y + ch))
+    # `flipH`/`flipV`: mirror the crop, so one source sprite yields its mirrored orientations (e.g. a
+    # head-left bed -> head-right; a head-up bed -> head-down) without needing a separate source tile.
+    if frm.get("flipH"):
+        f0 = f0.transpose(Image.FLIP_LEFT_RIGHT)
+    if frm.get("flipV"):
+        f0 = f0.transpose(Image.FLIP_TOP_BOTTOM)
     # `frame2`: a second sheet (DawnLike's *1.png) holding the next animation frame at the SAME rect.
     # Emit a horizontal 2-frame strip the renderer plays as a looping idle anim.
     f2rel = frm.get("frame2")
@@ -314,6 +399,10 @@ def extract_one(art: str, frm: dict) -> tuple[bool, str]:
         if not os.path.exists(src2):
             return False, f"missing frame2 {frm.get('pack')}/{f2rel}"
         f1 = Image.open(src2).convert("RGBA").crop((x, y, x + cw, y + ch))
+        if frm.get("flipH"):
+            f1 = f1.transpose(Image.FLIP_LEFT_RIGHT)
+        if frm.get("flipV"):
+            f1 = f1.transpose(Image.FLIP_TOP_BOTTOM)
         strip = Image.new("RGBA", (cw * 2, ch), (0, 0, 0, 0))
         strip.alpha_composite(f0, (0, 0))
         strip.alpha_composite(f1, (cw, 0))

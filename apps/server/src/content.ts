@@ -1,9 +1,9 @@
 /** Loads SRD-safe scenario seed data and validates it against the domain types. */
 
-import { readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import type { CharacterSheet, StatBlock } from '@mythweaver/shared';
+import type { CharacterSheet, GameState, ItemDef, ScenePlan, StatBlock } from '@mythweaver/shared';
 
 const CONTENT_DIR =
   process.env.MYTHWEAVER_CONTENT_DIR ?? resolve(dirname(fileURLToPath(import.meta.url)), '../../../content');
@@ -13,6 +13,8 @@ export interface ScenarioScene {
   title: string;
   summary: string;
   exits: string[];
+  /** Optional authored VISUAL design for the scene (same shape as a generated beat's plan). */
+  scenePlan?: ScenePlan;
 }
 
 export interface ScenarioEncounter {
@@ -48,6 +50,90 @@ export function scenarioJsonPath(slug: string): string {
 /** Raw scenario.json text, for editing in the DM Lab. */
 export function readScenarioRaw(slug: string): string {
   return readFileSync(scenarioJsonPath(slug), 'utf8');
+}
+
+// --- Pregenerated campaigns (content/pregens/*.json) --------------------------------------------
+// Frozen GeneratedArc bundles (arc + scenePlans + party + encounters + bestiary + ledger), so the lab
+// can start a full campaign session with ZERO model calls — the cheap iteration path for everything
+// downstream of arc generation (briefs, scenes, play).
+
+const PREGENS_DIR = resolve(CONTENT_DIR, 'pregens');
+
+/** List available pregenerated campaigns (slug + a display summary). */
+export function listPregens(): { slug: string; title: string; beats: number; party: string[] }[] {
+  let files: string[];
+  try {
+    files = readdirSync(PREGENS_DIR).filter((f) => f.endsWith('.json'));
+  } catch {
+    return []; // no pregens dir — fine
+  }
+  const out: { slug: string; title: string; beats: number; party: string[] }[] = [];
+  for (const f of files) {
+    try {
+      const arc = readJson<{ blueprint?: { premise?: string }; adventure?: { pitch?: string; scenes?: Record<string, unknown> }; party?: { name: string }[] }>(resolve(PREGENS_DIR, f));
+      out.push({
+        slug: f.replace(/\.json$/, ''),
+        title: (arc.blueprint?.premise ?? arc.adventure?.pitch ?? f).slice(0, 120),
+        beats: Object.keys(arc.adventure?.scenes ?? {}).length,
+        party: (arc.party ?? []).map((p) => p.name),
+      });
+    } catch {
+      /* skip an unreadable file */
+    }
+  }
+  return out;
+}
+
+/** Raw pregen arc JSON by slug (the caller validates it with validateGeneratedArc). */
+export function readPregen(slug: string): unknown {
+  if (!/^[a-z0-9-]+$/.test(slug)) throw new Error(`invalid pregen slug "${slug}"`);
+  return readJson<unknown>(resolve(PREGENS_DIR, `${slug}.json`));
+}
+
+// --- Prerendered dev sessions (content/dev-sessions/*.json) ------------------------------------
+// A frozen full GameState captured AFTER a scene was rendered — hydrate it into a fresh Engine to
+// start playing over an already-drawn scene instantly, $0 (no arc-gen, no scene render). The cheap
+// iteration path for DM live-interaction work. See docs: the freeze/load flow in dm-lab.ts + index.ts.
+
+const DEV_SESSIONS_DIR = resolve(CONTENT_DIR, 'dev-sessions');
+
+/** A captured dev session: the full engine state + a little display meta. */
+export interface DevSessionFile {
+  state: GameState;
+  meta: { title: string; scene: string; locationId: string; savedAt?: string; lastNarration?: string };
+}
+
+/** List available prerendered dev sessions (slug + display summary). */
+export function listDevSessions(): { slug: string; title: string; scene: string }[] {
+  let files: string[];
+  try {
+    files = readdirSync(DEV_SESSIONS_DIR).filter((f) => f.endsWith('.json'));
+  } catch {
+    return []; // no dev-sessions dir — fine
+  }
+  const out: { slug: string; title: string; scene: string }[] = [];
+  for (const f of files) {
+    try {
+      const d = readJson<DevSessionFile>(resolve(DEV_SESSIONS_DIR, f));
+      out.push({ slug: f.replace(/\.json$/, ''), title: (d.meta?.title ?? f).slice(0, 120), scene: d.meta?.scene ?? '' });
+    } catch {
+      /* skip an unreadable file */
+    }
+  }
+  return out;
+}
+
+/** Read a captured dev session by slug (caller hydrates `state` into a fresh Engine). */
+export function readDevSession(slug: string): DevSessionFile {
+  if (!/^[a-z0-9-]+$/.test(slug)) throw new Error(`invalid dev-session slug "${slug}"`);
+  return readJson<DevSessionFile>(resolve(DEV_SESSIONS_DIR, `${slug}.json`));
+}
+
+/** Persist a captured dev session to content/dev-sessions/<slug>.json. */
+export function writeDevSession(slug: string, file: DevSessionFile): void {
+  if (!/^[a-z0-9-]+$/.test(slug)) throw new Error(`invalid dev-session slug "${slug}"`);
+  mkdirSync(DEV_SESSIONS_DIR, { recursive: true });
+  writeFileSync(resolve(DEV_SESSIONS_DIR, `${slug}.json`), `${JSON.stringify(file, null, 2)}\n`);
 }
 
 /** Validate the structural invariants of a scenario object (shared by load + override + save). */
@@ -107,12 +193,25 @@ export function loadSharedBestiary(): StatBlock[] {
   return bestiary;
 }
 
+/** The game-wide item catalog (P3d): loaded on boot like the bestiary; ItemRefs on a character point into it. */
+export function loadItemCatalog(): Record<string, ItemDef> {
+  const items = readJson<ItemDef[]>(resolve(SHARED_DIR, 'items.json'));
+  const catalog: Record<string, ItemDef> = {};
+  for (const it of items) {
+    if (!it.id || !it.name || !it.category || typeof it.weightLb !== 'number') {
+      throw new Error(`Shared item is invalid (need id, name, category, numeric weightLb): ${JSON.stringify(it).slice(0, 80)}`);
+    }
+    catalog[it.id] = it;
+  }
+  return catalog;
+}
+
 /**
  * Resolve a hand-built party (Add player → pick role) into playable character sheets: each pick clones
  * its role archetype, with a unique id and the player's chosen name (falling back to the role label).
  * Unknown roles are dropped; an empty/garbage party falls back to a single Fighter so play never breaks.
  */
-export function resolveParty(picks: { role: string; name?: string }[]): CharacterSheet[] {
+export function resolveParty(picks: { role: string; name?: string; backstory?: string }[]): CharacterSheet[] {
   const lib = loadSharedParty();
   const byId = new Map(lib.map((p) => [p.id, p]));
   const out: CharacterSheet[] = [];
@@ -120,7 +219,8 @@ export function resolveParty(picks: { role: string; name?: string }[]): Characte
     const archetype = byId.get(pick.role);
     if (!archetype) return;
     const name = (pick.name || '').trim() || `${archetype.name} ${out.filter((p) => p.className === archetype.className).length + 1}`;
-    out.push({ ...archetype, id: `pc-${i + 1}-${archetype.id}`, name });
+    const backstory = (pick.backstory || '').trim();
+    out.push({ ...archetype, id: `pc-${i + 1}-${archetype.id}`, name, ...(backstory ? { backstory } : {}) });
   });
   if (out.length === 0) {
     const fighter = byId.get('fighter') ?? lib[0]!;

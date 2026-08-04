@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { type SceneComposition, validateSceneMap } from '@mythweaver/shared';
-import { buildSceneMap } from './cartographer.js';
+import { bakeAutoTiles, buildSceneMap } from './cartographer.js';
 
 function composition(seed = 42): SceneComposition {
   return {
@@ -210,7 +210,8 @@ describe('buildSceneMap (Cartographer)', () => {
       blockout: { cols: 12, rows: 8, cells: [], grid: ['AAAAAAAAAAAA', 'GGGGGGGGGGGG', 'GGGGGGGGGGGG', 'GGGGGGGGGGGG', 'GGGGGGGGGGGG', 'GGGGGGGGGGGG', 'DDDDDDDDDDDD', 'DDDDDDDDDDDD'] },
     };
     const m = buildSceneMap(comp);
-    expect(m.tiles[0]!.every((t) => t === 'sand')).toBe(true);
+    // sand is an EDGED family now (batch-2 forge): the beach row autotiles where it meets grass.
+    expect(m.tiles[0]!.every((t) => t.startsWith('sand'))).toBe(true);
     expect(m.tiles[7]!.every((t) => t === 'water_deep')).toBe(true);
     expect(m.walkable[7]!.every((w) => w === false)).toBe(true); // deep water is impassable
   });
@@ -253,10 +254,10 @@ describe('buildSceneMap (Cartographer)', () => {
     const m = buildSceneMap(comp);
     expect(validateSceneMap(m)).toEqual({ ok: true, violations: [] });
     const boat = m.objects.find((o) => o.id === 'prop:boat')!;
-    expect(boat.footprint).toEqual({ w: 3, h: 2 }); // the platform footprint
+    expect(boat.footprint).toEqual({ w: 2, h: 3 }); // the platform footprint (portrait AI boat sprite)
     // the boat's deck tiles are walkable even though the base terrain is water
     let deckWalkable = 0;
-    for (let dy = 0; dy < 2; dy++) for (let dx = 0; dx < 3; dx++) if (m.walkable[boat.row + dy]?.[boat.col + dx]) deckWalkable++;
+    for (let dy = 0; dy < 3; dy++) for (let dx = 0; dx < 2; dx++) if (m.walkable[boat.row + dy]?.[boat.col + dx]) deckWalkable++;
     expect(deckWalkable).toBeGreaterThanOrEqual(5);
     const sailor = m.objects.find((o) => o.id === 'npc:sailor')!;
     expect(m.walkable[sailor.row]?.[sailor.col]).toBe(true); // standing on the boat, not drowning
@@ -354,24 +355,32 @@ describe('buildSceneMap (Cartographer)', () => {
     expect(adj).toBe(true);
   });
 
-  it('C1: auto-tiles grass edges against other terrain, keeps surrounded grass plain, deterministic', () => {
-    const m1 = buildSceneMap(composition(7));
-    const m2 = buildSceneMap(composition(7));
-    expect(m1.tiles).toEqual(m2.tiles); // seed-stable bake
-    expect(validateSceneMap(m1)).toEqual({ ok: true, violations: [] });
-    const flat = m1.tiles.flat();
-    expect(flat).toContain('grass'); // centre fill survives (surrounded cells)
-    const edges = flat.filter((t) => /^grass_(t|b|l|r|tl|tr|bl|br)$/.test(t));
-    expect(edges.length).toBeGreaterThan(0); // edges baked where grass meets dirt/water/sand
-    // every baked edge cell actually borders a non-grass tile (not edging mid-field)
-    const { cols, rows } = m1.grid;
-    const isGrass = (c: number, r: number) => c < 0 || r < 0 || c >= cols || r >= rows || m1.tiles[r]![c] === 'grass' || /^grass_/.test(m1.tiles[r]![c]!);
-    for (let r = 0; r < rows; r++)
-      for (let c = 0; c < cols; c++)
-        if (/^grass_/.test(m1.tiles[r]![c]!)) {
-          const borders = !isGrass(c, r - 1) || !isGrass(c + 1, r) || !isGrass(c, r + 1) || !isGrass(c - 1, r);
-          expect(borders).toBe(true);
+  it('C1: grass FRINGES against real terrain (water) but BLENDS into bare earth (dirt/trail), deterministic', () => {
+    // A 9×9 grass field with a water pond (a real boundary) + a dirt path down the middle (bare earth).
+    const field = () => Array.from({ length: 9 }, () => Array.from({ length: 9 }, () => 'grass'));
+    const src = field();
+    src[1]![1] = 'water'; src[1]![2] = 'water'; src[2]![1] = 'water'; src[2]![2] = 'water'; // pond, top-left
+    for (let r = 0; r < 9; r++) src[r]![5] = 'dirt'; // a dirt path — bare earth, should NOT fringe grass
+    const a = src.map((row) => row.slice());
+    bakeAutoTiles(a, 9, 9);
+    const flat = a.flat();
+    // grass edges DO appear (around the water), and centre grass stays plain
+    expect(flat.some((t) => /^grass_(t|b|l|r|tl|tr|bl|br)$/.test(t))).toBe(true);
+    expect(flat).toContain('grass');
+    // EVERY baked grass edge borders water — never a dirt-only border (bare earth blends now)
+    const at = (c: number, r: number) => (r >= 0 && r < 9 && c >= 0 && c < 9 ? a[r]![c]! : 'grass');
+    for (let r = 0; r < 9; r++)
+      for (let c = 0; c < 9; c++)
+        if (/^grass_/.test(a[r]![c]!)) {
+          const nb = [at(c, r - 1), at(c + 1, r), at(c, r + 1), at(c - 1, r)];
+          expect(nb.some((t) => t.startsWith('water'))).toBe(true); // a real boundary, not the dirt path
         }
+    // no grass cell adjacent to ONLY the dirt path (never water) got an edge tile
+    expect(a[4]![4]!).toBe('grass'); // beside the dirt path, far from water → plain, no orange fringe
+    // deterministic
+    const b = src.map((row) => row.slice());
+    bakeAutoTiles(b, 9, 9);
+    expect(a).toEqual(b);
   });
 
   it('C1: interiors get no grass auto-tiles (grass is outdoor-only)', () => {

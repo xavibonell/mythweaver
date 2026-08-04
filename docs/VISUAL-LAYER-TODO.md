@@ -15,6 +15,59 @@ SceneComposition / SceneMap artifacts shown so you can see *which stage* is at f
 
 ---
 
+## ▶ Phase F — Systematic semantic quality: the "10/10 everywhere" kernel (ACTIVE)
+
+House reached 10/10 not by hand-polishing but by a **machine**: declare correctness as checkable
+invariants → sweep the seed space to zero ($0) → adversarially verify → vision-judge the residue.
+The STRUCTURAL axis of that machine (`structure-check.ts` + `scene:sweep`) is already type-agnostic and
+green for all 5 types. Phase F **clones that crank for a second, SEMANTIC axis** — "does it *read as*
+itself?" — so tavern/temple/smithy/shop (and every future component) reach 10/10 by the same loop, not
+by per-building polishing.
+
+**Two hard truths (verified) that shape the order:**
+1. **`facing` is a render no-op for props** (`SceneCanvas` only flips on `facing==='left'`). Orientation
+   MUST live in oriented sprite **tags** (the `bed`/`bed_down`, `window`/`window_front` pattern), never
+   the `MapObject.facing` field — else a checker goes green while the screenshot is unchanged.
+2. **The focal sprites don't exist yet** (no anvil/forge/stool/pew/bar-counter/display-case). Art is the
+   long pole and gates smithy/tavern/shop. **Temple ships first** — its whole kit already exists.
+
+**The kernel (built once, reused everywhere):**
+- `BuildingSpec` per type (data): the *contract* — focal piece + room + where, required props min/max
+  scoped to room, service-path rule. Read by BOTH generator and checker.
+- `semantic-check.ts` — deterministic gate mirroring `structure-check.ts`: `missingFocal`,
+  `focalNotProminent` (on a wall + clear approach), `noSeating`/`countOutOfRange`, `clientsNotFacing`,
+  `brokenStation`, `servicePathBlocked`, `wrongRoomFurniture`. No SceneMap schema change (the sweep knows the kind).
+- A focal-**station** GROUP primitive in `furnishRoom` (centerpiece anchored + relational satellites +
+  keep-clear approach, so prominence passes *by construction*).
+- Per-type vision baseline + a 6th rubric dim `typeReadability` for the irreducibly subjective residue.
+
+**Definition of done per type (NEVER a screenshot sign-off):** semantic sweep 100% over ≥200 seeds AND
+per-type vision baseline pinned & non-regressed AND an adversarial audit run **on the GREEN
+(checker-passing) seeds** hunting "passes-but-reads-generic" — every survivor ratcheted into a new
+deterministic invariant OR a new oriented asset. That ratchet rule is what prevents collapse back to
+hand-polishing.
+
+**Order:** F0 = **TEMPLE end-to-end** (no new art) → produces the kernel everything copies. F1 = ART
+track (parallel long pole, gated by a catalog-existence test). F2 = smithy → tavern → shop. F3 =
+generalize to vignettes / streets / caves + a `scene:gate` ($0 sweeps per commit; paid vision judge on
+demand). Derived from a 3-architect + adversarial-critic design panel (2026-06-22).
+
+- [x] **The kernel:** `semantic-check.ts` (`checkSemantics(map,type)`, point/run/station focals + `keeperAtFocal`
+  + graceful degradation) · `scene:sweep:semantics` · `typeReadability` rubric dim. Two new structural
+  invariants ratcheted from audits: `doorBlocked` (traversable) + `actorBoxed` (no sealed-in NPC).
+- [x] **F0 temple** — `nave` station (altar opposite door, candelabra, ranked pews + aisle). 100% rect.
+- [x] **F1 tavern** — `bar` station (continuous `bar_counter` RUN, barkeep at it, stools, kegs). 100% rect.
+- [x] **F2 smithy** — `forge` station (lit forge + adjacent anvil + smith, quench barrel). New gen anvil/forge. 100% rect.
+- [x] **F3 shop** — `shopfront` station (service counter + shopkeeper + display ware-shelves). 100% rect.
+- All four station types: 100% reads-as-itself on the SHIPPING path (rect/L/T/U/cross), structure 100%
+  (0 blocked doors, 0 boxed NPCs), driven by the deterministic sweep + adversarial green-seed audits.
+- [ ] **F4 composed station-types** — composed (organic) footprints degrade (tavern ~87%, shop ~65%, smithy
+  ~55%): a focal STATION on a composed PARTITION wall can be sheared by an inter-room arch. Fix: anchor
+  focal stations on the OUTER RING (never a partition) — lifts every composed station-type in one move.
+- [ ] **F5 vision baselines** — pin per-type `typeReadability` baselines (paid judge run) + re-pin house.
+
+---
+
 ## ✅ Phase A — Foundation (DONE)
 
 - [x] Contract pipeline (EstablishScene → SceneComposition → SceneMap), frozen world graph, re-entry reuse.
@@ -110,6 +163,56 @@ A church test exposed the blockout's ceiling: "rows of benches" rendered as one 
 
 ## Where we are now (assessed 2026-06-18)
 Composition system is ~80-85% mature; the dominant ceiling on perceived quality is now **art coverage**, not placement logic. The seam pass spent the last cheap, pack-durable system headroom (shore/terrain-vocab/platform). **Next dominant lever = the cohesive pack** (acquire ONE paid base pack for palette/scale cohesion, then OFFLINE palette-locked diffusion for the long tail + transition tiles; both land via the same `library.json` re-point). Two surfaces must be rebuilt FOR scale, in this order: (a) Director tag **selection** — the full-catalog-in-prompt dump + regex resolver hit lost-in-the-middle at 200+ tags → move to retrieval/embedding + biome-aware resolution (mirrors the DM RAG seam); (b) **terrain-edge geometry** — real 8-neighbour autotiling (Phase C1), which only pays off once the pack ships edge/corner tiles (and without which a richer pack looks WORSE — hard seams). Do NOT swap a big pack in before (b). Avoid more pure-arrangement polish (ceiling is the palette now).
+
+---
+
+## ◐ Phase G — Compositional generation: from 3 templates to a primitive vocabulary (THE CURRENT ARC, 2026-06-20)
+
+**Why (re-diagnosed 2026-06-20, after the city work + a "labyrinth / waterfall-lake" failure):** the generator is still a **phrasebook of 3 hard-coded layout templates** — `town-square` / `enclosed-interior` / `open-outdoor` (`LAYOUT_GRAMMARS`), chosen by keyword regex (`composer.ts:sceneKindOf`), each materialized as fixed rectangular zones (`cartographer.ts:zoneRects`). The blockout is only a partial escape (one terrain channel, flat walls, no maze connectivity). So any brief that isn't a town / room / open-field — a maze, a waterfall lake with islands+bridges, a multi-level ruin — has **nowhere to live** and degrades to a mess. **Adding a 4th/5th template per scene type is the treadmill we are explicitly rejecting.**
+
+**The fix (deep research + adversarial red-team; see memory `scene-gen-strategy`):** replace the 3 templates with a small **vocabulary of composable spatial PRIMITIVES** — deterministic, seeded, region-scoped, **connectivity-correct by construction** (`maze`, `bspRooms`, `cave`, `water`, `island`, `bridge`, `voronoiDistricts`, `plaza`, `path`, `ring`, `scatter`, `carveRooms`, `coast`, `stamp`). A scene is an ordered **composition** of primitives, not a template. Generality is combinatorial: maze = `maze + entrance + landmark + scatter`; waterfall-lake = `water + island×3 + bridge + scatter`; city = `districts + plaza + rooms + streets`. **You add code per spatial *concept* (reused across every scene), never per *scene*.** ~90% of the deterministic helpers already exist (autotile, decals, reachability, placement, validators); `city.ts` is the existence-proof that re-composes them at $0.
+
+**Hard design rules (from the red-team — do NOT violate):**
+1. The LLM stays OUT of coordinates AND out of free topology authorship (documented 42–80% LLM spatial-reasoning collapse as topology rises). Its job: classify the brief → pick/compose primitives + a few scalar params + entity/landmark/terrain intent. (The Dungeon-Alchemist model: parametric procedural recipes, not generative maps.)
+2. Connectivity BY CONSTRUCTION inside each primitive. `reachabilityCarve` is a rare last-resort safety net, NOT the contract (it bulldozes straight tunnels through a maze, destroying intent).
+3. Freeze the resolved MAP (current behaviour), not a replayable program. Determinism is per-location, not per-brief.
+4. Diffusion is for ART (offline asset factory), never for layout. Cheaper first: extract far more of the ~2000 DawnLike sprites we own (we use ~120).
+
+**Plan, steps & expected results:**
+- [ ] **G1 — Falsification spike (cheap, NO contract change). THE gate.** ~6–8 starter primitives behind a tiny interpreter (reusing the existing post-passes + `validateSceneMap`). Hand-write "gold" compositions for **4 deliberately diverse briefs — a waterfall lake with islands+bridges, a labyrinth, a market city, a multi-room crypt — from the SAME primitives, zero per-scene code**; confirm each renders valid + on-intent in `/lab`. Then have the LLM emit those compositions (structured output) and diff vs gold + a tiny spatial eval (~$1). **Expected result:** 4 structurally-different valid scenes from one system → the central bet is proven; OR the LLM can't compose reliably → fall back to *LLM-picks-recipe + params* (even more constrained) — and we learn that *before* the refactor. Either way the core risk is retired for ~$1.
+- [ ] **G2 — Formalize (only if G1 passes; needs the held `world.ts` contract change, landed ADDITIVELY).** Extend `SceneComposition` with the primitive program; extract the full ~15-primitive vocabulary out of the 660-line `buildSceneMap`; a region resolver; the interpreter replaces the `zoneRects` switch; validate-and-repair at freeze. **The 3 grammars are NOT a backbone or a permanent fallback — they were MVP scaffolding.** During migration, the existing town/interior scenes are reproduced AS primitive *compositions* (a "town" = `districts + plaza + rooms + streets`), then `zoneRects`/`GRAMMAR_BY_KIND`/`sceneKindOf` are DELETED. End state: zero whole-map templates. **Expected result:** any brief → a composed scene; the 3-template ceiling is gone; cities / dungeons / mazes / waterfronts from ONE system; existing scenes reproduced as compositions; all current tests green.
+- [ ] **G3 — Richness (parallel; the "looks hand-authored" axis).** (a, START NOW) extract far more existing DawnLike sprites → kills repetition cheaply; (b) a WFC / organic-fill primitive learned from the bundled DawnLike `.tmx` → organic cave/ruin texture; (c) a small hand-authored **fragment vault** (a `stamp` primitive: tavern-interior, maze-chunk, fountain-plaza, cave-mouth) → human-quality local detail; (d, later) the offline diffusion asset factory. **Expected result:** scenes read varied + authored, not flat/uniform.
+
+**Decisions locked (2026-06-20):** extract more DawnLike art FIRST (before diffusion); HOLD the `world.ts` contract change until G1 proves the direction; the maze is NOT a goal — it's one of four diverse *test* briefs for a general system.
+
+**SHIPPED 2026-06-20 (NOT committed) — the module engine reached the "consistent creativity" bar.** Built `packages/scene/src/primitives.ts` (Canvas + composable spatial primitives: maze/bspRooms/water/island/bridge/plaza/path/wallRing/**building**/**vignette**/place/scatter, connectivity-correct by construction) + `scene-program.ts` (a DATA `SceneOp[]` program + interpreter + `LlmSceneProgrammer` macro-director + a robust `normalizeProgram` firewall + a `BRIEF_CREATURES` completeness net). Engine path = Lab **"Primitives" mode** (the default), `POST /scene/program`. Landmark wins: (G2a) **furnished buildings restored** — extracted `furnishRoom` from `carveBuildings` (behavior-identical, classic path unchanged) so a `building` op carves a furnished room (furniture + keeper, one material); (G2b) **vignettes** — authored set-pieces (market/forge/camp/shrine/well/graveyard) kill "piled assets"; (G2c-core) **theme system** — one material palette per scene kills floor noise; (G3a) +40 DawnLike sprites + a generated `lava` tile. Verified in /lab: the market/fen-village/lava-temple briefs all render furnished, coherent, populated. **Deferred with reasons (see memory `scene-gen-strategy`):** grammar DELETION (the live DM pipeline depends on the classic path — would break the game), full ASCII marker-grid module format (FurnSpec templates already suffice), G2d connector-snapping (paths + reachabilityCarve already connect), and the WFC texture layer (research said gate it behind the modules). Tests: 208 green.
+
+**Honest ceiling:** always-valid + playable by construction, but semantic intent-fidelity is bounded by LLM spatial reasoning (mitigated by presets / recipes / fragments / eval, not eliminated). Expect "clearly-procedural-but-coherent-and-varied" and — with G3 — "approaching authored," not "indistinguishable from hand-drawn."
+
+---
+
+## ◐ Phase H — ARCHETYPE GENERATORS: stop letting the LLM lay out the map (THE CURRENT ARC, 2026-06-21)
+
+**Why:** even after the module engine, towns still rendered as a **spreadsheet of rectangular building boxes on a flat grass grid** (3 iterations, all the same failure) vs hand-crafted DawnLike refs (organic streets, varied footprints, a plaza, density). **Root cause (research workflow `wf_6323aed4-029`):** we made the **LLM the layout artist** — it places ~6 building rects and an LLM places them in an even grid. The reference tools (Watabou Medieval Fantasy City Generator, Parish-Müller) look good precisely *because* the magic is a deterministic layout **ALGORITHM**, not a brain. Plus our density was **white noise** (uniform %), which clumps+voids = litter.
+
+**The fix:** demote the LLM to an **archetype + semantic-CONTENTS picker**; a deterministic `generator(canvas, ctx)` owns the organic composition. Everything below `finalize()` (renderer, validators, combat) is unchanged.
+
+**SHIPPED 2026-06-21 (NOT committed) — town solved end-to-end, verified in /lab:**
+- [x] **Two distribution primitives** (`primitives.ts`): `poissonScatter` (Bridson blue-noise — even spread for trees/lamps) + `noiseField`/`clumpScatter` (noise-threshold — cohesive flower-beds/thickets). Replaces white-noise scatter.
+- [x] **`themes.ts`** — extracted Theme/THEMES/themeNameFor (no import cycle).
+- [x] **`archetypes.ts`** — `ArchetypeGenerator` + `Contents` + a `GENERATORS` registry of 5 (town/dungeon/cave/wilderness/coast) + the `{op:'archetype'}` SceneOp (runOp + normalizeOp coercion).
+- [x] **TOWN generator (the real algorithm):** irregular boundary → recursive-bisection **street network** (narrow lanes, jittered, connected by construction) → centroid **plaza** + well → OBB recursive **parcel subdivision** (soft random stop → varied lots) → **footprints** via existing `building()` (furnished + keeper), door faces nearest street, ward-zoned types, jittered setbacks → **two-texture density**.
+- [x] **Town routing** in `normalizeProgram`: a settlement brief (not water-dominant) → `harvestTownContents` pulls the LLM's named cast + drops its geometry → ONE town archetype op (grid floored ≥54×40). Gold `town` program + `/lab` "▣ town" button. **230 tests.**
+- [x] **Verified:** the gold town AND the user's own walled-town brief (Primitives mode) both render as a dense organic village — winding streets, ~16 varied-size buildings (big tavern + small huts + 2 stone civic), plaza+well, townsfolk, layered greenery. A decisive leap from the grid-of-boxes.
+
+**COMPOUND-BUILDING DEEP-REFINE (2026-06-21, NOT committed) — per the user's gap analysis; learnings in `TOWN-BUILDER-NOTES.md`.** Buildings went from single open boxes → **multi-room compounds**: `compound()` subdivides the footprint into rooms (shared partition walls, a door carved at every split → connected by construction), each **furnished BY FUNCTION** (`ROOM_TEMPLATES` + `ROOM_PROGRAMS`: tavern = bar+dining+kitchen+bedroom, temple = nave+vestry+bedroom, …) with one keeper in the front room; large compounds get an **inner courtyard** (grass + fountain + flowers). Streets are now **cobblestone arteries + dirt alleys** (was all mud); buildings are **fewer/bigger** (a mix of cottages + compounds); greenery is **lusher** (tree groves + denser flower beds). 230 tests (asserts roomCount > buildingCount = real multi-room). **The generalizable recipe** (see `TOWN-BUILDER-NOTES.md`): recursive bisection at two scales (town→blocks→lots, lot→rooms) + furnish-by-function; biome-agnostic — only palette + topology primitive + room program change per archetype. Remaining town polish: `wall_wood` still flat; rectangular (not L-shaped) footprints; courtyard grass autotiles a dirt rim; 1-cell entrances.
+
+**Honest ceiling (stated to the user):** reaches Watabou "Toy-Town" / Zelda-roguelike-**screen** quality (organic streets/lots/plaza/density), NOT a hand-authored artist map's bespoke set-pieces (~160 DawnLike sprites + rectangular furnished rooms). One screen tops ~20-40 buildings; a true city = stitch several organic screens (P4).
+
+**Remaining (awaiting user's visual sign-off on the town first):**
+- [ ] **P3 — route the other 4 archetypes.** dungeon/cave/wilderness/coast generators are built + registered + smoke-tested, but only TOWN is brief-routed + eyeballed; the others still render via the structure-net loose-op path. Route + eyeball them.
+- [ ] **P4 — depth.** COAST is a placeholder (water+island blobs) → needs fBm + domain-warp shoreline + multi-band beach (research has the recipe); dungeon graph-grammar (lock-and-key, Unexplored-style); multi-screen city (stitch organic town-screens, replacing `city.ts`'s box-blitter).
+- [ ] **Quality eval** (the standing "tests can't tell good from bad" gap) — a vision-model critic scoring rendered output (needs image support in the LLM seam).
 
 ---
 
