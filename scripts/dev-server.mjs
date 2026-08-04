@@ -13,11 +13,13 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const bin = (n) => join(ROOT, 'node_modules', '.bin', n);
 const log = (m) => process.stdout.write(`\x1b[36m[dev]\x1b[0m ${m}\n`);
 
-// 1. incremental compiler across the whole project graph.
-const tsc = spawn(bin('tsc'), ['-b', '--watch', '--preserveWatchOutput'], { stdio: 'inherit', cwd: ROOT });
+// 1. incremental compiler across the whole project graph. Run TypeScript's JS entry via `node`
+// directly (like the server child below) — portable across OSes. The `.bin/tsc` shim is a shell
+// script Windows can't spawn (ENOENT), and Node refuses to spawn `.cmd` without `shell: true`.
+const tscBin = join(ROOT, 'node_modules', 'typescript', 'bin', 'tsc');
+const tsc = spawn('node', [tscBin, '-b', '--watch', '--preserveWatchOutput'], { stdio: 'inherit', cwd: ROOT });
 
 // 2. the server child, restarted when a watched dist changes.
 let server = null;
