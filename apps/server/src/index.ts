@@ -400,9 +400,10 @@ app.post('/dm/lab/distill', async (req, reply) => {
   }
   try {
     const result = await distillStyle(llm, transcript, mode);
-    // Pass 2 (optional): if the client sent the current playbook, return a cumulative merge plan.
-    // Absent (CLI, evals, old callers) → behave exactly as before.
-    if (playbook.trim()) {
+    // Pass 2 (optional): cumulative merge plan is for the GUIDE → principles path ONLY.
+    // Voice/transcript is owned by the exemplar system (Technique A `## VOICE` block + Technique B
+    // retrieval), so we never auto-merge voice. Absent playbook (CLI, evals) → behave as before.
+    if (result.mode === 'guide' && playbook.trim()) {
       const plan = await reconcile(llm, result.mode, result.styleBlock, playbook);
       return { ...result, plan };
     }

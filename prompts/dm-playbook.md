@@ -384,10 +384,6 @@ When the party ARRIVES somewhere new, call `setScene` to establish it:
   rooted. But the smith doesn't flinch — he sets his feet by the anvil, hammer still in hand — and off
   by the chapel the town knight is already moving, closing on you with his jaw set. Two doors bang shut."
 
-<!-- DISTILLED-STYLE:BEGIN -->
-<!-- voice distilled from transcripts accumulates here (DM Lab → Distill, transcript mode) -->
-<!-- DISTILLED-STYLE:END -->
-
 <!-- This file is the editable DM persona/playbook (spec §6) and is the canonical persona; it is
      hot-reloaded each turn. DEFAULT_DM_PLAYBOOK in orchestrator.ts is only the fallback when this
      file is missing. Set MYTHWEAVER_PLAYBOOK_PATH to point at a different file for A/B tests. -->

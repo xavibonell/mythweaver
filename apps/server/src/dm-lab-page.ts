@@ -1412,9 +1412,16 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>, liveTabl
   };
   $('distill-apply').onclick = function () {
     var block = $('distill-out').value.trim();
-    var plan = mergePlan || (block ? planFromBlock(block) : null);
-    if (!plan || (!plan.keep.length && !plan.conflicts.length)) { $('distill-status').textContent = 'nothing to apply — Distill first'; return; }
-    $('ed-playbook').value = mergeInto($('ed-playbook').value, distillMode, plan, approvedConflicts());
+    if (!block) { $('distill-status').textContent = 'nothing to apply — Distill first'; return; }
+    // Cumulative auto-merge is GUIDE (principles) only. Voice/transcript is owned by the exemplar
+    // system (Technique A ## VOICE block + Technique B retrieval) — copy it in by hand, don't auto-merge.
+    if (distillMode !== 'guide') {
+      $('distill-status').textContent = 'voice is owned by the exemplar system — copy this block into the ## VOICE block by hand (auto-merge applies to guide principles only)';
+      return;
+    }
+    var plan = mergePlan || planFromBlock(block);
+    if (!plan.keep.length && !plan.conflicts.length) { $('distill-status').textContent = 'nothing to apply'; return; }
+    $('ed-playbook').value = mergeInto($('ed-playbook').value, 'guide', plan, approvedConflicts());
     $('distill-status').textContent = 'merged into playbook (unsaved) — switch to Run to test, or Playbook to review/Save';
     showTab('playbook');
   };
@@ -1479,11 +1486,13 @@ export function renderDmLabPage(transcripts: Record<string, LabTurn[]>, liveTabl
     $('view-block').classList.toggle('active', which === 'block');
     $('view-plan').classList.toggle('active', which === 'plan');
     $('view-diff').classList.toggle('active', which === 'diff');
-    if (which === 'plan') { $('wrap-plan').innerHTML = renderPlan(); }
+    var voiceNote = '<div class="none">Voice/transcript is owned by the exemplar system — no cumulative auto-merge. Use the <b>Block</b> view and paste it into the ## VOICE block by hand.</div>';
+    if (which === 'plan') { $('wrap-plan').innerHTML = distillMode === 'guide' ? renderPlan() : voiceNote; }
     else if (which === 'diff') {
+      if (distillMode !== 'guide') { $('wrap-diff').innerHTML = voiceNote; return; }
       var pb = $('ed-playbook').value, plan = planForView();
       if (!plan.keep.length && !plan.conflicts.length) { $('wrap-diff').innerHTML = '<div class="none">Distill first.</div>'; return; }
-      $('wrap-diff').innerHTML = renderDiff(pb, mergeInto(pb, distillMode, plan, approvedConflicts()));
+      $('wrap-diff').innerHTML = renderDiff(pb, mergeInto(pb, 'guide', plan, approvedConflicts()));
     }
   }
   $('view-plan').onclick = function () { showDistillView('plan'); };
